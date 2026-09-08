@@ -60,12 +60,17 @@ git push origin vX.X.X
 
 El workflow `.github/workflows/release.yml` (runner `windows-latest`)
 hace el resto: comprueba que el tag tiene forma `vX.X.X` y coincide con
-`package.json`, extrae la sección `## vX.X.X` del CHANGELOG a
-`release-notes.md` (falla si no existe), `npm ci`, descarga herramientas, `lint`,
-`format:check`, `build` y `build:win:publish`, que sube el instalador
-NSIS + `latest.yml` a la Release de GitHub con esas notas. Solo los tags
-con forma `v*.*.*` disparan el workflow. La app instalada lee esas notas
-y las muestra en el modal de actualización.
+`package.json`, extrae la sección `## vX.Y.Z` del CHANGELOG a
+`release-notes.md` (falla si no existe), `npm ci`, descarga herramientas,
+`lint`, `format:check`, `build`, empaqueta el instalador NSIS **sin
+publicar** y sube exe + blockmap + `latest.yml` + notas como artefactos.
+Un segundo job crea el **draft** en GitHub con lista explícita de
+ficheros (`fail_on_unmatched_files`, falla a la voz si falta algo) y las
+notas como body. Solo los tags con forma `v*.*.*` disparan el workflow.
+
+Publicar el draft es manual: revísalo en GitHub → _Publish release_.
+Solo entonces las apps instaladas lo ven (los drafts son invisibles para
+el auto-update) y muestran el modal con esas notas.
 
 Anti-instalador-vacío: `prebuild:win` y `prebuild:win:publish` ejecutan
 `setup-tools --check` antes de empaquetar; si falta algún binario o no
