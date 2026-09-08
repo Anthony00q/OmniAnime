@@ -1,0 +1,27 @@
+# Forzar LF en checkout: Prettier exige LF y el autocrlf de Windows
+# rompia `format:check` en CI con ficheros convertidos a CRLF.
+* text=auto
+*.ts text eol=lf
+*.tsx text eol=lf
+*.js text eol=lf
+*.mjs text eol=lf
+*.cjs text eol=lf
+*.json text eol=lf
+*.css text eol=lf
+*.html text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.nsh text eol=lf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+# Binarios: sin conversion de finales de linea
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ico binary
+*.bmp binary
+*.exe binary
+*.ttf binary
+*.woff binary
+*.woff2 binary
