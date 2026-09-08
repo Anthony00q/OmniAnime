@@ -35,10 +35,6 @@
   <img src="https://img.shields.io/badge/Licencia-ISC-blue?style=flat-square" alt="licencia" />
 </div>
 
-<h5 align="center">
-  Si te gusta el proyecto, ¡deja una estrella! ⭐️
-</h5>
-
 ---
 
 ## ¿Qué es OmniAnime?
@@ -121,7 +117,7 @@ No. No hay cuentas, nube ni inicio de sesión.
 La app prueba con el siguiente servidor automáticamente. Si algo queda como fallido, reinténtalo desde Descargas. Si falla mucho, ve a Ajustes → Descargas y pulsa **Actualizar yt-dlp**.
 
 **¿El antivirus bloquea algo?**
-`yt-dlp` y `ffmpeg` van incluidos en la app. Si tu antivirus los marca, revisa su aviso antes de permitirlos.
+`yt-dlp`, `ffmpeg` y `ffprobe` van incluidos en la app. Si tu antivirus los marca, revisa su aviso antes de permitirlos.
 
 **¿Puedo cambiar la carpeta después?**
 Sí, en Ajustes. El cambio solo afecta a las nuevas descargas: lo ya descargado no se mueve solo.
@@ -152,6 +148,7 @@ npm  >=10.0.0
 
 ```bash
 npm install
+npm run setup:tools   # descarga yt-dlp/ffmpeg/ffprobe verificados a tools/win/
 # Opción A (recomendada en Windows): abre Launch.bat
 # Opción B manual:
 npm run dev:vite
@@ -162,8 +159,9 @@ npm start
 
 ```bash
 npm install
+npm run setup:tools  # obligatorio en clon fresco (los .exe no van en git)
 npm run build          # compila renderer + main + typecheck
-npm run build:win      # genera el instalador en release/
+npm run build:win      # verifica herramientas y genera el instalador en release/
 ```
 
 Antes de publicar: `npm run lint`, `npm run format:check` y `node --require ts-node/register --test tests/*.test.ts`.
@@ -177,7 +175,7 @@ Antes de publicar: `npm run lint`, `npm run format:check` y `node --require ts-n
 | **Estado** | [Jotai](https://jotai.org/) + [TanStack Query](https://tanstack.com/query) |
 | **UI** | [Radix UI](https://www.radix-ui.com/) + [lucide-react](https://lucide.dev/) + [sonner](https://sonner.emilkowal.ski/) |
 | **Datos / Descargas** | `better-sqlite3` + `axios` + `cheerio` + `megajs` |
-| **Binarios** | `yt-dlp` + `ffmpeg` en `tools/win/` |
+| **Binarios** | `yt-dlp` + `ffmpeg`/`ffprobe` en `tools/win/` (descargados con `setup:tools`) |
 
 ### Estructura del proyecto
 
@@ -185,6 +183,10 @@ Antes de publicar: `npm run lint`, `npm run format:check` y `node --require ts-n
 OmniAnime/
 ├─ index.js              # entrada de Electron
 ├─ Launch.bat            # arranque en desarrollo (Vite + Electron)
+├─ LICENSE               # ISC (código propio)
+├─ THIRD-PARTY-NOTICES.md # licencias de yt-dlp/ffmpeg/ffprobe
+├─ .github/workflows/    # CI: release por tags vX.X.X
+├─ docs/                 # binarios-y-releases.md (pipeline de tools)
 ├─ src/
 │  ├─ main/              # proceso principal (ventanas, IPC)
 │  │  └─ ipc/handlers/   # canales IPC por dominio
@@ -194,8 +196,8 @@ OmniAnime/
 │  ├─ types/             # tipos compartidos
 │  └─ utils/             # utilidades
 ├─ assets/               # iconos y recursos del instalador
-├─ scripts/              # instalador NSIS
-├─ tools/win/            # yt-dlp + ffmpeg
+├─ scripts/              # instalador NSIS + setup-tools.mjs/tools-versions.json
+├─ tools/win/            # yt-dlp + ffmpeg + ffprobe (no versionados)
 ├─ dist/                 # salida de compilación
 └─ release/              # instalador generado
 ```
