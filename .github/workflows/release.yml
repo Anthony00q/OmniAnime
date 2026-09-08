@@ -43,6 +43,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Extract release notes from CHANGELOG
+        shell: pwsh
+        run: |
+          $version = (Get-Content package.json | ConvertFrom-Json).version
+          node scripts/extract-release-notes.mjs $version --output release-notes.md
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
       - name: Download tools (yt-dlp/ffmpeg/ffprobe)
         run: node scripts/setup-tools.mjs
 

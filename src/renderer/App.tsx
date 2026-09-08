@@ -16,6 +16,8 @@ import { HistoryView } from './views/HistoryView';
 import { ScannerView } from './views/ScannerView';
 import { SettingsView } from './views/SettingsView';
 import { useActiveProvider, useLoadSettings } from './hooks/useQueries';
+import { useAppUpdate } from './hooks/useAppUpdate';
+import { UpdateModal } from './components/update/UpdateModal';
 import { useThemeSync } from './hooks/useThemeSync';
 import { useKeyboardNavigation } from './hooks/useKeyboardNavigation';
 import { useDownloadNotifications, useToastReconcile } from './hooks/useDownloadNotifications';
@@ -75,6 +77,7 @@ export default function App() {
   useKeyboardNavigation();
   useDownloadNotifications();
   useToastReconcile();
+  useAppUpdate();
 
   useEffect(() => {
     if (loadedActiveProvider) setActiveProvider(loadedActiveProvider);
@@ -240,6 +243,7 @@ export default function App() {
             }}
           />
         )}
+        <UpdateModal />
       </div>
     </AppTooltipProvider>
   );

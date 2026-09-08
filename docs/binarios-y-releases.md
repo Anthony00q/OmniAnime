@@ -52,16 +52,20 @@ El formato de los fijados se valida automáticamente
 Flujo:
 
 ```bat
-:: 1. Sube "version" en package.json a X.X.X y commitea
+:: 1. Sube "version" en package.json a X.X.X
+:: 2. Añade la sección ## [X.Y.Z] - fecha en CHANGELOG.md y commitea
 git tag vX.X.X
 git push origin vX.X.X
 ```
 
 El workflow `.github/workflows/release.yml` (runner `windows-latest`)
 hace el resto: comprueba que el tag tiene forma `vX.X.X` y coincide con
-`package.json`, `npm ci`, descarga herramientas, `lint`, `format:check`,
-`build` y `build:win:publish`, que sube el instalador NSIS + `latest.yml`
-a la Release de GitHub. Solo los tags con forma `v*.*.*` disparan el workflow.
+`package.json`, extrae la sección `## vX.X.X` del CHANGELOG a
+`release-notes.md` (falla si no existe), `npm ci`, descarga herramientas, `lint`,
+`format:check`, `build` y `build:win:publish`, que sube el instalador
+NSIS + `latest.yml` a la Release de GitHub con esas notas. Solo los tags
+con forma `v*.*.*` disparan el workflow. La app instalada lee esas notas
+y las muestra en el modal de actualización.
 
 Anti-instalador-vacío: `prebuild:win` y `prebuild:win:publish` ejecutan
 `setup-tools --check` antes de empaquetar; si falta algún binario o no

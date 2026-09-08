@@ -6,6 +6,7 @@ import type {
   AppUpdateInstallResult,
   AppUpdateState,
 } from '../types/appUpdate';
+import { normalizeReleaseNotes } from '../utils/appUpdateNotes';
 
 interface AppUpdateServiceOptions {
   hasActiveDownloads: () => boolean;
@@ -66,10 +67,13 @@ export class AppUpdateService {
     this.emit({ kind: 'checking' });
     try {
       const result = await autoUpdater.checkForUpdates();
-      const version = result?.updateInfo?.version;
-      const available = !!version && version !== app.getVersion();
-      this.emit(available ? { kind: 'available', version } : { kind: 'not-available' });
-      return { ok: true, available, version };
+      const info = result?.updateInfo;
+      const version = info?.version;
+      const currentVersion = app.getVersion();
+      const available = !!version && version !== currentVersion;
+      const notes = available ? normalizeReleaseNotes(info?.releaseNotes) : undefined;
+      this.emit(available ? { kind: 'available', version, notes } : { kind: 'not-available' });
+      return { ok: true, available, version, currentVersion, notes };
     } catch (error: unknown) {
       const message = toMessage(error) || 'No se pudo comprobar actualizaciones.';
       this.emit({ kind: 'error', message });
@@ -98,7 +102,8 @@ export class AppUpdateService {
       return {
         ok: false,
         code: 'ACTIVE_DOWNLOADS',
-        message: 'No se puede instalar la actualizacion mientras hay una descarga en curso.',
+        message:
+          'No se puede instalar la actualización mientras hay una descarga en curso. Quedó descargada y se instalará al salir de la app.',
       };
     }
     try {

@@ -1,9 +1,26 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useAtom, useSetAtom } from 'jotai';
+import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { useQueryClient } from '@tanstack/react-query';
-import { Home, Library, BookOpen, Download, Clock, Search, PlaySquare, Settings, Server } from 'lucide-react';
+import {
+  Home,
+  Library,
+  BookOpen,
+  Download,
+  Clock,
+  Search,
+  PlaySquare,
+  Settings,
+  Server,
+  CircleArrowUp,
+} from 'lucide-react';
 import clsx from 'clsx';
-import { activeProviderAtom, providerChangedCounterAtom } from '../store/atoms';
+import {
+  activeProviderAtom,
+  providerChangedCounterAtom,
+  appUpdateAvailableAtom,
+  appUpdateModalOpenAtom,
+} from '../store/atoms';
+import { AppTooltip } from './ui/AppTooltip';
 
 interface SidebarProps {
   currentView: string;
@@ -14,6 +31,9 @@ export function Sidebar({ currentView, setCurrentView }: SidebarProps) {
   const [providers, setProviders] = useState<{ id: string; name: string }[]>([]);
   const [activeProvider, setActiveProvider] = useAtom(activeProviderAtom);
   const setProviderChanged = useSetAtom(providerChangedCounterAtom);
+  const updateAvailable = useAtomValue(appUpdateAvailableAtom);
+  const updateModalOpen = useAtomValue(appUpdateModalOpenAtom);
+  const setUpdateModalOpen = useSetAtom(appUpdateModalOpenAtom);
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -157,6 +177,23 @@ export function Sidebar({ currentView, setCurrentView }: SidebarProps) {
       </div>
 
       <div className="sidebar-settings px-3 mt-auto pt-3 border-t border-border/60">
+        {updateAvailable && !updateModalOpen && (
+          <AppTooltip content={`Actualización disponible (${updateAvailable.version})`} side="right" align="center">
+            <button
+              type="button"
+              onClick={() => setUpdateModalOpen(true)}
+              aria-label={`Ver actualización disponible ${updateAvailable.version}`}
+              className="sidebar-nav-item relative w-full flex items-center gap-3 px-4 py-2.5 mb-1 rounded-lg text-sm font-medium border bg-primary/10 text-primary border-primary/15 shadow-sm transition-[background-color,border-color,color,box-shadow] duration-150 [transition-timing-function:var(--ease-out)] outline-none focus-visible:ring-2 focus-visible:ring-primary/60 cursor-pointer hover:bg-primary/15"
+            >
+              <CircleArrowUp strokeWidth={2} className="w-[18px] h-[18px] shrink-0" aria-hidden="true" />
+              <span className="sidebar-label">Actualizar</span>
+              <span className="sidebar-label ml-auto text-[11px] font-bold tabular-nums whitespace-nowrap">
+                {updateAvailable.version}
+              </span>
+              <span aria-hidden="true" className="absolute right-2.5 -top-0.5 w-2 h-2 rounded-full bg-primary" />
+            </button>
+          </AppTooltip>
+        )}
         <button
           type="button"
           onClick={() => setCurrentView('settings')}

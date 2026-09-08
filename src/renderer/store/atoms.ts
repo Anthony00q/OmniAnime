@@ -37,6 +37,20 @@ export const outputDirsAtom = atom<string[]>((get) => {
 
 export const showCloseConfirmAtom = atom<boolean>(false);
 
+export interface AvailableAppUpdate {
+  version: string;
+  notes?: string;
+}
+
+export type AppUpdatePhase = 'idle' | 'downloading' | 'downloaded';
+
+export const appUpdateAvailableAtom = atom<AvailableAppUpdate | null>(null);
+export const appUpdateModalOpenAtom = atom<boolean>(false);
+export const appUpdateDismissedAtom = atom<boolean>(false);
+export const appUpdatePhaseAtom = atom<AppUpdatePhase>('idle');
+export const appUpdatePercentAtom = atom<number>(0);
+export const appUpdateErrorAtom = atom<string | null>(null);
+
 export const providerChangedCounterAtom = atom(0);
 export const settingsChangedCounterAtom = atom(0);
 export const navigateToCatalogCounterAtom = atom(0);

@@ -5,6 +5,7 @@ node_modules/
 dist/
 release/
 dev-app-update.yml
+release-notes.md
 
 # Logs
 logs/
