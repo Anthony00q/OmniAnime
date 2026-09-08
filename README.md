@@ -149,10 +149,8 @@ npm  >=10.0.0
 ```bash
 npm install
 npm run setup:tools   # descarga yt-dlp/ffmpeg/ffprobe verificados a tools/win/
-# Opción A (recomendada en Windows): abre Launch.bat
-# Opción B manual:
-npm run dev:vite
-npm start
+npm run dev:vite      # terminal 1: servidor de interfaz
+npm start             # terminal 2: motor Electron
 ```
 
 ### Build
@@ -164,7 +162,7 @@ npm run build          # compila renderer + main + typecheck
 npm run build:win      # verifica herramientas y genera el instalador en release/
 ```
 
-Antes de publicar: `npm run lint`, `npm run format:check` y `node --require ts-node/register --test tests/*.test.ts`.
+Antes de publicar: `npm run lint` y `npm run format:check`.
 
 ### Stack tecnológico
 
@@ -182,7 +180,6 @@ Antes de publicar: `npm run lint`, `npm run format:check` y `node --require ts-n
 ```
 OmniAnime/
 ├─ index.js              # entrada de Electron
-├─ Launch.bat            # arranque en desarrollo (Vite + Electron)
 ├─ LICENSE               # ISC (código propio)
 ├─ THIRD-PARTY-NOTICES.md # licencias de yt-dlp/ffmpeg/ffprobe
 ├─ .github/workflows/    # CI: release por tags vX.X.X
@@ -198,8 +195,6 @@ OmniAnime/
 ├─ assets/               # iconos y recursos del instalador
 ├─ scripts/              # instalador NSIS + setup-tools.mjs/tools-versions.json
 ├─ tools/win/            # yt-dlp + ffmpeg + ffprobe (no versionados)
-├─ dist/                 # salida de compilación
-└─ release/              # instalador generado
 ```
 
 ---

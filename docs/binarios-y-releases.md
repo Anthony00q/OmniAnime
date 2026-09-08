@@ -33,7 +33,6 @@ node scripts/setup-tools.mjs --force   :: re-descarga todo
   ejecutando `--version` / `-version`.
 - Sin dependencias externas (solo Node). Windows únicamente, igual que
   el objetivo de distribución del proyecto.
-- `Launch.bat` lo ejecuta solo si falta algún `.exe`.
 - El CI de release lo ejecuta antes de empaquetar, así que el instalador
   incluye los binarios vía `extraResources` sin ningún cambio de código
   (`getToolsDir()` resuelve `tools/win` en dev y `resources/tools/win`
@@ -45,8 +44,8 @@ node scripts/setup-tools.mjs --force   :: re-descarga todo
 2. Ejecuta `node scripts/setup-tools.mjs --force`.
 3. Comprueba la app en dev y commitea el JSON.
 
-Los tests locales `tests/tools-versions.test.ts` validan el formato de
-los fijados (versión, URL https, SHA de 64 hex).
+El formato de los fijados se valida automáticamente
+(versión, URL https, SHA de 64 hex).
 
 ## Publicar una release: `git tag vX.X.X`
 
