@@ -1,0 +1,164 @@
+{
+  "name": "omnianime",
+  "version": "1.0.0",
+  "description": "Busca, descarga y organiza tu colección de anime en tu equipo",
+  "private": true,
+  "main": "index.js",
+  "author": "Anthony",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Anthony00q/OmniAnime.git"
+  },
+  "homepage": "https://github.com/Anthony00q/OmniAnime#readme",
+  "bugs": {
+    "url": "https://github.com/Anthony00q/OmniAnime/issues"
+  },
+  "keywords": [
+    "anime",
+    "electron",
+    "anime-downloader",
+    "library-manager"
+  ],
+  "license": "ISC",
+  "engines": {
+    "node": ">=22.13.10",
+    "npm": ">=10.0.0"
+  },
+  "packageManager": "npm@11.11.1",
+  "type": "commonjs",
+  "scripts": {
+    "start": "electron .",
+    "setup:tools": "node scripts/setup-tools.mjs",
+    "dev:vite": "vite",
+    "build:vite": "vite build",
+    "build:main": "tsc --project tsconfig.json",
+    "typecheck:renderer": "tsc --project tsconfig.renderer.json --noEmit",
+    "build": "npm run build:vite && npm run build:main && npm run typecheck:renderer",
+    "build:win": "npm run build && electron-builder --win nsis --publish never",
+    "build:win:publish": "npm run build && electron-builder --win nsis --publish always",
+    "prebuild:win": "node scripts/setup-tools.mjs --check",
+    "prebuild:win:publish": "node scripts/setup-tools.mjs --check",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write \"src/**/*.{ts,tsx,css,html,js}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,css,html,js}\""
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/cheerio": "^0.22.35",
+    "@types/megajs": "^0.14.7",
+    "@types/node": "^22.13.10",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.2",
+    "electron": "^41.10.4",
+    "electron-builder": "^26.15.3",
+    "eslint": "^9.39.5",
+    "eslint-config-prettier": "^9.1.2",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "postcss": "^8.5.26",
+    "prettier": "^3.9.6",
+    "tailwindcss": "^4.3.3",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.65.0",
+    "vite": "^8.0.16",
+    "ws": "^8.21.3"
+  },
+  "dependencies": {
+    "@radix-ui/react-dialog": "^1.1.23",
+    "@radix-ui/react-select": "^2.3.7",
+    "@radix-ui/react-switch": "^1.3.7",
+    "@radix-ui/react-tooltip": "^1.2.16",
+    "@tanstack/react-query": "^5.90.2",
+    "anitomy": "^0.0.35",
+    "axios": "^1.19.0",
+    "better-sqlite3": "^13.0.3",
+    "cheerio": "^1.2.0",
+    "clsx": "^2.1.1",
+    "electron-updater": "^6.8.9",
+    "jotai": "^2.15.1",
+    "lucide-react": "^1.18.0",
+    "megajs": "^1.3.9",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "sonner": "^2.0.7",
+    "tailwind-merge": "^3.6.0",
+    "virtua": "^0.50.5"
+  },
+  "build": {
+    "appId": "com.omnianime.app",
+    "productName": "OmniAnime",
+    "copyright": "Copyright © 2026 Anthony",
+    "asar": true,
+    "npmRebuild": false,
+    "asarUnpack": [
+      "node_modules/better-sqlite3/**/*",
+      "node_modules/bindings/**/*"
+    ],
+    "icon": "assets/icon.ico",
+    "directories": {
+      "output": "release",
+      "buildResources": "assets"
+    },
+    "files": [
+      "index.js",
+      "package.json",
+      "dist/**/*",
+      "assets/**/*",
+      "!assets/provider-icons/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "tools/win",
+        "to": "tools/win"
+      },
+      {
+        "from": "THIRD-PARTY-NOTICES.md",
+        "to": "THIRD-PARTY-NOTICES.md"
+      }
+    ],
+    "extraMetadata": {
+      "main": "index.js"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowElevation": false,
+      "allowToChangeInstallationDirectory": false,
+      "include": "scripts/installer.nsh",
+      "artifactName": "OmniAnime-Setup-${version}.${ext}",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "OmniAnime",
+      "installerIcon": "assets/icon.ico",
+      "uninstallerIcon": "assets/icon.ico",
+      "installerHeader": "assets/installerHeader.bmp",
+      "installerSidebar": "assets/installerSidebar.bmp",
+      "installerLanguages": [
+        "es_ES"
+      ],
+      "displayLanguageSelector": false,
+      "deleteAppDataOnUninstall": false
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "releaseType": "release"
+      }
+    ]
+  }
+}

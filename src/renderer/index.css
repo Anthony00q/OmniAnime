@@ -1,0 +1,892 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-background: hsl(240 10% 3.9%);
+  --color-foreground: hsl(0 0% 98%);
+
+  --color-card: hsl(240 10% 5.2%);
+  --color-card-foreground: hsl(0 0% 98%);
+
+  --color-surface: hsl(240 8% 5.5%);
+  --color-surface-foreground: hsl(0 0% 98%);
+  --color-surface-elevated: hsl(240 8% 8%);
+  --color-surface-elevated-foreground: hsl(0 0% 98%);
+
+  --color-popover: hsl(240 10% 7%);
+  --color-popover-foreground: hsl(0 0% 98%);
+
+  --color-primary: hsl(217.2 91.2% 59.8%);
+  --color-primary-foreground: hsl(222.2 47.4% 11.2%);
+  --color-brand: hsl(267 84% 72%);
+  --color-brand-foreground: hsl(260 45% 12%);
+
+  --color-secondary: hsl(240 3.7% 15.9%);
+  --color-secondary-foreground: hsl(0 0% 98%);
+
+  --color-muted: hsl(240 3.7% 15.9%);
+  --color-muted-foreground: hsl(240 5% 64.9%);
+
+  --color-accent: hsl(240 3.7% 15.9%);
+  --color-accent-foreground: hsl(0 0% 98%);
+
+  --color-destructive: hsl(0 62.8% 30.6%);
+  --color-destructive-foreground: hsl(0 0% 98%);
+  --color-destructive-fg: hsl(0 84% 70%);
+  --color-success: hsl(142 71% 45%);
+  --color-success-foreground: hsl(144 61% 10%);
+  --color-warning: hsl(38 92% 50%);
+  --color-warning-foreground: hsl(32 80% 10%);
+  --color-info: hsl(199 89% 48%);
+  --color-info-foreground: hsl(204 80% 10%);
+
+  --color-border: hsl(240 3.7% 15.9%);
+  --color-border-strong: hsl(240 5% 25%);
+  --color-input: hsl(240 3.7% 15.9%);
+  --color-text-tertiary: hsl(240 5% 45%);
+  --color-ring: hsl(240 4.9% 83.9%);
+
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.theme-oled {
+  --color-background: hsl(0 0% 0%);
+  --color-card: hsl(0 0% 0%);
+  --color-popover: hsl(0 0% 0%);
+  --color-surface: hsl(0 0% 3%);
+  --color-surface-elevated: hsl(0 0% 8%);
+  --color-secondary: hsl(0 0% 8%);
+  --color-muted: hsl(0 0% 8%);
+  --color-border: hsl(0 0% 12%);
+  --color-border-strong: hsl(0 0% 22%);
+  --color-input: hsl(0 0% 12%);
+  --color-text-tertiary: hsl(0 0% 42%);
+  --color-brand: hsl(267 90% 78%);
+  --color-brand-foreground: hsl(260 45% 8%);
+}
+
+.theme-quantum {
+  --color-background: hsl(230 40% 5%);
+  --color-card: hsl(230 40% 7%);
+  --color-popover: hsl(230 40% 9%);
+  --color-surface: hsl(230 35% 7%);
+  --color-surface-elevated: hsl(230 35% 12%);
+  --color-secondary: hsl(230 40% 12%);
+  --color-muted: hsl(230 40% 12%);
+  --color-border: hsl(230 40% 18%);
+  --color-border-strong: hsl(230 40% 28%);
+  --color-input: hsl(230 40% 18%);
+  --color-text-tertiary: hsl(230 15% 48%);
+  --color-brand: hsl(190 92% 68%);
+  --color-brand-foreground: hsl(215 45% 10%);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  button,
+  [role='button'],
+  a,
+  label {
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  input,
+  textarea,
+  select,
+  [contenteditable='true'],
+  .select-text {
+    user-select: text;
+    -webkit-user-select: text;
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family:
+      'Inter',
+      system-ui,
+      -apple-system,
+      sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow: hidden;
+    /* Selección desactivada a nivel app; opt-in explícito con .select-text */
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  ::selection {
+    background: var(--color-primary);
+    color: var(--color-primary-foreground);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    text-wrap: balance;
+  }
+
+  /* Custom Scrollbar for desktop app */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background-color: var(--color-border);
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--color-muted-foreground);
+  }
+
+  .custom-scrollbar {
+    scrollbar-gutter: stable;
+    scrollbar-color: var(--color-border) transparent;
+    scrollbar-width: thin;
+  }
+}
+
+[data-sonner-toaster] [data-sonner-toast],
+[data-sonner-toaster] [data-sonner-toast] * {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+[data-sonner-toaster] [data-sonner-toast] {
+  will-change: transform, opacity;
+  contain: paint;
+}
+
+/* Sonner close button — dentro del toast, no solapando el borde redondeado */
+[data-sonner-toaster][dir='ltr'],
+html[dir='ltr'] {
+  --toast-close-button-start: unset;
+  --toast-close-button-end: 8px;
+  --toast-close-button-transform: none;
+}
+
+[data-sonner-toast] [data-close-button] {
+  top: 8px !important;
+  right: 8px !important;
+  left: unset !important;
+  transform: none !important;
+  background: var(--color-secondary) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-muted-foreground) !important;
+  width: 20px !important;
+  height: 20px !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2) !important;
+}
+
+[data-sonner-toast] [data-close-button]:hover {
+  background: var(--color-muted) !important;
+  border-color: var(--color-border-strong) !important;
+  color: var(--color-foreground) !important;
+}
+
+[data-sonner-toast][data-styled='true'] {
+  padding-right: 32px !important;
+}
+
+.anime-poster-card {
+  border-radius: 0.75rem;
+}
+
+.poster-list-item {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 280px;
+}
+
+.episode-list-item {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 52px;
+}
+
+.library-episode-item {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 150px;
+}
+
+.motion-origin-popper {
+  transform-origin: var(--radix-select-content-transform-origin);
+}
+
+.sidebar-provider-button {
+  transition: color 150ms var(--ease-out);
+}
+
+.sidebar-provider-indicator {
+  transition: transform 160ms var(--ease-out);
+}
+
+.output-dirs-row {
+  transition:
+    transform 160ms var(--ease-out),
+    opacity 160ms var(--ease-out),
+    border-color 150ms ease,
+    background-color 150ms ease,
+    box-shadow 150ms var(--ease-out);
+}
+
+.catalog-filters-shell {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 280ms var(--ease-out);
+}
+
+.catalog-filter-chips-shell {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 200ms var(--ease-out);
+}
+
+.catalog-filters-shell[data-state='open'],
+.catalog-filter-chips-shell[data-state='open'] {
+  grid-template-rows: 1fr;
+}
+
+.catalog-filters-content {
+  min-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(-0.25rem);
+  transition:
+    opacity 220ms var(--ease-out),
+    transform 280ms var(--ease-out);
+}
+
+.catalog-filter-chips-content {
+  min-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(-0.25rem);
+  transition:
+    opacity 200ms var(--ease-out),
+    transform 200ms var(--ease-out);
+}
+
+.catalog-filters-shell[data-state='open'] .catalog-filters-content {
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: 40ms;
+}
+
+.catalog-filter-chips-shell[data-state='open'] .catalog-filter-chips-content {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.catalog-filter-chips-shell {
+  transition:
+    grid-template-rows 150ms var(--ease-out),
+    margin-top 150ms var(--ease-out);
+}
+
+.catalog-filter-chips-shell[data-state='closed'] {
+  margin-top: -0.75rem;
+}
+
+.catalog-filter-chips-content {
+  transform: translateY(-0.25rem);
+  transition-duration: 150ms;
+}
+
+.catalog-filter-chip {
+  opacity: 0;
+  transform: translateY(-0.25rem) scale(0.97);
+  transition:
+    opacity 150ms var(--ease-out),
+    transform 150ms var(--ease-out),
+    background-color 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease;
+}
+
+.catalog-filter-chip[data-state='visible'] {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.catalog-filter-chip[data-state='hidden'] {
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .catalog-filters-shell,
+  .catalog-filter-chips-shell {
+    transition: none;
+  }
+
+  .catalog-filters-content,
+  .catalog-filter-chips-content {
+    transform: none;
+    transition: opacity 150ms ease;
+  }
+
+  .catalog-filters-shell[data-state='open'] .catalog-filters-content {
+    transition-delay: 0ms;
+  }
+
+  .catalog-filter-chip {
+    transform: none;
+    transition:
+      opacity 150ms ease,
+      background-color 150ms ease,
+      border-color 150ms ease,
+      color 150ms ease;
+  }
+
+  .sidebar-provider-indicator {
+    transition: none;
+  }
+
+  .output-dirs-row {
+    transform: none !important;
+    transition:
+      opacity 150ms ease,
+      border-color 150ms ease,
+      background-color 150ms ease;
+  }
+}
+
+.app-region-drag {
+  -webkit-app-region: drag;
+}
+.app-region-no-drag {
+  -webkit-app-region: no-drag;
+}
+
+@keyframes view-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.view-enter {
+  animation: view-fade-in 160ms var(--ease-out);
+  animation-fill-mode: both;
+}
+
+/* === Animation Utilities (tailwindcss-animate port) === */
+@keyframes enter {
+  from {
+    opacity: var(--tw-enter-opacity, 1);
+    transform: translate3d(var(--tw-enter-translate-x, 0), var(--tw-enter-translate-y, 0), 0)
+      scale3d(var(--tw-enter-scale, 1), var(--tw-enter-scale, 1), var(--tw-enter-scale, 1))
+      rotate(var(--tw-enter-rotate, 0));
+  }
+}
+
+.animate-in {
+  animation-name: enter;
+  animation-duration: 150ms;
+  animation-timing-function: var(--ease-out);
+  --tw-enter-opacity: initial;
+  --tw-enter-scale: initial;
+  --tw-enter-rotate: initial;
+  --tw-enter-translate-x: initial;
+  --tw-enter-translate-y: initial;
+}
+
+.fade-in {
+  --tw-enter-opacity: 0;
+}
+
+/* === Entrada de pestañas de Configuración (fade + slide sutil) === */
+@keyframes settings-tab-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 8px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+/* El contenedor se re-monta por tab (key); animan sus hijos directos:
+   secciones escalonadas en tabs con fragment, bloque único en tabs con raíz simple */
+.settings-tab-enter > * {
+  animation: settings-tab-in 200ms var(--ease-out);
+  animation-fill-mode: both;
+}
+
+/* Stagger sutil de bloques directos (30ms hasta 6 bloques) */
+.settings-tab-enter > *:nth-child(2) {
+  animation-delay: 30ms;
+}
+.settings-tab-enter > *:nth-child(3) {
+  animation-delay: 60ms;
+}
+.settings-tab-enter > *:nth-child(4) {
+  animation-delay: 90ms;
+}
+.settings-tab-enter > *:nth-child(5) {
+  animation-delay: 120ms;
+}
+.settings-tab-enter > *:nth-child(n + 6) {
+  animation-delay: 150ms;
+}
+.zoom-in-95 {
+  --tw-enter-scale: 0.95;
+}
+.slide-in-from-top-1 {
+  --tw-enter-translate-y: -0.25rem;
+}
+.slide-in-from-top-2 {
+  --tw-enter-translate-y: -0.5rem;
+}
+.slide-in-from-right-4 {
+  --tw-enter-translate-x: 1rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .view-enter {
+    animation: none;
+  }
+
+  .settings-tab-enter > * {
+    animation: none;
+  }
+
+  [data-sonner-toast],
+  [data-sonner-toaster] {
+    transition: none !important;
+  }
+
+  .omnianime-sidebar {
+    transition: none !important;
+  }
+}
+
+.omnianime-sidebar {
+  transition: width 200ms var(--ease-out);
+}
+
+@media (max-width: 960px) {
+  .omnianime-sidebar {
+    width: 72px;
+    padding-top: 1rem;
+  }
+
+  .omnianime-sidebar .sidebar-provider-section {
+    padding-inline: 0.5rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .omnianime-sidebar .sidebar-heading,
+  .omnianime-sidebar .sidebar-label,
+  .omnianime-sidebar .sidebar-provider-full {
+    display: none;
+  }
+
+  .omnianime-sidebar .sidebar-provider-switcher {
+    gap: 0.25rem;
+    padding: 0.25rem;
+  }
+
+  .omnianime-sidebar .sidebar-provider-button {
+    min-height: 2rem;
+    padding-inline: 0;
+  }
+
+  .omnianime-sidebar .sidebar-provider-short {
+    display: inline;
+    font-size: 0.7rem;
+  }
+
+  .omnianime-sidebar .sidebar-nav,
+  .omnianime-sidebar .sidebar-settings {
+    padding-inline: 0.5rem;
+  }
+
+  .omnianime-sidebar .sidebar-nav-item {
+    justify-content: center;
+    padding-inline: 0;
+  }
+}
+
+@media (min-width: 961px) {
+  .sidebar-provider-short {
+    display: none;
+  }
+}
+
+.downloader-card {
+  contain: layout paint;
+  content-visibility: auto;
+  contain-intrinsic-size: 0 140px;
+}
+
+.downloader-card-slot-header-actions {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows 200ms var(--ease-out);
+}
+
+.downloader-card-slot-header-actions[data-state='closed'] {
+  grid-template-rows: 0fr;
+}
+
+.downloader-card-slot-header-actions-content {
+  overflow: hidden;
+  min-height: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  opacity: 1;
+  transition: opacity 200ms var(--ease-out);
+}
+
+.downloader-card-slot-header-actions[data-state='closed'] .downloader-card-slot-header-actions-content {
+  opacity: 0;
+}
+
+.downloader-card-slot-progress {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 200ms var(--ease-out);
+}
+
+.downloader-card-slot-progress[data-state='open'] {
+  grid-template-rows: 1fr;
+}
+
+.downloader-card-slot-progress-content {
+  overflow: hidden;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition:
+    opacity 200ms var(--ease-out),
+    transform 200ms var(--ease-out);
+}
+
+.downloader-card-slot-progress[data-state='open'] .downloader-card-slot-progress-content {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.downloader-card-slot-footer {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition:
+    grid-template-rows 200ms var(--ease-out),
+    margin-top 200ms var(--ease-out),
+    border-color 200ms var(--ease-out);
+  border-top: 1px solid transparent;
+  margin-top: 0;
+}
+
+.downloader-card-slot-footer[data-state='open'] {
+  grid-template-rows: 1fr;
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-color: var(--color-border);
+}
+
+.downloader-card-slot-footer-content {
+  overflow: hidden;
+  min-height: 0;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition:
+    opacity 200ms var(--ease-out),
+    transform 200ms var(--ease-out);
+  display: flex;
+  align-items: center;
+}
+
+.downloader-card-slot-footer[data-state='open'] .downloader-card-slot-footer-content {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.downloader-card-slot-error {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 200ms var(--ease-out);
+}
+
+.downloader-card-slot-error[data-state='open'] {
+  grid-template-rows: 1fr;
+}
+
+.downloader-card-slot-error-content {
+  overflow: hidden;
+  min-height: 0;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition:
+    opacity 200ms var(--ease-out),
+    transform 200ms var(--ease-out);
+}
+
+.downloader-card-slot-error[data-state='open'] .downloader-card-slot-error-content {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.downloader-card-slot-parallel {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 200ms var(--ease-out);
+}
+
+.downloader-card-slot-parallel[data-state='open'] {
+  grid-template-rows: 1fr;
+}
+
+.downloader-card-slot-parallel-content {
+  overflow: hidden;
+  min-height: 0;
+  /* Sin tope aquí: la altura la acota .downloader-detail-scroll vía
+     --detail-h, así el 1fr siempre mide la altura visible real y al cerrar
+     no hay frame intermedio a altura completa. */
+  opacity: 0;
+  transform: translateY(-4px);
+  transition:
+    opacity 200ms var(--ease-out),
+    transform 200ms var(--ease-out);
+}
+
+.downloader-card-slot-parallel[data-state='open'] .downloader-card-slot-parallel-content {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Lista scrolleable del Detalle: ~4 filas por defecto, resto con scroll
+   interno sin empujar la card. --detail-h la fija el tirador por descarga. */
+.downloader-detail-scroll {
+  height: var(--detail-h, 208px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-muted-foreground) transparent;
+}
+
+.downloader-detail-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.downloader-detail-scroll::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--color-muted-foreground) 35%, transparent);
+  border-radius: 999px;
+}
+
+.downloader-detail-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Tirador para ver más/menos episodios: hit area 16px, visual sutil. */
+.downloader-detail-resizer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 16px;
+  cursor: row-resize;
+  touch-action: none;
+  border-radius: 0 0 8px 8px;
+}
+
+.downloader-detail-resizer:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-primary) 60%, transparent);
+  outline-offset: -2px;
+}
+
+.downloader-detail-resizer-grip {
+  width: 40px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--color-border);
+  transition: background-color 150ms ease;
+}
+
+.downloader-detail-resizer:hover .downloader-detail-resizer-grip,
+.downloader-detail-resizer:focus-visible .downloader-detail-resizer-grip {
+  background: var(--color-muted-foreground);
+}
+
+.downloader-detail-resizer[data-resizing] .downloader-detail-resizer-grip {
+  background: var(--color-primary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .downloader-card-slot-header-actions,
+  .downloader-card-slot-progress,
+  .downloader-card-slot-footer,
+  .downloader-card-slot-error,
+  .downloader-card-slot-parallel,
+  .downloader-detail-resizer-grip,
+  .history-detail-shell {
+    transition: none;
+  }
+  .downloader-card-slot-footer-content,
+  .downloader-card-slot-progress-content,
+  .downloader-card-slot-header-actions-content,
+  .downloader-card-slot-error-content,
+  .downloader-card-slot-parallel-content,
+  .history-detail-shell-content {
+    transform: none;
+    transition: opacity 150ms ease;
+  }
+}
+
+.history-row {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 84px;
+}
+
+.history-detail-row {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 56px;
+}
+
+.history-detail-shell {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition:
+    grid-template-rows 200ms var(--ease-out),
+    border-color 200ms var(--ease-out);
+  border-top: 1px solid transparent;
+}
+
+.history-detail-shell[data-state='open'] {
+  grid-template-rows: 1fr;
+  border-color: var(--color-border);
+}
+
+.history-detail-shell-content {
+  overflow: hidden;
+  min-height: 0;
+  opacity: 0;
+  transform: translateY(-6px);
+  transition:
+    opacity 200ms var(--ease-out),
+    transform 200ms var(--ease-out);
+}
+
+.history-detail-shell[data-state='open'] .history-detail-shell-content {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.progress-fill {
+  transform-origin: left;
+  will-change: transform;
+}
+
+@keyframes progress-shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(250%);
+  }
+}
+
+.progress-indeterminate {
+  width: 40%;
+  animation: progress-shimmer 1.2s var(--ease-out) infinite;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progress-indeterminate {
+    animation: none;
+    transform: none;
+    opacity: 0.5;
+  }
+}
+
+/* Appearance tab — polish for isolated theme previews and accent transitions */
+.appearance-accent-swatch {
+  transition: background-color 200ms var(--ease-out);
+}
+
+/* === Sala de Proyección — refinamiento editorial (F1) ===
+   Plano en reposo, sombra solo como respuesta a estado.
+   Sin familias nuevas, sin hex fuera de token, sin eyebrow. */
+@layer base {
+  input,
+  textarea,
+  [contenteditable='true'] {
+    caret-color: var(--color-primary);
+  }
+
+  ::marker {
+    color: var(--color-text-tertiary);
+  }
+
+  :where(p, li, dd) {
+    text-wrap: pretty;
+  }
+}
+
+.sala-frame {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+
+.sala-poster-title {
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+
+.sala-empty-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-muted-foreground);
+  opacity: 0.55;
+}
+
+.sala-empty-icon svg {
+  height: 2.5rem;
+  width: 2.5rem;
+  stroke-width: 1.5;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sala-frame,
+  .sala-empty-icon {
+    transition: none;
+  }
+}

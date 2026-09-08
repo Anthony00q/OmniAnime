@@ -1,0 +1,29 @@
+{
+  "ffmpeg": {
+    "exePathInArchive": "bin/ffmpeg.exe",
+    "license": "GPLv3 (build estatico gyan.dev)",
+    "name": "ffmpeg",
+    "sha256": "db580001caa24ac104c8cb856cd113a87b0a443f7bdf47d8c12b1d740584a2ec",
+    "source": "gyan.dev (Gyan Doshi)",
+    "url": "https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-8.1.2-essentials_build.zip",
+    "variant": "essentials_build",
+    "version": "8.1.2"
+  },
+  "ffprobe": {
+    "exePathInArchive": "bin/ffprobe.exe",
+    "fromPackage": "ffmpeg",
+    "license": "GPLv3 (build estatico gyan.dev)",
+    "name": "ffprobe",
+    "source": "mismo paquete que ffmpeg (gyan.dev)",
+    "version": "8.1.2"
+  },
+  "ytdlp": {
+    "license": "Unlicense (dominio publico)",
+    "name": "yt-dlp",
+    "sha256": "66674953fe251b89f4d08c5f0e35e0728679bd67ab3d7d05c0562af101dd3e7a",
+    "source": "github.com/yt-dlp/yt-dlp (release oficial)",
+    "url": "https://github.com/yt-dlp/yt-dlp/releases/download/2026.08.19/yt-dlp.exe",
+    "variant": "standalone x64 para Windows",
+    "version": "2026.08.19"
+  }
+}

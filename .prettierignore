@@ -1,0 +1,8 @@
+dist/
+release/
+node_modules/
+tools/
+MPV/
+data/
+logs/
+*.log

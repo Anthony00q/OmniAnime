@@ -1,0 +1,62 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+release/
+dev-app-update.yml
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Runtime data
+.cache/
+*.part
+*.ytdl
+Descargas/
+data/
+*.bak
+*.old
+*.tmp
+*.db
+*.db-wal
+*.db-shm
+*.sqlite*
+
+# Binarios externos
+tools/win/*.exe
+tools/win/*.download-*
+
+# Build / test artifacts
+*.tsbuildinfo
+coverage/
+plans/
+
+# Docs internos
+docs/Importante/
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.*
+
+# Tests
+tests/
+
+# Workflow
+AGENTS.md
+Launch.bat
+DESIGN.md
+.opencode/
+.impeccable/
