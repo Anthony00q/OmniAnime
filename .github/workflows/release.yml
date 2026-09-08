@@ -43,7 +43,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Download tools (yt-dlp/ffmpeg)
+      - name: Download tools (yt-dlp/ffmpeg/ffprobe)
         run: node scripts/setup-tools.mjs
 
       - name: Lint
