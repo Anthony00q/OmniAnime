@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="https://github.com/Anthony/OmniAnime">
+  <a href="https://github.com/Anthony00q/OmniAnime">
     <img src="assets/icon-128.png" alt="OmniAnime" width="72px"/>
   </a>
 </p>
@@ -11,8 +11,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Anthony/OmniAnime/releases">Releases</a> |
-  <a href="https://github.com/Anthony/OmniAnime/issues">Reportar bug</a> |
+  <a href="https://github.com/Anthony00q/OmniAnime/releases">Releases</a> |
+  <a href="https://github.com/Anthony00q/OmniAnime/issues">Reportar bug</a> |
   <a href="#instalación">Instalación</a> |
   <a href="#uso-rápido">Uso</a> |
   <a href="#preguntas-frecuentes">FAQ</a> |
@@ -20,10 +20,10 @@
 </p>
 
 <div align="center">
-  <a href="https://github.com/Anthony/OmniAnime/releases">
+  <a href="https://github.com/Anthony00q/OmniAnime/releases">
     <img src="https://img.shields.io/github/v/release/Anthony/OmniAnime?style=flat-square&color=3b82f6&label=versión" alt="versión" />
   </a>
-  <a href="https://github.com/Anthony/OmniAnime">
+  <a href="https://github.com/Anthony00q/OmniAnime">
     <img src="https://img.shields.io/badge/Plataforma-Windows-blue?style=flat-square" alt="plataforma" />
   </a>
   <a href="https://www.electronjs.org/">
@@ -69,7 +69,7 @@ Solo maneja anime con subtítulos (SUB). No hay doblaje.
 
 ## Instalación
 
-1. Ve a **[Releases](https://github.com/Anthony/OmniAnime/releases)**.
+1. Ve a **[Releases](https://github.com/Anthony00q/OmniAnime/releases)**.
 2. Descarga `OmniAnime-Setup-X.Y.Z.exe` (la `X.Y.Z` es la última versión publicada).
 3. Ejecuta el instalador y pulsa **Instalar**. Es una instalación por usuario, en español, sin permisos de administrador: crea accesos en Escritorio y Menú Inicio y no te pide elegir carpeta.
 4. Al abrirlo por primera vez, la app prepara su base de datos local y verifica sus herramientas internas. Tu carpeta inicial es `Descargas\OmniAnime`, cambiable en Ajustes.
@@ -202,8 +202,12 @@ OmniAnime/
 
 ---
 
+## Licencia
+
+Código bajo licencia **ISC** (ver `LICENSE`). Los binarios incluidos
+(`yt-dlp`, `ffmpeg`/`ffprobe`) tienen sus propias licencias, documentadas
+en `THIRD-PARTY-NOTICES.md` (ambos archivos viajan dentro del instalador).
+
 ## Créditos
 
 Hecho por **Anthony** con ayuda de IA — gran parte del proyecto fue *vibe coding*.
-
-Si te gusta, deja una ⭐ en [Anthony/OmniAnime](https://github.com/Anthony/OmniAnime).

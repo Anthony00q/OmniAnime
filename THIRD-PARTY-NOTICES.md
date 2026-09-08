@@ -42,6 +42,7 @@ cómo cumplir las condiciones de redistribución.
 ## Dónde terminan en la app instalada
 
 `electron-builder` copia `tools/win/` a `resources/tools/win/` y este
-archivo a `resources/THIRD-PARTY-NOTICES.md`. La app los resuelve con
+archivo a `resources/THIRD-PARTY-NOTICES.md` (junto a `resources/LICENSE`
+con la licencia ISC del código propio). La app los resuelve con
 `getToolsDir()` (`src/main/runtimePaths.ts`) y nunca ejecuta copias
 globales del sistema como primera opción.
