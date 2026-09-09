@@ -63,10 +63,12 @@ hace el resto: comprueba que el tag tiene forma `vX.X.X` y coincide con
 `package.json`, extrae la sección `## vX.Y.Z` del CHANGELOG a
 `release-notes.md` (falla si no existe), `npm ci`, descarga herramientas,
 `lint`, `format:check`, `build`, empaqueta el instalador NSIS **sin
-publicar** y sube exe + blockmap + `latest.yml` + notas como artefactos.
+publicar**, verifica el trío exe + blockmap + `latest.yml`
+(versión y `sha512`/`size` contra el exe real, falla si no cuadra)
+y sube exe + blockmap + `latest.yml` + notas como artefactos.
 Un segundo job crea el **draft** en GitHub con lista explícita de
 ficheros (`fail_on_unmatched_files`, falla a la voz si falta algo) y las
-notas como body. Solo los tags con forma `v*.*.*` disparan el workflow.
+notas como body vía `body_path`. Solo los tags con forma `v*.*.*` disparan el workflow.
 
 Publicar el draft es manual: revísalo en GitHub → _Publish release_.
 Solo entonces las apps instaladas lo ven (los drafts son invisibles para

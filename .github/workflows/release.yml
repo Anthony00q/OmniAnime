@@ -19,6 +19,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -71,12 +74,21 @@ jobs:
           New-Item -ItemType Directory -Path dist-release -Force | Out-Null
           Copy-Item release/OmniAnime-Setup-*.exe, release/OmniAnime-Setup-*.exe.blockmap, release/latest.yml, release-notes.md dist-release/
 
+      - name: List staged artifacts
+        shell: pwsh
+        run: Get-ChildItem dist-release/ | Format-Table Name, Length
+
+      - name: Verify release artifacts
+        shell: pwsh
+        run: node scripts/verify-release-artifacts.mjs --dir dist-release --tag "$env:GITHUB_REF_NAME"
+
       - name: Upload installer artifacts
         uses: actions/upload-artifact@v4
         with:
           name: win-installer
           path: dist-release/
           if-no-files-found: error
+          retention-days: 7
 
   release:
     runs-on: ubuntu-latest
@@ -89,23 +101,16 @@ jobs:
           name: win-installer
           path: ./artifacts
 
-      - name: Read release notes
-        id: read_release_notes
-        run: |
-          echo "RELEASE_BODY<<EOF" >> $GITHUB_ENV
-          cat ./artifacts/release-notes.md >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
-
       - name: Create release draft
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           fail_on_unmatched_files: true
           files: |
             ./artifacts/OmniAnime-Setup-*.exe
             ./artifacts/OmniAnime-Setup-*.exe.blockmap
             ./artifacts/latest.yml
+          body_path: ./artifacts/release-notes.md
           token: ${{ secrets.GITHUB_TOKEN }}
           tag_name: ${{ github.ref_name }}
           draft: true
           prerelease: false
-          body: ${{ env.RELEASE_BODY }}
