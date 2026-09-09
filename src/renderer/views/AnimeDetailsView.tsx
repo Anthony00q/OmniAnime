@@ -593,9 +593,9 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
           <button
             type="button"
             onClick={onBack}
-            className="relative flex items-center gap-2 rounded-full border border-white/10 bg-black/40 px-3 py-2 text-sm font-medium text-white backdrop-blur-md transition-colors hover:bg-black/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 sm:px-4"
+            className="group relative flex items-center gap-2 rounded-full border border-white/10 bg-black/40 px-3 py-2 text-sm font-medium text-white backdrop-blur-md transition-[background-color,border-color,box-shadow,transform] duration-200 hover:bg-black/60 hover:border-white/20 hover:shadow-lg hover:shadow-black/20 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 sm:px-4"
           >
-            <ArrowLeft className="h-4 w-4" /> Volver
+            <ArrowLeft className="h-4 w-4 transition-transform duration-200 group-hover:-translate-x-0.5" /> Volver
           </button>
         </div>
 

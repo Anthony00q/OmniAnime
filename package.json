@@ -1,6 +1,6 @@
 {
   "name": "omnianime",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Busca, descarga y organiza tu colección de anime en tu equipo",
   "private": true,
   "main": "index.js",

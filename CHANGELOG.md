@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.0.1
+
+- Interfaz: el botón Volver de Detalles ahora anima su flecha al pasar el cursor, igual que en Librería.
+
 ## v1.0.0
 
 - General: Primera versión pública con búsqueda, catálogo con filtros y fichas con episodios para AnimeAV1 y JkAnime (solo SUB).
