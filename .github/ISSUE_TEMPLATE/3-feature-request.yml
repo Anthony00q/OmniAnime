@@ -7,7 +7,7 @@ body:
     id: problema
     attributes:
       label: Problema que resuelve
-      description: Qué te cuesta hacer hoy con la app. Sin problema claro, la propuesta no se puede valorar.
+      description: Qué te cuesta hacer hoy con la app.
       placeholder: "Tengo que salir y volver a entrar a Detalles para ver las miniaturas nuevas de episodios largos."
     validations:
       required: true
@@ -45,8 +45,8 @@ body:
     id: limites
     attributes:
       label: Límites del proyecto
-      description: Decisiones ya tomadas que no van a cambiar.
+      description: Para no hacerte esperar por algo que no va a cambiar.
       options:
-        - label: Entiendo que la app es solo SUB (sin doblaje), sin cuentas ni nube, y con máximo 3 carpetas.
+        - label: Sé que la app es solo SUB (sin doblaje), sin cuentas ni nube, y con máximo 3 carpetas.
     validations:
       required: true

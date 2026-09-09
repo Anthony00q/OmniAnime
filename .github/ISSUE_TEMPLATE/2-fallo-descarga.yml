@@ -3,22 +3,11 @@ description: Un episodio no descarga, un servidor falla siempre o un proveedor d
 title: "[Descarga]: "
 labels: ["bug"]
 body:
-  - type: checkboxes
-    id: previas
-    attributes:
-      label: Antes de reportar
-      description: Marca lo que ya intentaste. La mayoría de fallos se resuelven aquí.
-      options:
-        - label: Actualicé yt-dlp (Ajustes → Descargas → Actualizar yt-dlp) y reintenté los fallidos.
-        - label: Probé con otro servidor (botón saltar servidor en Descargas) u otro proveedor.
-        - label: No adjunto bases de datos (.db) ni archivos personales, solo URLs públicas y texto del error.
-    validations:
-      required: true
   - type: dropdown
     id: alcance
     attributes:
       label: Alcance del fallo
-      description: Distinguir "un enlace muerto" de "el proveedor cambió" ahorra mucho diagnóstico.
+      description: No es lo mismo un enlace suelto muerto que el proveedor entero caído.
       options:
         - Falla un episodio concreto
         - Fallan todos los episodios de un anime
@@ -64,26 +53,36 @@ body:
       placeholder: "Episodio 12 (o rango, p. ej. 1-5)"
     validations:
       required: true
-  - type: input
-    id: entorno
-    attributes:
-      label: Versiones
-      description: App al pie de Ajustes y yt-dlp en Ajustes → Descargas.
-      placeholder: "OmniAnime v1.0.3 · yt-dlp 2026.01.01 · Windows 11 23H2"
-    validations:
-      required: true
   - type: textarea
     id: motivo
     attributes:
       label: Motivo mostrado por la app
-      description: Copia el texto que aparece en Descargas o en Historial (botón Ver más), no un pantallazo del texto.
-      placeholder: "P. ej. el mensaje de error tal cual lo muestra la cola."
+      description: El texto de Descargas o del Historial (botón Ver más), en texto para poder copiarlo.
+      placeholder: "Pegar aquí el mensaje de error tal cual lo muestra la cola."
     validations:
       required: true
+  - type: input
+    id: versiones
+    attributes:
+      label: Versiones
+      description: App al pie de Ajustes y yt-dlp en Ajustes → Descargas.
+      placeholder: "OmniAnime v1.0.3 · yt-dlp 2026.01.01"
+    validations:
+      required: true
+  - type: checkboxes
+    id: probado
+    attributes:
+      label: Qué ya probé (opcional)
+      description: Marca lo que aplique. Ayuda a no repetir pasos.
+      options:
+        - label: Actualicé yt-dlp y reintenté los fallidos.
+        - label: Probé con otro servidor o con el otro proveedor.
+    validations:
+      required: false
   - type: textarea
     id: log
     attributes:
-      label: Fragmento del registro (opcional, pero decisivo)
+      label: Fragmento del registro (opcional)
       description: >-
         Últimas líneas relacionadas de app_errors.log
         (Ajustes → Almacenamiento → Abrir registros).

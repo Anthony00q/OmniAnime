@@ -3,17 +3,6 @@ description: Algo no funciona como debería (interfaz, librería, ajustes, insta
 title: "[Bug]: "
 labels: ["bug"]
 body:
-  - type: checkboxes
-    id: previas
-    attributes:
-      label: Antes de reportar
-      description: Marca lo que ya comprobaste. Sin esto el reporte tarda más en atenderse.
-      options:
-        - label: Uso la última versión publicada (ver Releases).
-        - label: Leí las preguntas frecuentes del README.
-        - label: Estoy en Windows 10/11 de 64 bits.
-    validations:
-      required: true
   - type: dropdown
     id: area
     attributes:
@@ -32,7 +21,7 @@ body:
     id: descripcion
     attributes:
       label: Descripción
-      description: Qué pasa, en una o dos frases. Evita "no funciona" sin más detalle.
+      description: Qué pasa, en una o dos frases.
       placeholder: "Al renombrar episodios en Librería, la vista previa no muestra los nombres nuevos hasta salir y volver a entrar."
     validations:
       required: true
@@ -40,7 +29,7 @@ body:
     id: pasos
     attributes:
       label: Pasos para reproducir
-      description: Lo mínimo para que otro pueda repetir el fallo.
+      description: Lo mínimo para que otro pueda repetirlo.
       value: |
         1.
         2.
@@ -52,7 +41,6 @@ body:
     id: esperado-vs-actual
     attributes:
       label: Esperado vs actual
-      description: Qué esperabas y qué pasó en su lugar.
       value: |
         Esperaba:
 
@@ -60,22 +48,12 @@ body:
       placeholder: "Esperaba ver los nombres nuevos al instante. En cambio, la vista previa mantuvo los viejos hasta salir y volver."
     validations:
       required: true
-  - type: dropdown
-    id: frecuencia
-    attributes:
-      label: Frecuencia
-      options:
-        - Siempre
-        - A veces
-        - Solo una vez
-    validations:
-      required: true
   - type: input
-    id: entorno
+    id: version
     attributes:
-      label: Entorno
-      description: Versión al pie de Ajustes (OmniAnime vX.X.X) y tu Windows.
-      placeholder: "OmniAnime v1.0.3 · Windows 11 23H2"
+      label: Versión de la app
+      description: Se ve al pie de Ajustes (OmniAnime vX.X.X).
+      placeholder: "v1.0.3"
     validations:
       required: true
   - type: dropdown
@@ -91,11 +69,11 @@ body:
   - type: textarea
     id: evidencia
     attributes:
-      label: Evidencia (opcional, pero acelera el arreglo)
+      label: Evidencia (opcional)
       description: >-
         Captura del error y, si existe, el fragmento relevante del registro
         (Ajustes → Almacenamiento → Abrir registros → app_errors.log).
-        Recorta a lo relevante y no pegues rutas personales completas.
+        Recorta a lo relevante.
       placeholder: "Pegar aquí el mensaje de error o las últimas líneas del registro, entre triple comilla invertida."
       render: text
     validations:
