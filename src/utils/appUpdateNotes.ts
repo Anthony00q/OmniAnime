@@ -25,6 +25,24 @@ export function normalizeReleaseNotes(input: unknown): string | undefined {
   return undefined;
 }
 
+// Solo hay actualización si la publicada es estrictamente mayor que la instalada:
+// un "distinto de" ofrecería una bajada de versión si la instalada fuese más nueva.
+export function isNewerVersion(latest: unknown, current: unknown): boolean {
+  const a = parseTriple(latest);
+  const b = parseTriple(current);
+  if (!a || !b) return false;
+  if (a[0] !== b[0]) return a[0] > b[0];
+  if (a[1] !== b[1]) return a[1] > b[1];
+  return a[2] > b[2];
+}
+
+function parseTriple(version: unknown): [number, number, number] | null {
+  if (typeof version !== 'string') return null;
+  const match = /^v?(\d+)\.(\d+)\.(\d+)$/.exec(version.trim());
+  if (!match) return null;
+  return [Number(match[1]), Number(match[2]), Number(match[3])];
+}
+
 function truncate(text: string): string {
   if (text.length <= RELEASE_NOTES_LIMIT) return text;
   return `${text.slice(0, RELEASE_NOTES_LIMIT)}\n…`;

@@ -74,6 +74,14 @@ Publicar el draft es manual: revísalo en GitHub → _Publish release_.
 Solo entonces las apps instaladas lo ven (los drafts son invisibles para
 el auto-update) y muestran el modal con esas notas.
 
+## Cómo escribir las novedades del CHANGELOG
+
+La sección `## vX.Y.Z` admite un formato mínimo que el modal de
+actualización renderiza: líneas `Etiqueta:` como grupos, líneas `- ...`
+como viñetas y `**negrita**` en línea. Todo lo demás se muestra como
+texto tal cual. El extractor y `latest.yml` pasan el texto sin tocarlo,
+así que la web de GitHub lo renderiza sola desde el mismo origen.
+
 Anti-instalador-vacío: `prebuild:win` y `prebuild:win:publish` ejecutan
 `setup-tools --check` antes de empaquetar; si falta algún binario o no
 coincide con lo fijado, el build falla en vez de producir un instalador

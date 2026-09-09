@@ -3,6 +3,7 @@ import { useAtomValue } from 'jotai';
 import { CheckCircle2, CircleArrowUp } from 'lucide-react';
 import { Dialog } from '../Dialog';
 import { ProgressBar } from '../ui/ProgressBar';
+import { ReleaseNotesView } from './ReleaseNotesView';
 import { useAppUpdate } from '../../hooks/useAppUpdate';
 import {
   appUpdateAvailableAtom,
@@ -53,7 +54,7 @@ export function UpdateModal() {
       title="Actualización disponible"
       showFooter={false}
       headerAlign="center"
-      className="max-w-xl"
+      className="max-w-2xl"
       icon={
         <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 bg-primary/15">
           <CircleArrowUp className="w-5 h-5 text-primary" aria-hidden="true" />
@@ -64,11 +65,11 @@ export function UpdateModal() {
         {versionLine}
       </p>
 
-      <div className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5 select-none">
+      <div className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-2 select-none">
         Novedades
       </div>
-      <div className="max-h-64 overflow-y-auto rounded-lg border border-border/60 bg-background/40 p-3 text-xs leading-relaxed text-foreground whitespace-pre-wrap">
-        {available.notes || FALLBACK_NOTES}
+      <div className="max-h-[50vh] overflow-y-auto rounded-lg border border-border/60 bg-background/40 p-4 text-sm leading-relaxed text-foreground select-text">
+        <ReleaseNotesView notes={available.notes || FALLBACK_NOTES} />
       </div>
 
       {phase === 'downloading' && (

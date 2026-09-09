@@ -6,7 +6,7 @@ import type {
   AppUpdateInstallResult,
   AppUpdateState,
 } from '../types/appUpdate';
-import { normalizeReleaseNotes } from '../utils/appUpdateNotes';
+import { isNewerVersion, normalizeReleaseNotes } from '../utils/appUpdateNotes';
 
 interface AppUpdateServiceOptions {
   hasActiveDownloads: () => boolean;
@@ -71,7 +71,7 @@ export class AppUpdateService {
       const info = result?.updateInfo;
       const version = info?.version;
       const currentVersion = app.getVersion();
-      const available = !!version && version !== currentVersion;
+      const available = isNewerVersion(version, currentVersion);
       const notes = available ? normalizeReleaseNotes(info?.releaseNotes) : undefined;
       this.emit(available ? { kind: 'available', version, notes } : { kind: 'not-available' });
       return { ok: true, available, version, currentVersion, notes };
