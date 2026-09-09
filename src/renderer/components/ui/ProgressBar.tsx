@@ -3,7 +3,7 @@ import clsx from 'clsx';
 interface ProgressBarProps {
   value?: number;
   indeterminate?: boolean;
-  variant?: 'primary' | 'success' | 'danger' | 'warning';
+  variant?: 'primary' | 'success' | 'danger' | 'warning' | 'neutral';
   label?: string;
   showValue?: boolean;
   className?: string;
@@ -15,6 +15,8 @@ const fillClasses = {
   success: 'bg-success',
   danger: 'bg-destructive',
   warning: 'bg-warning',
+  // Estado en reposo (pausa/cola): visible sin voz de aviso.
+  neutral: 'bg-muted-foreground/60',
 };
 
 export function ProgressBar({

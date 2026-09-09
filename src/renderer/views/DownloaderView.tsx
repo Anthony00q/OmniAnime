@@ -132,7 +132,7 @@ const EpisodeDetailRow = memo(
             <span className="min-w-0 flex-1 truncate">{e.server}</span>
           )}
           {isEpPaused && (
-            <span className="inline-flex min-w-0 flex-1 items-center gap-1 text-warning">
+            <span className="inline-flex min-w-0 flex-1 items-center gap-1 text-muted-foreground">
               <PauseCircle className="h-3 w-3 shrink-0" />
               <span className="truncate">Pausado{e.server ? ` · ${e.server}` : ''}</span>
             </span>
@@ -421,7 +421,7 @@ const QueueItemRow = memo(
               : isCancelled
                 ? 'border-border/60'
                 : isPaused
-                  ? 'border-warning/20 bg-warning/[0.04]'
+                  ? 'border-border/60'
                   : 'border-border/50'
         }`}
       >
@@ -668,7 +668,7 @@ const QueueItemRow = memo(
                   />
                 ) : isPaused ? (
                   <StatusBadge
-                    variant="warning"
+                    variant="neutral"
                     label="Pausada"
                     icon={<PauseCircle className="h-3.5 w-3.5" />}
                     className="px-2 py-0.5 text-[11px]"
@@ -682,7 +682,7 @@ const QueueItemRow = memo(
                   />
                 ) : (
                   <StatusBadge
-                    variant="warning"
+                    variant="neutral"
                     label="En Cola"
                     icon={<Clock className="h-3.5 w-3.5" />}
                     className="px-2 py-0.5 text-[11px]"
@@ -698,7 +698,7 @@ const QueueItemRow = memo(
                   <span className="ml-1 text-destructive-fg">({item.failedEps.length} fallidos)</span>
                 )}
                 {isCardActive && (item.pausedEps?.length || 0) > 0 && (
-                  <span className="ml-1 text-warning">({item.pausedEps.length} pausados)</span>
+                  <span className="ml-1 text-muted-foreground">({item.pausedEps.length} pausados)</span>
                 )}
                 {isCardActive && (item.cancelledEps?.length || 0) > 0 && (
                   <span className="ml-1">({item.cancelledEps.length} cancelados)</span>
@@ -752,7 +752,7 @@ const QueueItemRow = memo(
                   <div className="flex flex-col justify-center gap-1">
                     <ProgressBar
                       value={isPaused ? pct : isDone ? 100 : isFailed ? pct : 0}
-                      variant={isDone ? 'success' : isFailed ? 'danger' : isPaused ? 'warning' : 'primary'}
+                      variant={isDone ? 'success' : isFailed ? 'danger' : isPaused ? 'neutral' : 'primary'}
                       label={`${item.animeTitle} — ${isDone ? 'completado' : isFailed ? 'con errores' : isPaused ? `pausado ${pct}%` : isCancelled ? 'cancelado' : 'en espera'}`}
                       showValue={false}
                       aria-valuetext={
@@ -841,7 +841,7 @@ const QueueItemRow = memo(
                       />
                     ))}
                 </div>
-                {isCardActive && hasDetail && (
+                {isCardActive && hasDetail && detailRows.length * DETAIL_ROW_H > DETAIL_MIN_H && (
                   <div
                     role="separator"
                     aria-orientation="horizontal"

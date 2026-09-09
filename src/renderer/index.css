@@ -701,10 +701,11 @@ html[dir='ltr'] {
   transform: translateY(0);
 }
 
-/* Lista scrolleable del Detalle: ~4 filas por defecto, resto con scroll
-   interno sin empujar la card. --detail-h la fija el tirador por descarga. */
+/* Lista scrolleable del Detalle: se ciñe al contenido hasta el tope del
+   tirador (~4 filas por defecto), resto con scroll interno sin empujar
+   la card. --detail-h la fija el tirador por descarga. */
 .downloader-detail-scroll {
-  height: var(--detail-h, 208px);
+  height: min(var(--detail-h, 208px), max-content);
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
