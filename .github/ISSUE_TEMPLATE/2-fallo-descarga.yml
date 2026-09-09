@@ -1,7 +1,7 @@
 name: "⬇️ Fallo de descarga / proveedor"
 description: Un episodio no descarga, un servidor falla siempre o un proveedor dejó de mostrar contenido.
 title: "[Descarga]: "
-labels: ["bug"]
+labels: ["bug", "download"]
 body:
   - type: dropdown
     id: alcance
