@@ -15,7 +15,7 @@
     <img src="https://img.shields.io/github/v/release/Anthony00q/OmniAnime?style=flat-square&label=version" alt="Última versión" />
   </a>
   <img src="https://img.shields.io/badge/Plataforma-Windows-blue?style=flat-square" alt="Windows" />
-  <img src="https://img.shields.io/badge/Licencia-ISC-blue?style=flat-square" alt="Licencia ISC" />
+  <img src="https://img.shields.io/badge/Licencia-GPLv3-blue?style=flat-square" alt="Licencia GPLv3" />
 </div>
 
 <p align="center">
@@ -115,7 +115,7 @@ Descarga el nuevo `OmniAnime-Setup-X.Y.Z.exe` de Releases y ejecútalo. Conserva
 
 Usa Agregar o quitar programas de Windows. Tus videos y la base de datos de `%APPDATA%\OmniAnime` **no se borran**; elimínalos a mano si ya no los quieres.
 
-## Preguntas frecuentes
+## Preguntas probables
 
 ### ¿Tiene doblaje?
 
@@ -195,7 +195,7 @@ Antes de publicar: `npm run lint` y `npm run format:check`.
 ```
 OmniAnime/
 ├─ index.js              # entrada de Electron
-├─ LICENSE               # ISC (código propio)
+├─ LICENSE               # GPL-3.0-or-later
 ├─ THIRD-PARTY-NOTICES.md # licencias de yt-dlp/ffmpeg/ffprobe
 ├─ .github/workflows/    # CI: release por tags vX.X.X
 ├─ docs/                 # binarios-y-releases.md (pipeline de tools)
@@ -216,9 +216,11 @@ OmniAnime/
 
 ## Licencia
 
-Código bajo licencia **ISC** (ver [LICENSE](./LICENSE)). Los binarios incluidos
+Código bajo licencia **GNU General Public License v3.0 o posterior**
+(ver [LICENSE](./LICENSE)). Los binarios incluidos
 (`yt-dlp`, `ffmpeg`/`ffprobe`) tienen sus propias licencias, documentadas
 en [THIRD-PARTY-NOTICES.md](./THIRD-PARTY-NOTICES.md) (ambos archivos viajan dentro del instalador).
+Quien reciba el instalador tiene derecho a obtener el código fuente completo correspondiente.
 
 ---
 
