@@ -216,9 +216,9 @@ OmniAnime/
 
 ## Licencia
 
-Código bajo licencia **ISC** (ver `LICENSE`). Los binarios incluidos
+Código bajo licencia **ISC** (ver [LICENSE](./LICENSE)). Los binarios incluidos
 (`yt-dlp`, `ffmpeg`/`ffprobe`) tienen sus propias licencias, documentadas
-en `THIRD-PARTY-NOTICES.md` (ambos archivos viajan dentro del instalador).
+en [THIRD-PARTY-NOTICES.md](./THIRD-PARTY-NOTICES.md) (ambos archivos viajan dentro del instalador).
 
 ---
 
