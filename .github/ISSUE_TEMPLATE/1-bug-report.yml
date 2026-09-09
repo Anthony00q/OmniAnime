@@ -1,0 +1,102 @@
+name: "🐞 Bug"
+description: Algo no funciona como debería (interfaz, librería, ajustes, instalación o actualización).
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: checkboxes
+    id: previas
+    attributes:
+      label: Antes de reportar
+      description: Marca lo que ya comprobaste. Sin esto el reporte tarda más en atenderse.
+      options:
+        - label: Uso la última versión publicada (ver Releases).
+        - label: Leí las preguntas frecuentes del README.
+        - label: Estoy en Windows 10/11 de 64 bits.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Área
+      description: Dónde ocurre el problema. Si es una descarga que falla, usa el formulario "Fallo de descarga / proveedor".
+      options:
+        - Interfaz (Inicio, Catálogo, Detalles)
+        - Librería o Escáner
+        - Historial
+        - Ajustes
+        - Instalación o actualización de la app
+        - Otra
+    validations:
+      required: true
+  - type: textarea
+    id: descripcion
+    attributes:
+      label: Descripción
+      description: Qué pasa, en una o dos frases. Evita "no funciona" sin más detalle.
+      placeholder: "Al renombrar episodios en Librería, la vista previa no muestra los nombres nuevos hasta salir y volver a entrar."
+    validations:
+      required: true
+  - type: textarea
+    id: pasos
+    attributes:
+      label: Pasos para reproducir
+      description: Lo mínimo para que otro pueda repetir el fallo.
+      value: |
+        1.
+        2.
+        3.
+      placeholder: "1. Abrir Librería con una carpeta vinculada. 2. Renombrar episodios. 3. Mirar la vista previa."
+    validations:
+      required: true
+  - type: textarea
+    id: esperado-vs-actual
+    attributes:
+      label: Esperado vs actual
+      description: Qué esperabas y qué pasó en su lugar.
+      value: |
+        Esperaba:
+
+        En cambio:
+      placeholder: "Esperaba ver los nombres nuevos al instante. En cambio, la vista previa mantuvo los viejos hasta salir y volver."
+    validations:
+      required: true
+  - type: dropdown
+    id: frecuencia
+    attributes:
+      label: Frecuencia
+      options:
+        - Siempre
+        - A veces
+        - Solo una vez
+    validations:
+      required: true
+  - type: input
+    id: entorno
+    attributes:
+      label: Entorno
+      description: Versión al pie de Ajustes (OmniAnime vX.X.X) y tu Windows.
+      placeholder: "OmniAnime v1.0.3 · Windows 11 23H2"
+    validations:
+      required: true
+  - type: dropdown
+    id: proveedor
+    attributes:
+      label: Proveedor activo (si aplica)
+      options:
+        - No aplica a este bug
+        - AnimeAV1
+        - JkAnime
+    validations:
+      required: true
+  - type: textarea
+    id: evidencia
+    attributes:
+      label: Evidencia (opcional, pero acelera el arreglo)
+      description: >-
+        Captura del error y, si existe, el fragmento relevante del registro
+        (Ajustes → Almacenamiento → Abrir registros → app_errors.log).
+        Recorta a lo relevante y no pegues rutas personales completas.
+      placeholder: "Pegar aquí el mensaje de error o las últimas líneas del registro, entre triple comilla invertida."
+      render: text
+    validations:
+      required: false

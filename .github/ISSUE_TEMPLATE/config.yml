@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Descargar la última versión
+    url: https://github.com/Anthony00q/OmniAnime/releases/latest
+    about: Si aún no actualizaste, prueba primero con la última versión publicada.
+  - name: Preguntas frecuentes
+    url: https://github.com/Anthony00q/OmniAnime#preguntas-probables
+    about: Doblaje, cuentas, descargas lentas, antivirus o carpetas. Puede que ya esté respondido.

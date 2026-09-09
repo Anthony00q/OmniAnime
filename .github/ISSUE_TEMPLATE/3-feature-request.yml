@@ -1,0 +1,52 @@
+name: "✨ Propuesta de mejora"
+description: Pide una función nueva o un cambio de comportamiento (no para reportar fallos).
+title: "[Mejora]: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problema
+    attributes:
+      label: Problema que resuelve
+      description: Qué te cuesta hacer hoy con la app. Sin problema claro, la propuesta no se puede valorar.
+      placeholder: "Tengo que salir y volver a entrar a Detalles para ver las miniaturas nuevas de episodios largos."
+    validations:
+      required: true
+  - type: textarea
+    id: propuesta
+    attributes:
+      label: Propuesta
+      description: Qué debería hacer la app, de forma concreta.
+      placeholder: "Que la vista de episodios recargue sus miniaturas al completar una descarga, sin recargar la vista."
+    validations:
+      required: true
+  - type: textarea
+    id: alternativas
+    attributes:
+      label: Alternativas consideradas (opcional)
+      placeholder: "P. ej. un botón Recargar miniaturas en el menú de la vista."
+    validations:
+      required: false
+  - type: dropdown
+    id: area
+    attributes:
+      label: Área
+      options:
+        - Búsqueda o Catálogo
+        - Ficha y episodios
+        - Descargas y cola
+        - Librería o Escáner
+        - Historial
+        - Ajustes
+        - Apariencia y temas
+        - Otra
+    validations:
+      required: true
+  - type: checkboxes
+    id: limites
+    attributes:
+      label: Límites del proyecto
+      description: Decisiones ya tomadas que no van a cambiar.
+      options:
+        - label: Entiendo que la app es solo SUB (sin doblaje), sin cuentas ni nube, y con máximo 3 carpetas.
+    validations:
+      required: true
