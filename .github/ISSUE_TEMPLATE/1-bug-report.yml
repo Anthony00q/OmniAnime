@@ -67,14 +67,14 @@ body:
     validations:
       required: true
   - type: textarea
-    id: evidencia
+    id: registro
     attributes:
-      label: Evidencia (opcional)
+      label: Registro de la app (opcional)
       description: >-
-        Captura del error y, si existe, el fragmento relevante del registro
-        (Ajustes → Almacenamiento → Abrir registros → app_errors.log).
-        Recorta a lo relevante.
-      placeholder: "Pegar aquí el mensaje de error o las últimas líneas del registro, entre triple comilla invertida."
+        Si existe, el fragmento relevante de app_errors.log
+        (Ajustes → Almacenamiento → Abrir registros).
+        Recorta a lo relevante. Las capturas puedes pegarlas en cualquier campo.
+      placeholder: "Pegar aquí las últimas líneas relacionadas del registro, entre triple comilla invertida."
       render: text
     validations:
       required: false
