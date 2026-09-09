@@ -1,4 +1,4 @@
-import { Fragment } from 'react';
+import { Fragment, memo } from 'react';
 import { Trash2, FolderOpen, ChevronRight, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { StatusBadge } from '../../../components/ui/StatusBadge';
@@ -25,7 +25,8 @@ interface HistoryTableProps {
   onDeleteGroup: (key: string) => void;
 }
 
-export function HistoryTable({
+// Pura en props: el memo exige props estables.
+export const HistoryTable = memo(function HistoryTable({
   grouped,
   expandedGroups,
   expandedReasons,
@@ -284,4 +285,4 @@ export function HistoryTable({
       </table>
     </div>
   );
-}
+});

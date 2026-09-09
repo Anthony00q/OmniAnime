@@ -1,8 +1,9 @@
-import { execFile, spawn, ChildProcessByStdio } from 'child_process';
+import { spawn, ChildProcessByStdio } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import { Readable } from 'stream';
 import { YtdlpUpdateResult } from '../types/ytdlp';
+import { terminateChildProcessTree } from '../utils/processUtils';
 
 type ProcessResult = {
   code: number | null;
@@ -436,11 +437,6 @@ export class YtdlpUpdateService {
   }
 
   private killProcessTree(child: ManagedChildProcess): void {
-    if (!child.pid || child.killed) return;
-    if (process.platform === 'win32') {
-      execFile('taskkill', ['/pid', String(child.pid), '/f', '/t'], { windowsHide: true }, () => {});
-    } else {
-      child.kill('SIGKILL');
-    }
+    terminateChildProcessTree(child);
   }
 }

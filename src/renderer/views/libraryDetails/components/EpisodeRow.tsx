@@ -20,11 +20,13 @@ export const EpisodeRow = memo(
     onPlay,
     onDelete,
     density = 'comfortable',
+    thumbToken = 0,
   }: {
     ep: any;
     onPlay: (path: string) => void;
     onDelete: (path: string) => void;
     density?: EpisodeDensity;
+    thumbToken?: number;
   }) {
     const isCompact = density === 'compact';
     const displayName = prettifyEpisodeName(ep.name) || String(ep.name || '');
@@ -37,13 +39,12 @@ export const EpisodeRow = memo(
           aria-label={`Reproducir ${ep.name}`}
           className="w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 sm:w-auto"
         >
-          <EpisodeThumbnail videoPath={ep.path} className={isCompact ? 'sm:w-40' : ''} />
+          <EpisodeThumbnail videoPath={ep.path} className={isCompact ? 'sm:w-40' : ''} thumbToken={thumbToken} />
         </button>
 
         <button
           type="button"
           onClick={() => onPlay(ep.path)}
-          title={displayName}
           className="min-w-0 flex-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 sm:ml-6"
         >
           <span className="mb-1 block truncate text-[12px] font-medium tabular-nums text-muted-foreground">
@@ -91,6 +92,7 @@ export const EpisodeRow = memo(
     prev.ep.size === next.ep.size &&
     prev.ep.ext === next.ep.ext &&
     prev.density === next.density &&
+    prev.thumbToken === next.thumbToken &&
     prev.onPlay === next.onPlay &&
     prev.onDelete === next.onDelete,
 );

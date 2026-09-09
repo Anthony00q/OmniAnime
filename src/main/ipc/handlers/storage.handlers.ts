@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { SettingsManager } from '../../../services/SettingsManager';
 import { normalizeDownloadSettings } from '../../../utils/downloadSettings';
+import { isValidOutputDirString } from '../../../utils/outputDirs';
 import { isPathWithinAnyDirectory } from '../../../utils/pathSecurity';
 import type { AppSettings } from '../../../types/settings';
 import type { IpcRegistryDependencies } from '../../IpcRegistry';
@@ -138,20 +139,7 @@ export function registerStorageHandlers(dependencies: IpcRegistryDependencies): 
       if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed))
         return { success: false, error: 'Archivo no válido' };
       const defaults = SettingsManager.getDefaults();
-      const isValidOutputDir = (dir: unknown): boolean => {
-        if (typeof dir !== 'string') return false;
-        const t = dir.trim();
-        if (!t) return false;
-        if (!path.isAbsolute(t)) return false;
-        const resolved = path.resolve(t);
-        const root = path.parse(resolved).root;
-        if (resolved === root) return false;
-        if (resolved.includes('\0')) return false;
-        const rel = path.relative(root, resolved);
-        if (rel.split(path.sep).includes('..')) return false;
-        if (/^[A-Za-z]:\\$/.test(resolved)) return false;
-        return true;
-      };
+      const isValidOutputDir = isValidOutputDirString;
       const allowedThemes = new Set(['dark', 'quantum', 'oled']);
       const allowedToastPositions = new Set([
         'top-left',

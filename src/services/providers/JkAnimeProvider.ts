@@ -94,9 +94,25 @@ const JK_MONTH_SEASON: Array<{ names: string[]; season: string }> = [
   { names: ['octubre', 'noviembre', 'diciembre'], season: 'Otoño' },
 ];
 
-// Tope de páginas del AJAX de episodios: ~192 episodios con miniatura;
-// más allá el tile numérico cubre sin coste extra.
+// Eager topado en 12 páginas (~192); la cola va bajo demanda.
 const JK_EPISODE_PAGES_MAX = 12;
+
+// Contexto AJAX por slug con TTL corto.
+const JK_EPISODE_CONTEXT_TTL_MS = 120_000;
+// Tope de episodios por petición bajo demanda: acota el canal IPC.
+const JK_EPISODE_RANGE_MAX = 200;
+// Tamaño de página si la primera respuesta no permite descubrirlo.
+const JK_EPISODE_PAGE_FALLBACK = 16;
+
+interface JkEpisodeAjaxContext {
+  token: string;
+  cookieStr: string;
+  animeId: string;
+  img: string;
+  lastPage: number;
+  pageSize: number;
+  expiresAt: number;
+}
 
 // Miniaturas por episodio: el AJAX trae `image` por capítulo y la base se
 // deriva del póster (`/animes/image/` → `/animes/video/image_thumb/`).
@@ -152,6 +168,8 @@ export class JkAnimeProvider implements AnimeProvider {
   private pendingSearchController: AbortController | null = null;
   private readonly httpAgent = new http.Agent({ keepAlive: true, maxSockets: 32 });
   private readonly httpsAgent = new https.Agent({ keepAlive: true, maxSockets: 32 });
+  // Contextos AJAX por slug para la carga bajo demanda de miniaturas.
+  private readonly episodeAjaxContexts = new Map<string, JkEpisodeAjaxContext>();
 
   private requestConfig(extra: AxiosRequestConfig = {}): AxiosRequestConfig {
     return {
@@ -373,6 +391,128 @@ export class JkAnimeProvider implements AnimeProvider {
     }
   }
 
+  private seedEpisodeAjaxContext(
+    slug: string,
+    init: { token: unknown; cookieStr: unknown; animeId: unknown; img: unknown; lastPage: unknown; pageSize: unknown },
+  ): void {
+    const cleanSlug = String(slug || '').trim();
+    const token = String(init.token || '');
+    const animeId = String(init.animeId || '');
+    if (!cleanSlug || !token || !animeId) return;
+    const lastPage =
+      typeof init.lastPage === 'number' && Number.isFinite(init.lastPage) ? Math.max(1, Math.floor(init.lastPage)) : 1;
+    const pageSize =
+      typeof init.pageSize === 'number' && Number.isFinite(init.pageSize) && init.pageSize > 0
+        ? Math.floor(init.pageSize)
+        : JK_EPISODE_PAGE_FALLBACK;
+    if (this.episodeAjaxContexts.size > 50) {
+      const oldest = this.episodeAjaxContexts.keys().next();
+      if (!oldest.done) this.episodeAjaxContexts.delete(oldest.value);
+    }
+    this.episodeAjaxContexts.set(cleanSlug, {
+      token,
+      cookieStr: String(init.cookieStr || ''),
+      animeId,
+      img: String(init.img || ''),
+      lastPage,
+      pageSize,
+      expiresAt: Date.now() + JK_EPISODE_CONTEXT_TTL_MS,
+    });
+  }
+
+  private async resolveEpisodeAjaxContext(slug: string): Promise<JkEpisodeAjaxContext | null> {
+    const cleanSlug = String(slug || '').trim();
+    if (!cleanSlug) return null;
+    const cached = this.episodeAjaxContexts.get(cleanSlug);
+    if (cached && cached.expiresAt > Date.now()) return cached;
+    this.episodeAjaxContexts.delete(cleanSlug);
+    try {
+      const res = await axios.get(`${this.BASE_URL}/${cleanSlug}/`, this.requestConfig());
+      const $ = cheerio.load(res.data);
+      const cookies = res.headers['set-cookie'];
+      const cookieStr = cookies ? cookies.map((c) => c.split(';')[0]).join('; ') : '';
+      const token = $('meta[name="csrf-token"]').attr('content');
+      const animeId = $('#guardar-anime').attr('data-anime');
+      const img = this.normalizeImageUrl($('.anime_pic img').attr('src') || '');
+      const first = await axios.post(
+        `${this.BASE_URL}/ajax/episodes/${animeId}/${1}`,
+        new URLSearchParams({ _token: String(token || ''), id: String(animeId || ''), p: '1' }).toString(),
+        this.requestConfig({
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-Requested-With': 'XMLHttpRequest',
+            Cookie: cookieStr,
+            Referer: `${this.BASE_URL}/${cleanSlug}/`,
+          },
+        }),
+      );
+      this.seedEpisodeAjaxContext(cleanSlug, {
+        token,
+        cookieStr,
+        animeId,
+        img,
+        lastPage: first.data?.last_page,
+        pageSize: Array.isArray(first.data?.data) ? first.data.data.length : 0,
+      });
+      return this.episodeAjaxContexts.get(cleanSlug) || null;
+    } catch {
+      return null;
+    }
+  }
+
+  // Thumbs JK de un rango; nunca lanza ({} ante fallo o entrada inválida).
+  async getEpisodeThumbs(slug: string, fromEp: number, toEp: number): Promise<Record<number, string>> {
+    try {
+      let from = Math.floor(Number(fromEp));
+      let to = Math.floor(Number(toEp));
+      if (!Number.isFinite(from) || !Number.isFinite(to)) return {};
+      if (from < 1) from = 1;
+      if (to < from) return {};
+      if (to - from + 1 > JK_EPISODE_RANGE_MAX) to = from + JK_EPISODE_RANGE_MAX - 1;
+      const ctx = await this.resolveEpisodeAjaxContext(slug);
+      if (!ctx) return {};
+      const firstPage = Math.floor((from - 1) / ctx.pageSize) + 1;
+      const lastPage = Math.min(ctx.lastPage, Math.floor((to - 1) / ctx.pageSize) + 1);
+      if (firstPage > ctx.lastPage) return {};
+      const out: Record<number, string> = {};
+      for (let blockStart = firstPage; blockStart <= lastPage; blockStart += 3) {
+        const block = [blockStart, blockStart + 1, blockStart + 2].filter((page) => page <= lastPage);
+        const results = await Promise.all(
+          block.map(async (page) => {
+            try {
+              const pageParams = new URLSearchParams({ _token: ctx.token, id: ctx.animeId, p: String(page) });
+              const rp = await axios.post(
+                `${this.BASE_URL}/ajax/episodes/${ctx.animeId}/${page}`,
+                pageParams.toString(),
+                this.requestConfig({
+                  headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    Cookie: ctx.cookieStr,
+                    Referer: `${this.BASE_URL}/${String(slug).trim()}/`,
+                  },
+                }),
+              );
+              return collectJkEpisodeThumbs(rp.data?.data, ctx.img);
+            } catch {
+              return {};
+            }
+          }),
+        );
+        for (const thumbs of results) Object.assign(out, thumbs);
+      }
+      // Solo el rango pedido: el mapa por página puede traer vecinos.
+      const ranged: Record<number, string> = {};
+      for (const [key, url] of Object.entries(out)) {
+        const num = Number(key);
+        if (Number.isInteger(num) && num >= from && num <= to) ranged[num] = url;
+      }
+      return ranged;
+    } catch {
+      return {};
+    }
+  }
+
   async getDetails(slug: string): Promise<AnimeDetails | null> {
     try {
       const res = await axios.get(`${this.BASE_URL}/${slug}/`, this.requestConfig());
@@ -418,24 +558,43 @@ export class JkAnimeProvider implements AnimeProvider {
             epsCount = total;
           }
           Object.assign(episodeThumbnails, collectJkEpisodeThumbs(aj.data?.data, img));
+          // Siembra best-effort: nunca rompe la ficha.
+          try {
+            this.seedEpisodeAjaxContext(slug, {
+              token,
+              cookieStr,
+              animeId,
+              img,
+              lastPage: aj.data?.last_page,
+              pageSize: Array.isArray(aj.data?.data) ? aj.data.data.length : 0,
+            });
+          } catch {}
 
           const lastPage = aj.data?.last_page;
           const pages =
             typeof lastPage === 'number' && Number.isFinite(lastPage)
               ? Math.min(Math.max(1, Math.floor(lastPage)), JK_EPISODE_PAGES_MAX)
               : 1;
-          for (let page = 2; page <= pages; page++) {
-            try {
-              params.set('p', String(page));
-              const rp = await axios.post(
-                `${this.BASE_URL}/ajax/episodes/${animeId}/${page}`,
-                params.toString(),
-                ajaxConfig(),
-              );
-              Object.assign(episodeThumbnails, collectJkEpisodeThumbs(rp.data?.data, img));
-            } catch {
-              break;
-            }
+          // Bloques de 3: misma carga que en secuencial; un fallo aísla su página.
+          for (let blockStart = 2; blockStart <= pages; blockStart += 3) {
+            const block = [blockStart, blockStart + 1, blockStart + 2].filter((page) => page <= pages);
+            const results = await Promise.all(
+              block.map(async (page) => {
+                try {
+                  const pageParams = new URLSearchParams(params.toString());
+                  pageParams.set('p', String(page));
+                  const rp = await axios.post(
+                    `${this.BASE_URL}/ajax/episodes/${animeId}/${page}`,
+                    pageParams.toString(),
+                    ajaxConfig(),
+                  );
+                  return collectJkEpisodeThumbs(rp.data?.data, img);
+                } catch {
+                  return {};
+                }
+              }),
+            );
+            for (const thumbs of results) Object.assign(episodeThumbnails, thumbs);
           }
         }
       } catch (e) {

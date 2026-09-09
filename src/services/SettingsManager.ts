@@ -65,7 +65,11 @@ export class SettingsManager {
     return { ...DEFAULT_SETTINGS };
   }
 
+  // Memo sin TTL: save()/clearAutoRenameRetroactiveOnce() invalidan.
+  private static cachedSettings: AppSettings | null = null;
+
   static get(): AppSettings {
+    if (SettingsManager.cachedSettings) return SettingsManager.cachedSettings;
     const db = DatabaseManager.getInstance();
 
     if (!db.isReady()) {
@@ -74,13 +78,16 @@ export class SettingsManager {
 
     const fromDb = db.getSettings();
     if (fromDb) {
-      return SettingsManager.mergeWithDefaults(fromDb);
+      const merged = SettingsManager.mergeWithDefaults(fromDb);
+      SettingsManager.cachedSettings = merged;
+      return merged;
     }
 
     return SettingsManager.readFromLegacyJson();
   }
 
   static save(settings: AppSettings): boolean {
+    SettingsManager.cachedSettings = null;
     try {
       settings.download = normalizeDownloadSettings((settings as AppSettings).download);
       const db = DatabaseManager.getInstance();
@@ -105,6 +112,7 @@ export class SettingsManager {
   }
 
   static clearAutoRenameRetroactiveOnce(): void {
+    SettingsManager.cachedSettings = null;
     try {
       DatabaseManager.getInstance().clearAutoRenameRetroactiveOnce();
     } catch {}

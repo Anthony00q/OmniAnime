@@ -11,6 +11,7 @@ import { PosterGrid } from '../components/anime/PosterGrid';
 import { PosterGridSkeleton } from '../components/anime/PosterGridSkeleton';
 import { ErrorState } from '../components/ui/ErrorState';
 import { EmptyState } from '../components/ui/EmptyState';
+import { PageHeader } from '../components/ui/PageHeader';
 import { AppTooltip } from '../components/ui/AppTooltip';
 
 // Nombre de carpeta legible para huérfanas sin título oficial
@@ -229,21 +230,21 @@ export function ScannerView({ isActive = true }: { isActive?: boolean }) {
 
   return (
     <div className="flex flex-col h-full bg-background">
-      <div className="sticky top-0 z-20 flex items-center justify-between border-b border-border bg-background/80 p-6 backdrop-blur-md">
-        <div>
-          <h1 className="text-3xl font-extrabold tracking-tight">Escáner de Librería</h1>
-          <p className="text-muted-foreground text-sm">Detecta problemas de vinculación en tus carpetas locales</p>
-        </div>
-
-        <button
-          onClick={handleRefresh}
-          disabled={isFetching || isRefreshing}
-          className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg font-medium transition-colors"
-        >
-          <RefreshCcw className={`w-4 h-4 ${isFetching || isRefreshing ? 'animate-spin' : ''}`} />
-          <span>Escanear Directorio</span>
-        </button>
-      </div>
+      <PageHeader
+        title="Escáner de Librería"
+        description="Detecta problemas de vinculación en tus carpetas locales"
+        className="sticky top-0"
+        actions={
+          <button
+            onClick={handleRefresh}
+            disabled={isFetching || isRefreshing}
+            className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg font-medium transition-colors"
+          >
+            <RefreshCcw className={`w-4 h-4 ${isFetching || isRefreshing ? 'animate-spin' : ''}`} />
+            <span>Escanear Directorio</span>
+          </button>
+        }
+      />
 
       {dirs.length > 1 && (
         <div className="px-4 py-2 sm:px-6 flex items-center gap-2 flex-wrap">
@@ -332,7 +333,7 @@ export function ScannerView({ isActive = true }: { isActive?: boolean }) {
               value={relinkQuery}
               onChange={(e) => setRelinkQuery(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && executeSearch()}
-              className="w-full bg-background border border-border rounded-lg py-2.5 pl-9 pr-4 text-sm focus:outline-none focus:border-primary transition-colors"
+              className="w-full bg-background border border-border rounded-lg py-2.5 pl-9 pr-4 text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-[border-color,box-shadow]"
             />
           </div>
           <button

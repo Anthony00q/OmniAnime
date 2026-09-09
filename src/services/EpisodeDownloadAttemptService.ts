@@ -43,6 +43,15 @@ export interface EpisodeDownloadAttemptOptions {
 const START_TIMEOUT_MS = 90_000;
 const YTDLP_BUFFER_SIZE = '16M';
 
+async function fileExistsAsync(targetPath: string): Promise<boolean> {
+  try {
+    await fsp.stat(targetPath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export class EpisodeDownloadAttemptService {
   private readonly activeAttempts = new Map<string, AbortController>();
   private readonly skipEpochs = new Map<string, number>();
@@ -287,13 +296,13 @@ export class EpisodeDownloadAttemptService {
         const cacheDir = path.join(path.dirname(dest), '.cache');
         const partialYtdl = path.join(cacheDir, path.basename(dest) + '.ytdl');
         const partialPart = path.join(cacheDir, path.basename(dest) + '.part');
-        const hasPartial = link.server !== 'HLS' && (fs.existsSync(partialYtdl) || fs.existsSync(partialPart));
+        const hasPartial =
+          link.server !== 'HLS' &&
+          (await Promise.all([fileExistsAsync(partialYtdl), fileExistsAsync(partialPart)])).some(Boolean);
         if (!dl.allowContinue && hasPartial) {
-          for (const stale of [partialYtdl, partialPart]) {
-            try {
-              if (fs.existsSync(stale)) fs.unlinkSync(stale);
-            } catch {}
-          }
+          await Promise.all([fsp.rm(partialYtdl, { force: true }), fsp.rm(partialPart, { force: true })]).catch(
+            () => undefined,
+          );
         } else if (dl.allowContinue && hasPartial) {
           extraArgs.push('--continue');
         }
@@ -340,7 +349,7 @@ export class EpisodeDownloadAttemptService {
             'warn',
           );
         } else if (dl.cleanCacheOnComplete) {
-          this.cleanYtdlpCacheForEpisode(dest);
+          await this.cleanYtdlpCacheForEpisode(dest);
         }
       }
     } finally {
@@ -361,57 +370,42 @@ export class EpisodeDownloadAttemptService {
     };
   }
 
-  cleanEpisodeTemps(destPath: string): void {
-    try {
-      if (fs.existsSync(destPath)) fs.unlinkSync(destPath);
-      if (fs.existsSync(destPath + '.part')) fs.unlinkSync(destPath + '.part');
-      if (fs.existsSync(destPath + '.ytdl')) fs.unlinkSync(destPath + '.ytdl');
+  async cleanEpisodeTemps(destPath: string): Promise<void> {
+    const results = await Promise.allSettled([
+      fsp.rm(destPath, { force: true }),
+      fsp.rm(destPath + '.part', { force: true }),
+      fsp.rm(destPath + '.ytdl', { force: true }),
+    ]);
+    const failure = results.find((r) => r.status === 'rejected');
+    if (failure) {
+      this.options.log(
+        `WARN ️ Error limpiando temporales de ${path.basename(destPath)}: ${(failure as PromiseRejectedResult).reason}`,
+        'warn',
+      );
+    } else {
       this.options.log(`[CLEAN] Limpieza agresiva: Temporales eliminados para ${path.basename(destPath)}`, 'info');
-    } catch (error) {
-      this.options.log(`WARN ï¸ Error limpiando temporales de ${path.basename(destPath)}: ${error}`, 'warn');
     }
   }
 
-  cleanYtdlpCacheForEpisode(destPath: string): void {
+  async cleanYtdlpCacheForEpisode(destPath: string): Promise<void> {
     const cacheDir = path.join(path.dirname(destPath), '.cache');
-    if (!fs.existsSync(cacheDir)) return;
+    try {
+      await fsp.stat(cacheDir);
+    } catch {
+      return;
+    }
     const baseName = path.basename(destPath);
     const files = [baseName, baseName + '.part', baseName + '.ytdl'];
-    for (const file of files) {
-      const filePath = path.join(cacheDir, file);
-      try {
-        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-      } catch (error) {
-        this.options.logError(`No se pudo eliminar temporal ${filePath}: ${error}`);
-      }
-    }
-  }
-
-  private hasDownloadStartedOnDisk(destPath: string): boolean {
-    if (this.isExistingFile(destPath)) return true;
-    if (this.isExistingFile(`${destPath}.part`)) return true;
-    if (this.isExistingFile(`${destPath}.ytdl`)) return true;
-    const cacheDir = path.join(path.dirname(destPath), '.cache');
-    const cachePath = path.join(cacheDir, path.basename(destPath));
-    if (this.isExistingFile(cachePath)) return true;
-    if (this.isExistingFile(`${cachePath}.part`)) return true;
-    if (this.isExistingFile(`${cachePath}.ytdl`)) return true;
-    // Fallback compatibilidad
-    if (this.getFileSizeSafe(destPath) > 0) return true;
-    if (this.getFileSizeSafe(`${destPath}.part`) > 0) return true;
-    if (this.getFileSizeSafe(`${destPath}.ytdl`) > 0) return true;
-    if (this.getFileSizeSafe(cachePath) > 0) return true;
-    if (this.getFileSizeSafe(`${cachePath}.part`) > 0) return true;
-    if (this.getFileSizeSafe(`${cachePath}.ytdl`) > 0) return true;
-    return false;
-  }
-
-  private isExistingFile(filePath: string): boolean {
-    try {
-      return fs.statSync(filePath).isFile();
-    } catch {
-      return false;
-    }
+    await Promise.all(
+      files.map(async (file) => {
+        const filePath = path.join(cacheDir, file);
+        try {
+          await fsp.rm(filePath, { force: true });
+        } catch (error) {
+          this.options.logError(`No se pudo eliminar temporal ${filePath}: ${error}`);
+        }
+      }),
+    );
   }
 
   private getFileSizeSafe(filePath: string): number {
@@ -425,80 +419,6 @@ export class EpisodeDownloadAttemptService {
 
   private isRegularFileWithContent(filePath: string): boolean {
     return this.getFileSizeSafe(filePath) > 0;
-  }
-
-  private snapshotStableFiles(dirPath: string): Map<string, number> {
-    const out = new Map<string, number>();
-    try {
-      for (const name of fs.readdirSync(dirPath)) {
-        if (name.endsWith('.part') || name.endsWith('.ytdl')) continue;
-        const fullPath = path.join(dirPath, name);
-        if (!fs.statSync(fullPath).isFile()) continue;
-        const size = this.getFileSizeSafe(fullPath);
-        if (size > 0) out.set(name, size);
-      }
-    } catch (error) {
-      this.options.logError(`No se pudo inspeccionar ${dirPath}: ${error}`);
-    }
-    return out;
-  }
-
-  private ensureEpisodeMp4FileWithSnapshot(destPath: string, before: Map<string, number>): boolean {
-    if (this.ensureEpisodeMp4File(destPath)) return true;
-
-    try {
-      const dir = path.dirname(destPath);
-      const now = this.snapshotStableFiles(dir);
-      const candidates: Array<{ name: string; fullPath: string; size: number }> = [];
-      for (const [name, size] of now.entries()) {
-        const previousSize = before.get(name) || 0;
-        if ((!before.has(name) && size <= 0) || (before.has(name) && size <= previousSize)) continue;
-        if (name === path.basename(destPath)) continue;
-        const extension = path.extname(name).toLowerCase();
-        if (!['.mp4', '.mkv', '.avi', '.flv', '.webm'].includes(extension)) continue;
-        candidates.push({ name, fullPath: path.join(dir, name), size });
-      }
-      candidates.sort((a, b) => b.size - a.size);
-      if (candidates.length > 0) {
-        fs.renameSync(candidates[0].fullPath, destPath);
-        return fs.existsSync(destPath) && this.getFileSizeSafe(destPath) > 0;
-      }
-    } catch (error) {
-      this.options.logError(`No se pudo completar la deteccion de un MP4 en ${destPath}: ${error}`);
-    }
-    return false;
-  }
-
-  private ensureEpisodeMp4File(destPath: string): boolean {
-    if (fs.existsSync(destPath) && this.getFileSizeSafe(destPath) > 0) return true;
-    try {
-      const dir = path.dirname(destPath);
-      const fileName = path.basename(destPath);
-      const baseName = fileName.replace(/\.mp4$/i, '');
-      const exactNoExt = path.join(dir, baseName);
-      if (fs.existsSync(exactNoExt) && this.getFileSizeSafe(exactNoExt) > 0) {
-        fs.renameSync(exactNoExt, destPath);
-        return fs.existsSync(destPath) && this.getFileSizeSafe(destPath) > 0;
-      }
-      const candidates = fs
-        .readdirSync(dir)
-        .filter((name) => {
-          if (name === fileName || !name.startsWith(baseName)) return false;
-          if (name.endsWith('.part') || name.endsWith('.ytdl')) return false;
-          const extension = path.extname(name).toLowerCase();
-          if (!['.mp4', '.mkv', '.avi', '.flv', '.webm'].includes(extension)) return false;
-          return this.getFileSizeSafe(path.join(dir, name)) > 0;
-        })
-        .map((name) => ({ name, fullPath: path.join(dir, name), size: this.getFileSizeSafe(path.join(dir, name)) }))
-        .sort((a, b) => b.size - a.size);
-      if (candidates.length > 0) {
-        fs.renameSync(candidates[0].fullPath, destPath);
-        return fs.existsSync(destPath) && this.getFileSizeSafe(destPath) > 0;
-      }
-    } catch (error) {
-      this.options.logError(`No se pudo normalizar el archivo de episodio ${destPath}: ${error}`);
-    }
-    return false;
   }
 
   // Variantes asíncronas — semántica: existencia == iniciado (mp4upload lento), no size>0

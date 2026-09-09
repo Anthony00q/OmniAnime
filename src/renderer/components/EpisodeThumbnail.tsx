@@ -6,11 +6,20 @@ interface EpisodeThumbnailProps {
   // '' = decorativa: el botón padre ya nombra la acción vía aria-label.
   alt?: string;
   className?: string;
+  thumbToken?: number;
 }
 
-export function EpisodeThumbnail({ videoPath, alt = '', className = '' }: EpisodeThumbnailProps) {
+export function EpisodeThumbnail({ videoPath, alt = '', className = '', thumbToken = 0 }: EpisodeThumbnailProps) {
   const [thumbSrc, setThumbSrc] = useState<string | null>(null);
   const imgRef = useRef<HTMLImageElement>(null);
+  const seenTokenRef = useRef(thumbToken);
+
+  useEffect(() => {
+    if (seenTokenRef.current !== thumbToken) {
+      seenTokenRef.current = thumbToken;
+      setThumbSrc(null);
+    }
+  }, [thumbToken]);
 
   useEffect(() => {
     let isMounted = true;

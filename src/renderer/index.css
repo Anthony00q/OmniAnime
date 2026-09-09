@@ -220,6 +220,17 @@ html[dir='ltr'] {
   contain-intrinsic-size: 0 52px;
 }
 
+/* Intrínsecos propios de Detalles: los 52px del Downloader romperían el scroll. */
+.details-episode-card {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 160px;
+}
+
+.details-episode-row {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 88px;
+}
+
 .library-episode-item {
   content-visibility: auto;
   contain-intrinsic-size: 0 150px;

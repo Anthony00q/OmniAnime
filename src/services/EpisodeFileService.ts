@@ -1,4 +1,4 @@
-import * as fs from 'fs';
+import * as fsp from 'fs/promises';
 import * as path from 'path';
 import { buildCanonicalEpisodeFileName, extractEpisodeNumberFromVideoFileName } from '../utils/episodeUtils';
 import type { LibraryAssetService } from './LibraryAssetService';
@@ -12,6 +12,8 @@ export interface EpisodeFileServiceOptions {
   getSettings: () => EpisodeFileSettings;
   assetService: LibraryAssetService;
   log: (error: unknown) => void;
+  // Pares renombrados por operación para mover sus miniaturas (staging).
+  onFilesRenamed?: (pairs: Array<{ from: string; to: string }>) => Promise<void> | void;
 }
 
 export interface EpisodeFileRecord {
@@ -82,10 +84,22 @@ export interface ReorderPreviewResult {
 
 const VIDEO_EXTENSIONS = new Set(['.mp4', '.mkv', '.avi', '.flv', '.webm']);
 
+// Lecturas en lotes de 16; mutaciones secuenciales.
+const READ_BATCH_SIZE = 16;
+
+async function pathExists(targetPath: string): Promise<boolean> {
+  try {
+    await fsp.stat(targetPath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export class EpisodeFileService {
   constructor(private readonly options: EpisodeFileServiceOptions) {}
 
-  previewRename(animePath: string, overrideStyle?: 'minimal' | 'descriptive'): RenamePreviewResult {
+  async previewRename(animePath: string, overrideStyle?: 'minimal' | 'descriptive'): Promise<RenamePreviewResult> {
     const fallbackFolderName = (() => {
       try {
         return path.basename(animePath || '');
@@ -93,7 +107,7 @@ export class EpisodeFileService {
         return '';
       }
     })();
-    if (!animePath || !fs.existsSync(animePath)) {
+    if (!animePath || !(await pathExists(animePath))) {
       return {
         success: false,
         error: 'La carpeta no existe.',
@@ -103,9 +117,9 @@ export class EpisodeFileService {
         summary: { total: 0, toRename: 0, alreadyCorrect: 0, conflicts: 0, skippedNoNumber: 0 },
       };
     }
-    const dirents = fs
-      .readdirSync(animePath, { withFileTypes: true })
-      .filter((dirent) => dirent.isFile() && VIDEO_EXTENSIONS.has(path.extname(dirent.name).toLowerCase()));
+    const dirents = (await fsp.readdir(animePath, { withFileTypes: true })).filter(
+      (dirent) => dirent.isFile() && VIDEO_EXTENSIONS.has(path.extname(dirent.name).toLowerCase()),
+    );
 
     const sortedDirents = [...dirents].sort((a, b) =>
       a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }),
@@ -198,12 +212,12 @@ export class EpisodeFileService {
     };
   }
 
-  normalizeEpisodeFilesInFolder(
+  async normalizeEpisodeFilesInFolder(
     animePath: string,
     forceRename = false,
     overrideStyle?: 'minimal' | 'descriptive',
-  ): RenameResult | void {
-    if (!fs.existsSync(animePath)) return { success: false, error: 'La carpeta no existe.' } as RenameResult;
+  ): Promise<RenameResult | void> {
+    if (!(await pathExists(animePath))) return { success: false, error: 'La carpeta no existe.' } as RenameResult;
     const settings = this.options.getSettings();
     if (!forceRename && settings.autoRenameRetroactive !== true)
       return {
@@ -213,22 +227,21 @@ export class EpisodeFileService {
         skippedNoNumber: 0,
         total: 0,
       } as RenameResult;
-    if (!fs.existsSync(animePath)) return { success: false, error: 'La carpeta no existe.' } as RenameResult;
 
-    const preview = this.previewRename(animePath, overrideStyle);
+    const preview = await this.previewRename(animePath, overrideStyle);
     if (!preview.success) return { success: false, error: preview.error || 'No se pudo inspeccionar la carpeta.' };
 
     const willRename = preview.items.filter((i) => i.status === 'will_rename');
     let renamed = 0;
     let conflicts = preview.summary.conflicts;
     const occupiedNames = new Set(
-      fs
-        .readdirSync(animePath, { withFileTypes: true })
+      (await fsp.readdir(animePath, { withFileTypes: true }))
         .filter((d) => d.isFile() && VIDEO_EXTENSIONS.has(path.extname(d.name).toLowerCase()))
         .map((d) => d.name.toLowerCase()),
     );
 
-    // Re-validate before each rename to avoid TOCTOU with preview
+    // Re-validación secuencial antes de cada rename (mismo orden, sin TOCTOU con el preview)
+    const renamedPairs: Array<{ from: string; to: string }> = [];
     for (const item of willRename) {
       const expectedCurrent = item.from;
       const canonicalName = item.to;
@@ -241,13 +254,21 @@ export class EpisodeFileService {
       const oldPath = path.join(animePath, expectedCurrent);
       const newPath = path.join(animePath, canonicalName);
       try {
-        if (!fs.existsSync(oldPath)) continue;
-        fs.renameSync(oldPath, newPath);
+        if (!(await pathExists(oldPath))) continue;
+        await fsp.rename(oldPath, newPath);
         occupiedNames.delete(lowerCurrent);
         occupiedNames.add(lowerCanonical);
         renamed += 1;
+        renamedPairs.push({ from: oldPath, to: newPath });
       } catch (error) {
         this.options.log(`No se pudo renombrar ${oldPath} a ${newPath}: ${error}`);
+      }
+    }
+    if (renamedPairs.length > 0) {
+      try {
+        await this.options.onFilesRenamed?.(renamedPairs);
+      } catch (error) {
+        this.options.log(`No se pudieron mover miniaturas en ${animePath}: ${error}`);
       }
     }
 
@@ -261,24 +282,41 @@ export class EpisodeFileService {
     return result;
   }
 
-  scanEpisodes(animePath: string): EpisodeFileRecord[] {
-    if (!fs.existsSync(animePath)) return [];
+  async scanEpisodes(animePath: string): Promise<EpisodeFileRecord[]> {
+    if (!(await pathExists(animePath))) return [];
 
-    this.normalizeEpisodeFilesInFolder(animePath);
-    const files = fs
-      .readdirSync(animePath, { withFileTypes: true })
-      .filter((dirent) => dirent.isFile() && VIDEO_EXTENSIONS.has(path.extname(dirent.name).toLowerCase()))
-      .map((dirent) => {
-        const filePath = path.join(animePath, dirent.name);
-        const stats = fs.statSync(filePath);
-        return {
-          name: dirent.name,
-          path: filePath,
-          ext: path.extname(dirent.name).substring(1),
-          size: `${(stats.size / (1024 * 1024)).toFixed(1)} MB`,
-          episodeNumber: extractEpisodeNumberFromVideoFileName(dirent.name),
-        };
-      });
+    await this.normalizeEpisodeFilesInFolder(animePath);
+    const dirents = (await fsp.readdir(animePath, { withFileTypes: true })).filter(
+      (dirent) => dirent.isFile() && VIDEO_EXTENSIONS.has(path.extname(dirent.name).toLowerCase()),
+    );
+
+    const files: EpisodeFileRecord[] = [];
+    for (let batchStart = 0; batchStart < dirents.length; batchStart += READ_BATCH_SIZE) {
+      const chunk = dirents.slice(batchStart, batchStart + READ_BATCH_SIZE);
+      const chunkFiles = await Promise.all(
+        chunk.map(async (dirent) => {
+          const filePath = path.join(animePath, dirent.name);
+          let sizeBytes = 0;
+          try {
+            const stats = await fsp.stat(filePath);
+            sizeBytes = stats.size;
+          } catch (error) {
+            this.options.log(`No se pudo inspeccionar ${filePath}: ${error}`);
+            return null;
+          }
+          return {
+            name: dirent.name,
+            path: filePath,
+            ext: path.extname(dirent.name).substring(1),
+            size: `${(sizeBytes / (1024 * 1024)).toFixed(1)} MB`,
+            episodeNumber: extractEpisodeNumberFromVideoFileName(dirent.name),
+          };
+        }),
+      );
+      for (const record of chunkFiles) {
+        if (record) files.push(record);
+      }
+    }
 
     return files.sort((a, b) => {
       const aHasNum = typeof a.episodeNumber === 'number';
@@ -292,36 +330,44 @@ export class EpisodeFileService {
     });
   }
 
-  getFoldersForReorder(baseDirs: string[]): ReorderFolder[] {
+  async getFoldersForReorder(baseDirs: string[]): Promise<ReorderFolder[]> {
     const allFolders: ReorderFolder[] = [];
     const seenPaths = new Set<string>();
 
     for (const baseDir of baseDirs) {
-      if (!baseDir || !fs.existsSync(baseDir)) continue;
-      const dirents = fs.readdirSync(baseDir, { withFileTypes: true }).filter((entry) => entry.isDirectory());
+      if (!baseDir || !(await pathExists(baseDir))) continue;
+      const dirents = (await fsp.readdir(baseDir, { withFileTypes: true })).filter((entry) => entry.isDirectory());
 
-      for (const dirent of dirents) {
-        const folderPath = path.join(baseDir, dirent.name);
-        if (seenPaths.has(folderPath)) continue;
-        seenPaths.add(folderPath);
+      for (let batchStart = 0; batchStart < dirents.length; batchStart += READ_BATCH_SIZE) {
+        const chunk = dirents.slice(batchStart, batchStart + READ_BATCH_SIZE);
+        const chunkFolders = await Promise.all(
+          chunk.map(async (dirent): Promise<ReorderFolder | null> => {
+            const folderPath = path.join(baseDir, dirent.name);
+            if (seenPaths.has(folderPath)) return null;
+            seenPaths.add(folderPath);
 
-        let episodeCount = 0;
-        try {
-          const entries = fs.readdirSync(folderPath, { withFileTypes: true });
-          episodeCount = entries.filter(
-            (entry) => entry.isFile() && VIDEO_EXTENSIONS.has(path.extname(entry.name).toLowerCase()),
-          ).length;
-        } catch (error) {
-          this.options.log(`No se pudo leer ${folderPath} para reordenar: ${error}`);
-          continue;
+            let episodeCount = 0;
+            try {
+              const entries = await fsp.readdir(folderPath, { withFileTypes: true });
+              episodeCount = entries.filter(
+                (entry) => entry.isFile() && VIDEO_EXTENSIONS.has(path.extname(entry.name).toLowerCase()),
+              ).length;
+            } catch (error) {
+              this.options.log(`No se pudo leer ${folderPath} para reordenar: ${error}`);
+              return null;
+            }
+            if (episodeCount === 0) return null;
+            return {
+              name: dirent.name,
+              path: folderPath,
+              episodeCount,
+              posterLocal: await this.options.assetService.getFolderPosterFileUrlAsync(folderPath),
+            };
+          }),
+        );
+        for (const folder of chunkFolders) {
+          if (folder) allFolders.push(folder);
         }
-        if (episodeCount === 0) continue;
-        allFolders.push({
-          name: dirent.name,
-          path: folderPath,
-          episodeCount,
-          posterLocal: this.options.assetService.getFolderPosterFileUrl(folderPath),
-        });
       }
     }
 
@@ -329,8 +375,8 @@ export class EpisodeFileService {
     return allFolders;
   }
 
-  previewReorder(folderPath: string, startNumber: number): ReorderPreviewResult {
-    if (!folderPath || !fs.existsSync(folderPath)) {
+  async previewReorder(folderPath: string, startNumber: number): Promise<ReorderPreviewResult> {
+    if (!folderPath || !(await pathExists(folderPath))) {
       return {
         success: false,
         error: 'La carpeta no existe.',
@@ -349,8 +395,7 @@ export class EpisodeFileService {
         summary: { total: 0, toRename: 0, unchanged: 0 },
       };
     }
-    const files = fs
-      .readdirSync(folderPath, { withFileTypes: true })
+    const files = (await fsp.readdir(folderPath, { withFileTypes: true }))
       .filter((entry) => entry.isFile() && VIDEO_EXTENSIONS.has(path.extname(entry.name).toLowerCase()))
       .map((entry) => ({
         name: entry.name,
@@ -403,16 +448,15 @@ export class EpisodeFileService {
     };
   }
 
-  reorderEpisodes(folderPath: string, startNumber: number): ReorderResult {
+  async reorderEpisodes(folderPath: string, startNumber: number): Promise<ReorderResult> {
     try {
-      const preview = this.previewReorder(folderPath, startNumber);
+      const preview = await this.previewReorder(folderPath, startNumber);
       if (!preview.success) {
         return { success: false, error: preview.error || 'No se pudo previsualizar el reorden.' };
       }
       const start = preview.startNumber;
 
-      const files = fs
-        .readdirSync(folderPath, { withFileTypes: true })
+      const files = (await fsp.readdir(folderPath, { withFileTypes: true }))
         .filter((entry) => entry.isFile() && VIDEO_EXTENSIONS.has(path.extname(entry.name).toLowerCase()))
         .map((entry) => ({
           name: entry.name,
@@ -429,17 +473,18 @@ export class EpisodeFileService {
 
       if (files.length === 0) return { success: false, error: 'No se encontraron archivos de video.' };
 
+      // Secuencial a propósito: el rollback restaura en orden inverso exacto.
       const tempNames: Array<{ tempPath: string; ext: string; originalPath: string }> = [];
       for (let i = 0; i < files.length; i += 1) {
         const tempName = `_reorder_tmp_${Date.now()}_${i}${files[i].ext}`;
         const tempPath = path.join(folderPath, tempName);
         try {
-          fs.renameSync(files[i].fullPath, tempPath);
+          await fsp.rename(files[i].fullPath, tempPath);
           tempNames.push({ tempPath, ext: files[i].ext, originalPath: files[i].fullPath });
         } catch (error) {
           for (const temp of tempNames) {
             try {
-              fs.renameSync(temp.tempPath, temp.originalPath);
+              await fsp.rename(temp.tempPath, temp.originalPath);
             } catch (rollbackError) {
               this.options.log(`Error revirtiendo ${temp.tempPath}: ${rollbackError}`);
             }
@@ -460,21 +505,21 @@ export class EpisodeFileService {
         const finalName = this.buildCanonicalName(start + i, tempNames[i].ext, path.basename(folderPath), currentStyle);
         const finalPath = path.join(folderPath, finalName);
         try {
-          fs.renameSync(tempNames[i].tempPath, finalPath);
+          await fsp.rename(tempNames[i].tempPath, finalPath);
           finalNames.push(finalName);
           appliedRenames.push({ finalPath, tempPath: tempNames[i].tempPath });
         } catch (error) {
           for (let j = appliedRenames.length - 1; j >= 0; j -= 1) {
             const applied = appliedRenames[j];
             try {
-              if (fs.existsSync(applied.finalPath)) fs.renameSync(applied.finalPath, applied.tempPath);
+              if (await pathExists(applied.finalPath)) await fsp.rename(applied.finalPath, applied.tempPath);
             } catch (rollbackError) {
               this.options.log(`Error revirtiendo ${applied.finalPath}: ${rollbackError}`);
             }
           }
           for (const temp of tempNames) {
             try {
-              if (fs.existsSync(temp.tempPath)) fs.renameSync(temp.tempPath, temp.originalPath);
+              if (await pathExists(temp.tempPath)) await fsp.rename(temp.tempPath, temp.originalPath);
             } catch (rollbackError) {
               this.options.log(`Error restaurando ${temp.tempPath}: ${rollbackError}`);
             }
@@ -487,6 +532,20 @@ export class EpisodeFileService {
         }
       }
 
+      // Miniaturas solo tras éxito total (en fallo el rollback las conserva).
+      const thumbPairs: Array<{ from: string; to: string }> = [];
+      for (let i = 0; i < tempNames.length && i < finalNames.length; i += 1) {
+        const finalPath = path.join(folderPath, finalNames[i]);
+        if (tempNames[i].originalPath === finalPath) continue;
+        thumbPairs.push({ from: tempNames[i].originalPath, to: finalPath });
+      }
+      if (thumbPairs.length > 0) {
+        try {
+          await this.options.onFilesRenamed?.(thumbPairs);
+        } catch (error) {
+          this.options.log(`No se pudieron mover miniaturas en ${folderPath}: ${error}`);
+        }
+      }
       return { success: true, renamed: finalNames.length };
     } catch (error) {
       this.options.log(error);

@@ -2,6 +2,7 @@ import { dialog, ipcMain } from 'electron';
 import axios from 'axios';
 import { USER_AGENT } from '../../../utils/windowUtils';
 import { assertAllowedImageRedirect, isAllowedImageUrl } from '../../../utils/networkSecurity';
+import { JkAnimeProvider } from '../../../services/providers/JkAnimeProvider';
 import type { CatalogFilters } from '../../../types/anime';
 import type { IpcRegistryDependencies } from '../../IpcRegistry';
 
@@ -178,6 +179,22 @@ export function registerCatalogHandlers({
       return null;
     }
   });
+
+  ipcMain.handle(
+    'get-episode-thumbs',
+    async (_, payload: { slug?: string; fromEp?: number; toEp?: number; provider?: string }) => {
+      try {
+        const slug = String(payload?.slug ?? '').trim();
+        if (!slug) return {};
+        const provider = resolveProvider(payload?.provider);
+        if (!(provider instanceof JkAnimeProvider)) return {};
+        return await provider.getEpisodeThumbs(slug, Number(payload?.fromEp), Number(payload?.toEp));
+      } catch (error: unknown) {
+        writeGlobalLog(`get-episode-thumbs handler error: ${error instanceof Error ? error.message : String(error)}`);
+        return {};
+      }
+    },
+  );
 
   ipcMain.handle('select-folder', async () => {
     const result = await dialog.showOpenDialog({ properties: ['openDirectory'] });

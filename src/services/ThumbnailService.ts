@@ -15,8 +15,11 @@ export interface ThumbnailServiceOptions {
 
 const THUMBNAIL_DIR_NAME = 'thumbnails_v3';
 const THUMBNAIL_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+const THUMBNAIL_BATCH_SIZE = 16;
 const DURATION_TIMEOUT_MS = 2000;
 const CAPTURE_TIMEOUT_MS = 5000;
+// Duration sale en los primeros KB: tope anti-bloat de stderr.
+const DURATION_OUTPUT_LIMIT = 64 * 1024;
 
 export function computeThumbnailAttemptPoints(duration: number | null): string[] {
   if (duration && duration > 0) {
@@ -66,20 +69,90 @@ export class ThumbnailService {
     return fs.existsSync(localFfmpeg) ? localFfmpeg : 'ffmpeg';
   }
 
-  cleanupThumbnails(): void {
+  async cleanupThumbnails(): Promise<void> {
     try {
       const thumbDir = path.join(this.options.userDataDir, THUMBNAIL_DIR_NAME);
-      if (!fs.existsSync(thumbDir)) return;
+      try {
+        await fsp.stat(thumbDir);
+      } catch {
+        return;
+      }
 
-      const files = fs.readdirSync(thumbDir);
+      const files = await fsp.readdir(thumbDir);
       const now = Date.now();
-      for (const file of files) {
-        if (!file.endsWith('.jpg')) continue;
-        const filePath = path.join(thumbDir, file);
-        const stats = fs.statSync(filePath);
-        if (now - stats.mtimeMs > THUMBNAIL_MAX_AGE_MS) {
-          fs.unlinkSync(filePath);
+      for (let batchStart = 0; batchStart < files.length; batchStart += THUMBNAIL_BATCH_SIZE) {
+        const chunk = files.slice(batchStart, batchStart + THUMBNAIL_BATCH_SIZE);
+        await Promise.all(
+          chunk.map(async (file) => {
+            if (!file.endsWith('.jpg')) return;
+            const filePath = path.join(thumbDir, file);
+            try {
+              const stats = await fsp.stat(filePath);
+              if (now - stats.mtimeMs > THUMBNAIL_MAX_AGE_MS) {
+                await fsp.unlink(filePath);
+              }
+            } catch (error) {
+              this.options.log(error);
+            }
+          }),
+        );
+      }
+    } catch (error) {
+      this.options.log(error);
+    }
+  }
+
+  // Staging en 2 fases contra cadenas/ciclos; best-effort, nunca lanza.
+  async moveThumbnailsStaged(pairs: Array<{ from: string; to: string }>): Promise<void> {
+    try {
+      const moves: Array<{ srcHash: string; destHash: string }> = [];
+      for (const pair of pairs || []) {
+        const from = String(pair?.from || '');
+        const to = String(pair?.to || '');
+        if (!from || !to || from === to) continue;
+        const srcHash = crypto.createHash('md5').update(from).digest('hex');
+        const destHash = crypto.createHash('md5').update(to).digest('hex');
+        if (srcHash === destHash) continue;
+        if (moves.some((m) => m.srcHash === srcHash && m.destHash === destHash)) continue;
+        moves.push({ srcHash, destHash });
+      }
+      if (moves.length === 0) return;
+      const thumbDir = path.join(this.options.userDataDir, THUMBNAIL_DIR_NAME);
+      const stamp = `${Date.now()}_${Math.floor(Math.random() * 0xffffffff).toString(16)}`;
+      const staged: Array<{ tempPath: string; srcHash: string; destHash: string }> = [];
+      try {
+        for (let i = 0; i < moves.length; i += 1) {
+          const tempPath = path.join(thumbDir, `_thumb_mv_${stamp}_${i}.jpg`);
+          try {
+            await fsp.stat(path.join(thumbDir, `${moves[i].srcHash}.jpg`));
+          } catch {
+            continue;
+          }
+          await fsp.rename(path.join(thumbDir, `${moves[i].srcHash}.jpg`), tempPath);
+          staged.push({ tempPath, srcHash: moves[i].srcHash, destHash: moves[i].destHash });
         }
+        const appliedOk = new Set<string>();
+        for (const item of staged) {
+          const destPath = path.join(thumbDir, `${item.destHash}.jpg`);
+          try {
+            await fsp.rm(destPath, { force: true });
+            await fsp.rename(item.tempPath, destPath);
+            appliedOk.add(item.tempPath);
+          } catch (error) {
+            this.options.log(error);
+          }
+        }
+        // Lo no aplicado vuelve a su origen.
+        for (const item of staged) {
+          if (appliedOk.has(item.tempPath)) continue;
+          try {
+            await fsp.rename(item.tempPath, path.join(thumbDir, `${item.srcHash}.jpg`));
+          } catch (error) {
+            this.options.log(error);
+          }
+        }
+      } catch (error) {
+        this.options.log(error);
       }
     } catch (error) {
       this.options.log(error);
@@ -97,7 +170,7 @@ export class ThumbnailService {
       const hash = crypto.createHash('md5').update(videoPath).digest('hex');
       const thumbPath = path.join(thumbDir, `${hash}.jpg`);
 
-      if (this.isUsableThumbnail(thumbPath)) {
+      if (await this.isUsableThumbnail(thumbPath)) {
         try {
           const data = await fsp.readFile(thumbPath);
           return `data:image/jpeg;base64,${data.toString('base64')}`;
@@ -111,7 +184,7 @@ export class ThumbnailService {
         const ok = await this.captureAt(videoPath, ffmpegPath, thumbDir, hash, startPoint);
         const tempThumbPath = path.join(thumbDir, `temp_${hash}_${startPoint}.jpg`);
 
-        if (ok && this.isUsableThumbnail(tempThumbPath)) {
+        if (ok && (await this.isUsableThumbnail(tempThumbPath))) {
           try {
             await fsp.rename(tempThumbPath, thumbPath);
             const data = await fsp.readFile(thumbPath);
@@ -140,7 +213,7 @@ export class ThumbnailService {
   private async getVideoDuration(videoPath: string, ffmpegPath: string): Promise<number | null> {
     await this.acquireFfmpegSlot();
     return new Promise((resolve) => {
-      const childProcess = spawn(ffmpegPath, ['-i', videoPath]);
+      const childProcess = spawn(ffmpegPath, ['-i', videoPath], { windowsHide: true });
       this.options.registerProcess(childProcess);
 
       let output = '';
@@ -156,10 +229,12 @@ export class ThumbnailService {
       };
 
       childProcess.stderr.on('data', (data) => {
-        output += data.toString();
+        if (output.length < DURATION_OUTPUT_LIMIT)
+          output += data.toString().slice(0, DURATION_OUTPUT_LIMIT - output.length);
       });
       childProcess.stdout.on('data', (data) => {
-        output += data.toString();
+        if (output.length < DURATION_OUTPUT_LIMIT)
+          output += data.toString().slice(0, DURATION_OUTPUT_LIMIT - output.length);
       });
 
       childProcess.on('close', () => {
@@ -197,20 +272,11 @@ export class ThumbnailService {
       fsp.unlink(tempThumbPath).catch(() => {});
 
       let finished = false;
-      const childProcess = spawn(ffmpegPath, [
-        '-y',
-        '-ss',
-        startPoint,
-        '-i',
-        videoPath,
-        '-vframes',
-        '1',
-        '-q:v',
-        '2',
-        '-f',
-        'image2',
-        tempThumbPath,
-      ]);
+      const childProcess = spawn(
+        ffmpegPath,
+        ['-y', '-ss', startPoint, '-i', videoPath, '-vframes', '1', '-q:v', '2', '-f', 'image2', tempThumbPath],
+        { windowsHide: true },
+      );
 
       this.options.registerProcess(childProcess);
 
@@ -225,7 +291,7 @@ export class ThumbnailService {
       };
 
       childProcess.on('close', (code) => {
-        finalize(code === 0 && this.isUsableThumbnail(tempThumbPath));
+        void (async () => finalize(code === 0 && (await this.isUsableThumbnail(tempThumbPath))))();
       });
       childProcess.on('error', () => finalize(false));
 
@@ -237,9 +303,9 @@ export class ThumbnailService {
     });
   }
 
-  private isUsableThumbnail(filePath: string): boolean {
+  private async isUsableThumbnail(filePath: string): Promise<boolean> {
     try {
-      const stats = fs.statSync(filePath);
+      const stats = await fsp.stat(filePath);
       return stats.isFile() && stats.size > 0;
     } catch {
       return false;

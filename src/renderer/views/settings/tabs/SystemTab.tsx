@@ -12,6 +12,8 @@ import {
   Cpu,
   Wand2,
   GripVertical,
+  ArrowUp,
+  ArrowDown,
 } from 'lucide-react';
 import { CustomSelect } from '../../../components/CustomSelect';
 import { CustomSwitch } from '../../../components/CustomSwitch';
@@ -282,6 +284,36 @@ export const SystemTab = memo(function SystemTab({
                             <X className="w-4 h-4" />
                           </button>
                         </AppTooltip>
+                      )}
+                      {canReorder && (
+                        <span
+                          className="inline-flex items-center gap-1"
+                          role="group"
+                          aria-label={`Reordenar carpeta ${idx + 1}`}
+                        >
+                          <AppTooltip content="Subir carpeta">
+                            <button
+                              type="button"
+                              onClick={() => onReorderOutputDirs?.(idx, idx - 1)}
+                              disabled={idx === 0}
+                              aria-label={`Subir carpeta ${idx + 1}`}
+                              className="inline-flex items-center justify-center bg-background hover:bg-secondary border border-border px-2 py-2 rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                            >
+                              <ArrowUp className="w-4 h-4" />
+                            </button>
+                          </AppTooltip>
+                          <AppTooltip content="Bajar carpeta">
+                            <button
+                              type="button"
+                              onClick={() => onReorderOutputDirs?.(idx, idx + 1)}
+                              disabled={idx === outputDirs.length - 1}
+                              aria-label={`Bajar carpeta ${idx + 1}`}
+                              className="inline-flex items-center justify-center bg-background hover:bg-secondary border border-border px-2 py-2 rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                            >
+                              <ArrowDown className="w-4 h-4" />
+                            </button>
+                          </AppTooltip>
+                        </span>
                       )}
                     </div>
                   </div>

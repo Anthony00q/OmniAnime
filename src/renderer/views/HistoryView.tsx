@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Trash2, History, ChevronRight, ChevronDown, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Dialog } from '../components/Dialog';
@@ -10,6 +10,7 @@ import { HistorySkeleton } from '../components/anime/PosterGridSkeleton';
 import { groupHistory, type HistoryGroup } from './history/model/historyModel';
 import { HistoryGroupCard } from './history/components/HistoryGroupCard';
 import { HistoryTable } from './history/components/HistoryTable';
+import { useDesktopBreakpoint } from '../hooks/useDesktopBreakpoint';
 import { useHistoryExpansion } from './history/hooks/useHistoryExpansion';
 
 interface HistoryViewProps {
@@ -46,6 +47,7 @@ export function HistoryView({ isActive, activeProvider, onSelectAnime }: History
   const grouped = useMemo(() => groupHistory(history), [history]);
   const totalEpisodes = grouped.reduce((total, group) => total + group.requestedCount, 0);
   const totalGroups = grouped.length;
+  const isDesktopLayout = useDesktopBreakpoint();
 
   const handleClearHistory = async () => {
     setClearModal(false);
@@ -79,7 +81,8 @@ export function HistoryView({ isActive, activeProvider, onSelectAnime }: History
     );
   };
 
-  const handleOpenFolder = async (fullPath: string, isDirectory = false) => {
+  // Estable para que el memo de HistoryTable sea efectivo.
+  const handleOpenFolder = useCallback(async (fullPath: string, isDirectory = false) => {
     if (!fullPath) return;
     try {
       const sep = fullPath.includes('\\') ? '\\' : '/';
@@ -91,7 +94,7 @@ export function HistoryView({ isActive, activeProvider, onSelectAnime }: History
     } catch {
       toast.error('No se pudo abrir el directorio');
     }
-  };
+  }, []);
 
   const handleExpandAll = () => expandAll(grouped.map((g) => g.key));
 
@@ -165,34 +168,36 @@ export function HistoryView({ isActive, activeProvider, onSelectAnime }: History
           />
         ) : (
           <>
-            <HistoryTable
-              grouped={grouped}
-              expandedGroups={expandedGroups}
-              expandedReasons={expandedReasons}
-              activeProvider={activeProvider}
-              onSelectAnime={onSelectAnime}
-              onToggleGroup={toggleGroup}
-              onToggleReason={toggleReason}
-              onOpenFolder={handleOpenFolder}
-              onDeleteGroup={setDeleteGroupKey}
-            />
-
-            <div className="mx-auto flex max-w-2xl flex-col gap-3 lg:hidden">
-              {grouped.map((group) => (
-                <HistoryGroupCard
-                  key={group.key}
-                  group={group}
-                  isExpanded={expandedGroups.has(group.key)}
-                  expandedReasons={expandedReasons}
-                  activeProvider={activeProvider}
-                  onSelectAnime={onSelectAnime}
-                  onToggleGroup={toggleGroup}
-                  onToggleReason={toggleReason}
-                  onOpenFolder={handleOpenFolder}
-                  onDeleteGroup={setDeleteGroupKey}
-                />
-              ))}
-            </div>
+            {isDesktopLayout ? (
+              <HistoryTable
+                grouped={grouped}
+                expandedGroups={expandedGroups}
+                expandedReasons={expandedReasons}
+                activeProvider={activeProvider}
+                onSelectAnime={onSelectAnime}
+                onToggleGroup={toggleGroup}
+                onToggleReason={toggleReason}
+                onOpenFolder={handleOpenFolder}
+                onDeleteGroup={setDeleteGroupKey}
+              />
+            ) : (
+              <div className="mx-auto flex max-w-2xl flex-col gap-3 lg:hidden">
+                {grouped.map((group) => (
+                  <HistoryGroupCard
+                    key={group.key}
+                    group={group}
+                    isExpanded={expandedGroups.has(group.key)}
+                    expandedReasons={expandedReasons}
+                    activeProvider={activeProvider}
+                    onSelectAnime={onSelectAnime}
+                    onToggleGroup={toggleGroup}
+                    onToggleReason={toggleReason}
+                    onOpenFolder={handleOpenFolder}
+                    onDeleteGroup={setDeleteGroupKey}
+                  />
+                ))}
+              </div>
+            )}
           </>
         )}
       </div>

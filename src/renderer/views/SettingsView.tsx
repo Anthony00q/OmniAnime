@@ -95,18 +95,7 @@ export function SettingsView({ isActive = true }: { isActive?: boolean }) {
   const storageStatsQuery = useStorageStats(isActive && activeTab === 'almacenamiento', queryDirs);
   const appPathsQuery = useAppPaths(isActive && activeTab === 'almacenamiento');
   const storageActions = useStorageActions();
-  const prevStorageActiveRef = useRef(false);
-  // Refetch storage when tab becomes active to avoid stale empty cache
-  useEffect(() => {
-    const isStorageActive = isActive && activeTab === 'almacenamiento';
-    const becameActive = isStorageActive && !prevStorageActiveRef.current;
-    prevStorageActiveRef.current = isStorageActive;
-    if (becameActive) {
-      void storageStatsQuery.refetch();
-      void appPathsQuery.refetch();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isActive, activeTab]);
+  // Sin refetch manual: `enabled` + invalidaciones ya cubren la carga.
 
   const normalizedSettingsJson = useMemo(() => {
     if (!settings) return '';

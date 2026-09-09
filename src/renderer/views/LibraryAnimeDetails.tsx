@@ -79,6 +79,8 @@ export function LibraryAnimeDetails({
   }, [isLoading, isError, episodes.length]);
   const [reorderStart, setReorderStart] = useState('1');
   const [debouncedReorderStart, setDebouncedReorderStart] = useState('1');
+  // thumbEpoch: re-pide miniaturas tras renombrar/renumerar.
+  const [thumbEpoch, setThumbEpoch] = useState(0);
   const isActiveRef = useRef(isActive);
 
   useEffect(() => {
@@ -187,6 +189,7 @@ export function LibraryAnimeDetails({
             } else {
               toast.success(`Archivos renombrados a estilo ${renameStyle}`);
             }
+            setThumbEpoch((v) => v + 1);
             refetch();
           } else {
             toast.error(res?.error || 'Error al renombrar archivos');
@@ -212,6 +215,7 @@ export function LibraryAnimeDetails({
         onSuccess: (res) => {
           if (res && res.success) {
             toast.success(`Episodios renumerados — ${res.renamed} archivo(s) desde EP_${startNum}`);
+            setThumbEpoch((v) => v + 1);
             refetch();
           } else {
             toast.error(res?.error || 'Error al renumerar episodios');
@@ -421,6 +425,7 @@ export function LibraryAnimeDetails({
                     onPlay={handlePlay}
                     onDelete={handleDelete}
                     density={episodeDensity}
+                    thumbToken={thumbEpoch}
                   />
                 ))}
               </div>

@@ -41,6 +41,8 @@ import { navigateToCatalogAtom } from '../store/atoms';
 import { buildDetailRows, type DetailRow } from '../utils/downloaderRows';
 import { DETAIL_DEFAULT_H, DETAIL_MAX_H, DETAIL_MIN_H, DETAIL_ROW_H, snapDetailHeight } from '../utils/detailHeight';
 
+const EMPTY_DETAIL_ROWS: DetailRow[] = [];
+
 interface DownloaderViewProps {
   onSelectAnime?: (slug: string) => void;
   activeProvider?: string;
@@ -286,31 +288,33 @@ const QueueItemRow = memo(
           : [],
       [isDownloading, item.activeEps],
     );
-    const detailRows = useMemo(
-      () =>
-        buildDetailRows({
-          activeEps,
-          pausedEps: item.pausedEps,
-          cancelledEps: item.cancelledEps,
-          snapshot: item.pausedEpSnapshot,
-          completedEps: item.completedEps,
-          failedEps: item.failedEps,
-          episodes: item.episodes,
-          itemStatus: item.status,
-        }),
-      [
-        activeEps,
-        item.pausedEps,
-        item.cancelledEps,
-        item.pausedEpSnapshot,
-        item.completedEps,
-        item.failedEps,
-        item.episodes,
-        item.status,
-      ],
-    );
     const isParallel = isDownloading && activeEps.length > 1;
     const isCardActive = isDownloading || isPaused || item.status === 'pending';
+    const detailRows = useMemo(() => {
+      // Terminales nunca muestran detalle: evita el build en cada update.
+      if (!isDownloading && !isPaused && item.status !== 'pending') return EMPTY_DETAIL_ROWS;
+      return buildDetailRows({
+        activeEps,
+        pausedEps: item.pausedEps,
+        cancelledEps: item.cancelledEps,
+        snapshot: item.pausedEpSnapshot,
+        completedEps: item.completedEps,
+        failedEps: item.failedEps,
+        episodes: item.episodes,
+        itemStatus: item.status,
+      });
+    }, [
+      isDownloading,
+      isPaused,
+      activeEps,
+      item.pausedEps,
+      item.cancelledEps,
+      item.pausedEpSnapshot,
+      item.completedEps,
+      item.failedEps,
+      item.episodes,
+      item.status,
+    ]);
     const hasDetail = isCardActive && detailRows.length > 1;
     const isTerminal = isDone || isFailed || isCancelled;
     const firstFailedEpisode = item.failedEps?.[0];

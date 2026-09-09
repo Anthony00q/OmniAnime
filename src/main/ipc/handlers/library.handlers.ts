@@ -18,7 +18,7 @@ export function registerLibraryHandlers({
         if (!isPathWithinAnyDirectory(data.animePath, getAllowedBaseDirs(), false)) {
           return { success: false, error: 'La carpeta está fuera de la librería configurada.' };
         }
-        return episodeFileService.previewRename(data.animePath, data.style);
+        return await episodeFileService.previewRename(data.animePath, data.style);
       } catch (error) {
         writeGlobalLog(error);
         return { success: false, error: error instanceof Error ? error.message : String(error) };
@@ -30,7 +30,7 @@ export function registerLibraryHandlers({
       if (!isPathWithinAnyDirectory(data.folderPath, getAllowedBaseDirs(), false)) {
         return { success: false, error: 'La carpeta está fuera de la librería configurada.' };
       }
-      return episodeFileService.previewReorder(data.folderPath, data.startNumber);
+      return await episodeFileService.previewReorder(data.folderPath, data.startNumber);
     } catch (error) {
       writeGlobalLog(error);
       return { success: false, error: error instanceof Error ? error.message : String(error) };
@@ -40,7 +40,7 @@ export function registerLibraryHandlers({
     try {
       if (!isPathWithinAnyDirectory(data.animePath, getAllowedBaseDirs(), false))
         return { success: false, error: 'La carpeta está fuera de la librería configurada.' };
-      const result: any = normalizeEpisodeFilesInFolder(data.animePath, true, data.style);
+      const result: any = await normalizeEpisodeFilesInFolder(data.animePath, true, data.style);
       if (result && typeof result === 'object' && 'success' in result) return result;
       return { success: true, renamed: 0, skippedConflicts: 0, skippedNoNumber: 0, total: 0 };
     } catch (error) {
@@ -61,7 +61,7 @@ export function registerLibraryHandlers({
   ipcMain.handle('scan-episodes', async (_, animePath: string) => {
     try {
       if (!isPathWithinAnyDirectory(animePath, getAllowedBaseDirs(), false)) return [];
-      return episodeFileService.scanEpisodes(animePath);
+      return await episodeFileService.scanEpisodes(animePath);
     } catch (error) {
       writeGlobalLog(error);
       return [];
@@ -73,7 +73,7 @@ export function registerLibraryHandlers({
     try {
       const settings = SettingsManager.get();
       const baseDirs = settings.outputDirs || [settings.defaultOutputDir];
-      return episodeFileService.getFoldersForReorder(baseDirs);
+      return await episodeFileService.getFoldersForReorder(baseDirs);
     } catch (error) {
       writeGlobalLog(error);
       return [];
@@ -85,7 +85,7 @@ export function registerLibraryHandlers({
       if (!isPathWithinAnyDirectory(folderPath, getAllowedBaseDirs(), false)) {
         return { success: false, error: 'La carpeta está fuera de la librería configurada.' };
       }
-      return episodeFileService.reorderEpisodes(folderPath, startNumber);
+      return await episodeFileService.reorderEpisodes(folderPath, startNumber);
     },
   );
   ipcMain.handle('get-video-thumbnail', (_, videoPath: string) => {

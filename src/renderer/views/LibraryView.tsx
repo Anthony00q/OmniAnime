@@ -131,9 +131,9 @@ export function LibraryView({ onSelectAnime, activeProvider, isActive }: Library
     return (
       <LibraryAnimeDetails
         folderData={selectedFolder}
+        // Sin refetch: las mutaciones ya invalidan ['library'].
         onBack={() => {
           setSelectedFolder(null);
-          refetch();
         }}
         onSelectAnime={onSelectAnime}
         activeProvider={activeProvider}

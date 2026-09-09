@@ -145,18 +145,6 @@ const preloadedData: PreloadedData = {
   libraryMeta: null,
 };
 
-function getFolderPosterFileUrl(folderPath: string): string | null {
-  return libraryAssetService.getFolderPosterFileUrl(folderPath);
-}
-
-function getFolderBannerFileUrl(folderPath: string): string | null {
-  return libraryAssetService.getFolderBannerFileUrl(folderPath);
-}
-
-function readFolderLibraryMeta(folderPath: string): FolderLibraryMeta | null {
-  return libraryAssetService.readFolderLibraryMeta(folderPath);
-}
-
 function writeFolderLibraryMeta(folderPath: string, data: FolderLibraryMeta): void {
   libraryAssetService.writeFolderLibraryMeta(folderPath, data);
 }
@@ -285,39 +273,53 @@ async function buildLibraryMetaPreload(
         writeGlobalLog(`No se pudo leer ${baseDir} durante el precargado: ${error}`);
         continue;
       }
-      for (const d of dirents.filter((x) => x.isDirectory())) {
-        const folderPath = path.join(baseDir, d.name);
-        // Conteo en la misma lectura que detecta video: sin I/O extra
-        let episodeCount = 0;
-        try {
-          const entries = (await fs.promises.readdir(folderPath, { withFileTypes: true })) as unknown as fs.Dirent[];
-          episodeCount = entries.reduce(
-            (acc, e) => (e.isFile() && videoExts.has(path.extname(e.name).toLowerCase()) ? acc + 1 : acc),
-            0,
-          );
-        } catch (error) {
-          writeGlobalLog(`No se pudo leer ${folderPath} durante el precargado: ${error}`);
-        }
-        if (episodeCount === 0) continue;
+      for (const d of await mapLimit(
+        dirents.filter((x) => x.isDirectory()),
+        16,
+        async (d) => {
+          const folderPath = path.join(baseDir, d.name);
+          // Conteo en la misma lectura que detecta video: sin I/O extra
+          let episodeCount = 0;
+          try {
+            const entries = (await fs.promises.readdir(folderPath, {
+              withFileTypes: true,
+            })) as unknown as fs.Dirent[];
+            episodeCount = entries.reduce(
+              (acc, e) => (e.isFile() && videoExts.has(path.extname(e.name).toLowerCase()) ? acc + 1 : acc),
+              0,
+            );
+          } catch (error) {
+            writeGlobalLog(`No se pudo leer ${folderPath} durante el precargado: ${error}`);
+          }
+          if (episodeCount === 0) return null;
 
-        let birthtime = 0;
-        try {
-          const st = await fs.promises.stat(folderPath);
-          birthtime = st.birthtimeMs || 0;
-        } catch (error) {
-          writeGlobalLog(`No se pudo obtener la fecha de ${folderPath}: ${error}`);
-        }
-        allFolders.push({
-          name: d.name,
-          folderPath,
-          sourceDir: baseDir,
-          sourceDirIndex: dirIndex,
-          birthtime,
-          episodeCount,
-          localPoster: getFolderPosterFileUrl(folderPath),
-          localBanner: getFolderBannerFileUrl(folderPath),
-          localMeta: readFolderLibraryMeta(folderPath),
-        });
+          let birthtime = 0;
+          try {
+            const st = await fs.promises.stat(folderPath);
+            birthtime = st.birthtimeMs || 0;
+          } catch (error) {
+            writeGlobalLog(`No se pudo obtener la fecha de ${folderPath}: ${error}`);
+          }
+          const [localPoster, localBanner, localMeta] = await Promise.all([
+            libraryAssetService.getFolderPosterFileUrlAsync(folderPath),
+            libraryAssetService.getFolderBannerFileUrlAsync(folderPath),
+            libraryAssetService.readFolderLibraryMetaAsync(folderPath),
+          ]);
+          return {
+            name: d.name,
+            folderPath,
+            sourceDir: baseDir,
+            sourceDirIndex: dirIndex,
+            birthtime,
+            episodeCount,
+            localPoster,
+            localBanner,
+            localMeta,
+          };
+        },
+      )) {
+        if (!d) continue;
+        allFolders.push(d);
       }
     }
 
@@ -355,7 +357,7 @@ async function buildLibraryMetaPreload(
     const rows = await mapLimit(targets, 3, async (folder) => {
       if (runRetro) {
         try {
-          normalizeEpisodeFilesInFolder(folder.folderPath);
+          await normalizeEpisodeFilesInFolder(folder.folderPath);
         } catch (e) {
           console.error('Error in preloader rename', e);
         }
@@ -681,6 +683,7 @@ const episodeFileService = new EpisodeFileService({
   getSettings: () => SettingsManager.get(),
   assetService: libraryAssetService,
   log: writeGlobalLog,
+  onFilesRenamed: (pairs) => thumbnailService.moveThumbnailsStaged(pairs),
 });
 const thumbnailService = new ThumbnailService({
   toolsDir: getToolsDir(),

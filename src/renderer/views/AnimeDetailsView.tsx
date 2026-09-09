@@ -5,6 +5,7 @@ import {
   useRef,
   useMemo,
   useCallback,
+  useDeferredValue,
   memo,
   type MouseEvent as ReactMouseEvent,
 } from 'react';
@@ -24,7 +25,8 @@ import {
   ChevronDown,
   ChevronUp,
 } from 'lucide-react';
-import { VList } from 'virtua';
+import { VList, type VListHandle } from 'virtua';
+import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useAtomValue, useSetAtom } from 'jotai';
 import animeav1Icon from '../../../assets/provider-icons/animeav1-32.png';
@@ -37,7 +39,7 @@ import { useEpisodeView } from '../utils/episodeView';
 import { EpisodeViewMenu } from './libraryDetails/components/EpisodeViewMenu';
 import { normalizeSeasonLabel } from '../utils/seasonLabel';
 import { buildExternalUrl } from '../../utils/externalUrl';
-import { useAnimeDetails, useAddToQueue } from '../hooks/useQueries';
+import { useAnimeDetails, useAddToQueue, useJkEpisodeThumbs } from '../hooks/useQueries';
 import { Dialog } from '../components/Dialog';
 import { AppTooltip } from '../components/ui/AppTooltip';
 import { ErrorState } from '../components/ui/ErrorState';
@@ -113,7 +115,7 @@ const EpisodeGridItem = memo(
         onContextMenu={onContextMenu}
         aria-pressed={isChecked}
         aria-label={`Episodio ${num}${title && title !== 'Sin título' ? `: ${title}` : ''}. Clic derecho para cambiar la vista.`}
-        className={`episode-list-item group relative flex flex-col overflow-hidden rounded-xl border text-left transition-[background-color,border-color,box-shadow,color] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 ${
+        className={`${isListView ? 'details-episode-row' : 'details-episode-card'} group relative flex flex-col overflow-hidden rounded-xl border text-left transition-[background-color,border-color,box-shadow,color] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 ${
           isChecked
             ? isListView
               ? 'bg-primary/15 border-primary/70 shadow-[0_8px_24px_rgba(0,0,0,0.35)]'
@@ -344,6 +346,8 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
     setEpQuery('');
     setViewMenu(null);
     setIsTopScrolled(false);
+    setThumbWindow(null);
+    lastThumbReqRef.current = '';
   }, [slug]);
 
   const availableLanguages: AnimeLanguage[] = ['SUB']; // DUB desactivado: solo SUB
@@ -452,6 +456,75 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
 
   const withThumbs = epView === 'cards';
   const shouldVirtualize = useShouldVirtualize(rows.length, withThumbs);
+
+  // Cola JK: thumbs del rango visible sin tocar el eager.
+  const queryClient = useQueryClient();
+  const deferredProvider = useDeferredValue(useAtomValue(activeProviderAtom));
+  const [thumbWindow, setThumbWindow] = useState<{ from: number; to: number } | null>(null);
+  const vlistRef = useRef<VListHandle | null>(null);
+  const lastThumbReqRef = useRef<string>('');
+  const requestTailThumbs = useCallback(() => {
+    if (!isActive || deferredProvider !== 'jkanime' || !withThumbs || !data) return;
+    const thumbs = ((data as AnimeDetails).episodeThumbnails || {}) as Record<number, string>;
+    let nums: number[];
+    if (shouldVirtualize && vlistRef.current) {
+      const h = vlistRef.current;
+      const count = rows.length;
+      if (count === 0) return;
+      const clampRow = (r: number) => Math.max(0, Math.min(count - 1, r));
+      const start = clampRow(h.findItemIndex(h.scrollOffset));
+      const end = clampRow(h.findItemIndex(h.scrollOffset + h.viewportSize));
+      const lo = Math.min(start, end);
+      const hi = Math.max(start, end);
+      nums = rows.slice(lo, hi + 1).flatMap((row) => row.map((e) => e.num));
+    } else if (!shouldVirtualize) {
+      nums = visibleEpisodes.map((e) => e.num);
+    } else {
+      return;
+    }
+    const missing = nums.filter((n) => thumbs[n] === undefined);
+    if (missing.length === 0) return;
+    const from = Math.min(...missing);
+    const to = Math.max(...missing);
+    const key = `${slug}:${from}-${to}`;
+    if (lastThumbReqRef.current === key) return;
+    lastThumbReqRef.current = key;
+    setThumbWindow((prev) => (prev && prev.from === from && prev.to === to ? prev : { from, to }));
+  }, [isActive, deferredProvider, withThumbs, data, shouldVirtualize, rows, visibleEpisodes, slug]);
+
+  useEffect(() => {
+    requestTailThumbs();
+  }, [requestTailThumbs]);
+
+  const { data: tailThumbs } = useJkEpisodeThumbs(
+    slug,
+    deferredProvider,
+    thumbWindow?.from ?? null,
+    thumbWindow?.to ?? null,
+    !!isActive && !!data && !isLoading,
+  );
+
+  useEffect(() => {
+    if (!tailThumbs || Object.keys(tailThumbs).length === 0) return;
+    if (dataSlug !== slug) return;
+    queryClient.setQueryData(['details', deferredProvider, slug], (old: unknown) => {
+      if (!old || typeof old !== 'object') return old;
+      const prev = ((old as { episodeThumbnails?: Record<string, string> }).episodeThumbnails || {}) as Record<
+        string,
+        string
+      >;
+      let changed = false;
+      const next = { ...prev };
+      for (const [k, v] of Object.entries(tailThumbs)) {
+        if (next[k] === undefined && v) {
+          next[k] = v;
+          changed = true;
+        }
+      }
+      if (!changed) return old;
+      return { ...(old as object), episodeThumbnails: next };
+    });
+  }, [tailThumbs, slug, dataSlug, deferredProvider, queryClient]);
 
   const toggleEp = useCallback((num: number) => {
     setSelected((prev) => {
@@ -754,7 +827,7 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
                       placeholder="7, 5-7…"
                       aria-label="Buscar episodios por número"
                       autoComplete="off"
-                      className="h-8 w-28 rounded-lg border border-border/60 bg-secondary/50 pl-8 pr-7 text-xs text-foreground transition-[border-color,box-shadow,width] placeholder:text-muted-foreground/60 hover:border-border-strong focus:w-36 focus:border-primary/60 focus:outline-none focus:ring-2 focus:ring-primary/20 [&::-webkit-search-cancel-button]:hidden"
+                      className="h-8 w-28 rounded-lg border border-border/60 bg-secondary/50 pl-8 pr-7 text-xs text-foreground transition-[border-color,box-shadow] placeholder:text-muted-foreground/60 hover:border-border-strong focus:border-primary/60 focus:outline-none focus:ring-2 focus:ring-primary/20 [&::-webkit-search-cancel-button]:hidden"
                     />
                     {epQuery && (
                       <button
@@ -856,7 +929,13 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
                   <div className="py-8 text-center text-sm text-muted-foreground">No hay episodios disponibles</div>
                 )
               ) : shouldVirtualize ? (
-                <VList data={rows} style={{ height: '55vh', maxHeight: '55vh' }} className="custom-scrollbar pr-2">
+                <VList
+                  data={rows}
+                  ref={vlistRef}
+                  onScrollEnd={requestTailThumbs}
+                  style={{ height: '55vh', maxHeight: '55vh' }}
+                  className="custom-scrollbar pr-2"
+                >
                   {(row, rowIndex) => (
                     <div
                       key={rowIndex}

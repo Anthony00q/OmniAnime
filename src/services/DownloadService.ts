@@ -1,4 +1,4 @@
-import { spawn, ChildProcess, exec, execFile } from 'child_process';
+import { spawn, ChildProcess, execFile } from 'child_process';
 import axios from 'axios';
 import * as fs from 'fs';
 import * as fsp from 'fs/promises';
@@ -7,6 +7,7 @@ import * as https from 'https';
 import * as path from 'path';
 import * as megajs from 'megajs';
 import { normalizeMegaUrl } from '../utils/serverUtils';
+import { terminateChildProcessTree } from '../utils/processUtils';
 
 const httpAgent = new http.Agent({ keepAlive: true, maxSockets: 32 });
 const httpsAgent = new https.Agent({ keepAlive: true, maxSockets: 32 });
@@ -29,16 +30,7 @@ export class DownloadService {
   private cleanupTokens = new Map<string, number>();
 
   private forceKillProcess(child: ChildProcess) {
-    if (!child || child.killed) return;
-
-    if (process.platform === 'win32') {
-      // En Windows, taskkill /F /T es la forma más fiable de matar un proceso y sus hijos (como ffmpeg)
-      exec(`taskkill /pid ${child.pid} /f /t`, (err) => {
-        if (err) console.error('Error al usar taskkill:', err);
-      });
-    } else {
-      child.kill('SIGKILL');
-    }
+    terminateChildProcessTree(child);
   }
 
   abort() {
@@ -529,6 +521,7 @@ export class DownloadService {
       ];
 
       const child = spawn(runtimeTools.ytdlpPath, args, {
+        windowsHide: true,
         env: {
           ...process.env,
           PATH: runtimeTools.ffmpegDir

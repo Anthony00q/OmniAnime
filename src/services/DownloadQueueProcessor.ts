@@ -331,7 +331,7 @@ export class DownloadQueueProcessor {
     return true;
   }
 
-  cancelEpisode(id: string, episode: number): boolean {
+  async cancelEpisode(id: string, episode: number): Promise<boolean> {
     const item = this.options.queueStore.items.find((queueItem) => queueItem.id === id);
     if (!item || !Number.isInteger(episode)) return false;
     if (!(item.episodes || []).includes(episode)) return false;
@@ -367,8 +367,8 @@ export class DownloadQueueProcessor {
     // Limpieza solo de este EP (preserva parciales de otros)
     try {
       const dest = this.options.buildEpisodePath(item, episode);
-      this.options.attemptService.cleanEpisodeTemps(dest);
-      this.options.attemptService.cleanYtdlpCacheForEpisode(dest);
+      await this.options.attemptService.cleanEpisodeTemps(dest);
+      await this.options.attemptService.cleanYtdlpCacheForEpisode(dest);
     } catch {
       /* limpieza best-effort */
     }
@@ -905,7 +905,7 @@ export class DownloadQueueProcessor {
         if (!wasCancelled && failedItem.currentEp !== null) {
           const failedEpisode = failedItem.currentEp;
           const failedPath = this.options.buildEpisodePath(failedItem, failedEpisode);
-          this.options.attemptService.cleanYtdlpCacheForEpisode(failedPath);
+          await this.options.attemptService.cleanYtdlpCacheForEpisode(failedPath);
           this.finalizeEpisodeResult(
             failedItem,
             failedEpisode,
@@ -1213,14 +1213,14 @@ export class DownloadQueueProcessor {
             `⌛ "${link.server}" no inició descarga en ${timeoutSec}s. Probando siguiente...`,
             'warn',
           );
-          this.options.attemptService.cleanEpisodeTemps(dest);
-          this.options.attemptService.cleanYtdlpCacheForEpisode(dest);
+          await this.options.attemptService.cleanEpisodeTemps(dest);
+          await this.options.attemptService.cleanYtdlpCacheForEpisode(dest);
         } else if (result.toolFailureMessage && !result.parentAborted) {
           failureReason = result.toolFailureMessage;
           this.options.sendLog(`✗ ${result.toolFailureMessage}`, 'error');
-          this.options.attemptService.cleanYtdlpCacheForEpisode(dest);
+          await this.options.attemptService.cleanYtdlpCacheForEpisode(dest);
         } else if (!result.parentAborted) {
-          this.options.attemptService.cleanYtdlpCacheForEpisode(dest);
+          await this.options.attemptService.cleanYtdlpCacheForEpisode(dest);
           const isLast = sortedLinks.indexOf(link) === sortedLinks.length - 1;
           if (result.skipRequested) {
             this.options.sendLog(
