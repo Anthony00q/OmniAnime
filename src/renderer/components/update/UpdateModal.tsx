@@ -67,7 +67,7 @@ export function UpdateModal() {
       <div className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5 select-none">
         Novedades
       </div>
-      <div className="max-h-64 overflow-y-auto rounded-lg border border-border/60 bg-background/40 p-3 text-xs leading-relaxed text-foreground whitespace-pre-wrap select-text">
+      <div className="max-h-64 overflow-y-auto rounded-lg border border-border/60 bg-background/40 p-3 text-xs leading-relaxed text-foreground whitespace-pre-wrap">
         {available.notes || FALLBACK_NOTES}
       </div>
 
