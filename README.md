@@ -35,7 +35,7 @@
 
 Solo maneja anime con subtítulos (SUB). No hay doblaje.
 
-> OmniAnime no aloja nada — solo busca en sitios públicos como AnimeAV1 y JkAnime. Úsalo con responsabilidad.
+> OmniAnime no aloja nada — solo busca en sitios públicos como [AnimeAV1](https://animeav1.com/) y [JkAnime](https://jkanime.net/). Úsalo con responsabilidad.
 
 ## Contenido
 
@@ -73,7 +73,7 @@ Solo maneja anime con subtítulos (SUB). No hay doblaje.
 ## Instalación
 
 1. Ve a **[Releases](https://github.com/Anthony00q/OmniAnime/releases)**.
-2. Descarga `OmniAnime-Setup-X.Y.Z.exe` (la `X.Y.Z` es la última versión publicada).
+2. Descarga el instalador (`.exe`) desde **[Última versión](https://github.com/Anthony00q/OmniAnime/releases/latest)**.
 3. Ejecuta el instalador y pulsa **Instalar**. Es una instalación por usuario, en español, sin permisos de administrador: crea accesos en Escritorio y Menú Inicio y no te pide elegir carpeta.
 4. Al abrirlo por primera vez, la app prepara su base de datos local y verifica sus herramientas internas. Tu carpeta inicial es `Descargas\OmniAnime`, cambiable en Ajustes.
 
@@ -109,7 +109,7 @@ Solo maneja anime con subtítulos (SUB). No hay doblaje.
 
 ### Actualizar
 
-Descarga el nuevo `OmniAnime-Setup-X.Y.Z.exe` de Releases y ejecútalo. Conserva tus carpetas, historial y ajustes.
+Descarga el nuevo instalador desde [Releases](https://github.com/Anthony00q/OmniAnime/releases/latest) y ejecútalo. Conserva tus carpetas, historial y ajustes.
 
 ### Desinstalar
 
@@ -144,7 +144,7 @@ No, el máximo es 3.
 ## Seguridad
 
 - La app solo lee, escribe o borra dentro de las carpetas que configures. Nunca toca otras rutas.
-- Los enlaces externos solo pueden abrir `animeav1.com` y `jkanime.net`.
+- Los enlaces externos solo pueden abrir [animeav1.com](https://animeav1.com/) y [jkanime.net](https://jkanime.net/).
 - Las imágenes solo se cargan desde `cdn.animeav1.com` y `cdn.jkdesa.com`.
 
 ## Desarrollo y Build

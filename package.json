@@ -1,9 +1,9 @@
 {
   "name": "omnianime",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Busca, descarga y organiza tu colección de anime en tu equipo",
   "main": "index.js",
-  "author": "Anthony",
+  "author": "Anthony00q",
   "repository": {
     "type": "git",
     "url": "https://github.com/Anthony00q/OmniAnime.git"

@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.0.3
+
+Interfaz:
+- el aviso de actualización es más grande y presenta las novedades agrupadas por tema, con negritas y viñetas.
+- la pausa y la cola usan tonos neutros en insignias, barras y textos; el naranja queda solo para los avisos.
+
+Descargas:
+- el Detalle por episodio se ajusta a su contenido y ya no deja hueco vacío con pocas descargas.
+
 ## v1.0.2
 
 Actualizaciones:
