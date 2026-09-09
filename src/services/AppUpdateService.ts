@@ -33,6 +33,7 @@ export class AppUpdateService {
     this.checkIntervalMs = options.checkIntervalMs ?? 6 * 3_600_000;
     autoUpdater.autoDownload = false;
     autoUpdater.allowPrerelease = false;
+    autoUpdater.autoInstallOnAppQuit = false;
     autoUpdater.logger = {
       info: () => {},
       warn: () => {},

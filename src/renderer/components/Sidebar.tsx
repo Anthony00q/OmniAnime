@@ -183,14 +183,13 @@ export function Sidebar({ currentView, setCurrentView }: SidebarProps) {
               type="button"
               onClick={() => setUpdateModalOpen(true)}
               aria-label={`Ver actualización disponible ${updateAvailable.version}`}
-              className="sidebar-nav-item relative w-full flex items-center gap-3 px-4 py-2.5 mb-1 rounded-lg text-sm font-medium border bg-primary/10 text-primary border-primary/15 shadow-sm transition-[background-color,border-color,color,box-shadow] duration-150 [transition-timing-function:var(--ease-out)] outline-none focus-visible:ring-2 focus-visible:ring-primary/60 cursor-pointer hover:bg-primary/15"
+              className="sidebar-nav-item relative w-full flex items-center gap-3 px-4 py-2.5 mb-1 rounded-lg text-sm font-bold border border-transparent bg-primary text-primary-foreground transition-[background-color,border-color,color] duration-150 [transition-timing-function:var(--ease-out)] outline-none focus-visible:ring-2 focus-visible:ring-primary/60 cursor-pointer hover:bg-primary/90"
             >
               <CircleArrowUp strokeWidth={2} className="w-[18px] h-[18px] shrink-0" aria-hidden="true" />
               <span className="sidebar-label">Actualizar</span>
               <span className="sidebar-label ml-auto text-[11px] font-bold tabular-nums whitespace-nowrap">
                 {updateAvailable.version}
               </span>
-              <span aria-hidden="true" className="absolute right-2.5 -top-0.5 w-2 h-2 rounded-full bg-primary" />
             </button>
           </AppTooltip>
         )}

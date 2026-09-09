@@ -52,6 +52,7 @@ export function UpdateModal() {
       }}
       title="Actualización disponible"
       showFooter={false}
+      headerAlign="center"
       className="max-w-xl"
       icon={
         <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 bg-primary/15">
@@ -72,7 +73,7 @@ export function UpdateModal() {
 
       {phase === 'downloading' && (
         <div className="mt-4">
-          <ProgressBar value={percent} showValue label="Descargando actualización" />
+          <ProgressBar value={Math.round(percent)} showValue label="Descargando actualización" />
         </div>
       )}
 

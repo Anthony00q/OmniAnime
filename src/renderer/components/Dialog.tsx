@@ -18,6 +18,7 @@ interface DialogProps {
   className?: string;
   icon?: React.ReactNode;
   hideDefaultIcon?: boolean;
+  headerAlign?: 'start' | 'center';
 }
 
 export function Dialog({
@@ -37,6 +38,7 @@ export function Dialog({
   className,
   icon,
   hideDefaultIcon = false,
+  headerAlign = 'start',
 }: DialogProps) {
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
@@ -46,7 +48,7 @@ export function Dialog({
           className={`fixed left-1/2 top-1/2 z-[9999] max-h-[calc(100vh-2rem)] w-[calc(100vw-2rem)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl border border-border/70 bg-popover shadow-2xl animate-in zoom-in-95 duration-200 select-none ${className || 'max-w-sm'}`}
         >
           <div className="p-6 disable-shortcuts">
-            <div className="flex items-start gap-4 mb-4">
+            <div className={`flex gap-4 mb-4 ${headerAlign === 'center' ? 'items-center' : 'items-start'}`}>
               {!hideDefaultIcon && (
                 <div
                   className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
