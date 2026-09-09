@@ -43,7 +43,7 @@ Solo maneja anime con subtítulos (SUB). No hay doblaje.
 - [Instalación](#instalación)
 - [Uso rápido](#uso-rápido)
 - [Datos, actualización y desinstalación](#datos-actualización-y-desinstalación)
-- [Preguntas frecuentes](#preguntas-frecuentes)
+- [Dudas comunes](#dudas-comunes)
 - [Seguridad](#seguridad)
 - [Desarrollo y Build](#desarrollo-y-build)
 - [Licencia](#licencia)
@@ -115,7 +115,7 @@ Descarga el nuevo instalador desde [Releases](https://github.com/Anthony00q/Omni
 
 Usa Agregar o quitar programas de Windows. Tus videos y la base de datos de `%APPDATA%\OmniAnime` **no se borran**; elimínalos a mano si ya no los quieres.
 
-## Preguntas probables
+## Dudas comunes
 
 ### ¿Tiene doblaje?
 
