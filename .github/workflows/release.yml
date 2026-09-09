@@ -1,4 +1,6 @@
-name: release
+name: Release (Windows)
+
+run-name: "Release ${{ github.ref_name }}"
 
 on:
   push:
@@ -14,22 +16,23 @@ concurrency:
 
 jobs:
   build-win:
+    name: Compilar instalador (Windows)
     runs-on: windows-latest
     timeout-minutes: 60
     steps:
-      - name: Checkout
+      - name: Descargar código
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           fetch-tags: true
 
-      - name: Setup Node
+      - name: Instalar Node 22
         uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: npm
 
-      - name: Tag matches package.json version
+      - name: Verificar tag coincide con package.json
         shell: pwsh
         run: |
           if ($env:GITHUB_REF_NAME -notmatch '^v\d+\.\d+\.\d+$') {
@@ -43,46 +46,46 @@ jobs:
             exit 1
           }
 
-      - name: Install dependencies
+      - name: Instalar dependencias (npm ci)
         run: npm ci
 
-      - name: Extract release notes from CHANGELOG
+      - name: Extraer notas del CHANGELOG
         shell: pwsh
         run: |
           $version = (Get-Content package.json | ConvertFrom-Json).version
           node scripts/extract-release-notes.mjs $version --output release-notes.md
           if ($LASTEXITCODE -ne 0) { exit 1 }
 
-      - name: Download tools (yt-dlp/ffmpeg/ffprobe)
+      - name: Descargar herramientas (yt-dlp/ffmpeg/ffprobe)
         run: node scripts/setup-tools.mjs
 
-      - name: Lint
+      - name: Lint (ESLint)
         run: npm run lint
 
-      - name: Format check
+      - name: Formato (Prettier)
         run: npm run format:check
 
-      - name: Build
+      - name: Compilar app (renderer + main + types)
         run: npm run build
 
-      - name: Package installer (no publish)
+      - name: Empaquetar instalador (sin publicar)
         run: npm run build:win
 
-      - name: Stage installer artifacts
+      - name: Preparar artefactos
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Path dist-release -Force | Out-Null
           Copy-Item release/OmniAnime-Setup-*.exe, release/OmniAnime-Setup-*.exe.blockmap, release/latest.yml, release-notes.md dist-release/
 
-      - name: List staged artifacts
+      - name: Listar artefactos
         shell: pwsh
         run: Get-ChildItem dist-release/ | Format-Table Name, Length
 
-      - name: Verify release artifacts
+      - name: Verificar artefactos
         shell: pwsh
         run: node scripts/verify-release-artifacts.mjs --dir dist-release --tag "$env:GITHUB_REF_NAME"
 
-      - name: Upload installer artifacts
+      - name: Subir artefactos
         uses: actions/upload-artifact@v4
         with:
           name: win-installer
@@ -91,17 +94,18 @@ jobs:
           retention-days: 7
 
   release:
+    name: Publicar borrador
     runs-on: ubuntu-latest
     needs: build-win
     timeout-minutes: 15
     steps:
-      - name: Download installer artifacts
+      - name: Descargar artefactos
         uses: actions/download-artifact@v4
         with:
           name: win-installer
           path: ./artifacts
 
-      - name: Create release draft
+      - name: Crear borrador de release
         uses: softprops/action-gh-release@v3
         with:
           fail_on_unmatched_files: true
