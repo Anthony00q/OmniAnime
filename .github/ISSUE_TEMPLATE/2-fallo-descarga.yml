@@ -32,7 +32,6 @@ body:
       options:
         - "No lo sé (Auto)"
         - HLS
-        - PDrain
         - Mega
         - Mediafire
         - MP4Upload

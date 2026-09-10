@@ -53,7 +53,7 @@ export const PROVIDER_SERVERS = [
     id: 'animeav1',
     label: 'AnimeAV1',
     hint: 'Principal',
-    servers: ['HLS', 'PDrain', 'Mega', 'Mediafire', 'MP4Upload'],
+    servers: ['HLS', 'Mega', 'Mediafire', 'MP4Upload'],
   },
   {
     id: 'jkanime',

@@ -835,7 +835,6 @@ const episodeDownloadAttemptService = new EpisodeDownloadAttemptService({
 });
 
 const SERVER_SPEED: Record<string, string> = {
-  PDrain: 'muy rápido ⚡',
   Mega: 'rápido ⚡',
   HLS: 'streaming ⚡',
 };

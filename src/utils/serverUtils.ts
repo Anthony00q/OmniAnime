@@ -1,11 +1,10 @@
 export const BLOCKED_SERVERS = new Set(['1fichier', 'fichier', 'drive', 'gdrive', 'google drive']);
 
-export const DEFAULT_SERVER_PRIORITY = ['HLS', 'PDrain', 'Mega', 'Mediafire', 'MP4Upload'];
+export const DEFAULT_SERVER_PRIORITY = ['HLS', 'Mega', 'Mediafire', 'MP4Upload'];
 
 export function normalizeServerName(serverRaw: string): string {
   const raw = String(serverRaw || '').trim();
   const s = raw.toLowerCase();
-  if (s.includes('pdrain') || s.includes('pixeldrain') || s.includes('pdain')) return 'PDrain';
   if (s === 'hls' || s.includes('m3u8')) return 'HLS';
   if (s.includes('mp4upload')) return 'MP4Upload';
   if (s.includes('1fichier') || s === 'fichier') return '1fichier';
@@ -25,7 +24,7 @@ export function isBlockedServer(canonicalServer: string): boolean {
   return BLOCKED_SERVERS.has(String(canonicalServer || '').toLowerCase());
 }
 
-export const JKANIME_SERVER_PRIORITY = ['Mediafire', 'Mega', 'MP4Upload', 'HLS', 'PDrain'];
+export const JKANIME_SERVER_PRIORITY = ['Mediafire', 'Mega', 'MP4Upload', 'HLS'];
 
 export function getServerPriorityOrder(providerId?: string): string[] {
   const normalized = String(providerId || '')

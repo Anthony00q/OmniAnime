@@ -195,23 +195,6 @@ export class EpisodeDownloadAttemptService {
     try {
       if (attemptAbort.signal.aborted) {
         success = false;
-      } else if (link.server === 'PDrain') {
-        let lastReportedPct = -1;
-        success = await this.options.downloadService.downloadPixeldrain(
-          link.url,
-          dest,
-          (progress) => {
-            markStarted();
-            const pct = Math.round(progress * 100);
-            callbacks.onProgress({
-              progress,
-              progressLog: pct !== lastReportedPct ? `   -> EP ${episode} * PDrain * ${pct}%` : undefined,
-            });
-            if (pct !== lastReportedPct) lastReportedPct = pct;
-            callbacks.updateTray(`Descargando ${item.animeTitle} - EP ${episode} (${pct}%)`);
-          },
-          attemptAbort.signal,
-        );
       } else if (link.server === 'Mega') {
         let lastReportedPctMega = -1;
         if (attemptAbort.signal.aborted) {

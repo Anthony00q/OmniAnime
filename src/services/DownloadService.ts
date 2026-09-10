@@ -102,19 +102,6 @@ export class DownloadService {
     return false;
   }
 
-  async downloadPixeldrain(
-    url: string,
-    dest: string,
-    onProgress: (p: number) => void,
-    signal?: AbortSignal,
-  ): Promise<boolean> {
-    if (url.includes('/u/')) {
-      const id = url.split('/u/')[1].split('?')[0];
-      url = `https://pixeldrain.com/api/file/${id}?download`;
-    }
-    return await this.downloadDirectAxios(url, dest, onProgress, signal);
-  }
-
   private sleepAbortable(ms: number, signal?: AbortSignal): Promise<void> {
     if (signal?.aborted) return Promise.resolve();
     if (!signal) return new Promise((resolve) => setTimeout(resolve, ms));
