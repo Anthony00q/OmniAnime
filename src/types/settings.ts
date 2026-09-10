@@ -7,6 +7,7 @@ export interface DownloadSettings {
   startTimeoutSec: number;
   allowContinue: boolean;
   cleanCacheOnComplete: boolean;
+  directConnections: number;
 }
 
 export interface AppSettings {

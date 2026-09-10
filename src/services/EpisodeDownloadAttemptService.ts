@@ -5,7 +5,7 @@ import type { DownloadService, YtdlpRuntimeTools } from './DownloadService';
 import type { ProviderDownloadLink, QueueItem } from '../types/queue';
 import type { DownloadSettings } from '../types/settings';
 import { normalizeDownloadSettings } from '../utils/downloadSettings';
-import { normalizeMp4UploadUrl, resolveHlsPlaybackUrl } from '../utils/serverUtils';
+import { normalizeMp4UploadUrl, providerDownloadReferer, resolveHlsPlaybackUrl } from '../utils/serverUtils';
 
 export interface EpisodeAttemptProgress {
   progress: number;
@@ -50,6 +50,15 @@ async function fileExistsAsync(targetPath: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+export function isSameStemCandidate(destFileName: string, candidateName: string): boolean {
+  if (!destFileName || !candidateName) return false;
+  if (candidateName.endsWith('.part') || candidateName.endsWith('.ytdl')) return false;
+  const base = destFileName.replace(/\.mp4$/i, '');
+  if (candidateName === destFileName || candidateName === base) return true;
+  if (!candidateName.startsWith(base)) return false;
+  return candidateName[base.length] === '.';
 }
 
 export class EpisodeDownloadAttemptService {
@@ -236,6 +245,8 @@ export class EpisodeDownloadAttemptService {
               callbacks.updateTray(`Descargando ${item.animeTitle} - EP ${episode} (${pct}%)`);
             },
             attemptAbort.signal,
+            providerDownloadReferer(item.providerId),
+            dl.directConnections,
           );
         }
       } else {
@@ -354,10 +365,13 @@ export class EpisodeDownloadAttemptService {
   }
 
   async cleanEpisodeTemps(destPath: string): Promise<void> {
+    const cacheBase = path.join(path.dirname(destPath), '.cache', path.basename(destPath));
     const results = await Promise.allSettled([
       fsp.rm(destPath, { force: true }),
       fsp.rm(destPath + '.part', { force: true }),
       fsp.rm(destPath + '.ytdl', { force: true }),
+      fsp.rm(cacheBase, { force: true }),
+      fsp.rm(cacheBase + '.part', { force: true }),
     ]);
     const failure = results.find((r) => r.status === 'rejected');
     if (failure) {
@@ -462,7 +476,8 @@ export class EpisodeDownloadAttemptService {
       for (const [name, size] of now.entries()) {
         const previousSize = before.get(name) || 0;
         if ((!before.has(name) && size <= 0) || (before.has(name) && size <= previousSize)) continue;
-        if (name === path.basename(destPath)) continue;
+        const destFileName = path.basename(destPath);
+        if (!isSameStemCandidate(destFileName, name)) continue;
         const extension = path.extname(name).toLowerCase();
         if (!['.mp4', '.mkv', '.avi', '.flv', '.webm'].includes(extension)) continue;
         candidates.push({ name, fullPath: path.join(dir, name), size });
@@ -504,8 +519,8 @@ export class EpisodeDownloadAttemptService {
       const names = await fsp.readdir(dir);
       const candidates: Array<{ name: string; fullPath: string; size: number }> = [];
       for (const name of names) {
-        if (name === fileName || !name.startsWith(baseName)) continue;
-        if (name.endsWith('.part') || name.endsWith('.ytdl')) continue;
+        if (name === fileName) continue;
+        if (!isSameStemCandidate(fileName, name)) continue;
         const extension = path.extname(name).toLowerCase();
         if (!['.mp4', '.mkv', '.avi', '.flv', '.webm'].includes(extension)) continue;
         try {

@@ -8,9 +8,13 @@ import * as path from 'path';
 import * as megajs from 'megajs';
 import { normalizeMegaUrl } from '../utils/serverUtils';
 import { terminateChildProcessTree } from '../utils/processUtils';
+import { clampDirectConnections, downloadDirectRanged, probeDirectRangeSupport } from './DirectRangedDownloader';
 
 const httpAgent = new http.Agent({ keepAlive: true, maxSockets: 32 });
 const httpsAgent = new https.Agent({ keepAlive: true, maxSockets: 32 });
+
+const DIRECT_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36';
+const DEFAULT_DOWNLOAD_REFERER = 'https://animeav1.com/';
 
 export type YtdlpRuntimeTools = {
   ytdlpPath: string;
@@ -67,6 +71,8 @@ export class DownloadService {
     dest: string,
     onProgress: (p: number) => void,
     signal?: AbortSignal,
+    referer?: string,
+    connections?: number,
   ): Promise<boolean> {
     const MAX_EXTRACT_ATTEMPTS = 3;
     for (let attempt = 1; attempt <= MAX_EXTRACT_ATTEMPTS; attempt += 1) {
@@ -74,7 +80,7 @@ export class DownloadService {
       try {
         const { data } = await axios.get(url, {
           headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'User-Agent': DIRECT_USER_AGENT,
           },
           timeout: 10000,
           signal: signal as any,
@@ -89,7 +95,8 @@ export class DownloadService {
         }
         const directUrl = match[1];
 
-        const ok = await this.downloadDirectAxios(directUrl, dest, onProgress, signal);
+        const pageReferer = typeof referer === 'string' && referer ? referer : DEFAULT_DOWNLOAD_REFERER;
+        const ok = await this.downloadDirectAxios(directUrl, dest, onProgress, signal, pageReferer, connections);
         if (ok || signal?.aborted) return ok;
       } catch (e: any) {
         if (signal?.aborted || e?.name === 'AbortError' || axios.isCancel(e)) return false;
@@ -123,11 +130,18 @@ export class DownloadService {
     dest: string,
     onProgress: (p: number) => void,
     signal?: AbortSignal,
+    referer?: string,
+    connections?: number,
   ): Promise<boolean> {
+    const directReferer = typeof referer === 'string' && referer ? referer : DEFAULT_DOWNLOAD_REFERER;
+    if (clampDirectConnections(connections) > 1 && !signal?.aborted) {
+      const rangedOk = await this.downloadDirectRangedOnce(url, dest, onProgress, signal, directReferer, connections);
+      if (rangedOk || signal?.aborted) return rangedOk;
+    }
     const MAX_DIRECT_ATTEMPTS = 3;
     for (let attempt = 1; attempt <= MAX_DIRECT_ATTEMPTS; attempt += 1) {
       if (signal?.aborted) return false;
-      const ok = await this.downloadDirectAxiosOnce(url, dest, onProgress, signal);
+      const ok = await this.downloadDirectAxiosOnce(url, dest, onProgress, signal, directReferer);
       if (ok || signal?.aborted) return ok;
       if (attempt < MAX_DIRECT_ATTEMPTS) {
         await this.sleepAbortable(1000 * attempt, signal);
@@ -136,11 +150,66 @@ export class DownloadService {
     return false;
   }
 
+  // Rama multihilo opt-in (ajuste Conexiones por archivo): exige 206 real y
+  // tamaño exacto; cualquier fallo cae al axios de 1 conexión en fresco.
+  private async downloadDirectRangedOnce(
+    url: string,
+    dest: string,
+    onProgress: (p: number) => void,
+    signal?: AbortSignal,
+    referer?: string,
+    connections?: number,
+  ): Promise<boolean> {
+    const wanted = clampDirectConnections(connections);
+    if (wanted <= 1 || signal?.aborted) return false;
+    const destDir = path.dirname(dest);
+    const cacheDir = path.join(destDir, '.cache');
+    try {
+      await fsp.mkdir(cacheDir, { recursive: true });
+      if (process.platform === 'win32') {
+        execFile('attrib', ['+h', cacheDir], { windowsHide: true }, () => {});
+      }
+    } catch {
+      return false;
+    }
+    const tempPath = path.join(cacheDir, path.basename(dest));
+    const probe = await probeDirectRangeSupport(url, {
+      userAgent: DIRECT_USER_AGENT,
+      referer: typeof referer === 'string' && referer ? referer : DEFAULT_DOWNLOAD_REFERER,
+      signal,
+    });
+    if (!probe.supported || !probe.totalBytes || signal?.aborted) {
+      await fsp.rm(tempPath, { force: true }).catch(() => undefined);
+      return false;
+    }
+    const ok = await downloadDirectRanged(url, tempPath, probe.totalBytes, wanted, {
+      userAgent: DIRECT_USER_AGENT,
+      referer: typeof referer === 'string' && referer ? referer : DEFAULT_DOWNLOAD_REFERER,
+      signal,
+      onProgress,
+    });
+    if (!ok || signal?.aborted) {
+      await fsp.rm(tempPath, { force: true }).catch(() => undefined);
+      return false;
+    }
+    try {
+      await fsp.unlink(dest).catch(() => {});
+      await fsp.rename(tempPath, dest);
+      const st = await fsp.stat(dest);
+      if (st.isFile() && st.size === probe.totalBytes) return true;
+    } catch {
+      /* cae al axios de 1 conexión */
+    }
+    await fsp.rm(tempPath, { force: true }).catch(() => undefined);
+    return false;
+  }
+
   private async downloadDirectAxiosOnce(
     url: string,
     dest: string,
     onProgress: (p: number) => void,
     signal?: AbortSignal,
+    referer?: string,
   ): Promise<boolean> {
     let writer: fs.WriteStream | null = null;
     let responseData: any = null;
@@ -165,9 +234,6 @@ export class DownloadService {
         if (this.cleanupTokens.get(cleanupKey) !== cleanupToken) return;
         try {
           await fsp.unlink(tempDest);
-        } catch {}
-        try {
-          await fsp.unlink(dest);
         } catch {}
       }, 300);
     };
@@ -210,8 +276,8 @@ export class DownloadService {
         httpAgent,
         httpsAgent,
         headers: {
-          Referer: 'https://animeav1.com/',
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          Referer: typeof referer === 'string' && referer ? referer : DEFAULT_DOWNLOAD_REFERER,
+          'User-Agent': DIRECT_USER_AGENT,
           'Accept-Encoding': 'identity',
           Connection: 'keep-alive',
         },

@@ -20,6 +20,7 @@ import animeav1Icon from '../../../../../assets/provider-icons/animeav1-32.png';
 import jkanimeIcon from '../../../../../assets/provider-icons/jkanime-32.png';
 import {
   DOWNLOAD_PARALLEL_OPTIONS,
+  DOWNLOAD_DIRECT_CONNECTIONS_OPTIONS,
   DOWNLOAD_RETRIES_OPTIONS,
   DOWNLOAD_TIMEOUT_OPTIONS,
   DOWNLOAD_START_TIMEOUT_OPTIONS,
@@ -93,6 +94,32 @@ export const DownloadsTab = memo(function DownloadsTab({
               Con 3, como máximo 2 episodios usan el mismo servidor a la vez para no saturarlo.
             </p>
           )}
+
+          <div className="rounded-xl border border-border/60 bg-background p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 mt-3">
+            <div className="min-w-0">
+              <span className="flex items-center gap-1.5 text-sm font-semibold select-none">
+                Conexiones por archivo
+                <AppTooltip content="Solo MediaFire: divide cada descarga en partes en paralelo. Solo se usa si el servidor lo soporta; si no, se descarga a 1 conexión automáticamente.">
+                  <span aria-hidden="true" className="inline-flex text-muted-foreground">
+                    <Info className="w-3.5 h-3.5" />
+                  </span>
+                </AppTooltip>
+              </span>
+              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                Solo afecta a MediaFire. Más conexiones no siempre es más rápido; si te limita, se reintenta a 1.
+              </p>
+            </div>
+            <CustomSelect
+              value={snapToClosestOption(
+                dl.directConnections ?? 1,
+                DOWNLOAD_DIRECT_CONNECTIONS_OPTIONS.map((o) => o.value),
+              )}
+              onChange={(v) => onDlChange('directConnections', Number(v))}
+              ariaLabel="Conexiones por archivo"
+              className="w-full sm:w-56 shrink-0"
+              options={DOWNLOAD_DIRECT_CONNECTIONS_OPTIONS.map((o) => ({ ...o }))}
+            />
+          </div>
 
           <div className="mt-4 rounded-xl bg-background border border-border/60 px-3 py-2.5 flex items-center gap-2 text-xs text-muted-foreground">
             <AppTooltip content="Si cambias algo mientras se descarga, se nota en las siguientes, no en la que ya está en marcha.">

@@ -63,3 +63,13 @@ export function normalizeMp4UploadUrl(rawUrl: string): string {
   url = url.replace(/^https?:\/\/(?:www\.)?mp4upload\.com\//i, 'https://www.mp4upload.com/');
   return url.trim();
 }
+
+export function providerDownloadReferer(providerId?: string): string {
+  if (
+    String(providerId || '')
+      .trim()
+      .toLowerCase() === 'jkanime'
+  )
+    return 'https://jkanime.net/';
+  return 'https://animeav1.com/';
+}

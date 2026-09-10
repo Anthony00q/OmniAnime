@@ -7,6 +7,7 @@ export const DEFAULT_DOWNLOAD_SETTINGS: DownloadSettings = {
   startTimeoutSec: 90,
   allowContinue: true,
   cleanCacheOnComplete: false,
+  directConnections: 1,
 };
 
 function clampInt(value: unknown, min: number, max: number, fallback: number): number {
@@ -29,5 +30,6 @@ export function normalizeDownloadSettings(input: unknown): DownloadSettings {
     startTimeoutSec: clampInt(raw.startTimeoutSec, 30, 120, DEFAULT_DOWNLOAD_SETTINGS.startTimeoutSec),
     allowContinue: toBoolean(raw.allowContinue, DEFAULT_DOWNLOAD_SETTINGS.allowContinue),
     cleanCacheOnComplete: toBoolean(raw.cleanCacheOnComplete, DEFAULT_DOWNLOAD_SETTINGS.cleanCacheOnComplete),
+    directConnections: clampInt(raw.directConnections, 1, 4, DEFAULT_DOWNLOAD_SETTINGS.directConnections),
   };
 }
