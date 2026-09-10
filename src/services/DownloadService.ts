@@ -125,7 +125,7 @@ export class DownloadService {
     });
   }
 
-  private async downloadDirectAxios(
+  async downloadDirectAxios(
     url: string,
     dest: string,
     onProgress: (p: number) => void,
@@ -150,7 +150,7 @@ export class DownloadService {
     return false;
   }
 
-  // Rama multihilo opt-in (ajuste Conexiones por archivo): exige 206 real y
+  // Rama multihilo opt-in (ajuste Conexiones por archivo 1-8): exige 206 real y
   // tamaño exacto; cualquier fallo cae al axios de 1 conexión en fresco.
   private async downloadDirectRangedOnce(
     url: string,

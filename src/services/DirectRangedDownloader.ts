@@ -2,10 +2,14 @@ import axios from 'axios';
 import * as fsp from 'fs/promises';
 
 export const DIRECT_RANGED_MIN_CONNECTIONS = 1;
-export const DIRECT_RANGED_MAX_CONNECTIONS = 4;
+export const DIRECT_RANGED_MAX_CONNECTIONS = 8;
 const RANGE_PROBE_TIMEOUT_MS = 10_000;
 const PART_TIMEOUT_MS = 60_000;
 const PART_STALL_MS = 30_000;
+// Cola de segmentos: los workers cogen el siguiente libre al terminar, así un
+// trozo lento no frena al resto (el reparto estático lo dejaba todo al lento).
+const RANGED_SEGMENT_BYTES = 4 * 1024 * 1024;
+const RANGED_MAX_SEGMENTS = 128;
 
 export interface RangedProbeResult {
   supported: boolean;
@@ -72,8 +76,8 @@ export async function downloadDirectRanged(
   connections: number,
   options: RangedDownloadOptions,
 ): Promise<boolean> {
-  const parts = clampDirectConnections(connections);
-  if (!Number.isFinite(totalBytes) || totalBytes <= 0 || parts <= 1) return false;
+  const workers = clampDirectConnections(connections);
+  if (!Number.isFinite(totalBytes) || totalBytes <= 0 || workers <= 1) return false;
   if (options.signal?.aborted) return false;
   let handle: fsp.FileHandle | null = null;
   try {
@@ -162,14 +166,21 @@ export async function downloadDirectRanged(
     });
   };
   try {
-    const chunk = Math.floor(totalBytes / parts);
-    await Promise.all(
-      Array.from({ length: parts }, (_, i) => {
-        const start = i * chunk;
-        const end = i === parts - 1 ? totalBytes - 1 : (i + 1) * chunk - 1;
-        return runPart(i, start, end);
-      }),
-    );
+    const segmentSize = Math.max(RANGED_SEGMENT_BYTES, Math.ceil(totalBytes / RANGED_MAX_SEGMENTS));
+    const segmentCount = Math.ceil(totalBytes / segmentSize);
+    let nextSegment = 0;
+    const runWorker = async (): Promise<void> => {
+      while (true) {
+        if (options.signal?.aborted) throw new Error('Aborted');
+        const index = nextSegment;
+        nextSegment += 1;
+        if (index >= segmentCount) return;
+        const start = index * segmentSize;
+        const end = Math.min(totalBytes - 1, start + segmentSize - 1);
+        await runPart(index, start, end);
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(workers, segmentCount) }, () => runWorker()));
     await handle.sync().catch(() => undefined);
   } catch {
     await handle.close().catch(() => undefined);

@@ -6,6 +6,8 @@ import type { ProviderDownloadLink, QueueItem } from '../types/queue';
 import type { DownloadSettings } from '../types/settings';
 import { normalizeDownloadSettings } from '../utils/downloadSettings';
 import { normalizeMp4UploadUrl, providerDownloadReferer, resolveHlsPlaybackUrl } from '../utils/serverUtils';
+import { MP4UPLOAD_REFERER, resolveMp4UploadDirect } from './Mp4UploadResolver';
+import type { Mp4UploadResolveFn } from './Mp4UploadResolver';
 
 export interface EpisodeAttemptProgress {
   progress: number;
@@ -38,6 +40,7 @@ export interface EpisodeDownloadAttemptOptions {
   log: (message: string, type?: 'info' | 'success' | 'error' | 'warn') => void;
   logError: (error: unknown) => void;
   getDownloadSettings?: () => DownloadSettings | undefined;
+  resolveMp4UploadDirect?: Mp4UploadResolveFn;
 }
 
 const START_TIMEOUT_MS = 90_000;
@@ -198,6 +201,7 @@ export class EpisodeDownloadAttemptService {
     }, startTimeoutMs);
 
     let success = false;
+    let skipYtdlp = false;
     let invalidMp4 = false;
     let toolFailureMessage: string | null = null;
 
@@ -283,8 +287,35 @@ export class EpisodeDownloadAttemptService {
         }
         if (link.server === 'MP4Upload') {
           downloadUrl = normalizeMp4UploadUrl(downloadUrl);
-          extraArgs.push('--referer', 'https://www.mp4upload.com/');
+          extraArgs.push('--referer', MP4UPLOAD_REFERER);
           extraArgs.push('--user-agent', this.options.userAgent);
+          // Resolución directa propia → axios (multihilo según ajuste). Si falla, cae al extractor genérico de yt-dlp.
+          if (!attemptAbort.signal.aborted) {
+            const resolveFn = this.options.resolveMp4UploadDirect ?? resolveMp4UploadDirect;
+            const resolved = await resolveFn(downloadUrl).catch(() => ({ ok: false as const }));
+            if (resolved.ok && resolved.directUrl && !attemptAbort.signal.aborted) {
+              let lastReportedPctDirect = -1;
+              success = await this.options.downloadService.downloadDirectAxios(
+                resolved.directUrl,
+                dest,
+                (progress) => {
+                  markStarted();
+                  const pct = Math.round(progress * 100);
+                  callbacks.onProgress({
+                    progress,
+                    progressLog:
+                      pct !== lastReportedPctDirect ? `   -> EP ${episode} * MP4Upload * ${pct}%` : undefined,
+                  });
+                  if (pct !== lastReportedPctDirect) lastReportedPctDirect = pct;
+                  callbacks.updateTray(`Descargando ${item.animeTitle} - EP ${episode} (${pct}%)`);
+                },
+                attemptAbort.signal,
+                MP4UPLOAD_REFERER,
+                dl.directConnections,
+              );
+              skipYtdlp = success || attemptAbort.signal.aborted;
+            }
+          }
         }
 
         const cacheDir = path.join(path.dirname(dest), '.cache');
@@ -301,35 +332,37 @@ export class EpisodeDownloadAttemptService {
           extraArgs.push('--continue');
         }
 
-        let lastReportedMsg: string | number = -1;
-        callbacks.updateTray(`Descargando ${item.animeTitle} - EP ${episode}...`);
-        const ytdlpResult = await this.options.downloadService.downloadYtdlpCustom(
-          downloadUrl,
-          dest,
-          concurrentFragments,
-          attemptAbort.signal,
-          extraArgs,
-          (progress, status) => {
-            markStarted();
-            const pct = Math.round(progress * 100);
-            const statusText = status ? status : `${pct}%`;
-            const logMsg = status
-              ? `   -> EP ${episode} * ${link.server} * ${status}`
-              : `   -> EP ${episode} * ${link.server} * ${pct}%`;
-            callbacks.onProgress({
-              progress,
-              status,
-              progressLog: logMsg !== lastReportedMsg ? logMsg : undefined,
-            });
-            lastReportedMsg = logMsg;
-            callbacks.updateTray(`Descargando ${item.animeTitle} - EP ${episode} (${statusText})`);
-          },
-          this.options.getRuntimeTools(),
-        );
-        success = ytdlpResult.ok;
-        if (!success) {
-          toolFailureMessage =
-            ytdlpResult.error || 'Herramienta yt-dlp local no encontrada. Verifica tools/win/yt-dlp.exe.';
+        if (!skipYtdlp) {
+          let lastReportedMsg: string | number = -1;
+          callbacks.updateTray(`Descargando ${item.animeTitle} - EP ${episode}...`);
+          const ytdlpResult = await this.options.downloadService.downloadYtdlpCustom(
+            downloadUrl,
+            dest,
+            concurrentFragments,
+            attemptAbort.signal,
+            extraArgs,
+            (progress, status) => {
+              markStarted();
+              const pct = Math.round(progress * 100);
+              const statusText = status ? status : `${pct}%`;
+              const logMsg = status
+                ? `   -> EP ${episode} * ${link.server} * ${status}`
+                : `   -> EP ${episode} * ${link.server} * ${pct}%`;
+              callbacks.onProgress({
+                progress,
+                status,
+                progressLog: logMsg !== lastReportedMsg ? logMsg : undefined,
+              });
+              lastReportedMsg = logMsg;
+              callbacks.updateTray(`Descargando ${item.animeTitle} - EP ${episode} (${statusText})`);
+            },
+            this.options.getRuntimeTools(),
+          );
+          success = ytdlpResult.ok;
+          if (!success) {
+            toolFailureMessage =
+              ytdlpResult.error || 'Herramienta yt-dlp local no encontrada. Verifica tools/win/yt-dlp.exe.';
+          }
         }
       }
 

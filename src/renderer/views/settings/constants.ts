@@ -29,10 +29,11 @@ export const DOWNLOAD_PARALLEL_OPTIONS = [
 ] as const;
 
 export const DOWNLOAD_DIRECT_CONNECTIONS_OPTIONS = [
-  { value: '1', label: '1 conexión (estándar)' },
+  { value: '1', label: '1 conexión' },
   { value: '2', label: '2 conexiones' },
-  { value: '3', label: '3 conexiones' },
-  { value: '4', label: '4 conexiones' },
+  { value: '4', label: '4 conexiones', badge: 'Recomendado' },
+  { value: '6', label: '6 conexiones' },
+  { value: '8', label: '8 conexiones' },
 ] as const;
 
 export const DOWNLOAD_RETRIES_OPTIONS = [

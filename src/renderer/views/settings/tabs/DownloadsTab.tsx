@@ -99,14 +99,15 @@ export const DownloadsTab = memo(function DownloadsTab({
             <div className="min-w-0">
               <span className="flex items-center gap-1.5 text-sm font-semibold select-none">
                 Conexiones por archivo
-                <AppTooltip content="Solo MediaFire: divide cada descarga en partes en paralelo. Solo se usa si el servidor lo soporta; si no, se descarga a 1 conexión automáticamente.">
+                <AppTooltip content="MediaFire y MP4Upload: divide cada descarga directa en segmentos en paralelo. Solo se usa si el servidor lo soporta; si no, se descarga a 1 conexión automáticamente.">
                   <span aria-hidden="true" className="inline-flex text-muted-foreground">
                     <Info className="w-3.5 h-3.5" />
                   </span>
                 </AppTooltip>
               </span>
               <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                Solo afecta a MediaFire. Más conexiones no siempre es más rápido; si te limita, se reintenta a 1.
+                Afecta a descargas directas (MediaFire y MP4Upload). Más conexiones no siempre es más rápido; si falla,
+                se reintenta a 1.
               </p>
             </div>
             <CustomSelect
@@ -116,7 +117,7 @@ export const DownloadsTab = memo(function DownloadsTab({
               )}
               onChange={(v) => onDlChange('directConnections', Number(v))}
               ariaLabel="Conexiones por archivo"
-              className="w-full sm:w-56 shrink-0"
+              className="w-full sm:w-60 shrink-0"
               options={DOWNLOAD_DIRECT_CONNECTIONS_OPTIONS.map((o) => ({ ...o }))}
             />
           </div>

@@ -6,6 +6,7 @@ import clsx from 'clsx';
 interface CustomSelectOption {
   value: string;
   label: string;
+  badge?: string;
 }
 
 interface CustomSelectProps {
@@ -71,7 +72,7 @@ export function CustomSelect({
           className,
         )}
       >
-        <SelectPrimitive.Value placeholder={placeholder}>
+        <SelectPrimitive.Value placeholder={placeholder} className="min-w-0 flex-1 truncate text-left">
           {selectedValues && selectedValues.length > 0
             ? `${selectedValues.length} ${selectedValues.length === 1 ? 'seleccionado' : 'seleccionados'}`
             : (selectedOption?.label ?? placeholder)}
@@ -87,7 +88,7 @@ export function CustomSelect({
           sideOffset={4}
           className="z-[9999] max-h-60 overflow-y-auto rounded-xl border border-border/70 bg-popover shadow-2xl motion-origin-popper animate-in fade-in zoom-in-95 duration-150"
         >
-          <SelectPrimitive.Viewport className="p-1">
+          <SelectPrimitive.Viewport className="flex flex-col gap-0.5 p-1.5">
             {selectableOptions.map((option) => {
               const isCurrentlySelected =
                 selectedValues && selectedValues.length > 0
@@ -98,7 +99,7 @@ export function CustomSelect({
                   key={option.value}
                   value={option.value}
                   className={clsx(
-                    'relative flex items-center gap-2 rounded-lg px-3 pr-8 py-2 text-sm outline-none cursor-pointer select-none',
+                    'relative flex items-center gap-2 rounded-lg px-3 pr-8 py-2.5 text-sm outline-none cursor-pointer select-none',
                     'text-muted-foreground hover:bg-secondary hover:text-foreground',
                     isCurrentlySelected && 'text-primary bg-primary/10',
                     'focus:bg-secondary focus:text-foreground',
@@ -106,6 +107,9 @@ export function CustomSelect({
                 >
                   {isCurrentlySelected && <Check className="absolute right-2 h-4 w-4 text-primary" />}
                   <SelectPrimitive.ItemText>{option.label}</SelectPrimitive.ItemText>
+                  {option.badge && (
+                    <span className="ml-auto shrink-0 text-[11px] font-medium text-primary">{option.badge}</span>
+                  )}
                 </SelectPrimitive.Item>
               );
             })}
