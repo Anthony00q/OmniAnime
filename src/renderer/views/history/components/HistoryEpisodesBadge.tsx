@@ -47,7 +47,7 @@ export const HistoryEpisodesBadge = memo(function HistoryEpisodesBadge({
               </span>
             )}
             {unstartedCount > 0 && (
-              <span className="inline-flex items-center gap-0.5 text-warning">
+              <span className="inline-flex items-center gap-0.5 text-muted-foreground">
                 <Clock className="h-3 w-3" aria-hidden="true" />
                 {unstartedCount}
               </span>

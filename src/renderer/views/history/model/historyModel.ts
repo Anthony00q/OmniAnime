@@ -106,16 +106,16 @@ export function getGroupStatus(group: HistoryGroup) {
   if (group.totalCount === 0) {
     return { label: 'Cancelado', variant: 'cancelled' as const };
   }
-  if (group.unstartedCount > 0) return { label: 'Parcial', variant: 'warning' as const };
+  if (group.unstartedCount > 0) return { label: 'Parcial', variant: 'neutral' as const };
   if (group.cancelledCount === group.totalCount && group.failCount === 0) {
     return { label: 'Cancelado', variant: 'cancelled' as const };
   }
   if (group.queueCancellationCount > 0) {
-    return { label: 'Parcial', variant: 'warning' as const };
+    return { label: 'Parcial', variant: 'neutral' as const };
   }
   if (group.failCount === 0 && group.cancelledCount === 0) return { label: 'Completado', variant: 'success' as const };
   if (group.okCount === 0 && group.cancelledCount === 0) return { label: 'Fallido', variant: 'danger' as const };
-  return { label: 'Parcial', variant: 'warning' as const };
+  return { label: 'Parcial', variant: 'neutral' as const };
 }
 
 export function formatHistoryReason(record: HistoryRecord): string | null {

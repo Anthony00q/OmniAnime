@@ -1,5 +1,18 @@
 # Changelog
 
+## v1.0.4
+
+Descargas:
+- el servidor PDrain ya no aparece en la lista porque AnimeAV1 dejó de ofrecerlo.
+- MP4Upload ahora descarga en directo y en partes en paralelo, igual que MediaFire: más velocidad y progreso real por episodio.
+- Mega ahora reintenta los cortes y reanuda las pausas donde quedaron, sin empezar de cero.
+
+Interfaz:
+- el botón de pausa y la insignia **Parcial** del historial usan el tono neutro, sin naranja.
+
+Ajustes:
+- **Conexiones por archivo** llega hasta **8** (recomendado: **4**) y vale para MediaFire y MP4Upload; el desplegable ya no se corta con el texto largo.
+
 ## v1.0.3
 
 Interfaz:

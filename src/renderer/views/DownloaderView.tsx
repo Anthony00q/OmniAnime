@@ -184,7 +184,7 @@ const EpisodeDetailRow = memo(
                     onClick={() => onPauseEpisode(itemId, e.episode)}
                     disabled={isEpPending}
                     aria-label={`Pausar EP ${e.episode}`}
-                    className="relative flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors after:absolute after:-inset-2 after:content-[''] hover:bg-warning/10 hover:text-warning disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-warning/60"
+                    className="relative flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors after:absolute after:-inset-2 after:content-[''] hover:bg-secondary hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
                   >
                     <Pause className="h-3 w-3" />
                   </button>
@@ -548,7 +548,7 @@ const QueueItemRow = memo(
                       type="button"
                       onClick={handlePauseClick}
                       aria-label="Pausar descarga"
-                      className="flex h-9 w-9 items-center justify-center rounded-md bg-warning/10 text-warning transition-colors hover:bg-warning/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-warning/60"
+                      className="flex h-9 w-9 items-center justify-center rounded-md bg-secondary text-foreground transition-colors hover:bg-secondary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
                     >
                       <Pause className="w-3.5 h-3.5" />
                     </button>

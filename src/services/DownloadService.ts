@@ -16,6 +16,72 @@ const httpsAgent = new https.Agent({ keepAlive: true, maxSockets: 32 });
 const DIRECT_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36';
 const DEFAULT_DOWNLOAD_REFERER = 'https://animeav1.com/';
 
+export interface MegaDownloadStream extends NodeJS.EventEmitter {
+  pipe<T extends NodeJS.WritableStream>(destination: T): T;
+  destroy(error?: Error): void;
+}
+
+export interface MegaFileLike {
+  size?: number;
+  loadAttributes(): Promise<unknown>;
+  download(options: {
+    start: number;
+    maxConnections: number;
+    initialChunkSize: number;
+    maxChunkSize: number;
+  }): MegaDownloadStream;
+}
+
+export type MegaFileFactory = (url: string) => MegaFileLike;
+
+export function megaResumeFiles(cacheDir: string, fileName: string): { partial: string; sidecar: string } {
+  const partial = path.join(cacheDir, `${fileName}.mega.part`);
+  return { partial, sidecar: path.join(cacheDir, `${fileName}.mega.json`) };
+}
+
+export interface MegaResumeState {
+  url: string;
+  size: number;
+  savedAt: number;
+}
+
+export function parseMegaResumeState(raw: unknown): MegaResumeState | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const record = raw as Record<string, unknown>;
+  if (typeof record.url !== 'string' || !record.url) return null;
+  if (typeof record.size !== 'number' || !Number.isFinite(record.size) || record.size <= 0) return null;
+  return {
+    url: record.url,
+    size: Math.floor(record.size),
+    savedAt: typeof record.savedAt === 'number' && Number.isFinite(record.savedAt) ? record.savedAt : 0,
+  };
+}
+
+export type MegaFailureKind = 'permanent' | 'quota' | 'transient';
+
+export function classifyMegaError(error: unknown): MegaFailureKind {
+  const code = (error as { code?: unknown } | null)?.code;
+  if (typeof code === 'number' && Number.isInteger(code) && code < 0) return 'permanent';
+  const message = error instanceof Error ? error.message : String(error ?? '');
+  if (/Bandwidth limit|EOVERQUOTA|timeLimit/i.test(message)) return 'quota';
+  if (
+    /key isn't defined|Attributes could not be decrypted|Invalid URL|too few arguments|too many arguments|past the end of the file|folder download|EACCESS|EARGS/i.test(
+      message,
+    )
+  ) {
+    return 'permanent';
+  }
+  return 'transient';
+}
+
+const MAX_MEGA_ATTEMPTS = 3;
+
+export interface AttemptProbe {
+  onRetry?: () => void;
+  onFirstByte?: () => void;
+  onProgress?: (fraction01: number, totalBytes?: number) => void;
+}
+
 export type YtdlpRuntimeTools = {
   ytdlpPath: string;
   ffmpegDir?: string;
@@ -377,9 +443,11 @@ export class DownloadService {
     dest: string,
     onProgress?: (p: number) => void,
     signal?: AbortSignal,
+    probe?: AttemptProbe,
+    megaFileFactory?: MegaFileFactory,
   ): Promise<boolean> {
-    let writer: fs.WriteStream | null = null;
-    let readable: any = null;
+    const factory = megaFileFactory ?? ((u: string) => megajs.File.fromURL(u) as unknown as MegaFileLike);
+    const normalizedUrl = normalizeMegaUrl(String(url || '').trim());
 
     const destDir = path.dirname(dest);
     const cacheDir = path.join(destDir, '.cache');
@@ -389,125 +457,253 @@ export class DownloadService {
         execFile('attrib', ['+h', cacheDir], { windowsHide: true }, () => {});
       }
     } catch {}
-    const tempDest = path.join(cacheDir, path.basename(dest) + '.part');
+    const { partial: tempDest, sidecar: sidecarPath } = megaResumeFiles(cacheDir, path.basename(dest));
 
-    const internalController = new AbortController();
-    this.trackController(internalController);
-    let settled = false;
-    let resolveResult: ((ok: boolean) => void) | null = null;
+    if (signal?.aborted) return false;
 
-    const finalize = (ok: boolean) => {
-      if (settled) return;
-      settled = true;
-      if (signal) signal.removeEventListener('abort', onExternalAbort);
-      this.untrackController(internalController);
-      resolveResult?.(ok);
-    };
-
-    const cleanup = () => {
+    const readResumeState = async (): Promise<{ partialSize: number; state: MegaResumeState | null }> => {
+      let partialSize = 0;
       try {
-        if (writer) writer.destroy();
-      } catch {}
-      fsp.unlink(tempDest).catch(() => {});
-      fsp.unlink(dest).catch(() => {});
-    };
-
-    if (signal?.aborted) {
-      this.untrackController(internalController);
-      return false;
-    }
-
-    const onExternalAbort = () => {
-      try {
-        internalController.abort();
+        const st = await fsp.stat(tempDest);
+        if (st.isFile()) partialSize = st.size;
       } catch {
-        /* abort is idempotent */
+        /* sin parcial */
       }
+      let state: MegaResumeState | null = null;
       try {
-        if (readable) readable.destroy();
-      } catch {}
-      try {
-        if (writer) writer.destroy();
-      } catch {}
-      cleanup();
-      finalize(false);
+        state = parseMegaResumeState(JSON.parse(await fsp.readFile(sidecarPath, 'utf8')));
+      } catch {
+        /* sin sidecar válido */
+      }
+      return { partialSize, state };
     };
-    if (signal) signal.addEventListener('abort', onExternalAbort);
-
-    try {
-      const normalizedUrl = normalizeMegaUrl(String(url || '').trim());
-      const file = megajs.File.fromURL(normalizedUrl);
-      // Timeout + abort for loadAttributes (10s, consistent with providers)
-      const loadPromise = file.loadAttributes();
-      const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('Mega load timeout')), 10_000),
+    const purgeResume = async (): Promise<void> => {
+      await Promise.all([fsp.rm(tempDest, { force: true }), fsp.rm(sidecarPath, { force: true })]).catch(
+        () => undefined,
       );
-      const abortPromise = signal
-        ? new Promise<never>((_, reject) => {
-            if (signal.aborted) reject(new Error('Aborted'));
-            else signal.addEventListener('abort', () => reject(new Error('Aborted')), { once: true });
-          })
-        : null;
-      const racePromises: Promise<unknown>[] = [loadPromise, timeoutPromise];
-      if (abortPromise) racePromises.push(abortPromise);
-      await Promise.race(racePromises);
-      if (signal?.aborted) {
-        cleanup();
-        if (signal) signal.removeEventListener('abort', onExternalAbort);
-        this.untrackController(internalController);
-        return false;
-      }
+    };
 
-      const totalLength = Number(file.size) || 0;
-      let downloadedLength = 0;
-
-      writer = fs.createWriteStream(tempDest, { highWaterMark: 1024 * 1024 });
-      readable = file.download({
-        maxConnections: 6,
-        initialChunkSize: 512 * 1024,
-        maxChunkSize: 1024 * 1024,
-      });
-
-      readable.on('data', (chunk: Buffer) => {
-        downloadedLength += chunk.length;
-        if (onProgress && totalLength > 0) {
-          onProgress(downloadedLength / totalLength);
+    for (let attempt = 1; attempt <= MAX_MEGA_ATTEMPTS; attempt += 1) {
+      if (signal?.aborted) return false;
+      if (attempt > 1) probe?.onRetry?.();
+      try {
+        let file: MegaFileLike;
+        try {
+          file = factory(normalizedUrl);
+        } catch {
+          return false;
         }
-      });
+        const loadPromise = file.loadAttributes();
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Mega load timeout')), 10_000),
+        );
+        const abortPromise = signal
+          ? new Promise<never>((_, reject) => {
+              if (signal.aborted) reject(new Error('Aborted'));
+              else signal.addEventListener('abort', () => reject(new Error('Aborted')), { once: true });
+            })
+          : null;
+        const racePromises: Promise<unknown>[] = [loadPromise, timeoutPromise];
+        if (abortPromise) racePromises.push(abortPromise);
+        await Promise.race(racePromises);
+        if (signal?.aborted) return false;
 
-      return await new Promise((resolve) => {
-        resolveResult = resolve;
+        const totalLength = typeof file.size === 'number' && Number.isFinite(file.size) ? Math.floor(file.size) : 0;
+        if (totalLength <= 0) return false;
 
-        readable!.pipe(writer!);
-
-        writer!.on('finish', async () => {
+        const { partialSize, state } = await readResumeState();
+        const coherent =
+          state !== null && state.url === normalizedUrl && state.size === totalLength && partialSize <= totalLength;
+        if (coherent && partialSize === totalLength) {
           try {
             await fsp.unlink(dest).catch(() => {});
             await fsp.rename(tempDest, dest);
+            await fsp.rm(sidecarPath, { force: true }).catch(() => undefined);
+            return !signal?.aborted;
           } catch {
-            cleanup();
-            finalize(false);
+            await purgeResume();
+          }
+        } else {
+          const startOffset = coherent && partialSize > 0 ? partialSize : 0;
+          if (startOffset === 0) {
+            await purgeResume();
+            await fsp
+              .writeFile(sidecarPath, JSON.stringify({ url: normalizedUrl, size: totalLength, savedAt: Date.now() }))
+              .catch(() => undefined);
+          }
+          const outcome = await this.downloadMegaSlice(
+            file,
+            tempDest,
+            dest,
+            sidecarPath,
+            startOffset,
+            totalLength,
+            onProgress,
+            signal,
+            probe,
+          );
+          if (outcome === 'completed') return !signal?.aborted;
+          if (outcome === 'fatal' || signal?.aborted) return false;
+        }
+      } catch (e) {
+        if (signal?.aborted) return false;
+        const kind = classifyMegaError(e);
+        if (kind === 'quota') {
+          console.error('Mega: cuota agotada (509); se prueba el siguiente servidor sin reintentos.');
+          return false;
+        }
+        if (kind === 'permanent') {
+          console.error(`Mega permanente, sin reintento: ${(e as Error)?.message || e}`);
+          return false;
+        }
+        console.error(`Mega transitorio (intento ${attempt}/${MAX_MEGA_ATTEMPTS}): ${(e as Error)?.message || e}`);
+      }
+      if (attempt < MAX_MEGA_ATTEMPTS && !signal?.aborted) {
+        await this.sleepAbortable(1000 * attempt, signal);
+      }
+    }
+    return false;
+  }
+
+  private async downloadMegaSlice(
+    file: MegaFileLike,
+    tempDest: string,
+    dest: string,
+    sidecarPath: string,
+    startOffset: number,
+    totalLength: number,
+    onProgress?: (p: number) => void,
+    signal?: AbortSignal,
+    probe?: AttemptProbe,
+  ): Promise<'completed' | 'retry' | 'fatal'> {
+    const internalController = new AbortController();
+    this.trackController(internalController);
+    let writer: fs.WriteStream | null = null;
+    let readable: MegaDownloadStream | null = null;
+
+    return await new Promise((resolve) => {
+      let settled = false;
+      const finish = (outcome: 'completed' | 'retry' | 'fatal') => {
+        if (settled) return;
+        settled = true;
+        if (signal) signal.removeEventListener('abort', onExternalAbort);
+        internalController.signal.removeEventListener('abort', onGlobalAbort);
+        this.untrackController(internalController);
+        resolve(outcome);
+      };
+      const onExternalAbort = () => {
+        try {
+          internalController.abort();
+        } catch {
+          /* abort is idempotent */
+        }
+        try {
+          readable?.destroy();
+        } catch {}
+        try {
+          writer?.destroy();
+        } catch {}
+        finish('retry');
+      };
+      const onGlobalAbort = () => {
+        try {
+          readable?.destroy();
+        } catch {}
+        try {
+          writer?.destroy();
+        } catch {}
+        finish('retry');
+      };
+      if (signal) {
+        if (signal.aborted) {
+          this.untrackController(internalController);
+          resolve('retry');
+          return;
+        }
+        signal.addEventListener('abort', onExternalAbort, { once: true });
+      }
+      internalController.signal.addEventListener('abort', onGlobalAbort, { once: true });
+
+      const fail = (error: unknown): void => {
+        const kind = classifyMegaError(error);
+        finish(kind === 'transient' ? 'retry' : 'fatal');
+      };
+
+      let activeWriter: fs.WriteStream;
+      try {
+        activeWriter = fs.createWriteStream(tempDest, { flags: 'a', highWaterMark: 1024 * 1024 });
+      } catch {
+        finish('retry');
+        return;
+      }
+      writer = activeWriter;
+      activeWriter.once('open', () => {
+        void (async () => {
+          const fdRaw = (activeWriter as unknown as { fd?: unknown }).fd;
+          const fdStat =
+            typeof fdRaw === 'number'
+              ? await new Promise<fs.Stats | null>((resolveStat) =>
+                  fs.fstat(fdRaw, (err, stats) => resolveStat(err ? null : stats)),
+                )
+              : null;
+          if (!fdStat || !fdStat.isFile() || fdStat.size !== startOffset) {
+            try {
+              activeWriter.destroy();
+            } catch {}
+            finish('retry');
             return;
           }
-          finalize(!signal?.aborted);
-        });
-
-        writer!.on('error', () => {
-          cleanup();
-          finalize(false);
-        });
-
-        readable!.on('error', () => {
-          cleanup();
-          finalize(false);
-        });
+          let readableInstance: MegaDownloadStream;
+          try {
+            readableInstance = file.download({
+              start: startOffset,
+              maxConnections: 6,
+              initialChunkSize: 512 * 1024,
+              maxChunkSize: 1024 * 1024,
+            });
+          } catch (e) {
+            fail(e);
+            return;
+          }
+          readable = readableInstance;
+          let downloadedLength = 0;
+          readable.on('data', (chunk: Buffer) => {
+            downloadedLength += chunk.length;
+            probe?.onFirstByte?.();
+            const fraction = Math.min(1, (startOffset + downloadedLength) / totalLength);
+            if (onProgress) onProgress(fraction);
+            probe?.onProgress?.(fraction, totalLength);
+          });
+          readable.pipe(activeWriter);
+          activeWriter.on('finish', () => {
+            void (async () => {
+              try {
+                const st = await fsp.stat(tempDest);
+                if (!st.isFile() || st.size !== totalLength) {
+                  if (st.isFile() && st.size > totalLength) {
+                    await Promise.all([fsp.rm(tempDest, { force: true }), fsp.rm(sidecarPath, { force: true })]).catch(
+                      () => undefined,
+                    );
+                  }
+                  finish('retry');
+                  return;
+                }
+                await fsp.unlink(dest).catch(() => {});
+                await fsp.rename(tempDest, dest);
+                await fsp.rm(sidecarPath, { force: true }).catch(() => undefined);
+              } catch {
+                finish('retry');
+                return;
+              }
+              finish('completed');
+            })();
+          });
+          activeWriter.on('error', () => finish('retry'));
+          readable.on('error', (error: unknown) => fail(error));
+        })();
       });
-    } catch {
-      if (signal) signal.removeEventListener('abort', onExternalAbort);
-      this.untrackController(internalController);
-      cleanup();
-      return false;
-    }
+      activeWriter.once('error', (error: unknown) => fail(error));
+    });
   }
 
   async downloadYtdlpCustom(

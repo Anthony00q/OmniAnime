@@ -2,6 +2,7 @@
 import * as fsp from 'fs/promises';
 import * as path from 'path';
 import type { DownloadService, YtdlpRuntimeTools } from './DownloadService';
+import { megaResumeFiles } from './DownloadService';
 import type { ProviderDownloadLink, QueueItem } from '../types/queue';
 import type { DownloadSettings } from '../types/settings';
 import { normalizeDownloadSettings } from '../utils/downloadSettings';
@@ -148,6 +149,11 @@ export class EpisodeDownloadAttemptService {
     return this.isRegularFileWithContent(destPath);
   }
 
+  private async purgeMegaResumeFiles(destPath: string): Promise<void> {
+    const { partial, sidecar } = megaResumeFiles(path.join(path.dirname(destPath), '.cache'), path.basename(destPath));
+    await Promise.all([fsp.rm(partial, { force: true }), fsp.rm(sidecar, { force: true })]).catch(() => undefined);
+  }
+
   async attempt(
     item: QueueItem,
     episode: number,
@@ -213,6 +219,7 @@ export class EpisodeDownloadAttemptService {
         if (attemptAbort.signal.aborted) {
           success = false;
         } else {
+          if (!dl.allowContinue) await this.purgeMegaResumeFiles(dest);
           success = await this.options.downloadService.downloadMega(
             link.url,
             dest,
@@ -371,6 +378,7 @@ export class EpisodeDownloadAttemptService {
         if (!mp4Ready) {
           success = false;
           invalidMp4 = true;
+          if (link.server === 'Mega') await this.purgeMegaResumeFiles(dest);
           this.options.log(
             `WARN  "${link.server}" reporto exito, pero no quedo archivo .mp4 valido. Probando siguiente...`,
             'warn',
@@ -405,6 +413,8 @@ export class EpisodeDownloadAttemptService {
       fsp.rm(destPath + '.ytdl', { force: true }),
       fsp.rm(cacheBase, { force: true }),
       fsp.rm(cacheBase + '.part', { force: true }),
+      fsp.rm(cacheBase + '.mega.part', { force: true }),
+      fsp.rm(cacheBase + '.mega.json', { force: true }),
     ]);
     const failure = results.find((r) => r.status === 'rejected');
     if (failure) {
@@ -425,7 +435,7 @@ export class EpisodeDownloadAttemptService {
       return;
     }
     const baseName = path.basename(destPath);
-    const files = [baseName, baseName + '.part', baseName + '.ytdl'];
+    const files = [baseName, baseName + '.part', baseName + '.ytdl', baseName + '.mega.part', baseName + '.mega.json'];
     await Promise.all(
       files.map(async (file) => {
         const filePath = path.join(cacheDir, file);
@@ -462,6 +472,7 @@ export class EpisodeDownloadAttemptService {
       cachePath,
       `${cachePath}.part`,
       `${cachePath}.ytdl`,
+      `${cachePath}.mega.part`,
     ];
     for (const p of candidates) {
       try {
