@@ -1,5 +1,18 @@
 # Changelog
 
+## v1.0.5
+
+Descargas:
+- HLS ahora usa motor propio: descargas más rápidas y retoma los fragmentos donde quedaron al pausar y seguir.
+- MediaFire y MP4Upload también reanudan donde quedaron en vez de empezar de cero.
+- al reanudar, la barra muestra el progreso real desde el inicio en vez de quedarse quieta.
+
+Ajustes:
+- nueva pestaña **Registros**: visor del registro con filtros por nivel, módulo y texto, entradas largas plegables, borrado de entradas de hace más de 1 día y botones para **mostrar el archivo** o exportar el diagnóstico.
+- nuevos ajustes **Registro detallado** (guarda trazas de proveedores y reintentos al diagnosticar un fallo) y **Nivel mínimo** (elige cuánto detalle se guarda).
+- nuevo ajuste **Segmentos HLS en paralelo** (de **4** a **16**, recomendado: **10**) en Concurrencia.
+- desaparecen el botón **Actualizar yt-dlp** y el ajuste **Timeout de red** (sin efecto): ya no hacen falta.
+
 ## v1.0.4
 
 Descargas:
