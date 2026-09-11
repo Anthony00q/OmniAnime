@@ -93,6 +93,8 @@ function DeleteCheckbox({
   );
 }
 
+const entryKey = (e: any): string => `${e.file || ''}\n${e.text}`;
+
 const LogEntryRow = memo(function LogEntryRow({
   entry,
   index,
@@ -109,8 +111,8 @@ const LogEntryRow = memo(function LogEntryRow({
   canDelete: boolean;
   open: boolean;
   collapsible: boolean;
-  onToggle: (index: number) => void;
-  onToggleOpen: (index: number) => void;
+  onToggle: (entry: any) => void;
+  onToggleOpen: (entry: any) => void;
 }) {
   const e = entry;
   return (
@@ -120,7 +122,7 @@ const LogEntryRow = memo(function LogEntryRow({
           checked={checked}
           disabled={!canDelete}
           label="Seleccionar entrada para eliminar"
-          onToggle={() => onToggle(index)}
+          onToggle={() => onToggle(e)}
         />
         <span
           className={`shrink-0 text-[11px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded border ${LEVEL_STYLE[e.level] || LEVEL_STYLE.info}`}
@@ -136,7 +138,7 @@ const LogEntryRow = memo(function LogEntryRow({
         {collapsible ? (
           <button
             type="button"
-            onClick={() => onToggleOpen(index)}
+            onClick={() => onToggleOpen(e)}
             aria-expanded={open}
             aria-label={open ? 'Contraer entrada' : 'Expandir entrada'}
             className="inline-flex shrink-0 h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
@@ -193,10 +195,10 @@ export const LogsTab = memo(function LogsTab({ isActive = true, settings, onChan
   const verbose = logging.verbose === true;
   const minLevel = typeof logging.level === 'string' ? logging.level : 'info';
   const queryClient = useQueryClient();
-  // Por indice de fila: dos entradas identicas son seleccionables por separado
-  // y el conteo del dialogo coincide con las filas afectadas.
-  const [selected, setSelected] = useState<ReadonlySet<number>>(new Set());
-  const [expanded, setExpanded] = useState<ReadonlySet<number>>(new Set());
+  // Por contenido: los duplicados identicos comparten clave y se borran juntos
+  // (mismo contrato que removeLogEntries en main).
+  const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
+  const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -210,47 +212,46 @@ export const LogsTab = memo(function LogsTab({ isActive = true, settings, onChan
     (ts: string): boolean => isDeletableEntry(ts, { now: Date.now(), sessionStart }),
     [sessionStart],
   );
-  const toggleEntry = useCallback((index: number) => {
+  const toggleEntry = useCallback((entry: any) => {
+    const key = entryKey(entry);
     setSelected((prev) => {
       const next = new Set(prev);
-      if (next.has(index)) next.delete(index);
-      else next.add(index);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
       return next;
     });
   }, []);
-  const toggleOpen = useCallback((index: number) => {
+  const toggleOpen = useCallback((entry: any) => {
+    const key = entryKey(entry);
     setExpanded((prev) => {
       const next = new Set(prev);
-      if (next.has(index)) next.delete(index);
-      else next.add(index);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
       return next;
     });
   }, []);
-  const eligibleIndices = useMemo(
-    () => entries.map((e: any, i: number) => (entryDeletable(e.ts) ? i : -1)).filter((i: number) => i >= 0),
-    [entries, entryDeletable],
-  );
-  const allEligibleChecked = eligibleIndices.length > 0 && eligibleIndices.every((i: number) => selected.has(i));
+  const eligibleLoaded = useMemo(() => entries.filter((e: any) => entryDeletable(e.ts)), [entries, entryDeletable]);
+  const allEligibleChecked = eligibleLoaded.length > 0 && eligibleLoaded.every((e: any) => selected.has(entryKey(e)));
   const toggleAllEligible = useCallback(() => {
     setSelected((prev) => {
       const next = new Set(prev);
-      if (eligibleIndices.every((i: number) => next.has(i))) {
-        for (const i of eligibleIndices) next.delete(i);
+      if (eligibleLoaded.every((e: any) => next.has(entryKey(e)))) {
+        for (const e of eligibleLoaded) next.delete(entryKey(e));
       } else {
-        for (const i of eligibleIndices) next.add(i);
+        for (const e of eligibleLoaded) next.add(entryKey(e));
       }
       return next;
     });
-  }, [eligibleIndices]);
+  }, [eligibleLoaded]);
+  // Filas visibles afectadas (los duplicados identicos cuentan cada uno).
+  const affectedRows = useMemo(() => entries.filter((e: any) => selected.has(entryKey(e))).length, [entries, selected]);
 
   const handleDelete = async () => {
     if (selected.size === 0 || deleting) return;
     setDeleting(true);
     try {
-      const items = [...selected]
-        .sort((a, b) => a - b)
-        .map((i) => entries[i])
-        .filter(Boolean)
+      const items = entries
+        .filter((e: any) => selected.has(entryKey(e)))
         .map((e: any) => ({ file: e.file || '', text: e.text }));
       const res: any = await window.api.invoke('delete-log-entries', { items });
       if (res?.ok === true) {
@@ -434,7 +435,7 @@ export const LogsTab = memo(function LogsTab({ isActive = true, settings, onChan
             <div className="px-3 py-2 border-b border-border/40 text-[11px] text-muted-foreground flex items-center gap-2">
               <DeleteCheckbox
                 checked={allEligibleChecked}
-                disabled={eligibleIndices.length === 0}
+                disabled={eligibleLoaded.length === 0}
                 label="Seleccionar entradas visibles para eliminar"
                 onToggle={toggleAllEligible}
               />
@@ -468,9 +469,9 @@ export const LogsTab = memo(function LogsTab({ isActive = true, settings, onChan
                   key={`${e.file || ''}-${e.ts}-${idx}`}
                   entry={e}
                   index={idx}
-                  checked={selected.has(idx)}
+                  checked={selected.has(entryKey(e))}
                   canDelete={entryDeletable(e.ts)}
-                  open={expanded.has(idx)}
+                  open={expanded.has(entryKey(e))}
                   collapsible={typeof e.text === 'string' && e.text.includes('\n')}
                   onToggle={toggleEntry}
                   onToggleOpen={toggleOpen}
@@ -530,7 +531,7 @@ export const LogsTab = memo(function LogsTab({ isActive = true, settings, onChan
           if (!deleting) setConfirmOpen(open);
         }}
         title="¿Eliminar entradas del registro?"
-        message={`Se eliminarán ${selected.size} entrada(s) de hace más de 1 día. La sesión actual está protegida y no se toca.`}
+        message={`Se eliminarán ${affectedRows} entrada(s) de hace más de 1 día. La sesión actual está protegida y no se toca.`}
         confirmLabel="Eliminar"
         cancelLabel="Cancelar"
         danger={true}

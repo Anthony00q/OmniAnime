@@ -151,27 +151,21 @@ export function removeLogEntries(
   rules: LogDeleteRules,
   toViewerText: (text: string) => string = (text) => redactLogText(capEntryText(text)),
 ): { kept: string; deleted: number; skipped: number } {
-  // Por conteo: N filas identicas seleccionadas borran hasta N ocurrencias,
-  // no todas las del disco (los duplicados exactos son indistinguibles).
-  const wanted = new Map<string, number>();
-  for (const t of targets) wanted.set(t, (wanted.get(t) ?? 0) + 1);
+  // Por contenido: los duplicados identicos son indistinguibles y se borran
+  // juntos al seleccionar uno (suite: "borra duplicados identicos").
+  const wanted = new Set(targets);
   const keptBlocks: string[] = [];
   let deleted = 0;
   let skipped = 0;
   for (const block of splitLogBlocks(raw)) {
-    const key = toViewerText(block);
-    const remaining = wanted.get(key) ?? 0;
-    if (remaining <= 0) {
+    if (!wanted.has(toViewerText(block))) {
       keptBlocks.push(block);
       continue;
     }
     const ts = block.split('\n')[0]?.match(/^\[([^\]]+)\]/)?.[1] || '';
-    if (isDeletableEntry(ts, rules)) {
-      deleted += 1;
-      wanted.set(key, remaining - 1);
-    } else {
+    if (isDeletableEntry(ts, rules)) deleted += 1;
+    else {
       skipped += 1;
-      wanted.set(key, remaining - 1);
       keptBlocks.push(block);
     }
   }

@@ -41,6 +41,12 @@ export interface AppLoggerOptions {
   minLevel?: LogLevel;
 }
 
+export interface LogTail {
+  text: string;
+  lines: string[];
+  truncated: boolean;
+}
+
 export interface ScopedLogger {
   debug(message: unknown, context?: AppLogContext): void;
   info(message: unknown, context?: AppLogContext): void;
@@ -207,6 +213,32 @@ export class AppLogger {
       // El fichero de errores solo se toca ante errores reales, nunca por arrancar.
     } catch (loggerError) {
       console.error('Logger falló:', loggerError);
+    }
+  }
+
+  getTail(maxLines = 200, maxBytes = 100 * 1024, options?: { level?: LogLevel; file?: string }): LogTail {
+    try {
+      const file = options?.file ?? this.getLogFile();
+      if (!fs.existsSync(file)) return { text: '', lines: [], truncated: false };
+      const raw = fs.readFileSync(file, 'utf8');
+      const truncated = raw.length > maxBytes;
+      const slice = truncated ? raw.slice(-maxBytes) : raw;
+      const start = truncated ? slice.indexOf('\n') + 1 : 0;
+      const entries = slice
+        .slice(start)
+        .split(/\n\s*\n/)
+        .map((e) => e.trim())
+        .filter((e) => e.length > 0);
+      const wanted = options?.level ? entries.filter((e) => e.includes(`[${options.level!.toUpperCase()}]`)) : entries;
+      const lines = wanted
+        .join('\n')
+        .split('\n')
+        .filter((l) => l.trim().length > 0)
+        .slice(-maxLines);
+      const text = redactLogText(lines.join('\n'), this.homeDir);
+      return { text, lines: text.split('\n').filter((l) => l.trim().length > 0), truncated };
+    } catch {
+      return { text: '', lines: [], truncated: false };
     }
   }
 
