@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.0.6
+
+Ajustes:
+- en **Registros**, al seleccionar entradas para borrar, las duplicadas idénticas se marcan y se borran juntas, y el diálogo indica las filas afectadas.
+
+Librería:
+- las miniaturas de los episodios se generan de forma más fiable.
+
 ## v1.0.5
 
 Descargas:
