@@ -66,7 +66,7 @@ Solo maneja anime con subtítulos (SUB). No hay doblaje.
 - **Biblioteca local**: organiza en hasta **3 carpetas**, filtra por destino y busca dentro de tu colección. Solo se reconocen archivos de video (`.mp4`, `.mkv`, `.avi`, `.flv`, `.webm`).
 - **Gestión de archivos**: renombra y reordena episodios con vista previa, y abre o elimina archivos desde la app.
 - **Historial**: todo lo que has descargado, agrupado por anime y carpeta.
-- **Ajustes completos**: carpetas, descargas (incluida actualización de `yt-dlp`), almacenamiento, apariencia con 3 temas (`Oscuro`, `OLED`, `Quantum`), notificaciones y atajos.
+- **Ajustes completos**: carpetas, descargas, almacenamiento, apariencia con 3 temas (`Oscuro`, `OLED`, `Quantum`), notificaciones y atajos.
 - **Miniaturas y caché**: genera portadas automáticamente y te deja limpiar temporales cuando quieras.
 - **Interfaz cuidada**: animaciones suaves, estados de carga y notificaciones discretas.
 
@@ -127,11 +127,11 @@ No. No hay cuentas, nube ni inicio de sesión.
 
 ### ¿Una descarga falla o va lenta?
 
-La app prueba con el siguiente servidor automáticamente. Si algo queda como fallido, reinténtalo desde Descargas. Si falla mucho, ve a Ajustes → Descargas y pulsa **Actualizar yt-dlp**.
+La app prueba con el siguiente servidor automáticamente. Si algo queda como fallido, reinténtalo desde Descargas.
 
 ### ¿El antivirus bloquea algo?
 
-`yt-dlp`, `ffmpeg` y `ffprobe` van incluidos en la app. Si tu antivirus los marca, revisa su aviso antes de permitirlos.
+`ffmpeg` y `ffprobe` van incluidos en la app. Si tu antivirus los marca, revisa su aviso antes de permitirlos.
 
 ### ¿Puedo cambiar la carpeta después?
 
@@ -163,7 +163,7 @@ npm  >=10.0.0
 
 ```bash
 npm install
-npm run setup:tools   # descarga yt-dlp/ffmpeg/ffprobe verificados a tools/win/
+npm run setup:tools   # descarga ffmpeg/ffprobe verificados a tools/win/
 npm run dev:vite      # terminal 1: servidor de interfaz
 npm start             # terminal 2: motor Electron
 ```
@@ -188,7 +188,7 @@ Antes de publicar: `npm run lint` y `npm run format:check`.
 | **Estado** | [Jotai](https://jotai.org/) + [TanStack Query](https://tanstack.com/query) |
 | **UI** | [Radix UI](https://www.radix-ui.com/) + [lucide-react](https://lucide.dev/) + [sonner](https://sonner.emilkowal.ski/) |
 | **Datos / Descargas** | `better-sqlite3` + `axios` + `cheerio` + `megajs` |
-| **Binarios** | `yt-dlp` + `ffmpeg`/`ffprobe` en `tools/win/` (descargados con `setup:tools`) |
+| **Binarios** | `ffmpeg`/`ffprobe` en `tools/win/` (descargados con `setup:tools`) |
 
 ### Estructura del proyecto
 
@@ -196,7 +196,7 @@ Antes de publicar: `npm run lint` y `npm run format:check`.
 OmniAnime/
 ├─ index.js              # entrada de Electron
 ├─ LICENSE               # GPL-3.0-or-later
-├─ THIRD-PARTY-NOTICES.md # licencias de yt-dlp/ffmpeg/ffprobe
+├─ THIRD-PARTY-NOTICES.md # licencias de ffmpeg/ffprobe
 ├─ .github/workflows/    # CI: release por tags vX.X.X
 ├─ docs/                 # binarios-y-releases.md (pipeline de tools)
 ├─ src/
@@ -209,7 +209,7 @@ OmniAnime/
 │  └─ utils/             # utilidades
 ├─ assets/               # iconos y recursos del instalador
 ├─ scripts/              # instalador NSIS + setup-tools.mjs/tools-versions.json
-├─ tools/win/            # yt-dlp + ffmpeg + ffprobe (no versionados)
+├─ tools/win/            # ffmpeg + ffprobe (no versionados)
 ```
 
 </details>
@@ -218,7 +218,7 @@ OmniAnime/
 
 Código bajo licencia **GNU General Public License v3.0 o posterior**
 (ver [LICENSE](./LICENSE)). Los binarios incluidos
-(`yt-dlp`, `ffmpeg`/`ffprobe`) tienen sus propias licencias, documentadas
+(`ffmpeg`/`ffprobe`) tienen sus propias licencias, documentadas
 en [THIRD-PARTY-NOTICES.md](./THIRD-PARTY-NOTICES.md) (ambos archivos viajan dentro del instalador).
 Quien reciba el instalador tiene derecho a obtener el código fuente completo correspondiente.
 

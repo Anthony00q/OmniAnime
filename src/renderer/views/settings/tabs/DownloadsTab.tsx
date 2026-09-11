@@ -1,16 +1,5 @@
 import { memo, useState } from 'react';
-import {
-  Gauge,
-  Server,
-  Layers,
-  Eye,
-  SlidersHorizontal,
-  RefreshCw,
-  Zap,
-  Info,
-  ChevronDown,
-  FolderDown,
-} from 'lucide-react';
+import { Gauge, Server, Layers, Eye, SlidersHorizontal, Info, ChevronDown, FolderDown } from 'lucide-react';
 import { CustomSelect } from '../../../components/CustomSelect';
 import { CustomSwitch } from '../../../components/CustomSwitch';
 import { AppTooltip } from '../../../components/ui/AppTooltip';
@@ -21,8 +10,8 @@ import jkanimeIcon from '../../../../../assets/provider-icons/jkanime-32.png';
 import {
   DOWNLOAD_PARALLEL_OPTIONS,
   DOWNLOAD_DIRECT_CONNECTIONS_OPTIONS,
+  DOWNLOAD_HLS_CONNECTIONS_OPTIONS,
   DOWNLOAD_RETRIES_OPTIONS,
-  DOWNLOAD_TIMEOUT_OPTIONS,
   DOWNLOAD_START_TIMEOUT_OPTIONS,
   PROVIDER_SERVERS,
 } from '../constants';
@@ -35,20 +24,10 @@ const PROVIDER_ICONS: Record<string, string> = {
 interface DownloadsTabProps {
   settings: any;
   namingPreview: string;
-  ytdlpVersion: string | null;
-  updateYtdlp: any;
   onChange: (key: string, value: any, category?: string) => void;
-  onUpdateYtdlp: () => void;
 }
 
-export const DownloadsTab = memo(function DownloadsTab({
-  settings,
-  namingPreview,
-  ytdlpVersion,
-  updateYtdlp,
-  onChange,
-  onUpdateYtdlp,
-}: DownloadsTabProps) {
+export const DownloadsTab = memo(function DownloadsTab({ settings, namingPreview, onChange }: DownloadsTabProps) {
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const dl = { ...DEFAULT_DOWNLOAD_SETTINGS, ...(settings.download || {}) };
   const onDlChange = (key: string, value: any) => onChange(key, value, 'download');
@@ -65,7 +44,7 @@ export const DownloadsTab = memo(function DownloadsTab({
             <div>
               <h2 className="text-base font-bold tracking-tight">Concurrencia</h2>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Cuántos episodios del mismo anime se descargan a la vez. Por defecto secuencial.
+                Paralelismo de tus descargas: episodios y conexiones. Por defecto secuencial.
               </p>
             </div>
           </div>
@@ -119,6 +98,32 @@ export const DownloadsTab = memo(function DownloadsTab({
               ariaLabel="Conexiones por archivo"
               className="w-full sm:w-60 shrink-0"
               options={DOWNLOAD_DIRECT_CONNECTIONS_OPTIONS.map((o) => ({ ...o }))}
+            />
+          </div>
+
+          <div className="rounded-xl border border-border/60 bg-background p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 mt-3">
+            <div className="min-w-0">
+              <span className="flex items-center gap-1.5 text-sm font-semibold select-none">
+                Segmentos HLS en paralelo
+                <AppTooltip content="HLS (AnimeAV1): cuántos fragmentos del episodio se descargan a la vez. Solo se usa en HLS; el resto de servidores no cambia.">
+                  <span aria-hidden="true" className="inline-flex text-muted-foreground">
+                    <Info className="w-3.5 h-3.5" />
+                  </span>
+                </AppTooltip>
+              </span>
+              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                Afecta solo a HLS. Más no siempre es más rápido; si el servidor limita, baja a 6–8.
+              </p>
+            </div>
+            <CustomSelect
+              value={snapToClosestOption(
+                dl.hlsConnections ?? 10,
+                DOWNLOAD_HLS_CONNECTIONS_OPTIONS.map((o) => o.value),
+              )}
+              onChange={(v) => onDlChange('hlsConnections', Number(v))}
+              ariaLabel="Segmentos HLS en paralelo"
+              className="w-full sm:w-60 shrink-0"
+              options={DOWNLOAD_HLS_CONNECTIONS_OPTIONS.map((o) => ({ ...o }))}
             />
           </div>
 
@@ -249,7 +254,7 @@ export const DownloadsTab = memo(function DownloadsTab({
           className={`grid transition-[grid-template-rows] duration-200 ease-out ${advancedOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}
         >
           <div className="overflow-hidden">
-            <div className="px-5 sm:px-6 pb-5 sm:pb-6 grid grid-cols-1 gap-5 sm:grid-cols-3">
+            <div className="px-5 sm:px-6 pb-5 sm:pb-6 grid grid-cols-1 gap-5 sm:grid-cols-2">
               <div className="space-y-2">
                 <span className="block text-sm font-semibold">Reintentos</span>
                 <CustomSelect
@@ -261,19 +266,6 @@ export const DownloadsTab = memo(function DownloadsTab({
                   ariaLabel="Reintentos por descarga"
                   className="w-full"
                   options={DOWNLOAD_RETRIES_OPTIONS.map((o) => ({ ...o }))}
-                />
-              </div>
-              <div className="space-y-2">
-                <span className="block text-sm font-semibold">Timeout de red</span>
-                <CustomSelect
-                  value={snapToClosestOption(
-                    dl.socketTimeout,
-                    DOWNLOAD_TIMEOUT_OPTIONS.map((o) => o.value),
-                  )}
-                  onChange={(v) => onDlChange('socketTimeout', Number(v))}
-                  ariaLabel="Timeout de red"
-                  className="w-full"
-                  options={DOWNLOAD_TIMEOUT_OPTIONS.map((o) => ({ ...o }))}
                 />
               </div>
               <div className="space-y-2">
@@ -332,51 +324,6 @@ export const DownloadsTab = memo(function DownloadsTab({
                 />
               </div>
             </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="rounded-2xl border border-border/50 bg-card shadow-sm overflow-hidden">
-        <div className="p-5 sm:p-6">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex gap-3 min-w-0 items-start">
-              <div className="w-10 h-10 flex items-center justify-center bg-secondary border border-border/50 rounded-xl shrink-0 self-start">
-                <RefreshCw className="w-5 h-5 text-primary" />
-              </div>
-              <div className="min-w-0">
-                <h3 className="text-sm font-bold tracking-tight">Mantenimiento de Red</h3>
-                <p className="text-xs text-muted-foreground mt-1 leading-relaxed max-w-[52ch]">
-                  Actualiza el extractor{' '}
-                  <span className="font-mono text-foreground bg-secondary px-1 py-0.5 rounded border border-border text-[11px]">
-                    yt-dlp
-                  </span>{' '}
-                  cuando un servidor falle o cambie su estructura. No afecta tus descargas en curso.
-                </p>
-                <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-secondary border border-border px-2.5 py-1 font-mono select-text">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                    {ytdlpVersion ? `yt-dlp ${ytdlpVersion}` : 'yt-dlp — versión local'}
-                  </span>
-                  <span className="text-muted-foreground">Se verifica la versión antes y después.</span>
-                </div>
-              </div>
-            </div>
-            <button
-              onClick={onUpdateYtdlp}
-              type="button"
-              disabled={updateYtdlp.isPending}
-              aria-busy={updateYtdlp.isPending}
-              className={`shrink-0 inline-flex items-center gap-2 bg-secondary hover:bg-secondary/80 text-foreground border border-border px-4 py-2.5 rounded-xl transition-colors text-sm font-semibold whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 ${updateYtdlp.isPending ? 'opacity-50 cursor-not-allowed' : ''}`}
-            >
-              <RefreshCw className={`w-4 h-4 ${updateYtdlp.isPending ? 'animate-spin' : ''}`} />
-              {updateYtdlp.isPending ? 'Actualizando...' : 'Actualizar yt-dlp'}
-            </button>
-          </div>
-        </div>
-        <div className="px-5 sm:px-6 pb-4">
-          <div className="rounded-xl bg-background border border-border/60 px-3 py-2.5 flex items-center gap-2 text-xs text-muted-foreground">
-            <Zap className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-            <span>Se bloquea automáticamente si hay descargas activas.</span>
           </div>
         </div>
       </section>

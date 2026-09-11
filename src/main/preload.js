@@ -70,8 +70,6 @@ var INVOKE_CHANNELS = new Set([
   'get-folders-for-reorder',
   'reorder-episodes',
   'get-video-thumbnail',
-  'update-ytdlp',
-  'get-ytdlp-version',
   'app-update-check',
   'app-update-download',
   'app-update-install',

@@ -64,8 +64,8 @@ body:
     id: versiones
     attributes:
       label: Versiones
-      description: App al pie de Ajustes y yt-dlp en Ajustes → Descargas.
-      placeholder: "OmniAnime v1.0.3 · yt-dlp 2026.01.01"
+      description: App al pie de Ajustes.
+      placeholder: "OmniAnime v1.0.4"
     validations:
       required: true
   - type: checkboxes
@@ -74,7 +74,7 @@ body:
       label: Qué ya probé (opcional)
       description: Marca lo que aplique. Ayuda a no repetir pasos.
       options:
-        - label: Actualicé yt-dlp y reintenté los fallidos.
+        - label: Reintenté los fallidos.
         - label: Probé con otro servidor o con el otro proveedor.
     validations:
       required: false

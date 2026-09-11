@@ -3,11 +3,11 @@ import type { DownloadSettings } from '../types/settings';
 export const DEFAULT_DOWNLOAD_SETTINGS: DownloadSettings = {
   maxParallelEpisodes: 1,
   retries: 10,
-  socketTimeout: 30,
   startTimeoutSec: 90,
   allowContinue: true,
   cleanCacheOnComplete: false,
   directConnections: 1,
+  hlsConnections: 10,
 };
 
 function clampInt(value: unknown, min: number, max: number, fallback: number): number {
@@ -26,10 +26,10 @@ export function normalizeDownloadSettings(input: unknown): DownloadSettings {
   return {
     maxParallelEpisodes: clampInt(raw.maxParallelEpisodes, 1, 3, DEFAULT_DOWNLOAD_SETTINGS.maxParallelEpisodes),
     retries: clampInt(raw.retries, 0, 10, DEFAULT_DOWNLOAD_SETTINGS.retries),
-    socketTimeout: clampInt(raw.socketTimeout, 10, 60, DEFAULT_DOWNLOAD_SETTINGS.socketTimeout),
     startTimeoutSec: clampInt(raw.startTimeoutSec, 30, 120, DEFAULT_DOWNLOAD_SETTINGS.startTimeoutSec),
     allowContinue: toBoolean(raw.allowContinue, DEFAULT_DOWNLOAD_SETTINGS.allowContinue),
     cleanCacheOnComplete: toBoolean(raw.cleanCacheOnComplete, DEFAULT_DOWNLOAD_SETTINGS.cleanCacheOnComplete),
     directConnections: clampInt(raw.directConnections, 1, 8, DEFAULT_DOWNLOAD_SETTINGS.directConnections),
+    hlsConnections: clampInt(raw.hlsConnections, 1, 16, DEFAULT_DOWNLOAD_SETTINGS.hlsConnections),
   };
 }

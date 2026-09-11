@@ -10,14 +10,7 @@ import { playNotificationSound } from '../utils/sound';
 import { DEFAULT_ACCENT_HEX, getAccentHex, isValidAccentColor } from '../utils/color';
 import { settingsAtom } from '../store/atoms';
 import type { AppSettings, ThemeId } from '../../types/settings';
-import {
-  useLoadSettings,
-  useSaveSettings,
-  useUpdateYtdlp,
-  useStorageStats,
-  useAppPaths,
-  useStorageActions,
-} from '../hooks/useQueries';
+import { useLoadSettings, useSaveSettings, useStorageStats, useAppPaths, useStorageActions } from '../hooks/useQueries';
 import { ErrorState } from '../components/ui/ErrorState';
 import { AppearanceTab } from './settings/tabs/AppearanceTab';
 import { DownloadsTab } from './settings/tabs/DownloadsTab';
@@ -55,7 +48,6 @@ export function SettingsView({ isActive = true }: { isActive?: boolean }) {
   const [restartItems, setRestartItems] = useState<string[]>([]);
   const [restartHasDownloads, setRestartHasDownloads] = useState(false);
   const [restartLoading, setRestartLoading] = useState(false);
-  const [ytdlpVersion, setYtdlpVersion] = useState<string | null>(null);
   const [accentInput, setAccentInput] = useState<string>('');
   // Vista de episodios (localStorage): en Ajustes se estadía hasta Guardar,
   // desde Detalles aplica al instante. Un cambio externo limpia el staged.
@@ -79,7 +71,6 @@ export function SettingsView({ isActive = true }: { isActive?: boolean }) {
   const tabScrollRef = useRef<HTMLDivElement | null>(null);
 
   const setGlobalSettings = useSetAtom(settingsAtom);
-  const updateYtdlp = useUpdateYtdlp();
   const queryDirs = useMemo(() => {
     if (!settings) return [];
     const s = settings as AppSettings;
@@ -193,21 +184,6 @@ export function SettingsView({ isActive = true }: { isActive?: boolean }) {
       // --color-primary is now owned solely by App.tsx (via settingsAtom), no direct setProperty here
     }
   }, [loadedSettings, settings]);
-
-  useEffect(() => {
-    if (!isActive) return;
-    let cancelled = false;
-    const fetchVersion = async () => {
-      try {
-        const v = await (window as any).api?.invoke?.('get-ytdlp-version');
-        if (!cancelled && typeof v === 'string' && v) setYtdlpVersion(v);
-      } catch {}
-    };
-    fetchVersion();
-    return () => {
-      cancelled = true;
-    };
-  }, [isActive]);
 
   // Preview live: gate by visibility to avoid RAF when Settings hidden (hidden keep-alive)
   useEffect(() => {
@@ -337,36 +313,6 @@ export function SettingsView({ isActive = true }: { isActive?: boolean }) {
     setAccentInput(initialSettings.accentColor || DEFAULT_ACCENT_HEX);
     toast.info('Cambios descartados');
   }, [initialSettings]);
-
-  const handleUpdateYtdlp = async () => {
-    if (updateYtdlp.isPending) return;
-    const toastId = toast.loading('Buscando actualizaciones de yt-dlp...');
-    try {
-      const res = await updateYtdlp.mutateAsync();
-      const versionDescription =
-        res.previousVersion && res.currentVersion ? `${res.previousVersion} → ${res.currentVersion}` : undefined;
-
-      if (res.currentVersion) setYtdlpVersion(res.currentVersion);
-
-      if (res.code === 'UP_TO_DATE') {
-        toast.success('Sin cambios', {
-          id: toastId,
-          description: versionDescription || 'Ya tienes la versión más reciente de yt-dlp.',
-        });
-      } else if (res.success) {
-        toast.success('Actualización completada', {
-          id: toastId,
-          description: res.warning || versionDescription || 'Se instaló la nueva versión de yt-dlp.',
-        });
-      } else if (res.code === 'ACTIVE_DOWNLOADS') {
-        toast.info('Actualización pospuesta', { id: toastId, description: res.message });
-      } else {
-        toast.error('Error al actualizar yt-dlp', { id: toastId, description: res.message });
-      }
-    } catch (e: any) {
-      toast.error('Error al actualizar yt-dlp', { id: toastId, description: e.message });
-    }
-  };
 
   const handleChange = useCallback((key: string, value: unknown, category?: string) => {
     setSettings((prev) => {
@@ -529,14 +475,7 @@ export function SettingsView({ isActive = true }: { isActive?: boolean }) {
             )}
 
             {activeTab === 'descargas' && (
-              <DownloadsTab
-                settings={settings}
-                namingPreview={namingPreview}
-                ytdlpVersion={ytdlpVersion}
-                updateYtdlp={updateYtdlp}
-                onChange={handleChange}
-                onUpdateYtdlp={handleUpdateYtdlp}
-              />
+              <DownloadsTab settings={settings} namingPreview={namingPreview} onChange={handleChange} />
             )}
 
             {activeTab === 'almacenamiento' && (

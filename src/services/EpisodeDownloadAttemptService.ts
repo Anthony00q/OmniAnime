@@ -1,12 +1,13 @@
 ﻿import * as fs from 'fs';
 import * as fsp from 'fs/promises';
 import * as path from 'path';
-import type { DownloadService, YtdlpRuntimeTools } from './DownloadService';
+import type { DownloadService, FfmpegRuntimeTools } from './DownloadService';
 import { megaResumeFiles } from './DownloadService';
 import type { ProviderDownloadLink, QueueItem } from '../types/queue';
 import type { DownloadSettings } from '../types/settings';
 import { normalizeDownloadSettings } from '../utils/downloadSettings';
 import { normalizeMp4UploadUrl, providerDownloadReferer, resolveHlsPlaybackUrl } from '../utils/serverUtils';
+import { downloadHlsToMp4 } from './hls/HlsNativeDownloader';
 import { MP4UPLOAD_REFERER, resolveMp4UploadDirect } from './Mp4UploadResolver';
 import type { Mp4UploadResolveFn } from './Mp4UploadResolver';
 
@@ -35,7 +36,7 @@ export interface EpisodeAttemptResult {
 
 export interface EpisodeDownloadAttemptOptions {
   downloadService: DownloadService;
-  getRuntimeTools: () => YtdlpRuntimeTools;
+  getFfmpegTools: () => FfmpegRuntimeTools;
   userAgent: string;
   hlsPlayerReferer: string;
   log: (message: string, type?: 'info' | 'success' | 'error' | 'warn') => void;
@@ -45,16 +46,6 @@ export interface EpisodeDownloadAttemptOptions {
 }
 
 const START_TIMEOUT_MS = 90_000;
-const YTDLP_BUFFER_SIZE = '16M';
-
-async function fileExistsAsync(targetPath: string): Promise<boolean> {
-  try {
-    await fsp.stat(targetPath);
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 export function isSameStemCandidate(destFileName: string, candidateName: string): boolean {
   if (!destFileName || !candidateName) return false;
@@ -154,6 +145,29 @@ export class EpisodeDownloadAttemptService {
     await Promise.all([fsp.rm(partial, { force: true }), fsp.rm(sidecar, { force: true })]).catch(() => undefined);
   }
 
+  private async purgeDirectResumeFiles(destPath: string): Promise<void> {
+    const base = path.join(path.dirname(destPath), '.cache', path.basename(destPath));
+    await Promise.all([fsp.rm(base, { force: true }), fsp.rm(`${base}.direct.json`, { force: true })]).catch(
+      () => undefined,
+    );
+  }
+
+  private async purgeHlsResumeFiles(destPath: string): Promise<void> {
+    const cacheDir = path.join(path.dirname(destPath), '.cache');
+    const prefix = `${path.basename(destPath)}.hls-`;
+    try {
+      const names = await fsp.readdir(cacheDir);
+      await Promise.all(
+        names
+          .filter((name) => name.startsWith(prefix))
+          .map((name) => fsp.rm(path.join(cacheDir, name), { force: true }).catch(() => undefined)),
+      );
+    } catch {
+      /* purga best-effort */
+    }
+    await fsp.rm(path.join(cacheDir, `${path.basename(destPath)}.hls.json`), { force: true }).catch(() => undefined);
+  }
+
   async attempt(
     item: QueueItem,
     episode: number,
@@ -207,7 +221,6 @@ export class EpisodeDownloadAttemptService {
     }, startTimeoutMs);
 
     let success = false;
-    let skipYtdlp = false;
     let invalidMp4 = false;
     let toolFailureMessage: string | null = null;
 
@@ -242,6 +255,7 @@ export class EpisodeDownloadAttemptService {
         if (attemptAbort.signal.aborted) {
           success = false;
         } else {
+          if (!dl.allowContinue) await this.purgeDirectResumeFiles(dest);
           success = await this.options.downloadService.downloadMediafire(
             link.url,
             dest,
@@ -260,116 +274,71 @@ export class EpisodeDownloadAttemptService {
             dl.directConnections,
           );
         }
-      } else {
-        let hardcodedFragments = 16;
-        if (link.server === 'HLS') {
-          hardcodedFragments = 8;
-        } else if (link.server.toLowerCase().includes('streamwish')) {
-          hardcodedFragments = 8;
-        } else if (link.server.toLowerCase().includes('filemoon')) {
-          hardcodedFragments = 12;
-        }
-        const concurrentFragments = hardcodedFragments;
-
-        const extraArgs = ['--buffer-size', YTDLP_BUFFER_SIZE];
-        extraArgs.push('--retries', String(dl.retries));
-        extraArgs.push('--fragment-retries', String(dl.retries));
-        extraArgs.push('--socket-timeout', String(dl.socketTimeout));
-        extraArgs.push('--retry-sleep', 'linear=1::2');
-        extraArgs.push('--retry-sleep', 'fragment:exp=1:20');
-        extraArgs.push('--extractor-retries', '3');
-        let downloadUrl = link.url;
-        if (link.server === 'HLS') {
-          downloadUrl = resolveHlsPlaybackUrl(link.url);
-          extraArgs.push('--hls-use-mpegts');
-          // Falla en voz alta si un fragmento es irrecuperable: evita colar
-          // un mp4 incompleto como exito y dispara el rescate a Mega.
-          extraArgs.push('--abort-on-unavailable-fragments');
-          extraArgs.push('--downloader', 'm3u8:native');
-          extraArgs.push('--user-agent', this.options.userAgent);
-          extraArgs.push('--referer', this.options.hlsPlayerReferer);
-          extraArgs.push('--add-headers', 'Sec-Fetch-Dest: empty');
-          extraArgs.push('--add-headers', 'Sec-Fetch-Mode: cors');
-          extraArgs.push('--add-headers', 'Sec-Fetch-Site: same-origin');
-        }
-        if (link.server === 'MP4Upload') {
-          downloadUrl = normalizeMp4UploadUrl(downloadUrl);
-          extraArgs.push('--referer', MP4UPLOAD_REFERER);
-          extraArgs.push('--user-agent', this.options.userAgent);
-          // Resolución directa propia → axios (multihilo según ajuste). Si falla, cae al extractor genérico de yt-dlp.
-          if (!attemptAbort.signal.aborted) {
-            const resolveFn = this.options.resolveMp4UploadDirect ?? resolveMp4UploadDirect;
-            const resolved = await resolveFn(downloadUrl).catch(() => ({ ok: false as const }));
-            if (resolved.ok && resolved.directUrl && !attemptAbort.signal.aborted) {
-              let lastReportedPctDirect = -1;
-              success = await this.options.downloadService.downloadDirectAxios(
-                resolved.directUrl,
-                dest,
-                (progress) => {
-                  markStarted();
-                  const pct = Math.round(progress * 100);
-                  callbacks.onProgress({
-                    progress,
-                    progressLog:
-                      pct !== lastReportedPctDirect ? `   -> EP ${episode} * MP4Upload * ${pct}%` : undefined,
-                  });
-                  if (pct !== lastReportedPctDirect) lastReportedPctDirect = pct;
-                  callbacks.updateTray(`Descargando ${item.animeTitle} - EP ${episode} (${pct}%)`);
-                },
-                attemptAbort.signal,
-                MP4UPLOAD_REFERER,
-                dl.directConnections,
-              );
-              skipYtdlp = success || attemptAbort.signal.aborted;
-            }
-          }
-        }
-
-        const cacheDir = path.join(path.dirname(dest), '.cache');
-        const partialYtdl = path.join(cacheDir, path.basename(dest) + '.ytdl');
-        const partialPart = path.join(cacheDir, path.basename(dest) + '.part');
-        const hasPartial =
-          link.server !== 'HLS' &&
-          (await Promise.all([fileExistsAsync(partialYtdl), fileExistsAsync(partialPart)])).some(Boolean);
-        if (!dl.allowContinue && hasPartial) {
-          await Promise.all([fsp.rm(partialYtdl, { force: true }), fsp.rm(partialPart, { force: true })]).catch(
-            () => undefined,
-          );
-        } else if (dl.allowContinue && hasPartial) {
-          extraArgs.push('--continue');
-        }
-
-        if (!skipYtdlp) {
-          let lastReportedMsg: string | number = -1;
+      } else if (link.server === 'HLS') {
+        const downloadUrl = resolveHlsPlaybackUrl(link.url);
+        if (!attemptAbort.signal.aborted) {
+          if (!dl.allowContinue) await this.purgeHlsResumeFiles(dest);
+          const ffmpegDir = this.options.getFfmpegTools()?.ffmpegDir;
+          const ffmpegPath = ffmpegDir ? path.join(ffmpegDir, 'ffmpeg.exe') : 'ffmpeg.exe';
+          let lastNativePct = -1;
           callbacks.updateTray(`Descargando ${item.animeTitle} - EP ${episode}...`);
-          const ytdlpResult = await this.options.downloadService.downloadYtdlpCustom(
-            downloadUrl,
-            dest,
-            concurrentFragments,
-            attemptAbort.signal,
-            extraArgs,
-            (progress, status) => {
+          const hlsResult = await downloadHlsToMp4(downloadUrl, dest, {
+            userAgent: this.options.userAgent,
+            referer: this.options.hlsPlayerReferer,
+            concurrency: dl.hlsConnections,
+            attempts: Math.max(1, Math.min(3, dl.retries)),
+            ffmpegPath,
+            signal: attemptAbort.signal,
+            onProgress: (hlsProgress) => {
               markStarted();
-              const pct = Math.round(progress * 100);
-              const statusText = status ? status : `${pct}%`;
-              const logMsg = status
-                ? `   -> EP ${episode} * ${link.server} * ${status}`
-                : `   -> EP ${episode} * ${link.server} * ${pct}%`;
+              const pct = Math.round(hlsProgress.fraction01 * 100);
               callbacks.onProgress({
-                progress,
-                status,
-                progressLog: logMsg !== lastReportedMsg ? logMsg : undefined,
+                progress: hlsProgress.fraction01,
+                progressLog: pct !== lastNativePct ? `   -> EP ${episode} * HLS * ${pct}%` : undefined,
               });
-              lastReportedMsg = logMsg;
-              callbacks.updateTray(`Descargando ${item.animeTitle} - EP ${episode} (${statusText})`);
+              if (pct !== lastNativePct) lastNativePct = pct;
+              callbacks.updateTray(`Descargando ${item.animeTitle} - EP ${episode} (${pct}%)`);
             },
-            this.options.getRuntimeTools(),
-          );
-          success = ytdlpResult.ok;
-          if (!success) {
-            toolFailureMessage =
-              ytdlpResult.error || 'Herramienta yt-dlp local no encontrada. Verifica tools/win/yt-dlp.exe.';
+          });
+          success = hlsResult.ok;
+          if (!success && !attemptAbort.signal.aborted) {
+            toolFailureMessage = hlsResult.error || 'Descarga HLS nativa falló.';
           }
+        }
+      } else if (link.server === 'MP4Upload') {
+        const downloadUrl = normalizeMp4UploadUrl(link.url);
+        // Resolución directa propia → axios (multihilo según ajuste). Es la
+        // única vía: si falla, el procesador prueba el siguiente servidor.
+        if (!attemptAbort.signal.aborted) {
+          if (!dl.allowContinue) await this.purgeDirectResumeFiles(dest);
+          const resolveFn = this.options.resolveMp4UploadDirect ?? resolveMp4UploadDirect;
+          const resolved = await resolveFn(downloadUrl).catch(() => ({ ok: false as const }));
+          if (resolved.ok && resolved.directUrl && !attemptAbort.signal.aborted) {
+            let lastReportedPctDirect = -1;
+            success = await this.options.downloadService.downloadDirectAxios(
+              resolved.directUrl,
+              dest,
+              (progress) => {
+                markStarted();
+                const pct = Math.round(progress * 100);
+                callbacks.onProgress({
+                  progress,
+                  progressLog: pct !== lastReportedPctDirect ? `   -> EP ${episode} * MP4Upload * ${pct}%` : undefined,
+                });
+                if (pct !== lastReportedPctDirect) lastReportedPctDirect = pct;
+                callbacks.updateTray(`Descargando ${item.animeTitle} - EP ${episode} (${pct}%)`);
+              },
+              attemptAbort.signal,
+              MP4UPLOAD_REFERER,
+              dl.directConnections,
+            );
+          }
+        }
+      } else {
+        // Defensa en profundidad: la allowlist de main ya filtra servidores
+        // no canónicos antes de llegar aquí.
+        if (!attemptAbort.signal.aborted) {
+          toolFailureMessage = `Servidor no soportado: ${link.server}`;
         }
       }
 
@@ -384,7 +353,7 @@ export class EpisodeDownloadAttemptService {
             'warn',
           );
         } else if (dl.cleanCacheOnComplete) {
-          await this.cleanYtdlpCacheForEpisode(dest);
+          await this.cleanEpisodeCacheForEpisode(dest);
         }
       }
     } finally {
@@ -413,9 +382,22 @@ export class EpisodeDownloadAttemptService {
       fsp.rm(destPath + '.ytdl', { force: true }),
       fsp.rm(cacheBase, { force: true }),
       fsp.rm(cacheBase + '.part', { force: true }),
+      fsp.rm(cacheBase + '.direct.json', { force: true }),
       fsp.rm(cacheBase + '.mega.part', { force: true }),
       fsp.rm(cacheBase + '.mega.json', { force: true }),
     ]);
+    try {
+      const cacheDir = path.dirname(cacheBase);
+      const names = await fsp.readdir(cacheDir);
+      const prefix = `${path.basename(destPath)}.hls-`;
+      await Promise.all(
+        names
+          .filter((name) => name.startsWith(prefix))
+          .map((name) => fsp.rm(path.join(cacheDir, name), { force: true }).catch(() => undefined)),
+      );
+    } catch {
+      /* purga HLS best-effort */
+    }
     const failure = results.find((r) => r.status === 'rejected');
     if (failure) {
       this.options.log(
@@ -427,7 +409,7 @@ export class EpisodeDownloadAttemptService {
     }
   }
 
-  async cleanYtdlpCacheForEpisode(destPath: string): Promise<void> {
+  async cleanEpisodeCacheForEpisode(destPath: string): Promise<void> {
     const cacheDir = path.join(path.dirname(destPath), '.cache');
     try {
       await fsp.stat(cacheDir);
@@ -435,7 +417,13 @@ export class EpisodeDownloadAttemptService {
       return;
     }
     const baseName = path.basename(destPath);
-    const files = [baseName, baseName + '.part', baseName + '.ytdl', baseName + '.mega.part', baseName + '.mega.json'];
+    const files = [
+      baseName,
+      baseName + '.part',
+      baseName + '.direct.json',
+      baseName + '.mega.part',
+      baseName + '.mega.json',
+    ];
     await Promise.all(
       files.map(async (file) => {
         const filePath = path.join(cacheDir, file);
@@ -446,6 +434,17 @@ export class EpisodeDownloadAttemptService {
         }
       }),
     );
+    try {
+      const names = await fsp.readdir(cacheDir);
+      const prefix = `${baseName}.hls-`;
+      await Promise.all(
+        names
+          .filter((name) => name.startsWith(prefix))
+          .map((name) => fsp.rm(path.join(cacheDir, name), { force: true }).catch(() => undefined)),
+      );
+    } catch (error) {
+      this.options.logError(`No se pudo purgar temporales HLS de ${cacheDir}: ${error}`);
+    }
   }
 
   private getFileSizeSafe(filePath: string): number {
@@ -465,15 +464,7 @@ export class EpisodeDownloadAttemptService {
   async hasDownloadStartedOnDiskAsync(destPath: string): Promise<boolean> {
     const cacheDir = path.join(path.dirname(destPath), '.cache');
     const cachePath = path.join(cacheDir, path.basename(destPath));
-    const candidates = [
-      destPath,
-      `${destPath}.part`,
-      `${destPath}.ytdl`,
-      cachePath,
-      `${cachePath}.part`,
-      `${cachePath}.ytdl`,
-      `${cachePath}.mega.part`,
-    ];
+    const candidates = [destPath, `${destPath}.part`, cachePath, `${cachePath}.part`, `${cachePath}.mega.part`];
     for (const p of candidates) {
       try {
         const st = await fsp.stat(p);

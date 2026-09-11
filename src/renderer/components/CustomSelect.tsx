@@ -108,7 +108,9 @@ export function CustomSelect({
                   {isCurrentlySelected && <Check className="absolute right-2 h-4 w-4 text-primary" />}
                   <SelectPrimitive.ItemText>{option.label}</SelectPrimitive.ItemText>
                   {option.badge && (
-                    <span className="ml-auto shrink-0 text-[11px] font-medium text-primary">{option.badge}</span>
+                    <span className="ml-auto shrink-0 rounded-full border border-primary/30 bg-primary/10 px-1.5 py-px text-[11px] font-semibold uppercase tracking-wider text-primary">
+                      {option.badge}
+                    </span>
                   )}
                 </SelectPrimitive.Item>
               );

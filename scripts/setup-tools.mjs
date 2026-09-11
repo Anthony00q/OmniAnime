@@ -91,46 +91,10 @@ async function sweepStaleStaged() {
   }
 }
 
-async function probeYtdlp(exe, version) {
-  const out = await runExe(exe, ['--version'], 15_000);
-  return (
-    (out || '')
-      .split(/\r?\n/)
-      .map((s) => s.trim())
-      .find(Boolean) === version
-  );
-}
-
 async function probeFfmpegTool(exe, kind, version) {
   const out = await runExe(exe, ['-version'], 15_000);
   const firstLine = (out || '').split(/\r?\n/)[0] || '';
   return firstLine.startsWith(`${kind} version ${version}`);
-}
-
-async function ensureYtdlp(pinned, force) {
-  const dest = path.join(TOOLS_DIR, 'yt-dlp.exe');
-  if (!force && (await probeYtdlp(dest, pinned.version))) {
-    console.log(`yt-dlp ${pinned.version} ya esta instalado.`);
-    return false;
-  }
-  const staged = stagedPath('yt-dlp.exe');
-  try {
-    console.log('Descargando yt-dlp...');
-    await fetchToFile(pinned.url, staged);
-    const actual = await sha256Of(staged);
-    if (actual.toLowerCase() !== pinned.sha256.toLowerCase()) {
-      throw new Error(`SHA256 de yt-dlp no coincide (esperado ${pinned.sha256}, obtenido ${actual})`);
-    }
-    if (!(await probeYtdlp(staged, pinned.version))) {
-      throw new Error(`yt-dlp descargado no reporta la version fijada (${pinned.version})`);
-    }
-    await fsp.rename(staged, dest);
-    console.log(`yt-dlp ${pinned.version} verificado y guardado.`);
-    return true;
-  } catch (err) {
-    await removeQuiet(staged);
-    throw err;
-  }
 }
 
 async function ensureFfmpegTools(ffmpegPin, ffprobePin, force) {
@@ -232,13 +196,12 @@ function loadPins(raw) {
   } catch {
     throw new Error('tools-versions.json no es un JSON valido');
   }
-  const ytdlp = requireFields(pins, 'ytdlp', ['version', 'url', 'sha256']);
   const ffmpeg = requireFields(pins, 'ffmpeg', ['version', 'url', 'sha256', 'variant', 'exePathInArchive']);
   const ffprobe = requireFields(pins, 'ffprobe', ['version', 'fromPackage', 'exePathInArchive']);
   if (ffprobe.fromPackage !== 'ffmpeg') {
     throw new Error('tools-versions.json: ffprobe solo puede provenir del paquete ffmpeg');
   }
-  return { ytdlp, ffmpeg, ffprobe };
+  return { ffmpeg, ffprobe };
 }
 
 async function main() {
@@ -254,18 +217,15 @@ async function main() {
   const pins = loadPins(raw);
 
   if (checkOnly) {
-    const ytdlpOk = await probeYtdlp(path.join(TOOLS_DIR, 'yt-dlp.exe'), pins.ytdlp.version);
     const ffmpegOk = await probeFfmpegTool(path.join(TOOLS_DIR, 'ffmpeg.exe'), 'ffmpeg', pins.ffmpeg.version);
     const ffprobeOk = await probeFfmpegTool(path.join(TOOLS_DIR, 'ffprobe.exe'), 'ffprobe', pins.ffprobe.version);
-    console.log(`yt-dlp: ${ytdlpOk ? 'OK' : 'FALTA/DESACTUALIZADO'}`);
     console.log(`ffmpeg: ${ffmpegOk ? 'OK' : 'FALTA/DESACTUALIZADO'}`);
     console.log(`ffprobe: ${ffprobeOk ? 'OK' : 'FALTA/DESACTUALIZADO'}`);
-    process.exit(ytdlpOk && ffmpegOk && ffprobeOk ? 0 : 1);
+    process.exit(ffmpegOk && ffprobeOk ? 0 : 1);
   }
 
   await fsp.mkdir(TOOLS_DIR, { recursive: true });
   await sweepStaleStaged();
-  await ensureYtdlp(pins.ytdlp, force);
   await ensureFfmpegTools(pins.ffmpeg, pins.ffprobe, force);
   console.log('Herramientas listas en tools/win/.');
 }

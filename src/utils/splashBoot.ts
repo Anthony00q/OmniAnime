@@ -63,9 +63,8 @@ export function waitForRendererReady(isReady: () => boolean, timeoutMs: number, 
   });
 }
 
-export function buildToolsStatusText(tools: { ytdlp: boolean; ffmpeg: boolean } | null): string {
+export function buildToolsStatusText(tools: { ffmpeg: boolean } | null): string {
   if (!tools) return 'Verificando herramientas de descarga...';
-  if (tools.ytdlp && tools.ffmpeg) return 'Herramientas de descarga listas.';
-  if (!tools.ytdlp) return 'yt-dlp no encontrado, podrás reinstalarlo en Ajustes.';
+  if (tools.ffmpeg) return 'Herramientas de descarga listas.';
   return 'ffmpeg no encontrado, algunas conversiones fallarán.';
 }

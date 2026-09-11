@@ -11,8 +11,6 @@ descargan con versiones fijadas y SHA256 verificado.
 
 Único lugar donde se fijan versión + URL + SHA256 de cada binario:
 
-- **yt-dlp** `2026.08.19` — release oficial `yt-dlp/yt-dlp`
-  (SHA256 tomado del `SHA2-256SUMS` del release).
 - **ffmpeg** `8.1.2` variante `essentials_build` — paquete versionado de
   gyan.dev con sidecar `.sha256` público.
 - **ffprobe** `8.1.2` — sale del mismo paquete que ffmpeg

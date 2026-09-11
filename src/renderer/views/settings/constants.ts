@@ -36,17 +36,20 @@ export const DOWNLOAD_DIRECT_CONNECTIONS_OPTIONS = [
   { value: '8', label: '8 conexiones' },
 ] as const;
 
+export const DOWNLOAD_HLS_CONNECTIONS_OPTIONS = [
+  { value: '4', label: '4 segmentos' },
+  { value: '6', label: '6 segmentos' },
+  { value: '8', label: '8 segmentos' },
+  { value: '10', label: '10 segmentos', badge: 'Recomendado' },
+  { value: '12', label: '12 segmentos' },
+  { value: '16', label: '16 segmentos' },
+] as const;
+
 export const DOWNLOAD_RETRIES_OPTIONS = [
   { value: '0', label: 'Sin reintentos' },
   { value: '3', label: '3 intentos' },
   { value: '5', label: '5 intentos' },
   { value: '10', label: '10 intentos' },
-] as const;
-
-export const DOWNLOAD_TIMEOUT_OPTIONS = [
-  { value: '10', label: '10 s' },
-  { value: '30', label: '30 s' },
-  { value: '60', label: '60 s' },
 ] as const;
 
 export const DOWNLOAD_START_TIMEOUT_OPTIONS = [

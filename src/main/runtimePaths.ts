@@ -1,7 +1,7 @@
 import { app } from 'electron';
 import * as fs from 'fs';
 import * as path from 'path';
-import type { YtdlpRuntimeTools } from '../services/DownloadService';
+import type { FfmpegRuntimeTools } from '../services/DownloadService';
 
 export function getSplashHtmlPath(): string {
   if (app.isPackaged) {
@@ -28,16 +28,14 @@ export function getToolsDir(): string {
   return path.join(app.getAppPath(), 'tools', 'win');
 }
 
-export function getYtdlpExecutablePath(): string {
-  return path.join(getToolsDir(), 'yt-dlp.exe');
+export function getFfmpegExecutablePath(): string {
+  return path.join(getToolsDir(), 'ffmpeg.exe');
 }
 
-export function getYtdlpRuntimeTools(): YtdlpRuntimeTools {
+export function getFfmpegTools(): FfmpegRuntimeTools {
   const toolsDir = getToolsDir();
-  const bundledYtdlp = getYtdlpExecutablePath();
-  const bundledFfmpeg = path.join(toolsDir, 'ffmpeg.exe');
+  const bundledFfmpeg = getFfmpegExecutablePath();
   return {
-    ytdlpPath: bundledYtdlp,
     ffmpegDir: fs.existsSync(bundledFfmpeg) ? toolsDir : undefined,
   };
 }

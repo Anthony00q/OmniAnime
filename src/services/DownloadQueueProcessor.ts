@@ -19,7 +19,6 @@ export interface PausedProgressSink {
 export interface DownloadQueueProcessorOptions {
   queueStore: QueueStore;
   attemptService: EpisodeDownloadAttemptService;
-  isUpdateInProgress: () => boolean;
   abortDownloadService: () => void;
   getDownloadSettings?: () =>
     | {
@@ -368,7 +367,7 @@ export class DownloadQueueProcessor {
     try {
       const dest = this.options.buildEpisodePath(item, episode);
       await this.options.attemptService.cleanEpisodeTemps(dest);
-      await this.options.attemptService.cleanYtdlpCacheForEpisode(dest);
+      await this.options.attemptService.cleanEpisodeCacheForEpisode(dest);
     } catch {
       /* limpieza best-effort */
     }
@@ -407,7 +406,7 @@ export class DownloadQueueProcessor {
     } catch {
       /* compat */
     }
-    // Pausa conserva parciales (.part/.ytdl) para --continue, no limpia
+    // Pausa conserva parciales en disco, no limpia
     this.options.sendQueueUpdate();
     return true;
   }
@@ -438,7 +437,8 @@ export class DownloadQueueProcessor {
         this.pausedItemIds.delete(id);
       }
     }
-    // Despierta al worker aparcado: reintenta su EP con --continue
+    // Despierta al worker aparcado: reintenta su EP desde cero salvo Mega,
+    // que retoma sus parciales.
     this.settleGate(this.gateKey(id, episode), 'resume');
     this.syncPersistedPause(item);
     this.options.sendQueueUpdate();
@@ -576,11 +576,6 @@ export class DownloadQueueProcessor {
   }
 
   async processQueue(): Promise<void> {
-    if (this.options.isUpdateInProgress()) {
-      console.log('processQueue pausado mientras se actualiza yt-dlp.');
-      this.cleanupStaleIds();
-      return;
-    }
     if (this.isProcessingQueue) {
       console.log('processQueue ya está en ejecución.');
       return;
@@ -639,8 +634,9 @@ export class DownloadQueueProcessor {
             if ((item.pausedEps || []).includes(episode)) continue;
 
             item.currentEp = episode;
-            // Siembra anti-flash: arrancar del % congelado si existe baseline
-            item.progress = this.frozenBaseline(item, episode);
+            // Siembra anti-flash con el % congelado solo si retoma Mega
+            // (único resume real); el resto arranca de cero honesto.
+            item.progress = this.frozenBaseline(item, episode, item.pausedEpSnapshot?.[String(episode)]?.server);
             this.options.updateTray(`Preparando ${item.animeTitle} - EP ${episode}...`);
             this.options.sendQueueUpdate();
             this.options.sendLog(`🔍 Buscando servidores para EP ${episode}...`, 'info');
@@ -905,7 +901,7 @@ export class DownloadQueueProcessor {
         if (!wasCancelled && failedItem.currentEp !== null) {
           const failedEpisode = failedItem.currentEp;
           const failedPath = this.options.buildEpisodePath(failedItem, failedEpisode);
-          await this.options.attemptService.cleanYtdlpCacheForEpisode(failedPath);
+          await this.options.attemptService.cleanEpisodeCacheForEpisode(failedPath);
           this.finalizeEpisodeResult(
             failedItem,
             failedEpisode,
@@ -1018,12 +1014,12 @@ export class DownloadQueueProcessor {
 
   private handleProgress(item: QueueItem, episode: number, logId: string, update: EpisodeAttemptProgress): void {
     const live = Math.max(0, Math.min(1, update.progress));
-    const display = Math.max(this.frozenBaseline(item, episode), live);
+    const server = typeof item.currentServer === 'string' && item.currentServer ? item.currentServer : undefined;
+    const display = Math.max(this.frozenBaseline(item, episode, server), live);
     item.progress = display;
     if (this.options.scheduleQueueProgress) {
       // Secuencial también emite foto de 1 EP: sin ella el Detalle
       // degrada el EP en vuelo a 'queued 0%' aunque el Total avance.
-      const server = typeof item.currentServer === 'string' && item.currentServer ? item.currentServer : undefined;
       this.options.scheduleQueueProgress(item, [{ episode, progress: display, ...(server ? { server } : {}) }]);
     } else {
       this.options.scheduleQueueUpdate();
@@ -1214,13 +1210,13 @@ export class DownloadQueueProcessor {
             'warn',
           );
           await this.options.attemptService.cleanEpisodeTemps(dest);
-          await this.options.attemptService.cleanYtdlpCacheForEpisode(dest);
+          await this.options.attemptService.cleanEpisodeCacheForEpisode(dest);
         } else if (result.toolFailureMessage && !result.parentAborted) {
           failureReason = result.toolFailureMessage;
           this.options.sendLog(`✗ ${result.toolFailureMessage}`, 'error');
-          await this.options.attemptService.cleanYtdlpCacheForEpisode(dest);
+          await this.options.attemptService.cleanEpisodeCacheForEpisode(dest);
         } else if (!result.parentAborted) {
-          await this.options.attemptService.cleanYtdlpCacheForEpisode(dest);
+          await this.options.attemptService.cleanEpisodeCacheForEpisode(dest);
           const isLast = sortedLinks.indexOf(link) === sortedLinks.length - 1;
           if (result.skipRequested) {
             this.options.sendLog(
@@ -1241,12 +1237,16 @@ export class DownloadQueueProcessor {
     return { success, failureReason };
   }
 
-  // Suelo de display al reanudar: el % vivo nunca baja del congelado
-  // mientras exista baseline en el snapshot (se limpia al finalizar el EP).
-  // Con allowContinue=false el EP reinicia de cero, sin suelo.
-  private frozenBaseline(item: QueueItem, episode: number): number {
+  // Suelo de display al reanudar: solo cuando hay resume real de bytes
+  // (Mega con allowContinue). En el resto el EP reinicia de cero y la barra
+  // debe mostrarlo en vez de quedarse clavada en el % congelado.
+  // Con allowContinue=false todo reinicia de cero, sin suelo.
+  private frozenBaseline(item: QueueItem, episode: number, currentServer?: string): number {
     if (!this.shouldUseFrozenBaseline()) return 0;
-    const raw = item.pausedEpSnapshot?.[String(episode)]?.progress;
+    if (currentServer !== 'Mega') return 0;
+    const entry = item.pausedEpSnapshot?.[String(episode)];
+    if (!entry || entry.server !== 'Mega') return 0;
+    const raw = entry.progress;
     return typeof raw === 'number' && Number.isFinite(raw) ? Math.max(0, Math.min(1, raw)) : 0;
   }
 
@@ -1260,7 +1260,7 @@ export class DownloadQueueProcessor {
     update: EpisodeAttemptProgress,
   ): void {
     const live = Math.max(0, Math.min(1, update.progress));
-    episodeProgress.set(episode, Math.max(this.frozenBaseline(item, episode), live));
+    episodeProgress.set(episode, Math.max(this.frozenBaseline(item, episode, episodeServer.get(episode)), live));
     const total = Math.max(1, episodesToProcess.length);
     // Pausados no cuentan como finalizados: su % congelado suma en activeSum
     const isFinal = (ep: number): boolean =>
@@ -1307,14 +1307,15 @@ export class DownloadQueueProcessor {
     const episodeProgress = new Map<number, number>();
     const episodeServer = new Map<number, string>();
     // Siembra anti-flash: al reanudar, los mapas arrancan del % congelado
-    // (el vivo lo supera con max()) en vez de publicar ceros.
+    // solo si retoman Mega (único resume real); el resto publica ceros
+    // honestos hasta que llega el progreso vivo.
     if (item.pausedEpSnapshot && typeof item.pausedEpSnapshot === 'object') {
       const doneSet = new Set<number>([...item.completedEps, ...item.failedEps, ...(item.cancelledEps || [])]);
       for (const ep of episodesToProcess) {
         if (doneSet.has(ep)) continue;
-        const frozen = this.frozenBaseline(item, ep);
-        if (frozen > 0) episodeProgress.set(ep, frozen);
         const server = item.pausedEpSnapshot[String(ep)]?.server;
+        const frozen = this.frozenBaseline(item, ep, server);
+        if (frozen > 0) episodeProgress.set(ep, frozen);
         if (typeof server === 'string' && server) episodeServer.set(ep, server);
       }
     }

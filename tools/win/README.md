@@ -1,6 +1,6 @@
 # tools/win — binarios externos (no versionados)
 
-`yt-dlp.exe`, `ffmpeg.exe` y `ffprobe.exe` **no se suben a git** (ver `.gitignore`):
+`ffmpeg.exe` y `ffprobe.exe` **no se suben a git** (ver `.gitignore`):
 `ffmpeg.exe` supera el limite de 100 MB por fichero de GitHub.
 
 Se descargan con versiones fijadas y SHA256 verificado:
@@ -20,5 +20,4 @@ Para subir de version un binario: actualiza `scripts/tools-versions.json`
 (version + URL + SHA256 oficial) y ejecuta con `--force`.
 `ffprobe.exe` sale del mismo paquete que `ffmpeg.exe` (ver `fromPackage`).
 
-Licencias: ver `THIRD-PARTY-NOTICES.md` en la raiz (yt-dlp: Unlicense;
-ffmpeg/ffprobe de gyan.dev: GPLv3, con URL del codigo fuente).
+Licencias: ver `THIRD-PARTY-NOTICES.md` en la raiz (ffmpeg/ffprobe de gyan.dev: GPLv3, con URL del codigo fuente).

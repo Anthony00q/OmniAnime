@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, Menu, session, Tray } from 'electron';
+import { app, BrowserWindow, Menu, session, Tray } from 'electron';
 import * as fs from 'fs';
 import type { AppSettings } from '../types/settings';
 import { applyYouTubeEmbedIdentityHeaders, resolveWindowCloseAction } from '../utils/windowUtils';
@@ -42,8 +42,7 @@ export interface WindowLifecycleDependencies {
   initializeDatabase: () => Promise<void>;
   setActiveProvider: (providerId: string) => void;
   getActiveProviderId: () => string;
-  checkTools?: () => { ytdlp: boolean; ffmpeg: boolean };
-  probeToolsInBackground?: () => void;
+  checkTools?: () => { ffmpeg: boolean };
   loadStartupData: (
     settings: AppSettings,
     updateStatus: (text: string, progress: number) => void,
@@ -54,8 +53,6 @@ export interface WindowLifecycleDependencies {
   cleanupThumbnails: () => void;
   sendQueueUpdateImmediate: () => void;
   hasActiveDownloads: () => boolean;
-  getYtdlpUpdatePromise: () => Promise<unknown> | null;
-  cancelYtdlpUpdate: () => void;
   getIsQuitting: () => boolean;
   setIsQuitting: (value: boolean) => void;
   writeLog: (error: unknown) => void;
@@ -65,7 +62,6 @@ export class WindowLifecycleService {
   private mainWindow: BrowserWindow | null = null;
   private splashWindow: BrowserWindow | null = null;
   private tray: Tray | null = null;
-  private closeDialogActive = false;
   private youtubeEmbedIdentityConfigured = false;
   private rendererReady = false;
 
@@ -301,7 +297,6 @@ export class WindowLifecycleService {
         const closeAction = resolveWindowCloseAction(
           this.dependencies.getIsQuitting(),
           latestSettings.minimizeToTrayOnClose === true,
-          !!this.dependencies.getYtdlpUpdatePromise(),
           this.dependencies.hasActiveDownloads(),
         );
 
@@ -313,45 +308,6 @@ export class WindowLifecycleService {
         if (closeAction === 'hide') {
           event.preventDefault();
           this.mainWindow?.hide();
-          return;
-        }
-
-        if (closeAction === 'confirm-update') {
-          const updatePromise = this.dependencies.getYtdlpUpdatePromise();
-          event.preventDefault();
-          if (!updatePromise) return;
-          if (this.closeDialogActive || !this.mainWindow || this.mainWindow.isDestroyed()) return;
-
-          this.closeDialogActive = true;
-          void dialog
-            .showMessageBox(this.mainWindow, {
-              type: 'info',
-              title: 'Actualizacion en curso',
-              message: 'yt-dlp se esta actualizando.',
-              detail: 'Puedes esperar a que termine o cancelar la actualizacion antes de cerrar OmniAnime.',
-              buttons: ['Esperar', 'Cancelar y cerrar'],
-              defaultId: 0,
-              cancelId: 0,
-            })
-            .then(({ response }) => {
-              this.closeDialogActive = false;
-              if (response !== 1 || !this.dependencies.getYtdlpUpdatePromise()) return;
-
-              this.dependencies.cancelYtdlpUpdate();
-              void updatePromise.then(
-                () => {
-                  this.dependencies.setIsQuitting(true);
-                  this.mainWindow?.close();
-                },
-                () => {
-                  this.dependencies.setIsQuitting(true);
-                  this.mainWindow?.close();
-                },
-              );
-            })
-            .catch(() => {
-              this.closeDialogActive = false;
-            });
           return;
         }
 
@@ -423,7 +379,7 @@ export class WindowLifecycleService {
 
       // Verificación ligera real (existsSync, sin spawn): el --version
       // detallado sigue on-demand en Ajustes + probe en background.
-      let tools: { ytdlp: boolean; ffmpeg: boolean } | null = null;
+      let tools: { ffmpeg: boolean } | null = null;
       try {
         tools = this.dependencies.checkTools?.() ?? null;
       } catch {
@@ -440,9 +396,6 @@ export class WindowLifecycleService {
       maybeShowMainWindow();
 
       void this.dependencies.warmLibrary(settings).catch(() => null);
-      try {
-        this.dependencies.probeToolsInBackground?.();
-      } catch {}
     } catch (error) {
       this.dependencies.writeLog('Error en splash: ' + String(error));
       loadingIsComplete = true;

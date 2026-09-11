@@ -7,14 +7,7 @@ import { setupHardwareAcceleration } from './bootstrap/hardwareAcceleration';
 import { checkConnectivity, getConnectivityStatus as getConnectivityStatusImpl } from './bootstrap/connectivity';
 import { registerOmniMediaProtocol } from './bootstrap/protocol';
 import { setupContextMenu } from './bootstrap/contextMenu';
-import {
-  getAppHtmlPath,
-  getAppIconPath,
-  getSplashHtmlPath,
-  getToolsDir,
-  getYtdlpExecutablePath,
-  getYtdlpRuntimeTools,
-} from './runtimePaths';
+import { getAppHtmlPath, getAppIconPath, getSplashHtmlPath, getToolsDir, getFfmpegTools } from './runtimePaths';
 import { ProviderManager } from '../services/ProviderManager';
 import { DownloadService } from '../services/DownloadService';
 import { EpisodeDownloadAttemptService } from '../services/EpisodeDownloadAttemptService';
@@ -34,7 +27,6 @@ import { SettingsManager } from '../services/SettingsManager';
 import { DatabaseManager } from '../services/DatabaseManager';
 import { StorageService } from '../services/StorageService';
 import { terminateChildProcessTree } from '../utils/processUtils';
-import { YtdlpUpdateResult } from '../types/ytdlp';
 import type { DownloadAnimeDetails, AnimeSearchResult } from '../types/anime';
 import type { HistoryWriteRecord } from '../types/history';
 import type { FolderLibraryMeta } from '../types/library';
@@ -74,13 +66,9 @@ setupHardwareAcceleration();
 const providerManager = new ProviderManager();
 const downloadService = new DownloadService();
 const activeChildProcesses = new Set<import('child_process').ChildProcess>();
-let ytdlpUpdatePromise: Promise<YtdlpUpdateResult> | null = null;
 
 app.on('before-quit', () => {
   try {
-    if (ytdlpUpdatePromise) {
-      ytdlpUpdateService?.cancel();
-    }
     downloadService.abort();
     for (const proc of activeChildProcesses) {
       terminateChildProcessTree(proc);
@@ -133,9 +121,8 @@ const mainContext = createMainContext({
   providerManager,
   downloadService,
   database: DatabaseManager.getInstance(),
-  ytdlpExecutablePath: getYtdlpExecutablePath(),
 });
-const { database, homeFeedService, providerGateway, ytdlpUpdateService } = mainContext;
+const { database, homeFeedService, providerGateway } = mainContext;
 
 const preloadedData: PreloadedData = {
   providerId: 'animeav1',
@@ -826,7 +813,7 @@ const getNormalizedDownloadSettings = () => {
 
 const episodeDownloadAttemptService = new EpisodeDownloadAttemptService({
   downloadService,
-  getRuntimeTools: getYtdlpRuntimeTools,
+  getFfmpegTools: getFfmpegTools,
   userAgent: USER_AGENT,
   hlsPlayerReferer: HLS_PLAYER_REFERER,
   log: sendLog,
@@ -953,7 +940,6 @@ function buildQueueEpisodePath(item: QueueItem, episode: number): string {
 const queueProcessor = new DownloadQueueProcessor({
   queueStore,
   attemptService: episodeDownloadAttemptService,
-  isUpdateInProgress: () => !!ytdlpUpdatePromise,
   abortDownloadService: () => downloadService.abort(),
   pausedProgress: pausedProgressStore,
   getDownloadSettings: getNormalizedDownloadSettings,
@@ -1031,27 +1017,10 @@ windowLifecycleService = new WindowLifecycleService({
     try {
       const toolsDir = getToolsDir();
       return {
-        ytdlp: fs.existsSync(path.join(toolsDir, 'yt-dlp.exe')),
         ffmpeg: fs.existsSync(path.join(toolsDir, 'ffmpeg.exe')),
       };
     } catch {
-      return { ytdlp: false, ffmpeg: false };
-    }
-  },
-  probeToolsInBackground: () => {
-    // Detallado async sin bloquear: silencioso si todo va bien (app_errors.log
-    // es solo-errores, sin niveles), solo reporta fallos reales. La UI
-    // on-demand sigue en Ajustes vía get-ytdlp-version.
-    try {
-      const { execFile } = require('child_process') as typeof import('child_process');
-      const exe = getYtdlpExecutablePath();
-      execFile(exe, ['--version'], { timeout: 8000, windowsHide: true }, (err) => {
-        if (err) {
-          writeGlobalLog(`probe yt-dlp --version falló: ${String(err)}`);
-        }
-      });
-    } catch (e) {
-      writeGlobalLog(e);
+      return { ffmpeg: false };
     }
   },
   loadStartupData: async (settings, updateStatus): Promise<PreloadedData> => {
@@ -1102,8 +1071,6 @@ windowLifecycleService = new WindowLifecycleService({
   cleanupThumbnails,
   sendQueueUpdateImmediate,
   hasActiveDownloads: () => downloadQueue.some((item) => item.status === 'downloading'),
-  getYtdlpUpdatePromise: () => ytdlpUpdatePromise,
-  cancelYtdlpUpdate: () => ytdlpUpdateService?.cancel(),
   getIsQuitting: () => isQuitting,
   setIsQuitting: (value) => {
     isQuitting = value;
@@ -1127,13 +1094,8 @@ registerIpcHandlers({
   queueProcessor,
   serverStatsStore,
   downloadQueue,
-  ytdlpUpdateService,
   appUpdateService,
   storageService,
-  getYtdlpUpdatePromise: () => ytdlpUpdatePromise,
-  setYtdlpUpdatePromise: (promise) => {
-    ytdlpUpdatePromise = promise;
-  },
   getMainWindow,
   getAllowedBaseDirs: () => {
     const settings = SettingsManager.get();

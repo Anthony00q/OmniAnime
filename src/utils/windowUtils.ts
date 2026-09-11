@@ -3,17 +3,15 @@ export const USER_AGENT =
 export const YOUTUBE_EMBED_APP_ORIGIN = 'https://animeav1.app';
 export const YOUTUBE_EMBED_REFERER = `${YOUTUBE_EMBED_APP_ORIGIN}/`;
 
-export type WindowCloseAction = 'allow' | 'hide' | 'confirm-update' | 'confirm-downloads';
+export type WindowCloseAction = 'allow' | 'hide' | 'confirm-downloads';
 
 export function resolveWindowCloseAction(
   isQuitting: boolean,
   minimizeToTray: boolean,
-  hasUpdateInProgress: boolean,
   hasActiveDownloads: boolean,
 ): WindowCloseAction {
   if (isQuitting) return 'allow';
   if (minimizeToTray) return 'hide';
-  if (hasUpdateInProgress) return 'confirm-update';
   if (hasActiveDownloads) return 'confirm-downloads';
   return 'allow';
 }

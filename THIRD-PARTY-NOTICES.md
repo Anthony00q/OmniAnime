@@ -6,21 +6,6 @@ Las versiones fijadas viven en `scripts/tools-versions.json`
 (única fuente de verdad); este archivo documenta sus licencias y
 cómo cumplir las condiciones de redistribución.
 
-## yt-dlp 2026.08.19 (`yt-dlp.exe`)
-
-- Origen: release oficial `yt-dlp/yt-dlp`
-  (`https://github.com/yt-dlp/yt-dlp/releases/tag/2026.08.19`).
-- Binario: `https://github.com/yt-dlp/yt-dlp/releases/download/2026.08.19/yt-dlp.exe`
-  (standalone x64 para Windows), SHA-256 fijado en `tools-versions.json`.
-- Licencia: **Unlicense** (dominio público). El proyecto dedica todo el
-  copyright al dominio público; permite copiar, modificar, publicar, usar
-  y distribuir el binario con cualquier fin, comercial o no.
-- Código fuente: el propio repositorio
-  (`https://github.com/yt-dlp/yt-dlp`, tag `2026.08.19`).
-- Las dependencias internas del ejecutable viajan con sus avisos dentro
-  del propio binario (`THIRD_PARTY_LICENSES.txt` según las notas del
-  release oficial).
-
 ## ffmpeg 8.1.2 + ffprobe 8.1.2 (`ffmpeg.exe`, `ffprobe.exe`)
 
 - Origen: Gyan Doshi (gyan.dev), variante **`essentials_build`**.

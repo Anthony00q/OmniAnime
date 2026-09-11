@@ -3,11 +3,11 @@ export type ThemeId = 'dark' | 'quantum' | 'oled';
 export interface DownloadSettings {
   maxParallelEpisodes: number;
   retries: number;
-  socketTimeout: number;
   startTimeoutSec: number;
   allowContinue: boolean;
   cleanCacheOnComplete: boolean;
   directConnections: number;
+  hlsConnections: number;
 }
 
 export interface AppSettings {

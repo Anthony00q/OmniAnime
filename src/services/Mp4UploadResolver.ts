@@ -2,8 +2,8 @@ import axios from 'axios';
 
 // Resolución directa propia de MP4Upload: del embed HTML se extrae
 // el fichero `https://<host>.mp4upload.com:<port>/d/<id>/<file>` para
-// descargarlo por axios directo en vez del extractor genérico de yt-dlp.
-// Optimización con fallback: si falla, el llamador usa yt-dlp. Nunca lanza.
+// descargarlo por axios directo (única vía; si falla, al siguiente servidor).
+// Nunca lanza.
 
 export const MP4UPLOAD_REFERER = 'https://www.mp4upload.com/';
 const MP4UPLOAD_USER_AGENT =

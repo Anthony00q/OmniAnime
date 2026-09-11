@@ -2,7 +2,6 @@ import { useQuery, useInfiniteQuery, useMutation, useQueryClient, keepPreviousDa
 import { useDeferredValue, useEffect, useRef, useState } from 'react';
 import { useAtomValue } from 'jotai';
 import { activeProviderAtom } from '../store/atoms';
-import type { YtdlpUpdateResult } from '../../types/ytdlp';
 import { hasNewCatalogItems } from '../utils/catalogResults';
 
 function ensureIpcSuccess<T>(result: T): T {
@@ -328,12 +327,6 @@ export function useSaveSettings() {
       queryClient.invalidateQueries({ queryKey: ['storage-stats'] });
       queryClient.invalidateQueries({ queryKey: ['app-paths'] });
     },
-  });
-}
-
-export function useUpdateYtdlp() {
-  return useMutation<YtdlpUpdateResult, Error, void>({
-    mutationFn: () => window.api.invoke('update-ytdlp') as Promise<YtdlpUpdateResult>,
   });
 }
 

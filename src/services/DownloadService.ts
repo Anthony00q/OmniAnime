@@ -1,4 +1,4 @@
-import { spawn, ChildProcess, execFile } from 'child_process';
+import { execFile } from 'child_process';
 import axios from 'axios';
 import * as fs from 'fs';
 import * as fsp from 'fs/promises';
@@ -7,7 +7,6 @@ import * as https from 'https';
 import * as path from 'path';
 import * as megajs from 'megajs';
 import { normalizeMegaUrl } from '../utils/serverUtils';
-import { terminateChildProcessTree } from '../utils/processUtils';
 import { clampDirectConnections, downloadDirectRanged, probeDirectRangeSupport } from './DirectRangedDownloader';
 
 const httpAgent = new http.Agent({ keepAlive: true, maxSockets: 32 });
@@ -82,26 +81,12 @@ export interface AttemptProbe {
   onProgress?: (fraction01: number, totalBytes?: number) => void;
 }
 
-export type YtdlpRuntimeTools = {
-  ytdlpPath: string;
+export type FfmpegRuntimeTools = {
   ffmpegDir?: string;
-};
-
-export type YtdlpDownloadResult = {
-  ok: boolean;
-  toolMissing?: boolean;
-  error?: string;
-  stderr?: string;
 };
 
 export class DownloadService {
   private activeControllers = new Set<AbortController>();
-  private activeChildren = new Set<ChildProcess>();
-  private cleanupTokens = new Map<string, number>();
-
-  private forceKillProcess(child: ChildProcess) {
-    terminateChildProcessTree(child);
-  }
 
   abort() {
     for (const controller of Array.from(this.activeControllers)) {
@@ -110,10 +95,6 @@ export class DownloadService {
       } catch {}
     }
     this.activeControllers.clear();
-    for (const child of Array.from(this.activeChildren)) {
-      this.forceKillProcess(child);
-    }
-    this.activeChildren.clear();
   }
 
   private trackController(controller: AbortController): void {
@@ -122,14 +103,6 @@ export class DownloadService {
 
   private untrackController(controller: AbortController): void {
     this.activeControllers.delete(controller);
-  }
-
-  private trackChild(child: ChildProcess): void {
-    this.activeChildren.add(child);
-  }
-
-  private untrackChild(child: ChildProcess): void {
-    this.activeChildren.delete(child);
   }
 
   async downloadMediafire(
@@ -291,18 +264,7 @@ export class DownloadService {
       }
     } catch {}
     const tempDest = path.join(cacheDir, path.basename(dest));
-    const cleanupKey = path.resolve(dest).toLowerCase();
-    const cleanupToken = (this.cleanupTokens.get(cleanupKey) || 0) + 1;
-    this.cleanupTokens.set(cleanupKey, cleanupToken);
-
-    const cleanupFiles = () => {
-      setTimeout(async () => {
-        if (this.cleanupTokens.get(cleanupKey) !== cleanupToken) return;
-        try {
-          await fsp.unlink(tempDest);
-        } catch {}
-      }, 300);
-    };
+    const sidecarDest = `${tempDest}.direct.json`;
 
     const freezeAndKill = () => {
       internalController.abort();
@@ -316,17 +278,15 @@ export class DownloadService {
       }
 
       if (writer) {
+        // end() sin destroy: vacía el buffer al temporal para retomar;
+        // el finish ya resuelve false si hubo abort.
         try {
           writer.end();
-          writer.destroy();
         } catch {}
       }
-
-      cleanupFiles();
     };
 
     if (signal?.aborted) {
-      cleanupFiles();
       this.untrackController(internalController);
       return false;
     }
@@ -334,7 +294,33 @@ export class DownloadService {
     const onExternalAbort = () => freezeAndKill();
     if (signal) signal.addEventListener('abort', onExternalAbort);
 
+    const readResumeOffset = async (): Promise<number> => {
+      try {
+        const raw = await fsp.readFile(sidecarDest, 'utf8');
+        const parsed = JSON.parse(raw) as { url?: unknown };
+        if (!parsed || parsed.url !== url) return -1;
+        const st = await fsp.stat(tempDest);
+        return st.isFile() ? st.size : -1;
+      } catch {
+        return -1;
+      }
+    };
+    const discardResume = async (): Promise<void> => {
+      await fsp.rm(tempDest, { force: true }).catch(() => undefined);
+      await fsp.rm(sidecarDest, { force: true }).catch(() => undefined);
+    };
+
     try {
+      // Resume por Range ligado a URL exacta: otra URL o temporal ajeno
+      // arranca en fresco; el parcial se conserva al abortar para retomar.
+      let offset = await readResumeOffset();
+      if (offset < 0) {
+        await discardResume();
+        offset = 0;
+      }
+      if (offset === 0) {
+        await fsp.writeFile(sidecarDest, JSON.stringify({ url })).catch(() => undefined);
+      }
       const response = await axios({
         url,
         method: 'GET',
@@ -346,24 +332,62 @@ export class DownloadService {
           'User-Agent': DIRECT_USER_AGENT,
           'Accept-Encoding': 'identity',
           Connection: 'keep-alive',
+          ...(offset > 0 ? { Range: `bytes=${offset}-` } : {}),
         },
         timeout: 60000,
         signal: internalController.signal as any,
         maxContentLength: Infinity,
         maxBodyLength: Infinity,
         maxRedirects: 5,
+        validateStatus: () => true,
       });
 
       if (signal?.aborted) {
         freezeAndKill();
+        if (signal) signal.removeEventListener('abort', onExternalAbort);
+        this.untrackController(internalController);
+        return false;
+      }
+
+      const destroyResponse = () => {
+        try {
+          responseData = response.data;
+          responseData?.destroy?.();
+        } catch {}
+      };
+      if (offset > 0 && response.status !== 206) {
+        // Sin Range (200) o rango no satisfacible (416): fresco en el
+        // siguiente intento del bucle externo.
+        destroyResponse();
+        await discardResume();
+        if (signal) signal.removeEventListener('abort', onExternalAbort);
+        this.untrackController(internalController);
+        return false;
+      }
+      if (response.status < 200 || response.status >= 300) {
+        destroyResponse();
+        if (signal) signal.removeEventListener('abort', onExternalAbort);
+        this.untrackController(internalController);
+        return false;
+      }
+
+      let totalLength = 0;
+      if (response.status === 206) {
+        const rangeMatch = String(response.headers['content-range'] || '').match(/\/(\d+)\s*$/);
+        totalLength = rangeMatch ? parseInt(rangeMatch[1], 10) : 0;
+      } else {
+        const totalHeader = response.headers['content-length'];
+        totalLength = totalHeader ? parseInt(totalHeader as string, 10) : 0;
+      }
+      if (!Number.isFinite(totalLength) || totalLength < 0) totalLength = 0;
+      if (totalLength > 0 && offset > totalLength) {
+        await discardResume();
+        if (signal) signal.removeEventListener('abort', onExternalAbort);
+        this.untrackController(internalController);
         return false;
       }
 
       responseData = response.data;
-      const totalHeader = response.headers['content-length'];
-      const totalLength = totalHeader ? parseInt(totalHeader as string, 10) : 0;
-      let downloadedLength = 0;
-
       let streamTimeout: NodeJS.Timeout | null = null;
       const resetStreamTimeout = () => {
         if (streamTimeout) clearTimeout(streamTimeout);
@@ -374,7 +398,16 @@ export class DownloadService {
       };
       resetStreamTimeout();
 
-      writer = fs.createWriteStream(tempDest, { highWaterMark: 1024 * 1024 });
+      writer = fs.createWriteStream(tempDest, {
+        flags: offset > 0 ? 'a' : 'w',
+        highWaterMark: 1024 * 1024,
+      });
+      let downloadedLength = 0;
+
+      // pipe() antes del listener propio: cada chunk se encola en el writer
+      // antes de que el progreso pueda abortar; asi el end() de freezeAndKill
+      // vacia todo lo contado y nunca hay write-after-end.
+      responseData.pipe(writer!);
 
       responseData.on('data', (chunk: Buffer) => {
         resetStreamTimeout();
@@ -383,7 +416,7 @@ export class DownloadService {
           return;
         }
         downloadedLength += chunk.length;
-        if (totalLength > 0) onProgress(downloadedLength / totalLength);
+        if (totalLength > 0) onProgress((offset + downloadedLength) / totalLength);
       });
 
       return new Promise((resolve) => {
@@ -393,28 +426,36 @@ export class DownloadService {
           this.untrackController(internalController);
         };
 
-        responseData.pipe(writer!);
-
         writer!.on('finish', async () => {
           finishCleanup();
-          if (!signal?.aborted) {
-            try {
-              await fsp.unlink(dest).catch(() => {});
-              await fsp.rename(tempDest, dest);
-            } catch (e) {
-              console.error('Error renaming PDrain file:', e);
-              cleanupFiles();
+          if (signal?.aborted) {
+            resolve(false);
+            return;
+          }
+          try {
+            const finalStat = await fsp.stat(tempDest);
+            if (totalLength > 0 && (!finalStat.isFile() || finalStat.size !== totalLength)) {
               resolve(false);
               return;
             }
+            await fsp.unlink(dest).catch(() => {});
+            await fsp.rename(tempDest, dest);
+            const dst = await fsp.stat(dest);
+            if (!dst.isFile() || dst.size <= 0) {
+              resolve(false);
+              return;
+            }
+            await fsp.rm(sidecarDest, { force: true }).catch(() => undefined);
+            resolve(true);
+          } catch (e) {
+            console.error('Error renaming PDrain file:', e);
+            resolve(false);
           }
-          resolve(!signal?.aborted);
         });
 
         writer!.on('error', (err) => {
           finishCleanup();
           console.error('Error en writer Pixeldrain:', err);
-          cleanupFiles();
           resolve(false);
         });
 
@@ -433,7 +474,6 @@ export class DownloadService {
       }
       if (signal) signal.removeEventListener('abort', onExternalAbort);
       this.untrackController(internalController);
-      cleanupFiles();
       return false;
     }
   }
@@ -703,172 +743,6 @@ export class DownloadService {
         })();
       });
       activeWriter.once('error', (error: unknown) => fail(error));
-    });
-  }
-
-  async downloadYtdlpCustom(
-    url: string,
-    dest: string,
-    threads: number,
-    signal?: AbortSignal,
-    extraArgs: string[] = [],
-    onProgress?: (p: number, status?: string) => void,
-    tools?: YtdlpRuntimeTools,
-  ): Promise<YtdlpDownloadResult> {
-    if (signal?.aborted) {
-      return { ok: false };
-    }
-    if (!tools?.ytdlpPath) {
-      return {
-        ok: false,
-        toolMissing: true,
-        error: 'Herramienta yt-dlp local no disponible. Verifica tools/win/yt-dlp.exe.',
-      };
-    }
-    const runtimeTools = tools;
-
-    const destDir = path.dirname(dest);
-    const cacheDir = path.join(destDir, '.cache');
-    try {
-      await fsp.mkdir(cacheDir, { recursive: true });
-      if (process.platform === 'win32') {
-        execFile('attrib', ['+h', cacheDir], { windowsHide: true }, () => {});
-      }
-    } catch {}
-
-    return new Promise((resolve) => {
-      const tempDest = path.join(cacheDir, path.basename(dest));
-      const cleanupTemp = () => {
-        fsp.unlink(tempDest).catch(() => {});
-        fsp.unlink(dest).catch(() => {});
-      };
-
-      const fallbackArgs: string[] = [];
-      if (!extraArgs.includes('--buffer-size')) fallbackArgs.push('--buffer-size', '16M');
-      if (!extraArgs.includes('--retries')) fallbackArgs.push('--retries', '10');
-      if (!extraArgs.includes('--fragment-retries')) fallbackArgs.push('--fragment-retries', '10');
-      if (!extraArgs.includes('--socket-timeout')) fallbackArgs.push('--socket-timeout', '30');
-      if (!extraArgs.includes('--retry-sleep')) {
-        fallbackArgs.push('--retry-sleep', 'linear=1::2', '--retry-sleep', 'fragment:exp=1:20');
-      }
-      if (!extraArgs.includes('--extractor-retries')) fallbackArgs.push('--extractor-retries', '3');
-      const args = [
-        '-o',
-        tempDest,
-        '--no-playlist',
-        '--no-check-certificate',
-        '--concurrent-fragments',
-        threads.toString(),
-        '--file-access-retries',
-        '3',
-        '--merge-output-format',
-        'mp4',
-        ...(runtimeTools.ffmpegDir ? ['--ffmpeg-location', runtimeTools.ffmpegDir] : []),
-        ...fallbackArgs,
-        ...extraArgs,
-        url,
-      ];
-
-      const child = spawn(runtimeTools.ytdlpPath, args, {
-        windowsHide: true,
-        env: {
-          ...process.env,
-          PATH: runtimeTools.ffmpegDir
-            ? `${runtimeTools.ffmpegDir}${path.delimiter}${process.env.PATH || ''}`
-            : process.env.PATH,
-        },
-      });
-      this.trackChild(child);
-
-      let stderr = '';
-      const STDERR_LIMIT = 20000;
-      child.stderr?.on('data', (data: Buffer) => {
-        if (stderr.length < STDERR_LIMIT) stderr += data.toString().slice(0, STDERR_LIMIT - stderr.length);
-      });
-
-      if (onProgress && child.stdout) {
-        child.stdout.on('data', (data: Buffer) => {
-          const text = data.toString();
-          const match = text.match(/\[download\]\s+([\d.]+)%/);
-          if (match && match[1]) {
-            const pct = parseFloat(match[1]);
-            if (!isNaN(pct)) {
-              onProgress(pct / 100);
-            }
-          } else if (text.includes('[Merger]') || text.includes('[Fixup') || text.includes('[ffmpeg]')) {
-            onProgress(0.999, 'Procesando video...');
-          }
-        });
-      }
-
-      let settled = false;
-      let abortRequested = false;
-      let abortFallback: NodeJS.Timeout | null = null;
-      const finish = (result: YtdlpDownloadResult) => {
-        if (settled) return;
-        settled = true;
-        if (abortFallback) clearTimeout(abortFallback);
-        if (signal) signal.removeEventListener('abort', onAbort);
-        this.untrackChild(child);
-        resolve(result);
-      };
-
-      const onAbort = () => {
-        if (settled || abortRequested) return;
-        abortRequested = true;
-        this.forceKillProcess(child);
-        this.untrackChild(child);
-        abortFallback = setTimeout(() => {
-          cleanupTemp();
-          finish({ ok: false });
-        }, 5000);
-      };
-
-      if (signal) {
-        signal.addEventListener('abort', onAbort);
-      }
-
-      child.on('close', async (code) => {
-        if (signal) signal.removeEventListener('abort', onAbort);
-        this.untrackChild(child);
-
-        let success = code === 0 && !signal?.aborted;
-        if (success) {
-          try {
-            await fsp.unlink(dest).catch(() => {});
-            await fsp.rename(tempDest, dest);
-          } catch (e) {
-            console.error('Error renaming ytdlp file:', e);
-            success = false;
-          }
-        }
-
-        if (!success && (signal?.aborted || abortRequested)) cleanupTemp();
-
-        const rawError = stderr.trim().replace(/\s+/g, ' ');
-        const errorOutput = rawError.length > 400 ? rawError.slice(0, 397) + '...' : rawError;
-        finish({
-          ok: success,
-          error: success ? undefined : errorOutput || `yt-dlp terminó con código ${code ?? 'desconocido'}`,
-          stderr: errorOutput || undefined,
-        });
-      });
-
-      child.on('error', (err) => {
-        console.error('Error spawn yt-dlp:', err);
-        if (signal) signal.removeEventListener('abort', onAbort);
-        this.untrackChild(child);
-        const toolMissing = (err as NodeJS.ErrnoException).code === 'ENOENT';
-        cleanupTemp();
-        const sanitizedMsg = (err.message || '').trim().replace(/\s+/g, ' ').slice(0, 300);
-        const sanitizedStderr = stderr.trim().replace(/\s+/g, ' ').slice(0, 400);
-        finish({
-          ok: false,
-          toolMissing,
-          error: toolMissing ? 'Herramienta yt-dlp local no encontrada. Verifica tools/win/yt-dlp.exe.' : sanitizedMsg,
-          stderr: sanitizedStderr || undefined,
-        });
-      });
     });
   }
 }
