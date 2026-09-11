@@ -18,7 +18,7 @@ const THUMBNAIL_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 const THUMBNAIL_BATCH_SIZE = 16;
 const DURATION_TIMEOUT_MS = 2000;
 const CAPTURE_TIMEOUT_MS = 5000;
-// Duration sale en los primeros KB: tope anti-bloat de stderr.
+// Salida ffprobe mínima: tope anti-bloat.
 const DURATION_OUTPUT_LIMIT = 64 * 1024;
 
 export function computeThumbnailAttemptPoints(duration: number | null): string[] {
@@ -42,10 +42,20 @@ export function computeThumbnailAttemptPoints(duration: number | null): string[]
   return ['120', '240', '60', '15', '2', '0'];
 }
 
+export function parseFfprobeDuration(raw: string): number | null {
+  const token = raw.trim().split(/\s+/)[0] ?? '';
+  if (!token || token === 'N/A') return null;
+  const value = Number(token);
+  if (!Number.isFinite(value) || value <= 0) return null;
+  return Math.floor(value);
+}
+
 export class ThumbnailService {
   private readonly MAX_FFMPEG_CONCURRENT = 2;
   private runningFfmpeg = 0;
   private ffmpegQueue: Array<() => void> = [];
+  private cachedFfmpegPath: string | null = null;
+  private cachedFfprobePath: string | null = null;
 
   constructor(private readonly options: ThumbnailServiceOptions) {}
 
@@ -65,8 +75,19 @@ export class ThumbnailService {
   }
 
   resolveFfmpegPath(): string {
+    if (this.cachedFfmpegPath) return this.cachedFfmpegPath;
     const localFfmpeg = path.join(this.options.toolsDir, 'ffmpeg.exe');
-    return fs.existsSync(localFfmpeg) ? localFfmpeg : 'ffmpeg';
+    const resolved = fs.existsSync(localFfmpeg) ? localFfmpeg : 'ffmpeg';
+    this.cachedFfmpegPath = resolved;
+    return resolved;
+  }
+
+  resolveFfprobePath(): string {
+    if (this.cachedFfprobePath) return this.cachedFfprobePath;
+    const localFfprobe = path.join(this.options.toolsDir, 'ffprobe.exe');
+    const resolved = fs.existsSync(localFfprobe) ? localFfprobe : 'ffprobe';
+    this.cachedFfprobePath = resolved;
+    return resolved;
   }
 
   async cleanupThumbnails(): Promise<void> {
@@ -162,6 +183,7 @@ export class ThumbnailService {
   async getThumbnail(videoPath: string): Promise<string | null> {
     try {
       const ffmpegPath = this.resolveFfmpegPath();
+      const ffprobePath = this.resolveFfprobePath();
       const thumbDir = path.join(this.options.userDataDir, THUMBNAIL_DIR_NAME);
       try {
         await fsp.mkdir(thumbDir, { recursive: true });
@@ -177,7 +199,7 @@ export class ThumbnailService {
         } catch {}
       }
 
-      const duration = await this.getVideoDuration(videoPath, ffmpegPath);
+      const duration = await this.getVideoDuration(videoPath, ffprobePath);
       const attempts = computeThumbnailAttemptPoints(duration);
 
       for (const startPoint of attempts) {
@@ -210,10 +232,14 @@ export class ThumbnailService {
     }
   }
 
-  private async getVideoDuration(videoPath: string, ffmpegPath: string): Promise<number | null> {
+  private async getVideoDuration(videoPath: string, ffprobePath: string): Promise<number | null> {
     await this.acquireFfmpegSlot();
     return new Promise((resolve) => {
-      const childProcess = spawn(ffmpegPath, ['-i', videoPath], { windowsHide: true });
+      const childProcess = spawn(
+        ffprobePath,
+        ['-v', 'error', '-show_entries', 'format=duration', '-of', 'default=nw=1:nk=1', videoPath],
+        { windowsHide: true },
+      );
       this.options.registerProcess(childProcess);
 
       let output = '';
@@ -228,25 +254,16 @@ export class ThumbnailService {
         resolve(duration);
       };
 
-      childProcess.stderr.on('data', (data) => {
-        if (output.length < DURATION_OUTPUT_LIMIT)
-          output += data.toString().slice(0, DURATION_OUTPUT_LIMIT - output.length);
-      });
       childProcess.stdout.on('data', (data) => {
         if (output.length < DURATION_OUTPUT_LIMIT)
           output += data.toString().slice(0, DURATION_OUTPUT_LIMIT - output.length);
       });
+      // stderr solo se drena: un warning no debe contaminar el parseo de stdout.
+      childProcess.stderr?.resume();
 
-      childProcess.on('close', () => {
-        const match = output.match(/Duration:\s*(\d+):(\d+):(\d+)(?:\.(\d+))?/);
-        if (match) {
-          const hours = parseInt(match[1], 10);
-          const minutes = parseInt(match[2], 10);
-          const seconds = parseInt(match[3], 10);
-          finish(hours * 3600 + minutes * 60 + seconds);
-        } else {
-          finish(null);
-        }
+      childProcess.on('close', (code) => {
+        if (code !== 0) finish(null);
+        else finish(parseFfprobeDuration(output));
       });
 
       childProcess.on('error', () => finish(null));
