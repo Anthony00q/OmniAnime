@@ -12,7 +12,8 @@ import { ProviderManager } from '../services/ProviderManager';
 import { DownloadService } from '../services/DownloadService';
 import { EpisodeDownloadAttemptService } from '../services/EpisodeDownloadAttemptService';
 import { DownloadQueueProcessor } from '../services/DownloadQueueProcessor';
-import { AppLogger } from '../services/AppLogger';
+import { AppLogger, type LogScope, type ScopedLogger } from '../services/AppLogger';
+import { effectiveMinLevel, normalizeLoggingSettings } from '../utils/loggingSettings';
 import { EpisodeFileService } from '../services/EpisodeFileService';
 import { HistoryService } from '../services/HistoryService';
 import { LibraryAssetService } from '../services/LibraryAssetService';
@@ -61,10 +62,40 @@ try {
   ]);
 } catch {}
 
-setupHardwareAcceleration();
+const runtimeDirectories = createRuntimeDirectories(app.getPath('userData'));
+const appLogger = new AppLogger(runtimeDirectories, { appVersion: app.getVersion() });
+const writeGlobalLog = (error: unknown, isRenderer = false): void => appLogger.write(error, isRenderer);
+const scopedLog = (scope: LogScope): ScopedLogger => appLogger.child(scope);
+function applyLoggingSettings(): void {
+  try {
+    const raw = SettingsManager.get().logging;
+    appLogger.setMinLevel(effectiveMinLevel(normalizeLoggingSettings(raw)));
+  } catch {
+    appLogger.setMinLevel('info');
+  }
+}
+const sessionStartIso = new Date().toISOString();
+try {
+  appLogger.pruneOldSessions();
+} catch {}
+try {
+  appLogger.writeSessionHeader({
+    version: app.getVersion(),
+    electron: process.versions.electron,
+    node: process.versions.node,
+    platform: process.platform,
+    arch: process.arch,
+    userData: app.getPath('userData'),
+  });
+} catch {}
+applyLoggingSettings();
+DatabaseManager.setLogger(appLogger.child('db'));
+SettingsManager.setLogger(appLogger.child('settings'));
 
-const providerManager = new ProviderManager();
-const downloadService = new DownloadService();
+setupHardwareAcceleration({ logger: appLogger.child('app') });
+
+const providerManager = new ProviderManager({ logger: appLogger.child('provider') });
+const downloadService = new DownloadService({ logger: appLogger.child('download') });
 const activeChildProcesses = new Set<import('child_process').ChildProcess>();
 
 app.on('before-quit', () => {
@@ -101,7 +132,7 @@ function sendOSNotification(
       notif.show();
     }
   } catch (e) {
-    console.error('Error triggering OS notification', e);
+    scopedLog('window').error(`notification: ${e}`);
   }
 }
 
@@ -190,12 +221,7 @@ async function mapLimit<T, R>(
       try {
         out[idx] = await worker(items[idx], idx);
       } catch (error) {
-        try {
-          if (typeof writeGlobalLog !== 'undefined') writeGlobalLog(error);
-          else console.error(error);
-        } catch {
-          console.error(error);
-        }
+        writeGlobalLog(error);
         // Preserve slot as null-equivalent to avoid hiding via filter(Boolean) ambiguity
         (out as unknown as Array<R | null>)[idx] = null as unknown as R;
       }
@@ -346,7 +372,7 @@ async function buildLibraryMetaPreload(
         try {
           await normalizeEpisodeFilesInFolder(folder.folderPath);
         } catch (e) {
-          console.error('Error in preloader rename', e);
+          scopedLog('app').error(`preload rename: ${e}`);
         }
       }
       if (folder.localMeta?.slug && (folder.localPoster || folder.localBanner)) {
@@ -605,7 +631,7 @@ app.whenReady().then(async () => {
     app.quit();
     return;
   }
-  registerOmniMediaProtocol();
+  registerOmniMediaProtocol({ logger: appLogger.child('protocol') });
   windowLifecycleService?.configureYouTubeEmbedIdentity();
   windowLifecycleService?.start();
 });
@@ -618,9 +644,6 @@ app.on('before-quit', () => {
   } catch {}
 });
 
-const runtimeDirectories = createRuntimeDirectories();
-const appLogger = new AppLogger(runtimeDirectories);
-const writeGlobalLog = (error: unknown, isRenderer = false): void => appLogger.write(error, isRenderer);
 const libraryAssetService = new LibraryAssetService({
   database,
   userDataDir: app.getPath('userData'),
@@ -995,6 +1018,7 @@ const queueProcessor = new DownloadQueueProcessor({
     return !!mainWindow && (!mainWindow.isVisible() || !mainWindow.isFocused());
   },
   logError: writeGlobalLog,
+  logger: appLogger.child('queue'),
 });
 
 windowLifecycleService = new WindowLifecycleService({
@@ -1076,6 +1100,7 @@ windowLifecycleService = new WindowLifecycleService({
     isQuitting = value;
   },
   writeLog: writeGlobalLog,
+  logger: appLogger.child('window'),
 });
 
 function processQueue(): Promise<void> {
@@ -1115,6 +1140,10 @@ registerIpcHandlers({
     isQuitting = value;
   },
   writeGlobalLog,
+  scopedLog,
+  getLogPath: () => appLogger.getLogFile(),
+  getSessionStart: () => sessionStartIso,
+  refreshLogging: () => applyLoggingSettings(),
   markRendererReady: () => windowLifecycleService?.markRendererReady(),
 });
 

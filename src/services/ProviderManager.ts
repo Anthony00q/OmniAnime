@@ -1,16 +1,17 @@
 import { AnimeProvider } from './providers/AnimeProvider';
 import { AnimeAV1Provider } from './providers/AnimeAV1Provider';
 import { JkAnimeProvider } from './providers/JkAnimeProvider';
+import type { ScopedLogger } from './AppLogger';
 
 export class ProviderManager {
   private providers: Map<string, AnimeProvider>;
   private activeProviderId: string;
 
-  constructor() {
+  constructor(options?: { logger?: ScopedLogger }) {
     this.providers = new Map();
 
-    const animeAv1 = new AnimeAV1Provider();
-    const jkanime = new JkAnimeProvider();
+    const animeAv1 = new AnimeAV1Provider({ logger: options?.logger });
+    const jkanime = new JkAnimeProvider({ logger: options?.logger });
 
     this.providers.set(animeAv1.id, animeAv1);
     this.providers.set(jkanime.id, jkanime);

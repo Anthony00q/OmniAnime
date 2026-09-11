@@ -1,22 +1,10 @@
 import { memo } from 'react';
-import {
-  BarChart3,
-  Database,
-  Eraser,
-  Eye,
-  FolderOpen,
-  HardDrive,
-  Loader2,
-  Shield,
-  Trash2,
-  ExternalLink,
-} from 'lucide-react';
+import { BarChart3, Database, Eraser, Eye, HardDrive, Loader2, Shield, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { AppTooltip } from '../../../components/ui/AppTooltip';
 
 interface StorageTabProps {
   storageStatsQuery: any;
-  appPathsQuery: any;
   storageActions: any;
   formatBytes: (bytes: number) => string;
   formatDiskPercent: (free: number | null, total: number | null) => number | null;
@@ -24,7 +12,6 @@ interface StorageTabProps {
 
 export const StorageTab = memo(function StorageTab({
   storageStatsQuery,
-  appPathsQuery,
   storageActions,
   formatBytes,
   formatDiskPercent,
@@ -308,53 +295,6 @@ export const StorageTab = memo(function StorageTab({
         <p className="text-xs text-muted-foreground mt-3 flex items-center gap-1.5">
           <Shield className="w-3.5 h-3.5 text-emerald-500" /> No se borra nada de lo que estás descargando ahora.
         </p>
-      </section>
-
-      <section className="rounded-2xl border border-border/50 bg-card shadow-sm p-5 sm:p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <div className="p-1.5 bg-primary/10 rounded-lg">
-            <FolderOpen className="w-4 h-4 text-primary" />
-          </div>
-          <h3 className="text-sm font-bold tracking-tight">Carpetas</h3>
-        </div>
-        <p className="text-xs text-muted-foreground mb-4 leading-relaxed">Abre donde la app guarda tus archivos.</p>
-        <div className="rounded-xl border border-border/60 bg-background p-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={async () => {
-                try {
-                  const res: any = await storageActions.openAppPath.mutateAsync('userData');
-                  if (res?.success === false) toast.error(res.error || 'No se pudo abrir la carpeta');
-                } catch (e: any) {
-                  toast.error(String(e?.message || e));
-                }
-              }}
-              className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 bg-secondary hover:bg-secondary/80 border border-border rounded-xl text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
-            >
-              <FolderOpen className="w-4 h-4" /> Abrir carpeta de datos
-            </button>
-            <button
-              type="button"
-              onClick={async () => {
-                try {
-                  const res: any = await storageActions.openAppPath.mutateAsync('logs');
-                  if (res?.success === false) toast.error(res.error || 'No se pudo abrir la carpeta');
-                } catch (e: any) {
-                  toast.error(String(e?.message || e));
-                }
-              }}
-              className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 bg-secondary hover:bg-secondary/80 border border-border rounded-xl text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
-            >
-              <ExternalLink className="w-4 h-4" /> Abrir registros
-            </button>
-          </div>
-          {(appPathsQuery.data as any)?.userData && (
-            <div className="text-[11px] font-mono text-muted-foreground break-all bg-secondary/30 border border-border/40 rounded-lg px-2.5 py-1.5 mt-3 select-text">
-              {(appPathsQuery.data as any).userData}
-            </div>
-          )}
-        </div>
       </section>
     </>
   );

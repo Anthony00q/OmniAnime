@@ -1,7 +1,9 @@
 import { app } from 'electron';
+import { noopScopedLogger, type ScopedLogger } from '../../services/AppLogger';
 import { readBootHardwareAcceleration } from '../../services/SettingsManager';
 
-export function setupHardwareAcceleration(): void {
+export function setupHardwareAcceleration(options?: { logger?: ScopedLogger }): void {
+  const logger = options?.logger ?? noopScopedLogger;
   try {
     const useHardwareAcceleration = readBootHardwareAcceleration();
 
@@ -15,6 +17,6 @@ export function setupHardwareAcceleration(): void {
       app.disableHardwareAcceleration();
     }
   } catch (e) {
-    console.error('Error setting up hardware acceleration switches:', e);
+    logger.error(`hardware acceleration: ${e}`);
   }
 }

@@ -10,13 +10,14 @@ import { playNotificationSound } from '../utils/sound';
 import { DEFAULT_ACCENT_HEX, getAccentHex, isValidAccentColor } from '../utils/color';
 import { settingsAtom } from '../store/atoms';
 import type { AppSettings, ThemeId } from '../../types/settings';
-import { useLoadSettings, useSaveSettings, useStorageStats, useAppPaths, useStorageActions } from '../hooks/useQueries';
+import { useLoadSettings, useSaveSettings, useStorageStats, useStorageActions } from '../hooks/useQueries';
 import { ErrorState } from '../components/ui/ErrorState';
 import { AppearanceTab } from './settings/tabs/AppearanceTab';
 import { DownloadsTab } from './settings/tabs/DownloadsTab';
 import { NotificationsTab } from './settings/tabs/NotificationsTab';
 import { ShortcutsTab } from './settings/tabs/ShortcutsTab';
 import { StorageTab } from './settings/tabs/StorageTab';
+import { LogsTab } from './settings/tabs/LogsTab';
 import { SystemTab } from './settings/tabs/SystemTab';
 import {
   normalizeSettings,
@@ -84,7 +85,6 @@ export function SettingsView({ isActive = true }: { isActive?: boolean }) {
     );
   }, [settings]);
   const storageStatsQuery = useStorageStats(isActive && activeTab === 'almacenamiento', queryDirs);
-  const appPathsQuery = useAppPaths(isActive && activeTab === 'almacenamiento');
   const storageActions = useStorageActions();
   // Sin refetch manual: `enabled` + invalidaciones ya cubren la carga.
 
@@ -481,12 +481,13 @@ export function SettingsView({ isActive = true }: { isActive?: boolean }) {
             {activeTab === 'almacenamiento' && (
               <StorageTab
                 storageStatsQuery={storageStatsQuery}
-                appPathsQuery={appPathsQuery}
                 storageActions={storageActions}
                 formatBytes={formatBytes}
                 formatDiskPercent={formatDiskPercent}
               />
             )}
+
+            {activeTab === 'registros' && <LogsTab isActive={isActive} settings={settings} onChange={handleChange} />}
 
             {activeTab === 'apariencia' && (
               <AppearanceTab

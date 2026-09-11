@@ -3,6 +3,8 @@ import * as path from 'path';
 import { app } from 'electron';
 import { AppSettings } from '../types/settings';
 import { DEFAULT_DOWNLOAD_SETTINGS, normalizeDownloadSettings } from '../utils/downloadSettings';
+import { normalizeLoggingSettings } from '../utils/loggingSettings';
+import type { ScopedLogger } from './AppLogger';
 import { DatabaseManager } from './DatabaseManager';
 
 const LEGACY_SETTINGS_FILE = path.join(app.getPath('userData'), 'settings.json');
@@ -47,6 +49,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     nextView: 'ArrowRight',
   },
   download: { ...DEFAULT_DOWNLOAD_SETTINGS },
+  logging: { level: 'info', verbose: false },
 };
 
 function updateBootConfig(settings: AppSettings): void {
@@ -67,6 +70,11 @@ export class SettingsManager {
 
   // Memo sin TTL: save()/clearAutoRenameRetroactiveOnce() invalidan.
   private static cachedSettings: AppSettings | null = null;
+  private static logger: ScopedLogger | null = null;
+
+  static setLogger(logger: ScopedLogger): void {
+    SettingsManager.logger = logger;
+  }
 
   static get(): AppSettings {
     if (SettingsManager.cachedSettings) return SettingsManager.cachedSettings;
@@ -90,6 +98,7 @@ export class SettingsManager {
     SettingsManager.cachedSettings = null;
     try {
       settings.download = normalizeDownloadSettings((settings as AppSettings).download);
+      settings.logging = normalizeLoggingSettings((settings as AppSettings).logging);
       const db = DatabaseManager.getInstance();
       if (db.isReady()) {
         db.saveSettings(settings);
@@ -106,7 +115,7 @@ export class SettingsManager {
 
       return true;
     } catch (e) {
-      console.error('Error saving settings:', e);
+      SettingsManager.logger?.error(`Error saving settings: ${e}`);
       return false;
     }
   }
@@ -138,7 +147,7 @@ export class SettingsManager {
         return SettingsManager.mergeWithDefaults(settings);
       }
     } catch (e) {
-      console.error('Error reading legacy settings:', e);
+      SettingsManager.logger?.error(`Error reading legacy settings: ${e}`);
     }
     return { ...DEFAULT_SETTINGS };
   }
@@ -161,6 +170,7 @@ export class SettingsManager {
       ...(settings as any).shortcuts,
     };
     settings.download = normalizeDownloadSettings((settings as any).download ?? (DEFAULT_SETTINGS.download as unknown));
+    settings.logging = normalizeLoggingSettings((settings as any).logging);
 
     if (!settings.outputDirs || !Array.isArray(settings.outputDirs) || settings.outputDirs.length === 0) {
       settings.outputDirs = [settings.defaultOutputDir || DEFAULT_SETTINGS.defaultOutputDir];

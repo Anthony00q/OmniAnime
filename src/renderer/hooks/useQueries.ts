@@ -475,22 +475,34 @@ export function useStorageStats(enabled = true, dirs?: string[]) {
   });
 }
 
-export function useAppPaths(enabled = true) {
-  return useQuery({
-    queryKey: ['app-paths'],
-    queryFn: () => window.api.invoke('get-app-paths'),
-    enabled,
-    staleTime: 60 * 1000,
-    placeholderData: keepPreviousData,
-  });
-}
-
 export function useSystemInfo(enabled = true) {
   return useQuery({
     queryKey: ['system-info'],
     queryFn: () => window.api.invoke('get-system-info'),
     enabled,
     staleTime: 30 * 1000,
+  });
+}
+
+export interface LogPageFilters {
+  level: string;
+  scope: string;
+  query: string;
+}
+
+export function useLogPages(filters: LogPageFilters, enabled = true) {
+  return useInfiniteQuery({
+    queryKey: ['log-page', filters.level, filters.scope, filters.query],
+    queryFn: async ({ pageParam }: { pageParam: number }) => {
+      const res: any = await window.api.invoke('get-log-page', { ...filters, cursor: pageParam, limit: 100 });
+      if (res?.ok !== true) throw new Error('No se pudo leer el registro');
+      return res;
+    },
+    initialPageParam: 0,
+    getNextPageParam: (lastPage: any) => lastPage?.nextCursor ?? undefined,
+    enabled,
+    staleTime: 10 * 1000,
+    placeholderData: keepPreviousData,
   });
 }
 

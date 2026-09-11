@@ -83,9 +83,8 @@ body:
     attributes:
       label: Fragmento del registro (opcional)
       description: >-
-        Últimas líneas relacionadas de app_errors.log
-        (Ajustes → Almacenamiento → Abrir registros).
-        Recorta a lo relevante.
+        En Ajustes → Registros pulsa Exportar .log y adjunta el archivo
+        (o pega aquí el fragmento relevante entre triple comilla invertida).
       placeholder: "Pegar aquí el fragmento, entre triple comilla invertida."
       render: text
     validations:

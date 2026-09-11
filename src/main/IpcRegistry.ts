@@ -24,6 +24,8 @@ import { registerLibraryHandlers } from './ipc/handlers/library.handlers';
 import { registerAppUpdaterHandlers } from './ipc/handlers/app-updater.handlers';
 import { registerStorageHandlers } from './ipc/handlers/storage.handlers';
 import { registerServerStatsHandlers } from './ipc/handlers/server-stats.handlers';
+import { registerLogsHandlers } from './ipc/handlers/logs.handlers';
+import type { LogScope, ScopedLogger } from '../services/AppLogger';
 
 export interface IpcRegistryDependencies {
   preloadedData: PreloadedData;
@@ -57,6 +59,10 @@ export interface IpcRegistryDependencies {
   destroyTray: () => void;
   setIsQuitting: (value: boolean) => void;
   writeGlobalLog: (error: unknown, isRenderer?: boolean) => void;
+  scopedLog: (scope: LogScope) => ScopedLogger;
+  getSessionStart: () => string;
+  getLogPath: () => string;
+  refreshLogging: () => void;
   markRendererReady: () => void;
 }
 
@@ -71,6 +77,7 @@ export function registerIpcHandlers(dependencies: IpcRegistryDependencies): void
   registerAppUpdaterHandlers(dependencies);
   registerStorageHandlers(dependencies);
   registerServerStatsHandlers(dependencies);
+  registerLogsHandlers(dependencies);
   // Señal del renderer tras el primer render con home listo; sin args.
   ipcMain.handle('renderer-ready', () => {
     dependencies.markRendererReady();

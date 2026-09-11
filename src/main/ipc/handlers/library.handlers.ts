@@ -44,7 +44,7 @@ export function registerLibraryHandlers({
       if (result && typeof result === 'object' && 'success' in result) return result;
       return { success: true, renamed: 0, skippedConflicts: 0, skippedNoNumber: 0, total: 0 };
     } catch (error) {
-      console.error(error);
+      writeGlobalLog(error);
       return { success: false, error: error instanceof Error ? error.message : String(error) };
     }
   });

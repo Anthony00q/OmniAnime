@@ -3,6 +3,7 @@ import type { ProviderDownloadLink, QueueItem } from '../types/queue';
 import type { EpisodeAttemptProgress } from './EpisodeDownloadAttemptService';
 import { EpisodeDownloadAttemptService } from './EpisodeDownloadAttemptService';
 import { categorizeAttemptFailure, type ServerAttemptOutcome } from './ServerStatsStore';
+import { noopScopedLogger, type ScopedLogger } from './AppLogger';
 import { QueueStore } from './QueueStore';
 
 export type DownloadNotificationType =
@@ -48,6 +49,7 @@ export interface DownloadQueueProcessorOptions {
   isMainWindowFocused: () => boolean;
   shouldNotifyCompletion: () => boolean;
   logError: (error: unknown) => void;
+  logger?: ScopedLogger;
 }
 
 export type EpisodeGateReason = 'resume' | 'cancel' | 'total';
@@ -82,6 +84,10 @@ export class DownloadQueueProcessor {
   private isProcessingQueue = false;
 
   constructor(private readonly options: DownloadQueueProcessorOptions) {}
+
+  private get fileLog(): ScopedLogger {
+    return this.options.logger ?? noopScopedLogger;
+  }
 
   get activeItemId(): string | null {
     return this.activeQueueItemId;
@@ -577,12 +583,12 @@ export class DownloadQueueProcessor {
 
   async processQueue(): Promise<void> {
     if (this.isProcessingQueue) {
-      console.log('processQueue ya está en ejecución.');
+      this.fileLog.debug('processQueue ya está en ejecución.');
       return;
     }
 
     this.isProcessingQueue = true;
-    console.log('Iniciando processQueue...');
+    this.fileLog.debug('Iniciando processQueue...');
     let restartQueueAfterError = false;
 
     try {
@@ -598,7 +604,7 @@ export class DownloadQueueProcessor {
         const runEpoch = this.bumpRunEpoch(item.id);
         const rawList = this.retryOnlyIds.has(item.id) ? [...item.failedEps] : item.episodes;
         const episodesToProcess = this.getWorkList(item, rawList);
-        console.log(`Procesando item: ${item.animeTitle}`);
+        this.fileLog.info(`Procesando item: ${item.animeTitle}`, { queueId: item.id, provider: item.providerId });
         this.options.updateTray(`Descargando ${item.animeTitle}...`);
         this.options.sendQueueUpdate();
         if (!this.options.isMainWindowFocused()) {
@@ -925,7 +931,7 @@ export class DownloadQueueProcessor {
       this.activeQueueItemId = null;
       this.isProcessingQueue = false;
       this.cleanupStaleIds();
-      console.log('processQueue finalizado.');
+      this.fileLog.debug('processQueue finalizado.');
       if (restartQueueAfterError) {
         setImmediate(() => this.processQueue().catch(this.options.logError));
       }

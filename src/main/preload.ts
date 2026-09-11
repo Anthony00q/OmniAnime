@@ -71,8 +71,13 @@ const INVOKE_CHANNELS = new Set([
   'export-settings',
   'import-settings',
   'get-system-info',
+  'get-log-page',
+  'export-diagnostics',
+  'delete-log-entries',
   'renderer-ready',
 ]);
+
+const SEND_CHANNELS = new Set(['log-error']);
 
 const EVENT_CHANNELS = new Set([
   'app-ready',
@@ -93,6 +98,10 @@ contextBridge.exposeInMainWorld('api', {
   invoke: (channel: string, ...args: any[]) => {
     if (!INVOKE_CHANNELS.has(channel)) return Promise.reject(new Error(`Canal IPC no permitido: ${channel}`));
     return ipcRenderer.invoke(channel, ...args);
+  },
+  send: (channel: string, ...args: any[]) => {
+    if (!SEND_CHANNELS.has(channel)) return;
+    ipcRenderer.send(channel, ...args);
   },
   on: (channel: string, func: (...args: any[]) => void) => {
     if (!EVENT_CHANNELS.has(channel)) return;

@@ -2,14 +2,16 @@ import { app, dialog, ipcMain, shell } from 'electron';
 import * as fs from 'fs';
 import * as path from 'path';
 import { SettingsManager } from '../../../services/SettingsManager';
+import { APP_LOG_FILENAME } from '../../../services/AppLogger';
 import { normalizeDownloadSettings } from '../../../utils/downloadSettings';
+import { normalizeLoggingSettings } from '../../../utils/loggingSettings';
 import { isValidOutputDirString } from '../../../utils/outputDirs';
 import { isPathWithinAnyDirectory } from '../../../utils/pathSecurity';
 import type { AppSettings } from '../../../types/settings';
 import type { IpcRegistryDependencies } from '../../IpcRegistry';
 
 export function registerStorageHandlers(dependencies: IpcRegistryDependencies): void {
-  const { storageService, writeGlobalLog } = dependencies;
+  const { storageService, writeGlobalLog, refreshLogging } = dependencies;
 
   ipcMain.handle('get-storage-stats', async () => {
     try {
@@ -72,8 +74,21 @@ export function registerStorageHandlers(dependencies: IpcRegistryDependencies): 
 
   ipcMain.handle('open-app-path', async (_, kind: string) => {
     try {
-      const allowedKinds = new Set(['userData', 'logs', 'tools', 'db']);
+      const allowedKinds = new Set(['userData', 'logs', 'tools', 'db', 'log-file']);
       if (!allowedKinds.has(kind)) return { success: false, error: 'Tipo no permitido' };
+      // Ruta fija del registro (misma que AppLogger): nunca sale de aquí.
+      if (kind === 'log-file') {
+        const logFile = path.join(app.getPath('userData'), 'logs', APP_LOG_FILENAME);
+        if (fs.existsSync(logFile)) {
+          shell.showItemInFolder(logFile);
+          return { success: true };
+        }
+        const dir = path.dirname(logFile);
+        if (!fs.existsSync(dir)) return { success: false, error: 'La ruta no existe' };
+        const error = await shell.openPath(dir);
+        if (error) return { success: false, error };
+        return { success: true };
+      }
       let target: string | null = null;
       if (storageService) {
         const paths = storageService.getAppPaths();
@@ -219,9 +234,15 @@ export function registerStorageHandlers(dependencies: IpcRegistryDependencies): 
       if ((parsed as any).download && typeof (parsed as any).download === 'object') {
         merged.download = normalizeDownloadSettings((parsed as any).download);
       }
+      if ((parsed as any).logging && typeof (parsed as any).logging === 'object') {
+        merged.logging = normalizeLoggingSettings((parsed as any).logging);
+      }
 
       const saved = SettingsManager.save(merged);
       if (!saved) return { success: false, error: 'No se pudo guardar' };
+      try {
+        refreshLogging();
+      } catch {}
       dependencies.queueStore.invalidateDirLabelCache();
       if (merged.minimizeToTrayOnClose === true) dependencies.createTray();
       else dependencies.destroyTray();

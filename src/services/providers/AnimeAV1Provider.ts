@@ -13,6 +13,7 @@ import {
   AnimeLanguage,
 } from '../../types/anime';
 import { AnimeProvider } from './AnimeProvider';
+import { noopScopedLogger, type ScopedLogger } from '../AppLogger';
 import { normalizeMegaUrl, normalizeMp4UploadUrl } from '../../utils/serverUtils';
 import {
   extractBalancedBlock,
@@ -40,6 +41,10 @@ export function buildAv1EpisodeThumbUrl(mediaId: unknown, episode: unknown): str
 }
 
 export class AnimeAV1Provider implements AnimeProvider {
+  private readonly logger: ScopedLogger;
+  constructor(options?: { logger?: ScopedLogger }) {
+    this.logger = options?.logger ?? noopScopedLogger;
+  }
   get id() {
     return 'animeav1';
   }
@@ -308,7 +313,7 @@ export class AnimeAV1Provider implements AnimeProvider {
       }
       return eps;
     } catch (e) {
-      console.error(e);
+      this.logger.error('animeav1 home: ' + String(e));
       return [];
     }
   }
@@ -400,7 +405,7 @@ export class AnimeAV1Provider implements AnimeProvider {
       }
       return data;
     } catch (e) {
-      console.error(e);
+      this.logger.error('animeav1 filters: ' + String(e));
       return { categories: [], genres: [], years: [] };
     }
   }
@@ -437,7 +442,7 @@ export class AnimeAV1Provider implements AnimeProvider {
         try {
           results = this.parseResultsContent(content, this.parseCategoryDict(html));
         } catch (e) {
-          console.error('Error parsing Svelte JSON', e);
+          this.logger.error('animeav1 parse svelte: ' + String(e));
           results = [];
         }
       }
@@ -455,7 +460,7 @@ export class AnimeAV1Provider implements AnimeProvider {
       }
       return results;
     } catch (e) {
-      console.error(e);
+      this.logger.error('animeav1 search: ' + String(e));
       return [];
     }
   }
@@ -495,7 +500,7 @@ export class AnimeAV1Provider implements AnimeProvider {
         }
       });
     } catch (e) {
-      console.error('Error parsing catalog fallback', e);
+      this.logger.error('animeav1 parse catalog: ' + String(e));
     }
     return results;
   }
@@ -525,7 +530,7 @@ export class AnimeAV1Provider implements AnimeProvider {
       ) {
         return [];
       }
-      console.error(error);
+      this.logger.error('animeav1 search: ' + String(error));
       return [];
     } finally {
       if (this.pendingSearchController === controller) this.pendingSearchController = null;
@@ -739,7 +744,7 @@ export class AnimeAV1Provider implements AnimeProvider {
         type: categoryStr || 'TV',
       };
     } catch (error) {
-      console.error(error);
+      this.logger.error('animeav1 details: ' + String(error));
       return null;
     }
   }
@@ -795,7 +800,7 @@ export class AnimeAV1Provider implements AnimeProvider {
       }
       return links;
     } catch (error) {
-      console.error(error);
+      this.logger.error('animeav1 links: ' + String(error));
       return [];
     }
   }

@@ -1,5 +1,5 @@
 import { memo, useEffect, useState } from 'react';
-import { HardDrive, Download, Database, Palette, Bell, Keyboard, Info } from 'lucide-react';
+import { HardDrive, Download, Database, Palette, Bell, Keyboard, Info, ScrollText } from 'lucide-react';
 
 interface TabDef {
   id: string;
@@ -26,6 +26,12 @@ const TABS: TabDef[] = [
     icon: <Database className="w-4 h-4" />,
     label: 'Almacenamiento',
     desc: 'Espacio y limpieza',
+  },
+  {
+    id: 'registros',
+    icon: <ScrollText className="w-4 h-4" />,
+    label: 'Registros',
+    desc: 'Nivel, visor y diagnóstico',
   },
   {
     id: 'apariencia',

@@ -1,5 +1,6 @@
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { AlertTriangle, Loader2 } from 'lucide-react';
+import { reportRendererError } from '../utils/rendererErrorReporting';
 
 interface DialogProps {
   open: boolean;
@@ -92,7 +93,7 @@ export function Dialog({
                     try {
                       await onConfirm?.();
                     } catch (err) {
-                      console.error('Dialog onConfirm error:', err);
+                      reportRendererError('ui:dialog', err);
                       return;
                     }
                     onOpenChange(false);

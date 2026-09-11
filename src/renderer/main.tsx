@@ -1,12 +1,20 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createStore, Provider as JotaiProvider } from 'jotai';
 import App from './App';
 import './index.css';
 import { activeProviderAtom } from './store/atoms';
 import { DEFAULT_CATALOG_FILTERS } from './utils/catalogFilters';
 import { adaptLibraryPreloadToFolders } from './utils/libraryPreload';
+import { installRendererErrorReporting, reportRendererError } from './utils/rendererErrorReporting';
+
+installRendererErrorReporting();
+
+function queryErrorScope(queryKey: unknown): string {
+  const first = Array.isArray(queryKey) ? queryKey[0] : queryKey;
+  return typeof first === 'string' && first ? `query:${first}` : 'query';
+}
 
 interface PreloadedRendererData {
   providerId?: unknown;
@@ -17,7 +25,13 @@ interface PreloadedRendererData {
 }
 
 function createAppQueryClient(): QueryClient {
+  const queryCache = new QueryCache({
+    onError: (error, query) => {
+      reportRendererError(queryErrorScope(query?.queryKey), error);
+    },
+  });
   return new QueryClient({
+    queryCache,
     defaultOptions: {
       queries: {
         staleTime: 5 * 60 * 1000,

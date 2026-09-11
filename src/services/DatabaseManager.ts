@@ -5,6 +5,7 @@ import { app } from 'electron';
 import Database from 'better-sqlite3';
 import { AppSettings } from '../types/settings';
 import type { HistoryScope, HistoryStatus, HistoryWriteRecord } from '../types/history';
+import { noopScopedLogger, type ScopedLogger } from './AppLogger';
 
 const SCHEMA_VERSION = 4;
 
@@ -62,6 +63,22 @@ function measure<T>(label: string, fn: () => T): T {
 
 export class DatabaseManager {
   private static instance: DatabaseManager;
+  private static logger: ScopedLogger = noopScopedLogger;
+  private static pending: Array<{ level: 'warn' | 'error'; message: string }> = [];
+
+  static setLogger(logger: ScopedLogger): void {
+    DatabaseManager.logger = logger;
+    for (const entry of DatabaseManager.pending) DatabaseManager.logger[entry.level](entry.message);
+    DatabaseManager.pending = [];
+  }
+
+  private dbLog(level: 'warn' | 'error', message: string): void {
+    if (DatabaseManager.logger === noopScopedLogger) {
+      if (DatabaseManager.pending.length < 50) DatabaseManager.pending.push({ level, message });
+      return;
+    }
+    DatabaseManager.logger[level](message);
+  }
   private db: Database.Database | null = null;
   private dbPath: string;
   private ready = false;
@@ -164,7 +181,7 @@ export class DatabaseManager {
           testDb.close();
           this.db = new Database(this.dbPath);
         } catch (e) {
-          console.error('DB corrupta o no SQLite, creando nueva:', e);
+          this.dbLog('error', 'DB corrupta o no SQLite, creando nueva: ' + String(e));
           const corruptPath = this.dbPath + '.corrupt-' + Date.now();
           try {
             fs.renameSync(this.dbPath, corruptPath);
@@ -183,7 +200,7 @@ export class DatabaseManager {
         this.db.pragma('temp_store = MEMORY');
         this.db.pragma('foreign_keys = ON');
       } catch (e) {
-        console.warn('No se pudo activar WAL:', e);
+        this.dbLog('warn', 'No se pudo activar WAL: ' + String(e));
       }
 
       this.runMigrations();
@@ -195,7 +212,7 @@ export class DatabaseManager {
           this.db.pragma('wal_checkpoint(TRUNCATE)');
           fs.copyFileSync(this.dbPath, backupPath);
         } catch (e) {
-          console.error('No se pudo crear respaldo antes de migrar SQLite:', e);
+          this.dbLog('error', 'No se pudo crear respaldo antes de migrar SQLite: ' + String(e));
         }
         this.runSchemaMigrations(currentVersion);
         this.setMetaVersion(SCHEMA_VERSION);
@@ -208,7 +225,7 @@ export class DatabaseManager {
           this.db.pragma('wal_checkpoint(TRUNCATE)');
           fs.copyFileSync(this.dbPath, backupPath);
         } catch (e) {
-          console.error('No se pudo crear respaldo antes de migrar SQLite:', e);
+          this.dbLog('error', 'No se pudo crear respaldo antes de migrar SQLite: ' + String(e));
         }
         this.runSchemaMigrations(currentVersion);
         this.setMetaVersion(SCHEMA_VERSION);
@@ -537,7 +554,7 @@ export class DatabaseManager {
         fs.renameSync(fp, bak);
       } catch {}
     } catch (e) {
-      console.error('Error importing settings from JSON:', e);
+      this.dbLog('error', 'Error importing settings from JSON: ' + String(e));
     }
   }
 
@@ -596,7 +613,7 @@ export class DatabaseManager {
         fs.renameSync(fp, bak);
       } catch {}
     } catch (e) {
-      console.error('Error importing queue from JSON:', e);
+      this.dbLog('error', 'Error importing queue from JSON: ' + String(e));
     }
   }
 
@@ -639,7 +656,7 @@ export class DatabaseManager {
         fs.renameSync(fp, bak);
       } catch {}
     } catch (e) {
-      console.error('Error importing history from JSON:', e);
+      this.dbLog('error', 'Error importing history from JSON: ' + String(e));
     }
   }
 
@@ -730,7 +747,7 @@ export class DatabaseManager {
         }
       }
     } catch (e) {
-      console.error('Error importing folder meta from JSON:', e);
+      this.dbLog('error', 'Error importing folder meta from JSON: ' + String(e));
     }
   }
 

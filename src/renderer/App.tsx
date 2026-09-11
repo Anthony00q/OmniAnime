@@ -170,17 +170,17 @@ export default function App() {
           <Sidebar currentView={currentView} setCurrentView={handleSetView} />
 
           <main className="flex-1 min-w-0 overflow-hidden relative flex flex-col">
-            <ErrorBoundary>
+            <ErrorBoundary scope="ui:home">
               <div className={getViewPanelClass(currentView, 'home')}>
                 <HomeView isActive={currentView === 'home'} />
               </div>
             </ErrorBoundary>
-            <ErrorBoundary>
+            <ErrorBoundary scope="ui:catalog">
               <div className={getViewPanelClass(currentView, 'catalog')}>
                 <CatalogView />
               </div>
             </ErrorBoundary>
-            <ErrorBoundary>
+            <ErrorBoundary scope="ui:details">
               <div className={getViewPanelClass(currentView, 'details')}>
                 <AnimeDetailsView
                   slug={selectedAnime || ''}
@@ -190,7 +190,7 @@ export default function App() {
                 />
               </div>
             </ErrorBoundary>
-            <ErrorBoundary>
+            <ErrorBoundary scope="ui:downloader">
               <div className={getViewPanelClass(currentView, 'downloader')}>
                 <DownloaderView
                   onSelectAnime={handleSelectAnime}
@@ -199,7 +199,7 @@ export default function App() {
                 />
               </div>
             </ErrorBoundary>
-            <ErrorBoundary>
+            <ErrorBoundary scope="ui:history">
               <div className={getViewPanelClass(currentView, 'history')}>
                 <HistoryView
                   isActive={currentView === 'history'}
@@ -208,12 +208,12 @@ export default function App() {
                 />
               </div>
             </ErrorBoundary>
-            <ErrorBoundary>
+            <ErrorBoundary scope="ui:scanner">
               <div className={getViewPanelClass(currentView, 'scanner')}>
                 <ScannerView isActive={currentView === 'scanner'} />
               </div>
             </ErrorBoundary>
-            <ErrorBoundary>
+            <ErrorBoundary scope="ui:library">
               <div className={getViewPanelClass(currentView, 'player')}>
                 <LibraryView
                   onSelectAnime={handleSelectAnime}
@@ -222,7 +222,7 @@ export default function App() {
                 />
               </div>
             </ErrorBoundary>
-            <ErrorBoundary>
+            <ErrorBoundary scope="ui:settings">
               <div className={getViewPanelClass(currentView, 'settings')}>
                 <SettingsView isActive={currentView === 'settings'} />
               </div>

@@ -84,8 +84,12 @@ var INVOKE_CHANNELS = new Set([
   'export-settings',
   'import-settings',
   'get-system-info',
+  'get-log-page',
+  'export-diagnostics',
+  'delete-log-entries',
   'renderer-ready',
 ]);
+var SEND_CHANNELS = new Set(['log-error']);
 var EVENT_CHANNELS = new Set([
   'app-ready',
   'confirm-app-close',
@@ -108,6 +112,14 @@ electron_1.contextBridge.exposeInMainWorld('api', {
     }
     if (!INVOKE_CHANNELS.has(channel)) return Promise.reject(new Error('Canal IPC no permitido: ' + channel));
     return electron_1.ipcRenderer.invoke.apply(electron_1.ipcRenderer, __spreadArray([channel], args, false));
+  },
+  send: function (channel) {
+    var args = [];
+    for (var _i = 1; _i < arguments.length; _i++) {
+      args[_i - 1] = arguments[_i];
+    }
+    if (!SEND_CHANNELS.has(channel)) return;
+    electron_1.ipcRenderer.send.apply(electron_1.ipcRenderer, __spreadArray([channel], args, false));
   },
   on: function (channel, func) {
     if (!EVENT_CHANNELS.has(channel)) return;

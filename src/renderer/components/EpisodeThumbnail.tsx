@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Play, Image as ImageIcon } from 'lucide-react';
+import { reportRendererError } from '../utils/rendererErrorReporting';
 
 interface EpisodeThumbnailProps {
   videoPath: string;
@@ -34,7 +35,7 @@ export function EpisodeThumbnail({ videoPath, alt = '', className = '', thumbTok
                 setThumbSrc(src);
               }
             })
-            .catch(console.error);
+            .catch((err) => reportRendererError('ui:thumbnail', err));
 
           observer.disconnect();
         }

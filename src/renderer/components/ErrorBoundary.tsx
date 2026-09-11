@@ -1,8 +1,10 @@
 import { Component, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { reportRendererError } from '../utils/rendererErrorReporting';
 
 interface Props {
   children: ReactNode;
+  scope?: string;
 }
 
 interface State {
@@ -18,7 +20,8 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
-    console.error('[ErrorBoundary]', error, info.componentStack);
+    if (import.meta.env.DEV) console.error('[ErrorBoundary]', error, info.componentStack);
+    reportRendererError(this.props.scope || 'ui', `${error}\n${info.componentStack || ''}`);
   }
 
   handleRetry = () => {

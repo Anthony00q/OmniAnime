@@ -7,6 +7,7 @@ import * as https from 'https';
 import * as path from 'path';
 import * as megajs from 'megajs';
 import { normalizeMegaUrl } from '../utils/serverUtils';
+import { noopScopedLogger, type ScopedLogger } from './AppLogger';
 import { clampDirectConnections, downloadDirectRanged, probeDirectRangeSupport } from './DirectRangedDownloader';
 
 const httpAgent = new http.Agent({ keepAlive: true, maxSockets: 32 });
@@ -87,6 +88,10 @@ export type FfmpegRuntimeTools = {
 
 export class DownloadService {
   private activeControllers = new Set<AbortController>();
+  private readonly logger: ScopedLogger;
+  constructor(options?: { logger?: ScopedLogger }) {
+    this.logger = options?.logger ?? noopScopedLogger;
+  }
 
   abort() {
     for (const controller of Array.from(this.activeControllers)) {
@@ -129,7 +134,7 @@ export class DownloadService {
           data.match(/id="downloadButton" href="([^"]+)"/i);
 
         if (!match || !match[1]) {
-          console.error('Mediafire direct link not found');
+          this.logger.warn('mediafire: direct link not found');
           return false;
         }
         const directUrl = match[1];
@@ -139,7 +144,7 @@ export class DownloadService {
         if (ok || signal?.aborted) return ok;
       } catch (e: any) {
         if (signal?.aborted || e?.name === 'AbortError' || axios.isCancel(e)) return false;
-        console.error(`Error Mediafire extract (intento ${attempt}/${MAX_EXTRACT_ATTEMPTS}):`, e.message);
+        this.logger.warn(`mediafire extract (intento ${attempt}/${MAX_EXTRACT_ATTEMPTS}): ${e.message}`);
       }
       if (attempt < MAX_EXTRACT_ATTEMPTS && !signal?.aborted) {
         await this.sleepAbortable(1000 * attempt, signal);
@@ -392,7 +397,7 @@ export class DownloadService {
       const resetStreamTimeout = () => {
         if (streamTimeout) clearTimeout(streamTimeout);
         streamTimeout = setTimeout(() => {
-          console.warn('Pixeldrain stream stalled. Aborting.');
+          this.logger.warn('pixeldrain stream stalled. Aborting.');
           freezeAndKill();
         }, 30000);
       };
@@ -448,14 +453,14 @@ export class DownloadService {
             await fsp.rm(sidecarDest, { force: true }).catch(() => undefined);
             resolve(true);
           } catch (e) {
-            console.error('Error renaming PDrain file:', e);
+            this.logger.error(`pixeldrain rename: ${e}`);
             resolve(false);
           }
         });
 
         writer!.on('error', (err) => {
           finishCleanup();
-          console.error('Error en writer Pixeldrain:', err);
+          this.logger.error(`pixeldrain writer: ${err}`);
           resolve(false);
         });
 
@@ -470,7 +475,7 @@ export class DownloadService {
       if (signal?.aborted || e.name === 'AbortError' || axios.isCancel(e)) {
         // Ya manejado por onExternalAbort
       } else {
-        console.error('Error crítico Pixeldrain:', e.message);
+        this.logger.error(`pixeldrain crítico: ${e.message}`);
       }
       if (signal) signal.removeEventListener('abort', onExternalAbort);
       this.untrackController(internalController);
@@ -589,14 +594,14 @@ export class DownloadService {
         if (signal?.aborted) return false;
         const kind = classifyMegaError(e);
         if (kind === 'quota') {
-          console.error('Mega: cuota agotada (509); se prueba el siguiente servidor sin reintentos.');
+          this.logger.warn('mega: cuota agotada (509); se prueba el siguiente servidor sin reintentos.');
           return false;
         }
         if (kind === 'permanent') {
-          console.error(`Mega permanente, sin reintento: ${(e as Error)?.message || e}`);
+          this.logger.warn(`mega permanente, sin reintento: ${(e as Error)?.message || e}`);
           return false;
         }
-        console.error(`Mega transitorio (intento ${attempt}/${MAX_MEGA_ATTEMPTS}): ${(e as Error)?.message || e}`);
+        this.logger.debug(`mega transitorio (intento ${attempt}/${MAX_MEGA_ATTEMPTS}): ${(e as Error)?.message || e}`);
       }
       if (attempt < MAX_MEGA_ATTEMPTS && !signal?.aborted) {
         await this.sleepAbortable(1000 * attempt, signal);

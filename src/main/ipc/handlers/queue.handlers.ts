@@ -25,6 +25,7 @@ export function registerQueueHandlers(dependencies: IpcRegistryDependencies): vo
     processQueue,
     sendQueueUpdate,
     writeGlobalLog,
+    scopedLog,
   } = dependencies;
 
   ipcMain.handle(
@@ -121,12 +122,17 @@ export function registerQueueHandlers(dependencies: IpcRegistryDependencies): vo
 
       queueStore.add(item);
       sendQueueUpdate();
-      console.log(`Agregado a la cola: ${item.animeTitle} (${formatEpisodeCountLabel(item.episodes.length)})`);
+      scopedLog('queue').info(
+        `Agregado a la cola: ${item.animeTitle} (${formatEpisodeCountLabel(item.episodes.length)})`,
+        {
+          queueId: item.id,
+          provider: queueProvider,
+        },
+      );
 
       setImmediate(() => {
         processQueue().catch((error) => {
           writeGlobalLog(error);
-          console.error('Error en processQueue:', error);
         });
       });
 

@@ -1,11 +1,17 @@
 import { ipcMain } from 'electron';
 import { SettingsManager } from '../../../services/SettingsManager';
 import { normalizeDownloadSettings } from '../../../utils/downloadSettings';
+import { normalizeLoggingSettings } from '../../../utils/loggingSettings';
 import { resolveDefaultOutputDir, sanitizeOutputDirs } from '../../../utils/outputDirs';
 import type { AppSettings } from '../../../types/settings';
 import type { IpcRegistryDependencies } from '../../IpcRegistry';
 
-export function registerSettingsHandlers({ queueStore, createTray, destroyTray }: IpcRegistryDependencies): void {
+export function registerSettingsHandlers({
+  queueStore,
+  createTray,
+  destroyTray,
+  refreshLogging,
+}: IpcRegistryDependencies): void {
   ipcMain.handle('get-settings', () => SettingsManager.get());
   ipcMain.handle('get-default-settings', () => SettingsManager.getDefaults());
   ipcMain.handle('save-settings', (_, settings: AppSettings) => {
@@ -20,8 +26,12 @@ export function registerSettingsHandlers({ queueStore, createTray, destroyTray }
       defaults.defaultOutputDir,
     );
     settings.download = normalizeDownloadSettings((settings as AppSettings).download);
+    settings.logging = normalizeLoggingSettings((settings as AppSettings).logging);
     const saved = SettingsManager.save(settings);
     if (!saved) return false;
+    try {
+      refreshLogging();
+    } catch {}
     queueStore.invalidateDirLabelCache();
     if (settings.minimizeToTrayOnClose === true) createTray();
     else destroyTray();

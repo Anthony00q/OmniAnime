@@ -1,3 +1,5 @@
+import { reportRendererError } from './rendererErrorReporting';
+
 export type NotificationSoundType = 'download' | 'success' | 'error' | 'info';
 
 const DEFAULT_TYPE_VOLUMES: Record<NotificationSoundType, number> = {
@@ -39,7 +41,7 @@ export function playNotificationSound(settings: any, type?: NotificationSoundTyp
 
   const audioCtx = getSharedContext();
   if (!audioCtx) {
-    console.error('Web Audio API no soportado');
+    reportRendererError('ui:sound', 'Web Audio API no soportado');
     return;
   }
   try {
@@ -72,6 +74,6 @@ export function playNotificationSound(settings: any, type?: NotificationSoundTyp
     oscillator.start();
     oscillator.stop(audioCtx.currentTime + 0.5);
   } catch (e) {
-    console.error('Web Audio API no soportado', e);
+    reportRendererError('ui:sound', e);
   }
 }

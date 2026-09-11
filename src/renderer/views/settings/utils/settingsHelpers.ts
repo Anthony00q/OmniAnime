@@ -1,5 +1,6 @@
 import type { AppSettings, ThemeId } from '../../../../types/settings';
 import { normalizeDownloadSettings } from '../../../../utils/downloadSettings';
+import { normalizeLoggingSettings } from '../../../../utils/loggingSettings';
 import { resolveDefaultOutputDir, sanitizeOutputDirs } from '../../../../utils/outputDirs';
 import { isThemeValue } from '../../../utils/color';
 
@@ -12,6 +13,7 @@ export function normalizeSettings(settings: AppSettings | null | undefined): App
     outputDirs,
     defaultOutputDir,
     download: normalizeDownloadSettings((s as Record<string, unknown>).download),
+    logging: normalizeLoggingSettings((s as Record<string, unknown>).logging),
   } as AppSettings;
 }
 

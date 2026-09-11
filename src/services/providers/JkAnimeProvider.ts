@@ -11,6 +11,7 @@ import {
   AnimeLanguage,
 } from '../../types/anime';
 import { AnimeProvider } from './AnimeProvider';
+import { noopScopedLogger, type ScopedLogger } from '../AppLogger';
 import { normalizeAllowedImageUrl } from '../../utils/networkSecurity';
 import { normalizeMegaUrl, normalizeMp4UploadUrl } from '../../utils/serverUtils';
 import { extractBalancedBlock, extractBalancedObjects, decodeBase64Text, isHttpUrl } from '../../utils/scrapeParse';
@@ -154,6 +155,10 @@ export function resolveJkSeasonFromTexts(temporadaValue: unknown, emitidoText: u
 }
 
 export class JkAnimeProvider implements AnimeProvider {
+  private readonly logger: ScopedLogger;
+  constructor(options?: { logger?: ScopedLogger }) {
+    this.logger = options?.logger ?? noopScopedLogger;
+  }
   get id() {
     return 'jkanime';
   }
@@ -219,7 +224,7 @@ export class JkAnimeProvider implements AnimeProvider {
 
       return episodes;
     } catch (error) {
-      console.error('JkAnime getHome error:', error);
+      this.logger.error(`jkanime home: ${error}`);
       return [];
     }
   }
@@ -271,13 +276,13 @@ export class JkAnimeProvider implements AnimeProvider {
         try {
           return this.parseAnimesArray(JSON.parse(match[1]));
         } catch {
-          console.warn('JkAnime catalog: payload var animes ilegible, reintentando por entradas.');
+          this.logger.warn('jkanime catalog: payload var animes ilegible, reintentando por entradas.');
         }
         return this.parseAnimesEntriesFallback(data);
       }
       return [];
     } catch (error) {
-      console.error('JkAnime getCatalog error:', error);
+      this.logger.error(`jkanime catalog: ${error}`);
       return [];
     }
   }
@@ -309,7 +314,7 @@ export class JkAnimeProvider implements AnimeProvider {
     for (const item of data) {
       const mapped = this.mapAnimeEntry(item);
       if (mapped) results.push(mapped);
-      else console.warn('JkAnime catalog: entrada de anime descartada (slug/título ausente).');
+      else this.logger.warn('jkanime catalog: entrada de anime descartada (slug/título ausente).');
     }
     return results;
   }
@@ -326,12 +331,12 @@ export class JkAnimeProvider implements AnimeProvider {
           const mapped = this.mapAnimeEntry(JSON.parse(entry));
           if (mapped) results.push(mapped);
         } catch {
-          console.warn('JkAnime catalog: entrada de anime corrupta descartada.');
+          this.logger.warn('jkanime catalog: entrada de anime corrupta descartada.');
         }
       }
       return results;
     } catch (error) {
-      console.error('JkAnime getCatalog error:', error);
+      this.logger.error(`jkanime catalog: ${error}`);
       return [];
     }
   }
@@ -384,7 +389,7 @@ export class JkAnimeProvider implements AnimeProvider {
       ) {
         return [];
       }
-      console.error('JkAnime search error:', error);
+      this.logger.error(`jkanime search: ${error}`);
       return [];
     } finally {
       if (this.pendingSearchController === controller) this.pendingSearchController = null;
@@ -598,7 +603,7 @@ export class JkAnimeProvider implements AnimeProvider {
           }
         }
       } catch (e) {
-        console.warn('JkAnime could not fetch exact episode count, using fallback.', e);
+        this.logger.warn(`jkanime details: sin conteo exacto de episodios, fallback. ${e}`);
       }
 
       // Sin dato real del AJAX no se inventa cantidad: [] = desconocido.
@@ -767,7 +772,7 @@ export class JkAnimeProvider implements AnimeProvider {
         type,
       };
     } catch (error) {
-      console.error('JkAnime getDetails error:', error);
+      this.logger.error(`jkanime details: ${error}`);
       return null;
     }
   }
@@ -796,7 +801,7 @@ export class JkAnimeProvider implements AnimeProvider {
 
           const url = decodeBase64Text(entry.remote);
           if (!url || !isHttpUrl(url)) {
-            console.warn(`JkAnime getLinks ${slug}/${episode}: remoto descartado en ${serverName}.`);
+            this.logger.debug(`jkanime links ${slug}/${episode}: remoto descartado en ${serverName}.`);
             continue;
           }
           const lowServer = serverName.toLowerCase();
@@ -839,7 +844,7 @@ export class JkAnimeProvider implements AnimeProvider {
       ) {
         return [];
       }
-      console.error('JkAnime getLinks error:', error);
+      this.logger.error(`jkanime links: ${error}`);
       return [];
     }
   }
@@ -851,7 +856,7 @@ export class JkAnimeProvider implements AnimeProvider {
       const parsed: unknown = JSON.parse(rawArray);
       return Array.isArray(parsed) ? parsed : null;
     } catch {
-      console.warn(`JkAnime getLinks ${slug}/${episode}: array var servers ilegible, reintentando por entradas.`);
+      this.logger.debug(`jkanime links ${slug}/${episode}: array var servers ilegible, reintentando por entradas.`);
     }
     try {
       const inner = extractBalancedBlock(data, 'var servers =', '[', ']');
@@ -861,12 +866,12 @@ export class JkAnimeProvider implements AnimeProvider {
         try {
           recovered.push(JSON.parse(entry));
         } catch {
-          console.warn(`JkAnime getLinks ${slug}/${episode}: entrada de servidor corrupta descartada.`);
+          this.logger.debug(`jkanime links ${slug}/${episode}: entrada de servidor corrupta descartada.`);
         }
       }
       return recovered;
     } catch (error) {
-      console.error('JkAnime getLinks error:', error);
+      this.logger.error(`jkanime links: ${error}`);
       return null;
     }
   }
@@ -927,7 +932,7 @@ export class JkAnimeProvider implements AnimeProvider {
 
       return filters;
     } catch (error) {
-      console.error('JkAnime getFiltersData error:', error);
+      this.logger.error(`jkanime filters: ${error}`);
       return { genres: [], categories: [], years: [], statuses: [], orders: [] };
     }
   }
@@ -990,7 +995,7 @@ export class JkAnimeProvider implements AnimeProvider {
           }
         });
     } catch (error) {
-      console.warn(`JkAnime getFiltersData: select ${bucket} ilegible, se omite.`, error);
+      this.logger.warn(`jkanime filters: select ${bucket} ilegible, se omite. ${error}`);
     }
   }
 }

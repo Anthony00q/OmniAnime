@@ -1,4 +1,11 @@
+import type { LogLevel } from '../services/AppLogger';
+
 export type ThemeId = 'dark' | 'quantum' | 'oled';
+
+export interface LoggingSettingsInput {
+  level?: LogLevel;
+  verbose?: boolean;
+}
 
 export interface DownloadSettings {
   maxParallelEpisodes: number;
@@ -53,4 +60,5 @@ export interface AppSettings {
   defaultProvider?: 'animeav1' | 'jkanime';
   hardwareAcceleration?: boolean;
   download?: DownloadSettings;
+  logging?: LoggingSettingsInput;
 }

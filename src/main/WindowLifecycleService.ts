@@ -1,6 +1,7 @@
 import { app, BrowserWindow, Menu, session, Tray } from 'electron';
 import * as fs from 'fs';
 import type { AppSettings } from '../types/settings';
+import { noopScopedLogger, type ScopedLogger } from '../services/AppLogger';
 import { applyYouTubeEmbedIdentityHeaders, resolveWindowCloseAction } from '../utils/windowUtils';
 import {
   buildToolsStatusText,
@@ -56,6 +57,7 @@ export interface WindowLifecycleDependencies {
   getIsQuitting: () => boolean;
   setIsQuitting: (value: boolean) => void;
   writeLog: (error: unknown) => void;
+  logger?: ScopedLogger;
 }
 
 export class WindowLifecycleService {
@@ -86,7 +88,7 @@ export class WindowLifecycleService {
     try {
       const iconPath = this.dependencies.getAppIconPath();
       if (!fs.existsSync(iconPath)) {
-        console.warn('Icono no encontrado en:', iconPath);
+        (this.dependencies.logger ?? noopScopedLogger).warn(`tray: icono no encontrado en ${iconPath}`);
         return;
       }
 
@@ -107,7 +109,7 @@ export class WindowLifecycleService {
       this.tray.setContextMenu(contextMenu);
       this.tray.on('double-click', () => this.mainWindow?.show());
     } catch (error) {
-      console.error('Error creando tray:', error);
+      (this.dependencies.logger ?? noopScopedLogger).error(`tray: ${error}`);
     }
   }
 

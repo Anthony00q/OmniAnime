@@ -4,8 +4,10 @@ import * as path from 'path';
 import { isPathWithinAnyDirectory } from '../../utils/pathSecurity';
 import { SettingsManager } from '../../services/SettingsManager';
 import { LibraryAssetService } from '../../services/LibraryAssetService';
+import { noopScopedLogger, type ScopedLogger } from '../../services/AppLogger';
 
-export function registerOmniMediaProtocol(): void {
+export function registerOmniMediaProtocol(options?: { logger?: ScopedLogger }): void {
+  const logger = options?.logger ?? noopScopedLogger;
   try {
     protocol.handle('omni-media', async (request) => {
       try {
@@ -32,9 +34,7 @@ export function registerOmniMediaProtocol(): void {
           (isPathWithinAnyDirectory(filePath, allAllowed, false) ||
             isPathWithinAnyDirectory(path.dirname(filePath), allAllowed, true));
         if (!isAllowed) {
-          try {
-            console.warn('[omni-media] Forbidden', { filePath, allAllowed });
-          } catch {}
+          logger.warn(`omni-media forbidden: ${filePath}`);
           return new Response('Forbidden', { status: 403 });
         }
         const data = await fs.promises.readFile(filePath);

@@ -71,9 +71,9 @@ body:
     attributes:
       label: Registro de la app (opcional)
       description: >-
-        Si existe, el fragmento relevante de app_errors.log
-        (Ajustes → Almacenamiento → Abrir registros).
-        Recorta a lo relevante. Las capturas puedes pegarlas en cualquier campo.
+        En Ajustes → Registros pulsa Exportar .log y adjunta el archivo
+        (o pega aquí el fragmento relevante entre triple comilla invertida).
+        Las capturas puedes pegarlas en cualquier campo.
       placeholder: "Pegar aquí las últimas líneas relacionadas del registro, entre triple comilla invertida."
       render: text
     validations:
