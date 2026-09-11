@@ -1,4 +1,4 @@
-import { redactLogText } from '../services/AppLogger';
+import { redactLogText } from './redactLog';
 
 export interface DiagnosticsSystem {
   appVersion: string;

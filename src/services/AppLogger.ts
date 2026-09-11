@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import type { RuntimeDirectories } from './RuntimeDirectories';
+import { redactLogText as redactLogTextPure, type LogLevel } from '../utils/redactLog';
 import {
   MAX_SESSION_FILES,
   buildSessionFilename,
@@ -9,7 +10,7 @@ import {
   pruneSessionFiles,
 } from '../utils/sessionFiles';
 
-export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+export type { LogLevel } from '../utils/redactLog';
 
 export type LogScope =
   | 'app'
@@ -63,25 +64,8 @@ const MAX_SINGLE_WRITE = 20000;
 
 const LEVEL_ORDER: Record<LogLevel, number> = { debug: 0, info: 1, warn: 2, error: 3 };
 
-function escapeRegExp(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
 export function redactLogText(text: string, homeDir = os.homedir()): string {
-  if (!text) return text;
-  let out = text;
-  if (homeDir) {
-    const home = homeDir.replace(/[\\/]+$/, '');
-    if (home) out = out.replace(new RegExp(escapeRegExp(home), 'gi'), '~');
-  }
-  out = out.replace(/[A-Za-z]:\\Users\\[^\\/:*?"<>|\s]+/gi, '~');
-  out = out.replace(/\/Users\/[^/\s:]+/g, '~');
-  out = out.replace(
-    /(api[_-]?key|token|bearer|authorization|client[_-]?secret|password|passwd)\s*[:=]\s*\S+/gi,
-    '$1=[REDACTED]',
-  );
-  out = out.replace(/([?&](token|key|auth|signature|sig)=)[^&\s'"]+/gi, '$1[REDACTED]');
-  return out;
+  return redactLogTextPure(text, homeDir);
 }
 
 function contextSuffix(context: AppLogContext | undefined, appVersion: string | undefined): string {

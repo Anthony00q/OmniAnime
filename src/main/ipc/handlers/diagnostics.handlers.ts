@@ -3,12 +3,8 @@ import * as path from 'path';
 import { redactLogText } from '../../../services/AppLogger';
 import { SettingsManager } from '../../../services/SettingsManager';
 import { buildDiagnosticsText } from '../../../utils/diagnostics';
-import {
-  capEntryText,
-  collectLogSources,
-  selectLogEntriesFromSources,
-  type LogSelection,
-} from '../../../utils/logPage';
+import { capEntryText, selectLogEntriesFromSources, type LogSelection } from '../../../utils/logPage';
+import { collectLogSources } from '../../../utils/logSources';
 import type { IpcRegistryDependencies } from '../../IpcRegistry';
 
 const MAX_EXPORT_ENTRIES = 2000;

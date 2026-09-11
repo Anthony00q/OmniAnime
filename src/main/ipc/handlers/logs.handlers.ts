@@ -7,12 +7,12 @@ import {
   LOG_VIEW_MAX_FILES,
   LOG_VIEW_MAX_TOTAL_BYTES,
   capEntryText,
-  collectLogSourcesAsync,
   isKnownLogFile,
   paginateLogEntries,
   removeLogEntries,
   selectLogEntriesFromSources,
 } from '../../../utils/logPage';
+import { collectLogSourcesAsync } from '../../../utils/logSources';
 import type { IpcRegistryDependencies } from '../../IpcRegistry';
 import { collectDiagnosticsBundle } from './diagnostics.handlers';
 
