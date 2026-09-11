@@ -1,12 +1,23 @@
 export const APP_LOG_FILENAME = 'app.log';
 export const APP_ERROR_LOG_FILENAME = 'app_errors.log';
 export const SESSION_FILE_RE = /^sesion-\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.log$/;
+export const SESSION_BACKUP_SUFFIX = '.1.log';
+export const SESSION_BACKUP_RE = /^sesion-\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.log\.1\.log$/;
 export const MAX_SESSION_FILES = 20;
+
+export function isSessionBackupFile(name: string): boolean {
+  return SESSION_BACKUP_RE.test(name);
+}
+
+export function backupBaseName(backupName: string): string | null {
+  if (!isSessionBackupFile(backupName)) return null;
+  return backupName.slice(0, -SESSION_BACKUP_SUFFIX.length);
+}
 
 export function isKnownLogFile(name: string): boolean {
   if (name === APP_LOG_FILENAME || name === APP_ERROR_LOG_FILENAME) return true;
   if (name.includes('/') || name.includes('\\')) return false;
-  return SESSION_FILE_RE.test(name);
+  return SESSION_FILE_RE.test(name) || SESSION_BACKUP_RE.test(name);
 }
 
 function pad2(n: number): string {
@@ -24,10 +35,19 @@ export function listSessionFiles(names: string[]): string[] {
   return names.filter((n) => SESSION_FILE_RE.test(n)).sort();
 }
 
-export function pruneSessionFiles(names: string[], keep = MAX_SESSION_FILES): { keep: string[]; remove: string[] } {
+export function pruneSessionFiles(
+  names: string[],
+  keep = MAX_SESSION_FILES,
+): { keep: string[]; remove: string[]; removeBackups: string[] } {
   const sessions = listSessionFiles(names);
-  if (sessions.length <= keep) return { keep: sessions, remove: [] };
-  return { keep: sessions.slice(sessions.length - keep), remove: sessions.slice(0, sessions.length - keep) };
+  const keptSet = new Set(sessions.length <= keep ? sessions : sessions.slice(sessions.length - keep));
+  const remove = sessions.length <= keep ? [] : sessions.slice(0, sessions.length - keep);
+  const removeBackups = names.filter((n) => {
+    if (!isSessionBackupFile(n)) return false;
+    const base = backupBaseName(n);
+    return !base || !keptSet.has(base);
+  });
+  return { keep: [...keptSet], remove, removeBackups };
 }
 
 export interface SessionHeaderInfo {

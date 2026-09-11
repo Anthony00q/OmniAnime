@@ -11,7 +11,7 @@ import type { AppSettings } from '../../../types/settings';
 import type { IpcRegistryDependencies } from '../../IpcRegistry';
 
 export function registerStorageHandlers(dependencies: IpcRegistryDependencies): void {
-  const { storageService, writeGlobalLog, refreshLogging } = dependencies;
+  const { storageService, writeGlobalLog, refreshLogging, getLogPath } = dependencies;
 
   ipcMain.handle('get-storage-stats', async () => {
     try {
@@ -76,9 +76,15 @@ export function registerStorageHandlers(dependencies: IpcRegistryDependencies): 
     try {
       const allowedKinds = new Set(['userData', 'logs', 'tools', 'db', 'log-file']);
       if (!allowedKinds.has(kind)) return { success: false, error: 'Tipo no permitido' };
-      // Ruta fija del registro (misma que AppLogger): nunca sale de aquí.
+      // Sesion viva de AppLogger (nunca app.log legacy): nunca sale de aqui.
       if (kind === 'log-file') {
-        const logFile = path.join(app.getPath('userData'), 'logs', APP_LOG_FILENAME);
+        let logFile = '';
+        try {
+          logFile = getLogPath();
+        } catch {
+          logFile = path.join(app.getPath('userData'), 'logs', APP_LOG_FILENAME);
+        }
+        if (!logFile) logFile = path.join(app.getPath('userData'), 'logs', APP_LOG_FILENAME);
         if (fs.existsSync(logFile)) {
           shell.showItemInFolder(logFile);
           return { success: true };

@@ -3,8 +3,11 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { redactLogText } from '../../../services/AppLogger';
 import {
+  LOG_VIEW_MAX_BYTES_PER_FILE,
+  LOG_VIEW_MAX_FILES,
+  LOG_VIEW_MAX_TOTAL_BYTES,
   capEntryText,
-  collectLogSources,
+  collectLogSourcesAsync,
   isKnownLogFile,
   paginateLogEntries,
   removeLogEntries,
@@ -41,7 +44,12 @@ export function registerLogsHandlers(dependencies: IpcRegistryDependencies): voi
           Number.isInteger(filters?.cursor) && (filters?.cursor as number) >= 0 ? (filters?.cursor as number) : 0;
         const limit = Number.isInteger(filters?.limit) ? (filters?.limit as number) : 100;
         const sessionStart = dependencies.getSessionStart();
-        const sources = collectLogSources(path.dirname(dependencies.getLogPath()));
+        // Async + acotado: no bloquear main con 40 MB sincronos por pagina.
+        const sources = await collectLogSourcesAsync(path.dirname(dependencies.getLogPath()), {
+          maxFiles: LOG_VIEW_MAX_FILES,
+          maxBytesPerFile: LOG_VIEW_MAX_BYTES_PER_FILE,
+          maxTotalBytes: LOG_VIEW_MAX_TOTAL_BYTES,
+        });
         const entries = selectLogEntriesFromSources(sources, filters ?? {}, sessionStart);
         const { page, nextCursor, total } = paginateLogEntries(entries, cursor, limit);
         const home = app.getPath('home');

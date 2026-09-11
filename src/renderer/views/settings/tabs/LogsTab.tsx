@@ -93,8 +93,6 @@ function DeleteCheckbox({
   );
 }
 
-const entryKey = (e: any): string => `${e.file || ''}\n${e.text}`;
-
 const LogEntryRow = memo(function LogEntryRow({
   entry,
   index,
@@ -111,8 +109,8 @@ const LogEntryRow = memo(function LogEntryRow({
   canDelete: boolean;
   open: boolean;
   collapsible: boolean;
-  onToggle: (entry: any) => void;
-  onToggleOpen: (entry: any) => void;
+  onToggle: (index: number) => void;
+  onToggleOpen: (index: number) => void;
 }) {
   const e = entry;
   return (
@@ -122,7 +120,7 @@ const LogEntryRow = memo(function LogEntryRow({
           checked={checked}
           disabled={!canDelete}
           label="Seleccionar entrada para eliminar"
-          onToggle={() => onToggle(e)}
+          onToggle={() => onToggle(index)}
         />
         <span
           className={`shrink-0 text-[11px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded border ${LEVEL_STYLE[e.level] || LEVEL_STYLE.info}`}
@@ -138,7 +136,7 @@ const LogEntryRow = memo(function LogEntryRow({
         {collapsible ? (
           <button
             type="button"
-            onClick={() => onToggleOpen(e)}
+            onClick={() => onToggleOpen(index)}
             aria-expanded={open}
             aria-label={open ? 'Contraer entrada' : 'Expandir entrada'}
             className="inline-flex shrink-0 h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
@@ -195,8 +193,10 @@ export const LogsTab = memo(function LogsTab({ isActive = true, settings, onChan
   const verbose = logging.verbose === true;
   const minLevel = typeof logging.level === 'string' ? logging.level : 'info';
   const queryClient = useQueryClient();
-  const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
-  const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
+  // Por indice de fila: dos entradas identicas son seleccionables por separado
+  // y el conteo del dialogo coincide con las filas afectadas.
+  const [selected, setSelected] = useState<ReadonlySet<number>>(new Set());
+  const [expanded, setExpanded] = useState<ReadonlySet<number>>(new Set());
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -210,44 +210,47 @@ export const LogsTab = memo(function LogsTab({ isActive = true, settings, onChan
     (ts: string): boolean => isDeletableEntry(ts, { now: Date.now(), sessionStart }),
     [sessionStart],
   );
-  const toggleEntry = useCallback((entry: any) => {
-    const key = entryKey(entry);
+  const toggleEntry = useCallback((index: number) => {
     setSelected((prev) => {
       const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
       return next;
     });
   }, []);
-  const toggleOpen = useCallback((entry: any) => {
-    const key = entryKey(entry);
+  const toggleOpen = useCallback((index: number) => {
     setExpanded((prev) => {
       const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
       return next;
     });
   }, []);
-  const eligibleLoaded = useMemo(() => entries.filter((e: any) => entryDeletable(e.ts)), [entries, entryDeletable]);
-  const allEligibleChecked = eligibleLoaded.length > 0 && eligibleLoaded.every((e: any) => selected.has(entryKey(e)));
+  const eligibleIndices = useMemo(
+    () => entries.map((e: any, i: number) => (entryDeletable(e.ts) ? i : -1)).filter((i: number) => i >= 0),
+    [entries, entryDeletable],
+  );
+  const allEligibleChecked = eligibleIndices.length > 0 && eligibleIndices.every((i: number) => selected.has(i));
   const toggleAllEligible = useCallback(() => {
     setSelected((prev) => {
       const next = new Set(prev);
-      if (eligibleLoaded.every((e: any) => next.has(entryKey(e)))) {
-        for (const e of eligibleLoaded) next.delete(entryKey(e));
+      if (eligibleIndices.every((i: number) => next.has(i))) {
+        for (const i of eligibleIndices) next.delete(i);
       } else {
-        for (const e of eligibleLoaded) next.add(entryKey(e));
+        for (const i of eligibleIndices) next.add(i);
       }
       return next;
     });
-  }, [eligibleLoaded]);
+  }, [eligibleIndices]);
 
   const handleDelete = async () => {
     if (selected.size === 0 || deleting) return;
     setDeleting(true);
     try {
-      const items = entries
-        .filter((e: any) => selected.has(entryKey(e)))
+      const items = [...selected]
+        .sort((a, b) => a - b)
+        .map((i) => entries[i])
+        .filter(Boolean)
         .map((e: any) => ({ file: e.file || '', text: e.text }));
       const res: any = await window.api.invoke('delete-log-entries', { items });
       if (res?.ok === true) {
@@ -282,7 +285,7 @@ export const LogsTab = memo(function LogsTab({ isActive = true, settings, onChan
             <div className="min-w-0 flex-1">
               <span className="flex items-center gap-1.5 text-sm font-semibold select-none">
                 Registro detallado
-                <AppTooltip content="Guarda trazas de proveedores y reintentos. El archivo rota a 2 MB con una copia de respaldo, así que como máximo ocupa unos 4 MB.">
+                <AppTooltip content="Guarda trazas de proveedores y reintentos. Cada sesión rota a 2 MB con una copia de respaldo y se conservan hasta 20 sesiones (unos 80 MB como máximo).">
                   <span aria-hidden="true" className="inline-flex text-muted-foreground">
                     <Info className="w-3.5 h-3.5" />
                   </span>
@@ -314,6 +317,11 @@ export const LogsTab = memo(function LogsTab({ isActive = true, settings, onChan
               ariaLabel="Nivel mínimo de registro"
             />
           </div>
+          {verbose ? (
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Con el registro detallado el nivel efectivo es Debug.
+            </p>
+          ) : null}
         </div>
         <p className="text-xs text-muted-foreground mt-3 leading-relaxed">Se aplica al guardar los ajustes.</p>
       </section>
@@ -357,6 +365,9 @@ export const LogsTab = memo(function LogsTab({ isActive = true, settings, onChan
                   </span>
                   <span className="block">
                     <span className="font-mono">ui:</span> interfaz (llegan como app)
+                  </span>
+                  <span className="block">
+                    <span className="font-mono">splash/ipc/updater:</span> arranque, IPC y updates
                   </span>
                 </span>
               }
@@ -423,7 +434,7 @@ export const LogsTab = memo(function LogsTab({ isActive = true, settings, onChan
             <div className="px-3 py-2 border-b border-border/40 text-[11px] text-muted-foreground flex items-center gap-2">
               <DeleteCheckbox
                 checked={allEligibleChecked}
-                disabled={eligibleLoaded.length === 0}
+                disabled={eligibleIndices.length === 0}
                 label="Seleccionar entradas visibles para eliminar"
                 onToggle={toggleAllEligible}
               />
@@ -457,9 +468,9 @@ export const LogsTab = memo(function LogsTab({ isActive = true, settings, onChan
                   key={`${e.file || ''}-${e.ts}-${idx}`}
                   entry={e}
                   index={idx}
-                  checked={selected.has(entryKey(e))}
+                  checked={selected.has(idx)}
                   canDelete={entryDeletable(e.ts)}
-                  open={expanded.has(entryKey(e))}
+                  open={expanded.has(idx)}
                   collapsible={typeof e.text === 'string' && e.text.includes('\n')}
                   onToggle={toggleEntry}
                   onToggleOpen={toggleOpen}

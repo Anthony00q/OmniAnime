@@ -1,17 +1,25 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { redactLogText, type LogLevel } from '../services/AppLogger';
-import { APP_LOG_FILENAME, MAX_SESSION_FILES, SESSION_FILE_RE } from './sessionFiles';
+import { APP_LOG_FILENAME, MAX_SESSION_FILES, SESSION_BACKUP_SUFFIX, SESSION_FILE_RE } from './sessionFiles';
 
 export {
   APP_LOG_FILENAME,
+  SESSION_BACKUP_SUFFIX,
   SESSION_FILE_RE,
   MAX_SESSION_FILES,
   buildSessionFilename,
   buildSessionHeaderText,
   isKnownLogFile,
+  isSessionBackupFile,
+  backupBaseName,
   type SessionHeaderInfo,
 } from './sessionFiles';
+
+// Lectura acotada del visor: colas por fichero y total para no bloquear main.
+export const LOG_VIEW_MAX_FILES = 20;
+export const LOG_VIEW_MAX_BYTES_PER_FILE = 256 * 1024;
+export const LOG_VIEW_MAX_TOTAL_BYTES = 5 * 1024 * 1024;
 
 export interface LogPageEntry {
   ts: string;
@@ -44,27 +52,52 @@ const LEVEL_TAG: Record<LogLevel, string> = {
   error: '[ERROR]',
 };
 
-const SCOPE_RE = /\[([a-z]+)\]/;
+// Particion por cabecera "[ISO ...]": el mensaje puede contener lineas en
+// blanco (stacks) sin fragmentar la entrada. Fallback al split anterior si
+// el texto no trae cabeceras con timestamp.
+const HEADER_SPLIT_RE = /(?=^\[\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})/m;
+
+export function splitLogBlocks(raw: string): string[] {
+  if (!raw) return [];
+  const parts = HEADER_SPLIT_RE.test(raw) ? raw.split(HEADER_SPLIT_RE) : raw.split(/\n\s*\n/);
+  const out: string[] = [];
+  for (const part of parts) {
+    const text = part.trim();
+    if (text) out.push(text);
+  }
+  return out;
+}
+
+const LEVEL_FROM_TAG: Record<string, LogLevel> = { DEBUG: 'debug', INFO: 'info', WARN: 'warn', ERROR: 'error' };
 
 export function parseLogEntries(raw: string, file?: string): LogPageEntry[] {
   const entries: LogPageEntry[] = [];
-  for (const block of raw.split(/\n\s*\n/)) {
-    const text = block.trim();
-    if (!text) continue;
+  for (const text of splitLogBlocks(raw)) {
     const firstLine = text.split('\n')[0] || '';
     const ts = firstLine.match(/^\[([^\]]+)\]/)?.[1] || '';
+    const rest = firstLine.replace(/^\[[^\]]+\]\s*/, '');
     let level: LogPageEntry['level'] = 'info';
-    if (firstLine.includes('SESSION')) level = 'session';
-    else {
-      for (const [name, tag] of Object.entries(LEVEL_TAG)) {
-        if (firstLine.includes(tag)) {
-          level = name as LogLevel;
-          break;
+    let scope = 'app';
+    if (/^SESSION\b/.test(rest)) {
+      level = 'session';
+    } else {
+      const tag = rest.match(/^\[([A-Za-z]+)\]/)?.[1];
+      if (tag && LEVEL_FROM_TAG[tag.toUpperCase()]) {
+        level = LEVEL_FROM_TAG[tag.toUpperCase()];
+        const after = rest.slice(tag.length + 2).trim();
+        const scopeMatch = after.match(/^\[([A-Za-z][A-Za-z0-9_-]*)\]/)?.[1];
+        if (scopeMatch) scope = scopeMatch.toLowerCase();
+      } else if (rest.includes('BACKEND_ERROR') || rest.includes('FRONTEND_ERROR')) {
+        level = 'error';
+      } else {
+        for (const [name, tagText] of Object.entries(LEVEL_TAG)) {
+          if (firstLine.includes(tagText)) {
+            level = name as LogLevel;
+            break;
+          }
         }
       }
-      if (firstLine.includes('BACKEND_ERROR') || firstLine.includes('FRONTEND_ERROR')) level = 'error';
     }
-    const scope = firstLine.match(SCOPE_RE)?.[1] || (level === 'session' ? 'app' : 'app');
     entries.push(file ? { ts, level, scope, text, file } : { ts, level, scope, text });
   }
   return entries;
@@ -118,24 +151,27 @@ export function removeLogEntries(
   rules: LogDeleteRules,
   toViewerText: (text: string) => string = (text) => redactLogText(capEntryText(text)),
 ): { kept: string; deleted: number; skipped: number } {
-  const wanted = new Set(targets);
+  // Por conteo: N filas identicas seleccionadas borran hasta N ocurrencias,
+  // no todas las del disco (los duplicados exactos son indistinguibles).
+  const wanted = new Map<string, number>();
+  for (const t of targets) wanted.set(t, (wanted.get(t) ?? 0) + 1);
   const keptBlocks: string[] = [];
   let deleted = 0;
   let skipped = 0;
-  for (const block of raw.split(/\n\s*\n/)) {
-    if (!block.trim()) continue;
-    if (!wanted.has(toViewerText(block.trim()))) {
+  for (const block of splitLogBlocks(raw)) {
+    const key = toViewerText(block);
+    const remaining = wanted.get(key) ?? 0;
+    if (remaining <= 0) {
       keptBlocks.push(block);
       continue;
     }
-    const ts =
-      block
-        .trim()
-        .split('\n')[0]
-        ?.match(/^\[([^\]]+)\]/)?.[1] || '';
-    if (isDeletableEntry(ts, rules)) deleted += 1;
-    else {
+    const ts = block.split('\n')[0]?.match(/^\[([^\]]+)\]/)?.[1] || '';
+    if (isDeletableEntry(ts, rules)) {
+      deleted += 1;
+      wanted.set(key, remaining - 1);
+    } else {
       skipped += 1;
+      wanted.set(key, remaining - 1);
       keptBlocks.push(block);
     }
   }
@@ -147,7 +183,7 @@ export function filterSessionOnly(entries: LogPageEntry[], sessionStart: string)
   if (start === null) return entries;
   return entries.filter((e) => {
     const t = timestampMs(e.ts);
-    return t !== null && t >= start;
+    return t === null || t >= start;
   });
 }
 
@@ -156,7 +192,75 @@ export interface LogSource {
   raw: string;
 }
 
-export function collectLogSources(logDir: string): LogSource[] {
+export interface CollectLogSourcesOptions {
+  maxFiles?: number;
+  maxBytesPerFile?: number;
+  maxTotalBytes?: number;
+  includeBackups?: boolean;
+}
+
+function readTailSync(file: string, maxBytes: number): string {
+  try {
+    const st = fs.statSync(file, { throwIfNoEntry: false });
+    if (!st || !st.isFile()) return '';
+    if (st.size <= maxBytes) return fs.readFileSync(file, 'utf8');
+    const fd = fs.openSync(file, 'r');
+    try {
+      const start = Math.max(0, st.size - maxBytes);
+      const buf = Buffer.alloc(st.size - start);
+      fs.readSync(fd, buf, 0, buf.length, start);
+      const text = buf.toString('utf8');
+      const nl = text.indexOf('\n');
+      return nl >= 0 ? text.slice(nl + 1) : text;
+    } finally {
+      fs.closeSync(fd);
+    }
+  } catch {
+    return '';
+  }
+}
+
+async function readTailAsync(file: string, maxBytes: number): Promise<string> {
+  try {
+    const st = await fs.promises.stat(file);
+    if (!st.isFile()) return '';
+    if (st.size <= maxBytes) return await fs.promises.readFile(file, 'utf8');
+    const fh = await fs.promises.open(file, 'r');
+    try {
+      const start = Math.max(0, st.size - maxBytes);
+      const buf = Buffer.alloc(st.size - start);
+      await fh.read(buf, 0, buf.length, start);
+      const text = buf.toString('utf8');
+      const nl = text.indexOf('\n');
+      return nl >= 0 ? text.slice(nl + 1) : text;
+    } finally {
+      await fh.close();
+    }
+  } catch {
+    return '';
+  }
+}
+
+function orderLogNames(names: string[], maxFiles: number, includeBackups: boolean): string[] {
+  const ordered: string[] = [];
+  if (names.includes(APP_LOG_FILENAME)) ordered.push(APP_LOG_FILENAME);
+  const sessions = listSessionFiles(names);
+  const available = new Set(names);
+  for (const base of sessions) {
+    if (includeBackups) {
+      const backup = `${base}${SESSION_BACKUP_SUFFIX}`;
+      if (available.has(backup)) ordered.push(backup);
+    }
+    ordered.push(base);
+  }
+  return ordered.length <= maxFiles ? ordered : ordered.slice(ordered.length - maxFiles);
+}
+
+export function collectLogSources(logDir: string, options?: CollectLogSourcesOptions): LogSource[] {
+  const maxFiles = options?.maxFiles ?? LOG_VIEW_MAX_FILES;
+  const maxBytesPerFile = options?.maxBytesPerFile ?? LOG_VIEW_MAX_BYTES_PER_FILE;
+  const maxTotalBytes = options?.maxTotalBytes ?? LOG_VIEW_MAX_TOTAL_BYTES;
+  const includeBackups = options?.includeBackups ?? true;
   let names: string[] = [];
   try {
     names = fs.readdirSync(logDir);
@@ -164,15 +268,38 @@ export function collectLogSources(logDir: string): LogSource[] {
     return [];
   }
   const sources: LogSource[] = [];
-  const read = (name: string): string => {
-    try {
-      return fs.readFileSync(path.join(logDir, name), 'utf8');
-    } catch {
-      return '';
-    }
-  };
-  if (names.includes(APP_LOG_FILENAME)) sources.push({ name: APP_LOG_FILENAME, raw: read(APP_LOG_FILENAME) });
-  for (const name of listSessionFiles(names)) sources.push({ name, raw: read(name) });
+  let total = 0;
+  // De mas recientes a mas antiguas para que el cap total recorte lo viejo.
+  for (const name of orderLogNames(names, maxFiles, includeBackups).reverse()) {
+    if (total >= maxTotalBytes) break;
+    const raw = readTailSync(path.join(logDir, name), maxBytesPerFile);
+    if (!raw) continue;
+    total += raw.length;
+    sources.unshift({ name, raw });
+  }
+  return sources;
+}
+
+export async function collectLogSourcesAsync(logDir: string, options?: CollectLogSourcesOptions): Promise<LogSource[]> {
+  const maxFiles = options?.maxFiles ?? LOG_VIEW_MAX_FILES;
+  const maxBytesPerFile = options?.maxBytesPerFile ?? LOG_VIEW_MAX_BYTES_PER_FILE;
+  const maxTotalBytes = options?.maxTotalBytes ?? LOG_VIEW_MAX_TOTAL_BYTES;
+  const includeBackups = options?.includeBackups ?? true;
+  let names: string[] = [];
+  try {
+    names = await fs.promises.readdir(logDir);
+  } catch {
+    return [];
+  }
+  const sources: LogSource[] = [];
+  let total = 0;
+  for (const name of orderLogNames(names, maxFiles, includeBackups).reverse()) {
+    if (total >= maxTotalBytes) break;
+    const raw = await readTailAsync(path.join(logDir, name), maxBytesPerFile);
+    if (!raw) continue;
+    total += raw.length;
+    sources.unshift({ name, raw });
+  }
   return sources;
 }
 

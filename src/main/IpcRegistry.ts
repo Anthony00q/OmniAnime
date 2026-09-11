@@ -82,5 +82,13 @@ export function registerIpcHandlers(dependencies: IpcRegistryDependencies): void
   ipcMain.handle('renderer-ready', () => {
     dependencies.markRendererReady();
   });
-  ipcMain.on('log-error', (_, error) => dependencies.writeGlobalLog(error, true));
+  // Anti-spam: un loop de errores en renderer no debe tumbar main ni el disco.
+  const logErrorStamps: number[] = [];
+  ipcMain.on('log-error', (_, error) => {
+    const now = Date.now();
+    while (logErrorStamps.length > 0 && now - logErrorStamps[0] > 1000) logErrorStamps.shift();
+    if (logErrorStamps.length >= 20) return;
+    logErrorStamps.push(now);
+    dependencies.writeGlobalLog(error, true);
+  });
 }

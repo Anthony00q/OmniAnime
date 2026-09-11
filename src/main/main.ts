@@ -75,6 +75,9 @@ function applyLoggingSettings(): void {
   }
 }
 const sessionStartIso = new Date().toISOString();
+// El nivel del usuario antes de podar/escribir cabecera: los primeros logs
+// ya respetan su ajuste en vez del 'info' por defecto.
+applyLoggingSettings();
 try {
   appLogger.pruneOldSessions();
 } catch {}
@@ -88,7 +91,6 @@ try {
     userData: app.getPath('userData'),
   });
 } catch {}
-applyLoggingSettings();
 DatabaseManager.setLogger(appLogger.child('db'));
 SettingsManager.setLogger(appLogger.child('settings'));
 

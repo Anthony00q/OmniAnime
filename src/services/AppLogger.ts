@@ -41,12 +41,6 @@ export interface AppLoggerOptions {
   minLevel?: LogLevel;
 }
 
-export interface LogTail {
-  text: string;
-  lines: string[];
-  truncated: boolean;
-}
-
 export interface ScopedLogger {
   debug(message: unknown, context?: AppLogContext): void;
   info(message: unknown, context?: AppLogContext): void;
@@ -63,15 +57,24 @@ const MAX_SINGLE_WRITE = 20000;
 
 const LEVEL_ORDER: Record<LogLevel, number> = { debug: 0, info: 1, warn: 2, error: 3 };
 
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 export function redactLogText(text: string, homeDir = os.homedir()): string {
   if (!text) return text;
   let out = text;
   if (homeDir) {
     const home = homeDir.replace(/[\\/]+$/, '');
-    if (home) out = out.split(home).join('~');
+    if (home) out = out.replace(new RegExp(escapeRegExp(home), 'gi'), '~');
   }
-  out = out.replace(/[A-Za-z]:\\Users\\[^\\/:*?"<>|\s]+/g, '~');
+  out = out.replace(/[A-Za-z]:\\Users\\[^\\/:*?"<>|\s]+/gi, '~');
   out = out.replace(/\/Users\/[^/\s:]+/g, '~');
+  out = out.replace(
+    /(api[_-]?key|token|bearer|authorization|client[_-]?secret|password|passwd)\s*[:=]\s*\S+/gi,
+    '$1=[REDACTED]',
+  );
+  out = out.replace(/([?&](token|key|auth|signature|sig)=)[^&\s'"]+/gi, '$1[REDACTED]');
   return out;
 }
 
@@ -89,6 +92,9 @@ function contextSuffix(context: AppLogContext | undefined, appVersion: string | 
 function detailsOf(value: unknown): string {
   const withStack = value as { stack?: unknown } | null | undefined;
   let details = String(withStack?.stack ?? value ?? 'error desconocido');
+  // Anti-forgery: un mensaje con "[2026-..T..]" al inicio de linea forjaria
+  // entradas en el visor (parse por cabecera). Se rompe el ancla sin perder legibilidad.
+  details = details.replace(/\r/g, '').replace(/\n(?=\[\d{4}-\d{2}-\d{2}T)/g, '\n ');
   if (details.length > MAX_SINGLE_WRITE) details = `${details.slice(0, MAX_SINGLE_WRITE)}…[truncado]`;
   return details;
 }
@@ -123,15 +129,23 @@ export class AppLogger {
   pruneOldSessions(keep = MAX_SESSION_FILES): { kept: number; removed: number } {
     try {
       const names = fs.readdirSync(this.directories.logDir);
-      const { remove } = pruneSessionFiles(names, keep);
+      const { keep: keptNames, remove, removeBackups } = pruneSessionFiles(names, keep);
       let removed = 0;
-      for (const name of remove) {
+      for (const name of [...remove, ...removeBackups]) {
         try {
           fs.rmSync(path.join(this.directories.logDir, name), { force: true });
           removed += 1;
         } catch {}
       }
-      return { kept: names.length - remove.length, removed };
+      // Restos de reescrituras interrumpidas: nunca son logs validos.
+      for (const name of names) {
+        if (!name.endsWith('.tmp')) continue;
+        try {
+          fs.rmSync(path.join(this.directories.logDir, name), { force: true });
+          removed += 1;
+        } catch {}
+      }
+      return { kept: keptNames.length, removed };
     } catch {
       return { kept: 0, removed: 0 };
     }
@@ -159,6 +173,8 @@ export class AppLogger {
   }
 
   write(error: unknown, isRenderer = false, context?: AppLogContext): void {
+    // Via de errores: severidad error, respeta minLevel como log('error').
+    if (LEVEL_ORDER.error < LEVEL_ORDER[this.minLevel]) return;
     try {
       const line = this.legacyLine(error, isRenderer, context);
       this.appendTo(this.getLogFile(), `${this.sessionFilename}.1.log`, line);
@@ -191,32 +207,6 @@ export class AppLogger {
       // El fichero de errores solo se toca ante errores reales, nunca por arrancar.
     } catch (loggerError) {
       console.error('Logger falló:', loggerError);
-    }
-  }
-
-  getTail(maxLines = 200, maxBytes = 100 * 1024, options?: { level?: LogLevel; file?: string }): LogTail {
-    try {
-      const file = options?.file ?? this.getLogFile();
-      if (!fs.existsSync(file)) return { text: '', lines: [], truncated: false };
-      const raw = fs.readFileSync(file, 'utf8');
-      const truncated = raw.length > maxBytes;
-      const slice = truncated ? raw.slice(-maxBytes) : raw;
-      const start = truncated ? slice.indexOf('\n') + 1 : 0;
-      const entries = slice
-        .slice(start)
-        .split(/\n\s*\n/)
-        .map((e) => e.trim())
-        .filter((e) => e.length > 0);
-      const wanted = options?.level ? entries.filter((e) => e.includes(`[${options.level!.toUpperCase()}]`)) : entries;
-      const lines = wanted
-        .join('\n')
-        .split('\n')
-        .filter((l) => l.trim().length > 0)
-        .slice(-maxLines);
-      const text = redactLogText(lines.join('\n'), this.homeDir);
-      return { text, lines: text.split('\n').filter((l) => l.trim().length > 0), truncated };
-    } catch {
-      return { text: '', lines: [], truncated: false };
     }
   }
 
