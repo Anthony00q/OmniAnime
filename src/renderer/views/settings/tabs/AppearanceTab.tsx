@@ -390,13 +390,11 @@ export const AppearanceTab = memo(
                       8 tonos nocturnos curados · el anillo de foco y la selección usarán este acento.
                     </p>
                   </div>
-
-                  <div className="pt-3">
-                    <div className="h-px bg-border/40" role="separator" />
-                  </div>
-
-                  <EpisodeViewSetting pending={epViewPending} onChange={onEpViewChange} />
                 </div>
+
+                <div className="h-px bg-border/40" role="separator" />
+
+                <EpisodeViewSetting pending={epViewPending} onChange={onEpViewChange} />
               </div>
 
               <div className="xl:col-span-2 min-w-0">
