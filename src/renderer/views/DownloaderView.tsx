@@ -39,7 +39,14 @@ import { QueueSkeleton } from '../components/anime/PosterGridSkeleton';
 import { EmptyState } from '../components/ui/EmptyState';
 import { navigateToCatalogAtom } from '../store/atoms';
 import { buildDetailRows, type DetailRow } from '../utils/downloaderRows';
-import { DETAIL_DEFAULT_H, DETAIL_MAX_H, DETAIL_MIN_H, DETAIL_ROW_H, snapDetailHeight } from '../utils/detailHeight';
+import {
+  DETAIL_DEFAULT_H,
+  DETAIL_MIN_H,
+  DETAIL_ROW_H,
+  detailMaxForRows,
+  shouldShowDetailResizer,
+  snapDetailHeight,
+} from '../utils/detailHeight';
 
 const EMPTY_DETAIL_ROWS: DetailRow[] = [];
 
@@ -125,7 +132,7 @@ const EpisodeDetailRow = memo(
     const showActions = !isEpCancelled && !isEpDone;
     const showSkip = e.state === 'active' && !!e.server;
     return (
-      <div className="episode-list-item flex flex-col justify-center gap-1 py-1">
+      <div className="episode-list-item flex flex-col justify-center gap-1 py-1" data-ep-state={e.state}>
         <div className="flex items-center gap-1.5 text-[11px] tabular-nums text-muted-foreground">
           <span className="font-semibold text-foreground">EP {e.episode}</span>
           {e.server && !isEpPaused && !isEpCancelled && !isEpDone && !isEpQueued && (
@@ -316,6 +323,8 @@ const QueueItemRow = memo(
       item.status,
     ]);
     const hasDetail = isCardActive && detailRows.length > 1;
+    // Tope de arrastre por descarga: contenido real acotado a 7 filas.
+    const detailMax = detailMaxForRows(detailRows.length);
     const isTerminal = isDone || isFailed || isCancelled;
     const firstFailedEpisode = item.failedEps?.[0];
     const firstFailureReason = firstFailedEpisode ? item.failureReasons?.[String(firstFailedEpisode)] : undefined;
@@ -336,52 +345,134 @@ const QueueItemRow = memo(
     // mientras la app está abierta; los deltas de progreso no la tocan.
     const [detailHeight, setDetailHeight] = useState(DETAIL_DEFAULT_H);
     const [isResizingDetail, setIsResizingDetail] = useState(false);
-    const detailDragRef = useRef<{ startY: number; startH: number; pointerId: number } | null>(null);
+    const detailDragRef = useRef<{ startY: number; startH: number; pointerId: number; el: HTMLDivElement } | null>(
+      null,
+    );
+    const detailScrollRef = useRef<HTMLDivElement | null>(null);
     const detailHeightRef = useRef(detailHeight);
     detailHeightRef.current = detailHeight;
+    const detailMaxRef = useRef(detailMax);
+    detailMaxRef.current = detailMax;
+    // Movimiento a nivel de ventana: el gesto sobrevive aunque el puntero
+    // salga del grip (con PointerCapture como primera vía y esto de red).
+    const handleDetailResizeMoveWindow = useCallback((e: PointerEvent) => {
+      const drag = detailDragRef.current;
+      if (!drag || drag.pointerId !== e.pointerId) return;
+      setDetailHeight(snapDetailHeight(drag.startH + (e.clientY - drag.startY), detailMaxRef.current));
+    }, []);
     const endDetailResize = useCallback(() => {
+      const drag = detailDragRef.current;
+      if (drag) {
+        try {
+          drag.el.releasePointerCapture(drag.pointerId);
+        } catch {}
+      }
       detailDragRef.current = null;
       setIsResizingDetail(false);
+      window.removeEventListener('pointermove', handleDetailResizeMoveWindow);
+      window.removeEventListener('pointerup', endDetailResize);
+      window.removeEventListener('pointercancel', endDetailResize);
+      window.removeEventListener('blur', endDetailResize);
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
-    }, []);
-    const handleDetailResizeStart = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-      if (e.button !== 0) return;
-      e.preventDefault();
-      detailDragRef.current = { startY: e.clientY, startH: detailHeightRef.current, pointerId: e.pointerId };
-      setIsResizingDetail(true);
-      try {
-        e.currentTarget.setPointerCapture(e.pointerId);
-      } catch {}
-      document.body.style.cursor = 'row-resize';
-      document.body.style.userSelect = 'none';
-    }, []);
+    }, [handleDetailResizeMoveWindow]);
+    const handleDetailResizeStart = useCallback(
+      (e: React.PointerEvent<HTMLDivElement>) => {
+        if (e.button !== 0) return;
+        e.preventDefault();
+        detailDragRef.current = {
+          startY: e.clientY,
+          startH: detailHeightRef.current,
+          pointerId: e.pointerId,
+          el: e.currentTarget,
+        };
+        setIsResizingDetail(true);
+        try {
+          e.currentTarget.setPointerCapture(e.pointerId);
+        } catch {}
+        window.addEventListener('pointermove', handleDetailResizeMoveWindow);
+        window.addEventListener('pointerup', endDetailResize);
+        window.addEventListener('pointercancel', endDetailResize);
+        window.addEventListener('blur', endDetailResize);
+        document.body.style.cursor = 'row-resize';
+        document.body.style.userSelect = 'none';
+      },
+      [endDetailResize, handleDetailResizeMoveWindow],
+    );
     const handleDetailResizeMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
       const drag = detailDragRef.current;
       if (!drag || drag.pointerId !== e.pointerId) return;
-      setDetailHeight(snapDetailHeight(drag.startH + (e.clientY - drag.startY)));
+      setDetailHeight(snapDetailHeight(drag.startH + (e.clientY - drag.startY), detailMaxRef.current));
     }, []);
     const handleDetailResizeKey = useCallback(
       (e: React.KeyboardEvent<HTMLDivElement>) => {
         if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
           e.preventDefault();
           const d = e.key === 'ArrowDown' ? DETAIL_ROW_H : -DETAIL_ROW_H;
-          setDetailHeight(snapDetailHeight(detailHeight + d));
+          setDetailHeight(snapDetailHeight(detailHeight + d, detailMax));
         } else if (e.key === 'Home') {
           e.preventDefault();
           setDetailHeight(DETAIL_MIN_H);
         } else if (e.key === 'End') {
           e.preventDefault();
-          setDetailHeight(DETAIL_MAX_H);
+          setDetailHeight(detailMax);
         } else if (e.key === 'Escape' && detailDragRef.current) {
           e.preventDefault();
-          setDetailHeight(snapDetailHeight(detailDragRef.current.startH));
+          setDetailHeight(snapDetailHeight(detailDragRef.current.startH, detailMax));
           endDetailResize();
         }
       },
-      [detailHeight, endDetailResize],
+      [detailHeight, detailMax, endDetailResize],
     );
-    const handleDetailResizeReset = useCallback(() => setDetailHeight(DETAIL_DEFAULT_H), []);
+    const handleDetailResizeReset = useCallback(
+      () => setDetailHeight(snapDetailHeight(DETAIL_DEFAULT_H, detailMax)),
+      [detailMax],
+    );
+    const prevShowParallelRef = useRef(showParallel);
+    const prevDetailRowsRef = useRef(detailRows.length);
+    // Al abrir: viewport de 3 filas como máximo (exacto si hay menos).
+    // Se re-ejecuta si cambia el nº de filas con el Detalle abierto para
+    // auto-curar alturas rancias (p. ej. estado previo al tope). Solo en
+    // esos casos; el resize manual posterior y los deltas de progreso
+    // (que no cambian el conteo) no la tocan.
+    useEffect(() => {
+      const was = prevShowParallelRef.current;
+      const prevLen = prevDetailRowsRef.current;
+      prevShowParallelRef.current = showParallel;
+      prevDetailRowsRef.current = detailRows.length;
+      if (showParallel && (!was || prevLen !== detailRows.length)) {
+        setDetailHeight(snapDetailHeight(DETAIL_DEFAULT_H, detailMaxForRows(detailRows.length)));
+      }
+    }, [showParallel, detailRows.length]);
+    // Al abrir: un solo scroll al primer EP en vuelo para no mostrar solo
+    // completados. Sin seguimiento posterior (evita jank en cada progreso).
+    useEffect(() => {
+      if (!showParallel) return;
+      const frame = requestAnimationFrame(() => {
+        const root = detailScrollRef.current;
+        const target = root?.querySelector('[data-ep-state="active"]');
+        if (target && root) {
+          const reduced =
+            typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+          target.scrollIntoView({ block: 'nearest', behavior: reduced ? 'auto' : 'smooth' });
+        }
+      });
+      return () => cancelAnimationFrame(frame);
+    }, [showParallel]);
+    // Limpieza si se desmonta en pleno gesto: quita listeners y devuelve
+    // estado y cursor globales a reposo para no dejar azul/cursor pegados.
+    useEffect(
+      () => () => {
+        window.removeEventListener('pointermove', handleDetailResizeMoveWindow);
+        window.removeEventListener('pointerup', endDetailResize);
+        window.removeEventListener('pointercancel', endDetailResize);
+        window.removeEventListener('blur', endDetailResize);
+        setIsResizingDetail(false);
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      },
+      [endDetailResize, handleDetailResizeMoveWindow],
+    );
 
     const isProviderMatch = !item.providerId || item.providerId === activeProvider;
     const providerName =
@@ -824,7 +915,7 @@ const QueueItemRow = memo(
                 className="downloader-card-slot-parallel-content"
                 style={{ '--detail-h': `${detailHeight}px` } as CSSProperties}
               >
-                <div className="downloader-detail-scroll">
+                <div ref={detailScrollRef} className="downloader-detail-scroll">
                   {isCardActive &&
                     hasDetail &&
                     detailRows.map((e) => (
@@ -841,27 +932,34 @@ const QueueItemRow = memo(
                       />
                     ))}
                 </div>
-                {isCardActive && hasDetail && detailRows.length * DETAIL_ROW_H > DETAIL_MIN_H && (
-                  <div
-                    role="separator"
-                    aria-orientation="horizontal"
-                    aria-label={`Altura del detalle (${detailRows.length} episodios)`}
-                    aria-valuemin={DETAIL_MIN_H}
-                    aria-valuemax={DETAIL_MAX_H}
-                    aria-valuenow={detailHeight}
-                    tabIndex={0}
-                    data-resizing={isResizingDetail || undefined}
-                    className="downloader-detail-resizer"
-                    onPointerDown={handleDetailResizeStart}
-                    onPointerMove={handleDetailResizeMove}
-                    onPointerUp={endDetailResize}
-                    onPointerCancel={endDetailResize}
-                    onKeyDown={handleDetailResizeKey}
-                    onDoubleClick={handleDetailResizeReset}
-                  >
-                    <span aria-hidden="true" className="downloader-detail-resizer-grip" />
-                  </div>
-                )}
+                {isCardActive &&
+                  hasDetail &&
+                  shouldShowDetailResizer(detailRows.length, detailHeight, isResizingDetail) && (
+                    <div
+                      role="separator"
+                      aria-orientation="horizontal"
+                      aria-label={`Altura del detalle (${detailRows.length} episodios). Arrastra para ver más o menos episodios, doble clic para restablecer.`}
+                      aria-valuemin={DETAIL_MIN_H}
+                      aria-valuemax={detailMax}
+                      aria-valuenow={detailHeight}
+                      aria-valuetext={`${Math.min(
+                        detailRows.length,
+                        Math.max(1, Math.round(detailHeight / DETAIL_ROW_H)),
+                      )} de ${detailRows.length} episodios visibles`}
+                      tabIndex={0}
+                      data-resizing={isResizingDetail || undefined}
+                      className="downloader-detail-resizer"
+                      onPointerDown={handleDetailResizeStart}
+                      onPointerMove={handleDetailResizeMove}
+                      onPointerUp={endDetailResize}
+                      onPointerCancel={endDetailResize}
+                      onLostPointerCapture={endDetailResize}
+                      onKeyDown={handleDetailResizeKey}
+                      onDoubleClick={handleDetailResizeReset}
+                    >
+                      <span aria-hidden="true" className="downloader-detail-resizer-grip" />
+                    </div>
+                  )}
               </div>
             </div>
 

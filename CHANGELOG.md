@@ -2,6 +2,9 @@
 
 ## v1.0.6
 
+Descargas:
+- el Detalle por episodio ya no despliega toda la lista: abre con **3** episodios a la vista y su barra inferior permite ver más o menos de uno en uno, hasta **7** a la vez.
+
 Ajustes:
 - en **Registros**, al seleccionar entradas para borrar, las duplicadas idénticas se marcan y se borran juntas, y el diálogo indica las filas afectadas.
 

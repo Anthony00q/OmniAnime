@@ -217,10 +217,21 @@ html[dir='ltr'] {
 
 .episode-list-item {
   content-visibility: auto;
-  contain-intrinsic-size: 0 52px;
+  contain-intrinsic-size: 0 48px;
 }
 
-/* Intrínsecos propios de Detalles: los 52px del Downloader romperían el scroll. */
+/* Intrínseco por estado del Detalle (data-ep-state): completadas y canceladas
+   miden menos al no llevar botones (36.5/24.5px); sin esto el scroll de listas
+   mixtas salta al estimar 48px. */
+.episode-list-item[data-ep-state='completed'] {
+  contain-intrinsic-size: 0 37px;
+}
+
+.episode-list-item[data-ep-state='cancelled'] {
+  contain-intrinsic-size: 0 25px;
+}
+
+/* Intrínsecos propios de Detalles: los 48px del Downloader romperían el scroll. */
 .details-episode-card {
   content-visibility: auto;
   contain-intrinsic-size: 0 160px;
@@ -494,14 +505,6 @@ html[dir='ltr'] {
   [data-sonner-toaster] {
     transition: none !important;
   }
-
-  .omnianime-sidebar {
-    transition: none !important;
-  }
-}
-
-.omnianime-sidebar {
-  transition: width 200ms var(--ease-out);
 }
 
 @media (max-width: 960px) {
@@ -702,15 +705,28 @@ html[dir='ltr'] {
 }
 
 /* Lista scrolleable del Detalle: se ciñe al contenido hasta el tope del
-   tirador (~4 filas por defecto), resto con scroll interno sin empujar
-   la card. --detail-h la fija el tirador por descarga. */
+   tirador (3 filas al abrir), resto con scroll interno sin empujar
+   la card. --detail-h la fija el tirador por descarga.
+   Cap por max-height con height auto: nunca usar min()/max()/clamp() con
+   max-content (keyword intrínseco inválido ahí; el navegador descarta
+   la regla y la lista quedaría siempre expandida). */
 .downloader-detail-scroll {
-  height: min(var(--detail-h, 208px), max-content);
+  max-height: var(--detail-h, 144px);
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
   scrollbar-width: thin;
   scrollbar-color: var(--color-muted-foreground) transparent;
+  margin-top: 4px;
+  border-top: 1px solid color-mix(in srgb, var(--color-border) 55%, transparent);
+  box-shadow: inset 0 10px 10px -10px rgba(0, 0, 0, 0.55);
+}
+
+/* Separadores entre filas del Detalle: jerarquía sin cajas extra.
+   Paint-only (box-shadow inset): nunca border-top, que suma 1px por fila
+   y recorta la 3ª contra el cap de 144px (3×48 exactos). */
+.downloader-detail-scroll .episode-list-item + .episode-list-item {
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--color-border) 40%, transparent);
 }
 
 .downloader-detail-scroll::-webkit-scrollbar {
@@ -726,12 +742,12 @@ html[dir='ltr'] {
   background: transparent;
 }
 
-/* Tirador para ver más/menos episodios: hit area 16px, visual sutil. */
+/* Tirador para ver más/menos episodios: hit area 24px, visual sutil. */
 .downloader-detail-resizer {
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 16px;
+  height: 24px;
   cursor: row-resize;
   touch-action: none;
   border-radius: 0 0 8px 8px;
@@ -743,7 +759,7 @@ html[dir='ltr'] {
 }
 
 .downloader-detail-resizer-grip {
-  width: 40px;
+  width: 48px;
   height: 4px;
   border-radius: 999px;
   background: var(--color-border);
