@@ -4,14 +4,15 @@ import path from 'path';
 import fs from 'fs';
 
 // https://vitejs.dev/config/
+// ESM siempre (.mts): rutas con import.meta.dirname (Node 20.11+).
 export default defineConfig({
   plugins: [
     react(),
     {
       name: 'copy-splash-html',
       closeBundle() {
-        const src = path.resolve(__dirname, 'src/renderer/splash.html');
-        const dest = path.resolve(__dirname, 'dist/renderer/splash.html');
+        const src = path.resolve(import.meta.dirname, 'src/renderer/splash.html');
+        const dest = path.resolve(import.meta.dirname, 'dist/renderer/splash.html');
         try {
           if (fs.existsSync(src)) {
             fs.copyFileSync(src, dest);
@@ -22,10 +23,10 @@ export default defineConfig({
       },
     },
   ],
-  root: path.resolve(__dirname, 'src/renderer'),
+  root: path.resolve(import.meta.dirname, 'src/renderer'),
   base: './', // Use relative paths for Electron
   build: {
-    outDir: path.resolve(__dirname, 'dist/renderer'),
+    outDir: path.resolve(import.meta.dirname, 'dist/renderer'),
     emptyOutDir: true,
     rolldownOptions: {
       output: {
@@ -53,7 +54,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, 'src/renderer'),
+      '@': path.resolve(import.meta.dirname, 'src/renderer'),
     },
   },
 });
