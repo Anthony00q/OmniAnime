@@ -3,7 +3,8 @@ import { memo, useEffect, useRef, useState } from 'react';
 import { useAtomValue, useSetAtom } from 'jotai';
 import type { KeyboardEvent } from 'react';
 import { activeProviderAtom, openAnimeAtom, navigateToCatalogAtom } from '../store/atoms';
-import { useHomeData, useSearchAnime } from '../hooks/useQueries';
+import { useConnectivityStatus, useHomeData, useSearchAnime } from '../hooks/useQueries';
+import { shouldShowOfflineEmpty } from '../utils/offlineEmpty';
 import { PosterCard } from '../components/anime/PosterCard';
 import { PosterImage } from '../components/anime/PosterImage';
 import { PosterGrid } from '../components/anime/PosterGrid';
@@ -127,6 +128,12 @@ export function HomeView({ isActive }: { isActive?: boolean }) {
 
   const visibleSearchQuery = isProviderChanging ? '' : searchQuery;
   const dropdownOpen = !isProviderChanging && showDropdown && searchQuery.trim().length >= 3;
+  const isHomeEmpty = !isLoading && !isError && items.length === 0;
+  const needConnectivity =
+    isHomeEmpty || (dropdownOpen && !isSearching && searchResults.length === 0 && debouncedQuery.trim().length >= 3);
+  const { data: isOnline } = useConnectivityStatus(needConnectivity);
+  const showOfflineEmpty = shouldShowOfflineEmpty(isError ? 1 : items.length, isOnline);
+  const showOfflineSearch = dropdownOpen && !isSearching && shouldShowOfflineEmpty(searchResults.length, isOnline);
 
   return (
     <div className="flex flex-col h-full">
@@ -217,6 +224,10 @@ export function HomeView({ isActive }: { isActive?: boolean }) {
                     </button>
                   ))}
                 </div>
+              ) : showOfflineSearch ? (
+                <div className="p-6 text-center text-sm text-muted-foreground">
+                  Sin conexión: no se pudo buscar &quot;{searchQuery}&quot;
+                </div>
               ) : (
                 <div className="p-6 text-center text-sm text-muted-foreground">
                   No se encontraron animes para &quot;{searchQuery}&quot;
@@ -237,15 +248,27 @@ export function HomeView({ isActive }: { isActive?: boolean }) {
             onRetry={() => refetch()}
           />
         ) : items.length === 0 ? (
-          <EmptyState
-            icon={<Clapperboard className="h-6 w-6" aria-hidden="true" />}
-            title="La sala está en pausa"
-            description={`No hay novedades en ${providerName} por el momento. Vuelve tras el próximo pase.`}
-            actionLabel="Explorar catálogo"
-            onAction={() => navigateToCatalog()}
-            secondaryActionLabel="Reintentar"
-            onSecondaryAction={() => refetch()}
-          />
+          showOfflineEmpty ? (
+            <EmptyState
+              icon={<Clapperboard className="h-6 w-6" aria-hidden="true" />}
+              title="Sin conexión"
+              description={`No hay conexión para actualizar ${providerName}. Tus descargas y librería siguen disponibles.`}
+              actionLabel="Reintentar"
+              onAction={() => refetch()}
+              secondaryActionLabel="Explorar catálogo"
+              onSecondaryAction={() => navigateToCatalog()}
+            />
+          ) : (
+            <EmptyState
+              icon={<Clapperboard className="h-6 w-6" aria-hidden="true" />}
+              title="La sala está en pausa"
+              description={`No hay novedades en ${providerName} por el momento. Vuelve tras el próximo pase.`}
+              actionLabel="Explorar catálogo"
+              onAction={() => navigateToCatalog()}
+              secondaryActionLabel="Reintentar"
+              onSecondaryAction={() => refetch()}
+            />
+          )
         ) : (
           <>
             <p

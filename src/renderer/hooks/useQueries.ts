@@ -484,6 +484,18 @@ export function useSystemInfo(enabled = true) {
   });
 }
 
+// Señal débil solo para mensajes: enabled la controla cada vista (solo en vacío).
+export function useConnectivityStatus(enabled = true) {
+  return useQuery({
+    queryKey: ['connectivity-status'],
+    queryFn: () => window.api.invoke('get-connectivity-status') as Promise<boolean>,
+    enabled,
+    staleTime: 30 * 1000,
+    refetchOnWindowFocus: false,
+    retry: false,
+  });
+}
+
 export interface LogPageFilters {
   level: string;
   scope: string;

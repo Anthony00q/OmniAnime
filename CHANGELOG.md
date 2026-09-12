@@ -11,6 +11,12 @@ Ajustes:
 Librería:
 - las miniaturas de los episodios se generan de forma más fiable.
 
+Búsqueda:
+- sin conexión, el buscador avisa de que no pudo buscar en vez de decir que no hay resultados.
+
+Interfaz:
+- sin conexión, el inicio, el catálogo y la ficha muestran el aviso **Sin conexión** con **Reintentar** en vez de aparecer vacíos o como si no hubiera resultados.
+
 ## v1.0.5
 
 Descargas:

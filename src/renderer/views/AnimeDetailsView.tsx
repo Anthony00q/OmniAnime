@@ -39,7 +39,8 @@ import { useEpisodeView } from '../utils/episodeView';
 import { EpisodeViewMenu } from './libraryDetails/components/EpisodeViewMenu';
 import { normalizeSeasonLabel } from '../utils/seasonLabel';
 import { buildExternalUrl } from '../../utils/externalUrl';
-import { useAnimeDetails, useAddToQueue, useJkEpisodeThumbs } from '../hooks/useQueries';
+import { useAnimeDetails, useAddToQueue, useConnectivityStatus, useJkEpisodeThumbs } from '../hooks/useQueries';
+import { shouldShowOfflineEmpty } from '../utils/offlineEmpty';
 import { Dialog } from '../components/Dialog';
 import { AppTooltip } from '../components/ui/AppTooltip';
 import { ErrorState } from '../components/ui/ErrorState';
@@ -297,6 +298,9 @@ function useShouldVirtualize(rowCount: number, withThumbs: boolean): boolean {
 
 export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: AnimeDetailsProps) {
   const { data, isLoading, isError, refetch } = useAnimeDetails(slug);
+  const isDetailsEmpty = !isLoading && !data;
+  const { data: isOnline } = useConnectivityStatus(isDetailsEmpty && !!slug);
+  const showOfflineDetails = shouldShowOfflineEmpty(data ? 1 : 0, isOnline);
   const addToQueue = useAddToQueue();
   const isActiveRef = useRef(isActive);
   useEffect(() => {
@@ -621,8 +625,12 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
     return (
       <div className="flex h-full flex-col items-center justify-center bg-background">
         <ErrorState
-          title="No se encontró el anime"
-          description="No pudimos cargar sus detalles."
+          title={showOfflineDetails ? 'Sin conexión' : 'No se encontró el anime'}
+          description={
+            showOfflineDetails
+              ? 'No pudimos cargar los detalles sin conexión. Tus descargas y librería siguen disponibles.'
+              : 'No pudimos cargar sus detalles.'
+          }
           onRetry={() => refetch()}
         />
         <button

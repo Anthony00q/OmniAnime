@@ -11,7 +11,8 @@ import {
   pendingCatalogGenreAtom,
   openAnimeAtom,
 } from '../store/atoms';
-import { useFiltersData, useCatalog } from '../hooks/useQueries';
+import { useCatalog, useConnectivityStatus, useFiltersData } from '../hooks/useQueries';
+import { shouldShowOfflineEmpty } from '../utils/offlineEmpty';
 import { PosterCard } from '../components/anime/PosterCard';
 import { PosterGrid } from '../components/anime/PosterGrid';
 import { PosterGridSkeleton } from '../components/anime/PosterGridSkeleton';
@@ -70,6 +71,9 @@ export function CatalogView() {
   const pages = data?.pages;
   const items = useMemo(() => dedupeCatalogPages(pages ?? []), [pages]);
   const providerName = providerId === 'jkanime' ? 'JkAnime' : 'AnimeAV1';
+  const isCatalogEmpty = !isLoading && !isError && items.length === 0;
+  const { data: isOnline } = useConnectivityStatus(isCatalogEmpty);
+  const showOfflineEmpty = shouldShowOfflineEmpty(isError ? 1 : items.length, isOnline);
 
   const applyPendingGenre = useCallback(
     (genreName: string | null) => {
@@ -505,13 +509,25 @@ export function CatalogView() {
         ) : (
           <>
             {items.length === 0 && !isLoading ? (
-              <EmptyState
-                icon={<SearchX className="h-6 w-6" aria-hidden="true" />}
-                title="Nada en este estante"
-                description="Prueba ajustando los filtros o la búsqueda para encontrar lo que buscas."
-                actionLabel="Limpiar filtros"
-                onAction={clearFilters}
-              />
+              showOfflineEmpty ? (
+                <EmptyState
+                  icon={<SearchX className="h-6 w-6" aria-hidden="true" />}
+                  title="Sin conexión"
+                  description={`No hay conexión para cargar el catálogo de ${providerName}. Tus descargas y librería siguen disponibles.`}
+                  actionLabel="Reintentar"
+                  onAction={() => refetch()}
+                  secondaryActionLabel="Limpiar filtros"
+                  onSecondaryAction={clearFilters}
+                />
+              ) : (
+                <EmptyState
+                  icon={<SearchX className="h-6 w-6" aria-hidden="true" />}
+                  title="Nada en este estante"
+                  description="Prueba ajustando los filtros o la búsqueda para encontrar lo que buscas."
+                  actionLabel="Limpiar filtros"
+                  onAction={clearFilters}
+                />
+              )
             ) : (
               <PosterGrid>
                 {items.map((item: any, idx: number) => (
