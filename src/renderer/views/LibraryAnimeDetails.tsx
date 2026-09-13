@@ -9,7 +9,6 @@ import {
   usePreviewRename,
   usePreviewReorder,
 } from '../hooks/useQueries';
-import { PosterImage } from '../components/anime/PosterImage';
 import { ErrorState } from '../components/ui/ErrorState';
 import { EmptyState } from '../components/ui/EmptyState';
 import { EpisodeListSkeleton } from '../components/anime/PosterGridSkeleton';
@@ -227,25 +226,16 @@ export function LibraryAnimeDetails({
   };
 
   const title = folderData.metaTitle || folderData.name;
-  const bannerSrc = folderData.bannerLocal || folderData.posterLocal;
+  // Sin fallback al póster: sin banner local, el hero queda en plano,
+  // igual que la ficha de Detalles.
+  const bannerSrc = folderData.bannerLocal;
   const episodeCountLabel = episodes.length === 1 ? '1 episodio' : `${episodes.length} episodios`;
+  const skeletonRows = Math.min(Math.max(Number(folderData.episodeCount) || 6, 1), 6);
 
   return (
     <div className="relative flex h-full min-w-0 flex-col overflow-hidden bg-background">
-      <div aria-hidden="true" className="pointer-events-none absolute top-0 left-0 w-full h-[40vh] z-0 overflow-hidden">
-        {bannerSrc && (
-          <PosterImage
-            src={bannerSrc}
-            alt={`Banner de ${title}`}
-            fallbackLabel={title}
-            className="h-full w-full scale-105 object-cover opacity-10 blur-[2px]"
-          />
-        )}
-        <div className="absolute inset-0 bg-gradient-to-b from-background/10 via-background/60 to-background"></div>
-      </div>
-
       <div className="relative z-10 flex h-full min-w-0 flex-col">
-        <div className="relative z-20 flex shrink-0 flex-wrap items-center justify-between gap-3 p-4 sm:p-6">
+        <div className="relative z-20 flex shrink-0 flex-wrap items-center justify-between gap-3 px-4 pb-4 pt-12 sm:px-6 sm:pb-6 sm:pt-14">
           <button
             type="button"
             onClick={onBack}
@@ -352,7 +342,7 @@ export function LibraryAnimeDetails({
 
         <LibraryHero
           title={title}
-          bannerSrc={null}
+          bannerSrc={bannerSrc}
           posterLocal={folderData.posterLocal}
           episodeCount={episodes.length}
           metaSlug={folderData.metaSlug}
@@ -366,7 +356,7 @@ export function LibraryAnimeDetails({
           className="min-w-0 flex-1 overflow-y-auto border-t border-border/50 bg-background/95 px-4 py-4 backdrop-blur-md sm:px-8 sm:py-6 md:px-10"
         >
           {isLoading ? (
-            <EpisodeListSkeleton count={6} />
+            <EpisodeListSkeleton count={skeletonRows} />
           ) : isError ? (
             <ErrorState
               title="No se pudieron cargar los episodios"

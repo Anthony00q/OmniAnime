@@ -171,6 +171,7 @@ const EpisodeDetailRow = memo(
     const isEpCompleted = e.state === 'completed';
     const isEpFailed = e.state === 'failed';
     const isEpDone = isEpCompleted || isEpFailed;
+    const isAssembling = e.state === 'active' && e.phase === 'assembling';
     const showActions = !isEpCancelled && !isEpDone;
     const showSkip = e.state === 'active' && !!e.server;
     return (
@@ -178,7 +179,9 @@ const EpisodeDetailRow = memo(
         <div className="flex items-center gap-1.5 text-[11px] tabular-nums text-muted-foreground">
           <span className="font-semibold text-foreground">EP {e.episode}</span>
           {e.server && !isEpPaused && !isEpCancelled && !isEpDone && !isEpQueued && (
-            <span className="min-w-0 flex-1 truncate">{e.server}</span>
+            <span className="min-w-0 flex-1 truncate">
+              {isAssembling ? `Ensamblando${e.server ? ` · ${e.server}` : ''}` : e.server}
+            </span>
           )}
           {isEpPaused && (
             <span className="inline-flex min-w-0 flex-1 items-center gap-1 text-muted-foreground">
@@ -270,9 +273,9 @@ const EpisodeDetailRow = memo(
           <ProgressBar
             value={epPct}
             variant={isEpCompleted ? 'success' : isEpFailed ? 'danger' : undefined}
-            label={`${animeTitle} — EP ${e.episode} ${epPct}%${isEpPaused ? ' (pausado)' : ''}${isEpQueued ? ' (en cola)' : ''}${isEpCompleted ? ' (completado)' : ''}${isEpFailed ? ' (fallido)' : ''}`}
+            label={`${animeTitle} — EP ${e.episode} ${epPct}%${isAssembling ? ' (ensamblando)' : ''}${isEpPaused ? ' (pausado)' : ''}${isEpQueued ? ' (en cola)' : ''}${isEpCompleted ? ' (completado)' : ''}${isEpFailed ? ' (fallido)' : ''}`}
             showValue={false}
-            aria-valuetext={`EP ${e.episode} ${epPct}%${e.server ? ` desde ${e.server}` : ''}${isEpPaused ? ', pausado' : ''}${isEpQueued ? ', en cola' : ''}${isEpCompleted ? ', completado' : ''}${isEpFailed ? ', fallido' : ''}`}
+            aria-valuetext={`EP ${e.episode} ${epPct}%${e.server ? ` desde ${e.server}` : ''}${isAssembling ? ', ensamblando' : ''}${isEpPaused ? ', pausado' : ''}${isEpQueued ? ', en cola' : ''}${isEpCompleted ? ', completado' : ''}${isEpFailed ? ', fallido' : ''}`}
           />
         )}
       </div>
@@ -282,6 +285,7 @@ const EpisodeDetailRow = memo(
     prev.row.episode === next.row.episode &&
     prev.row.progress === next.row.progress &&
     prev.row.server === next.row.server &&
+    prev.row.phase === next.row.phase &&
     prev.row.state === next.row.state &&
     prev.itemId === next.itemId &&
     prev.animeTitle === next.animeTitle &&
@@ -332,7 +336,14 @@ const QueueItemRow = memo(
     const activeEps = useMemo(
       () =>
         isDownloading && Array.isArray(item.activeEps)
-          ? (item.activeEps as Array<{ episode: number; progress: number; server?: string }>)
+          ? (
+              item.activeEps as Array<{
+                episode: number;
+                progress: number;
+                server?: string;
+                phase?: 'downloading' | 'assembling';
+              }>
+            )
               .filter((e) => typeof e?.episode === 'number')
               .slice(0, 3)
           : [],

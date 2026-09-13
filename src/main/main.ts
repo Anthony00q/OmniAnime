@@ -43,6 +43,7 @@ import { normalizeDownloadSettings } from '../utils/downloadSettings';
 import { USER_AGENT } from '../utils/windowUtils';
 import { WindowLifecycleService, type PreloadedData } from './WindowLifecycleService';
 import { registerIpcHandlers } from './IpcRegistry';
+import { anilistBannerInputFromDetails, resolveAniListBannerResult } from './anilistBanner';
 import anitomy from 'anitomy';
 
 // Register privileged custom scheme for local posters/banners with webSecurity:true
@@ -510,7 +511,11 @@ async function buildLibraryMetaPreload(
 
       const posterUrl = details?.poster || best.poster || null;
       const localPoster = await ensureFolderPoster(folder.folderPath, posterUrl);
-      const localBanner = await ensureFolderBanner(folder.folderPath, posterUrl);
+      // Banner como en la ficha: solo AniList validado, sin fallback al póster.
+      const anilistBannerUrl = details
+        ? ((await resolveAniListBannerResult(anilistBannerInputFromDetails(details)))?.banner ?? null)
+        : null;
+      const localBanner = anilistBannerUrl ? await ensureFolderBanner(folder.folderPath, anilistBannerUrl) : null;
 
       writeFolderLibraryMeta(folder.folderPath, {
         slug: String(best.slug || ''),
@@ -537,7 +542,7 @@ async function buildLibraryMetaPreload(
         slug: String(best.slug || ''),
         title: String(details?.title || best.title || folder.name),
         poster: localPoster || best.poster || null,
-        banner: localBanner || posterUrl,
+        banner: localBanner || null,
         category: details?.category || '',
         year: details?.year || '',
         status: details?.status || '',
@@ -687,6 +692,7 @@ const libraryFileService = new LibraryFileService({
     ),
   getAnimeDetails: (slug) => getAnimeDetailsBySlug(slug),
   getActiveProviderId: () => providerGateway.activeProviderIdName,
+  resolveAniListBannerUrl: (input) => resolveAniListBannerResult(input).then((resolved) => resolved?.banner ?? null),
   openPath: (targetPath) => shell.openPath(targetPath),
   userDataDir: app.getPath('userData'),
   log: writeGlobalLog,

@@ -97,9 +97,9 @@ export function Sidebar({ currentView, setCurrentView }: SidebarProps) {
   return (
     <nav
       aria-label="Navegación principal"
-      className="omnianime-sidebar w-[220px] shrink-0 bg-surface border-r border-border/70 flex flex-col pt-6 pb-4"
+      className="omnianime-sidebar w-[220px] shrink-0 bg-background border-r border-border/30 flex flex-col pt-12 pb-4"
     >
-      <div className="sidebar-provider-section px-4 mb-6">
+      <div className="sidebar-provider-section px-4 mb-5">
         <div className="sidebar-heading text-[11px] font-bold text-muted-foreground/60 uppercase tracking-wider mb-2 flex items-center gap-1.5 select-none">
           <Server className="w-3 h-3" /> Fuente de Datos
         </div>
@@ -140,6 +140,7 @@ export function Sidebar({ currentView, setCurrentView }: SidebarProps) {
             ))}
           </div>
         </div>
+        <div aria-hidden="true" className="mx-5 mt-5 h-px bg-border/30" />
       </div>
 
       <div className="sidebar-nav min-h-0 flex-1 overflow-y-auto px-3 space-y-1">
@@ -176,7 +177,8 @@ export function Sidebar({ currentView, setCurrentView }: SidebarProps) {
         })}
       </div>
 
-      <div className="sidebar-settings px-3 mt-auto pt-3 border-t border-border/60">
+      <div className="sidebar-settings px-3 mt-auto pt-4">
+        <div aria-hidden="true" className="mx-1 mb-3 h-px bg-border/30" />
         {updateAvailable && !updateModalOpen && (
           <AppTooltip content={`Actualización disponible (${updateAvailable.version})`} side="right" align="center">
             <button

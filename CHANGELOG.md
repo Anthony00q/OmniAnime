@@ -4,13 +4,27 @@
 
 ### Interfaz
 
-- la ficha muestra una imagen panorámica superior cuando está disponible, con fundido suave; si no hay imagen, queda en plano como antes.
+- la ficha muestra una imagen panorámica superior cuando está disponible, que llega hasta el borde de la ventana con un acabado suave; si no hay imagen, queda en plano como antes.
 - los textos de la ficha (título alternativo, datos y géneros) llevan sombra para seguir leyéndose sobre la imagen.
 - las fichas abren más rápido al pulsar un póster desde el inicio, el catálogo, la franquicia u otras vistas.
+- la barra de scroll de la ficha ya no deja ver la imagen por detrás al bajar.
+- en la ficha, las listas de episodios que caben en pantalla ya no dejan un hueco vacío por el que se pueda seguir bajando.
+- la barra lateral, las cabeceras de las vistas y los ajustes usan separadores más tenues, sin líneas marcadas.
 
 ### Descargas
 
 - los títulos largos de la cola se recortan con un fundido solo cuando no caben; si caben, se ven completos.
+- HLS ahora ensambla en una pasada: menos espera al llegar al 100%, con progreso real hasta el final y aviso **Ensamblando** mientras termina.
+
+### Librería
+
+- las carpetas guardan la imagen panorámica de AniList cuando vincula bien; si no, quedan sin banner en vez de reutilizar el póster.
+- el banner de una carpeta también llega hasta el borde superior de la ventana, con el mismo acabado que la ficha.
+- al abrir una carpeta, los marcadores de carga muestran tantos huecos como episodios hay, en vez de seis fijos.
+
+### Ajustes
+
+- en **Registros**, el contador muestra cuántas entradas hay seleccionadas para borrar en vez de cuántas hay cargadas.
 
 ### General
 

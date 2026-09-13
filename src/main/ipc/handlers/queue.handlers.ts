@@ -7,6 +7,7 @@ import { formatEpisodeCountLabel, normalizeDisplayAnimeTitle } from '../../../ut
 import { isPathSafeForDestructiveOperation } from '../../../utils/pathSecurity';
 import type { DownloadProvider, QueueItem } from '../../../types/queue';
 import type { IpcRegistryDependencies } from '../../IpcRegistry';
+import { anilistBannerInputFromDetails, resolveAniListBannerResult } from '../../anilistBanner';
 
 function isValidEpisodeParam(episode: unknown): episode is number {
   return typeof episode === 'number' && Number.isInteger(episode) && episode > 0 && episode < 100000;
@@ -71,10 +72,18 @@ export function registerQueueHandlers(dependencies: IpcRegistryDependencies): vo
       } catch {}
       let localPosterUrl: string | null = null;
       let localBannerUrl: string | null = null;
+      let anilistBannerUrl: string | null = null;
       try {
+        // Banner como en la ficha: solo AniList validado, sin fallback al
+        // póster. En paralelo al póster para no sumar latencia.
+        const anilistInput = anilistBannerInputFromDetails(details);
         [localPosterUrl, localBannerUrl] = await Promise.all([
           ensureFolderPoster(targetPath, details.poster || null),
-          ensureFolderBanner(targetPath, details.banner || details.poster || null),
+          (async () => {
+            const resolved = await resolveAniListBannerResult(anilistInput);
+            anilistBannerUrl = resolved?.banner ?? null;
+            return anilistBannerUrl ? ensureFolderBanner(targetPath, anilistBannerUrl) : null;
+          })(),
         ]);
       } catch (error) {
         writeGlobalLog(`Error descargando portada para ${slug}: ${error}`);
@@ -97,7 +106,7 @@ export function registerQueueHandlers(dependencies: IpcRegistryDependencies): vo
         status: details.status || '',
         season: details.season || '',
         posterUrl: details.poster || null,
-        bannerUrl: details.banner || details.poster || null,
+        bannerUrl: anilistBannerUrl,
         providerId: queueProvider,
       });
 
@@ -143,7 +152,7 @@ export function registerQueueHandlers(dependencies: IpcRegistryDependencies): vo
           title: normalizeDisplayAnimeTitle(details.title || folderName),
           slug: details.slug || slug,
           poster: localPosterUrl || details.poster || null,
-          banner: localBannerUrl || details.banner || null,
+          banner: localBannerUrl || null,
         },
       };
     },

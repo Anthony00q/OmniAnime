@@ -282,28 +282,33 @@ function useGridCols(): number {
   return cols;
 }
 
-function useShouldVirtualize(rowCount: number, withThumbs: boolean): boolean {
+function useShouldVirtualize(rowCount: number, cols: number, withThumbs: boolean, hasTitles: boolean) {
   const [should, setShould] = useState(false);
+  const containerRef = useRef<HTMLElement | null>(null);
   useEffect(() => {
     const calc = () => {
       if (rowCount === 0) {
         setShould(false);
         return;
       }
-      const w = window.innerWidth;
-      const h = window.innerHeight;
-      const isSm = w >= 640;
-      const rowH = withThumbs ? (isSm ? 170 : 150) : isSm ? 96 : 80;
       const gap = 12;
+      let rowH: number;
+      if (withThumbs) {
+        // 8 = pr-2 del contenedor, 28 = título, 2 = bordes; miniatura 16:9.
+        const width = Math.max(0, (containerRef.current?.clientWidth ?? 0) - 8);
+        const cardW = Math.max(72, (width - (cols - 1) * gap) / cols);
+        rowH = cardW * (9 / 16) + (hasTitles ? 28 : 0) + 2;
+      } else {
+        rowH = window.innerWidth >= 640 ? 96 : 80;
+      }
       const estimated = rowCount * rowH + Math.max(0, rowCount - 1) * gap;
-      const maxH = h * 0.55;
-      setShould(estimated > maxH && rowCount > 3);
+      setShould(estimated > window.innerHeight * 0.55 && rowCount > 3);
     };
     calc();
     window.addEventListener('resize', calc);
     return () => window.removeEventListener('resize', calc);
-  }, [rowCount, withThumbs]);
-  return should;
+  }, [rowCount, cols, withThumbs, hasTitles]);
+  return { should, containerRef };
 }
 
 export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: AnimeDetailsProps) {
@@ -343,7 +348,6 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
       setShowRangeModal(false);
       setShowDirPicker(false);
       setViewMenu(null);
-      setIsTopScrolled(false);
     }
   }, [isActive]);
 
@@ -359,9 +363,6 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
   const [epQuery, setEpQuery] = useState('');
   const [epView, setEpView] = useEpisodeView();
   const [viewMenu, setViewMenu] = useState<{ x: number; y: number } | null>(null);
-  const topScrollRef = useRef<HTMLDivElement | null>(null);
-  const topSentinelRef = useRef<HTMLDivElement | null>(null);
-  const [isTopScrolled, setIsTopScrolled] = useState(false);
 
   const handleEpContextMenu = useCallback((event: ReactMouseEvent) => {
     event.preventDefault();
@@ -383,7 +384,6 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
     setSortDir('asc');
     setEpQuery('');
     setViewMenu(null);
-    setIsTopScrolled(false);
     setThumbWindow(null);
     lastThumbReqRef.current = '';
   }, [slug]);
@@ -449,20 +449,6 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
     return () => window.removeEventListener('close-modals', handleClose);
   }, [onBack, showRangeModal, showDirPicker]);
 
-  useEffect(() => {
-    const root = topScrollRef.current;
-    const sentinel = topSentinelRef.current;
-    if (!root || !sentinel || typeof IntersectionObserver === 'undefined') return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        setIsTopScrolled(!entries[0].isIntersecting);
-      },
-      { root, threshold: 0, rootMargin: '-8px 0px 0px 0px' },
-    );
-    observer.observe(sentinel);
-    return () => observer.disconnect();
-  }, [slug, dataSlug, isLoading, isError]);
-
   const cols = useGridCols();
 
   const episodeThumbnails = data?.episodeThumbnails;
@@ -500,7 +486,16 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
   }, [visibleEpisodes, cols]);
 
   const withThumbs = epView === 'cards';
-  const shouldVirtualize = useShouldVirtualize(rows.length, withThumbs);
+  const hasEpTitles = useMemo(
+    () => visibleEpisodes.some((e) => !!e.title && e.title !== 'Sin título'),
+    [visibleEpisodes],
+  );
+  const { should: shouldVirtualize, containerRef: episodesRef } = useShouldVirtualize(
+    rows.length,
+    cols,
+    withThumbs,
+    hasEpTitles,
+  );
 
   // Cola JK: thumbs del rango visible sin tocar el eager.
   const queryClient = useQueryClient();
@@ -697,7 +692,7 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
             priority={!!isActive}
             onLoad={() => setBannerShown(true)}
             onError={() => setBannerFailed(true)}
-            className={`h-full w-full object-cover object-[center_20%] transition-opacity duration-200 ${
+            className={`h-full w-full object-cover object-[center_20%] brightness-[0.8] saturate-[0.82] transition-opacity duration-200 ${
               showBanner ? 'opacity-100' : 'invisible opacity-0'
             }`}
           />
@@ -707,11 +702,11 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
           <>
             <div
               aria-hidden="true"
-              className="absolute inset-0 bg-gradient-to-r from-background/90 via-background/50 to-transparent sm:from-background sm:via-background/60"
+              className="absolute inset-0 bg-gradient-to-r from-background/80 via-background/35 to-transparent"
             />
             <div
               aria-hidden="true"
-              className="absolute inset-x-0 bottom-0 h-3/5 bg-gradient-to-b from-transparent via-background/40 to-background"
+              className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-b from-transparent via-background/60 to-background"
             />
           </>
         ) : (
@@ -720,21 +715,10 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
             className="absolute inset-0 bg-gradient-to-b from-secondary/20 via-background/60 to-background"
           />
         )}
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-x-0 top-0 h-12 bg-gradient-to-b from-background to-transparent"
-        />
       </div>
 
-      <div ref={topScrollRef} className="z-10 flex h-full min-w-0 flex-col overflow-y-auto">
-        <div ref={topSentinelRef} aria-hidden="true" className="h-px w-full shrink-0" />
-        <div className="sticky top-0 z-20 flex items-center justify-between p-4 sm:p-6">
-          <div
-            aria-hidden="true"
-            className={`pointer-events-none absolute inset-0 bg-gradient-to-b from-background via-background/80 to-transparent transition-opacity duration-200 ${
-              isTopScrolled ? 'opacity-100' : 'opacity-0'
-            }`}
-          />
+      <div className="details-scroll z-10 flex h-full min-w-0 flex-col overflow-y-auto">
+        <div className="sticky top-0 z-20 flex items-center justify-between px-4 pb-4 pt-12 sm:px-6 sm:pb-6 sm:pt-14">
           <button
             type="button"
             onClick={onBack}
@@ -876,7 +860,7 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
               </div>
             </section>
 
-            <section>
+            <section ref={episodesRef}>
               <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
                 <h3 className="flex shrink-0 items-center gap-2 text-xl font-bold text-foreground">
                   <Clock className="h-5 w-5 text-primary" /> Episodios

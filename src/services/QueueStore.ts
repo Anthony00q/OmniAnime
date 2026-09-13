@@ -17,6 +17,8 @@ export interface ActiveEpisodeProgress {
   episode: number;
   progress: number;
   server?: string;
+  // Fase HLS (solo 'assembling' viaja; el resto de servidores no la emiten).
+  phase?: 'downloading' | 'assembling';
 }
 
 export interface QueueProgressDelta {

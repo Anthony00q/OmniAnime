@@ -5,9 +5,11 @@ import * as https from 'https';
 import * as path from 'path';
 import { execFile } from 'child_process';
 import { parseMasterPlaylist, parseMediaPlaylist } from './HlsPlaylistParser';
-import { concatFilesInOrder, remuxConcatToMp4 } from './HlsAssembler';
+import { remuxPartsViaConcatProtocol } from './HlsAssembler';
 
 export const HLS_NATIVE_CONCURRENCY = 10;
+// La bajada ocupa el 90% de la barra; el ensamblado local, el 10% final.
+export const HLS_DOWNLOAD_SHARE = 0.9;
 
 const PLAYLIST_TIMEOUT_MS = 15_000;
 const SEGMENT_TIMEOUT_MS = 30_000;
@@ -19,11 +21,12 @@ export interface HlsDownloadProgress {
   fraction01: number;
   doneSegments: number;
   totalSegments: number;
+  phase: 'downloading' | 'assembling';
 }
 
 export interface HlsDownloadDeps {
   fetchText?: (url: string) => Promise<string>;
-  remux?: (concatPath: string, outPath: string) => Promise<void>;
+  remux?: (partPaths: string[], outPath: string) => Promise<void>;
 }
 
 export interface HlsDownloadOptions {
@@ -160,11 +163,9 @@ export async function downloadHlsToMp4(
     path.join(cacheDir, `${baseName}.hls-${String(index).padStart(5, '0')}.part`);
   const segmentParts: Array<string | undefined> = [];
   let mapPart = '';
-  let concatPath = '';
   let tmpOut = '';
   const cleanupTransient = async (): Promise<void> => {
     const targets: string[] = [];
-    if (concatPath) targets.push(concatPath);
     if (tmpOut) targets.push(tmpOut);
     await Promise.all(targets.map((p) => fsp.rm(p, { force: true }).catch(() => undefined)));
   };
@@ -250,18 +251,27 @@ export async function downloadHlsToMp4(
     }
 
     const total = segmentUrls.length;
+    const totalDurationMs = media.segmentDurationsMs.reduce((acc, ms) => acc + (ms > 0 ? ms : 0), 0);
     let done = 0;
     let resumedSegments = 0;
-    const report = (): void => {
+    let phase: 'downloading' | 'assembling' = 'downloading';
+    const report = (done01?: number): void => {
       try {
+        const frac = done01 ?? (total === 0 ? 0 : Math.min(1, done / total) * HLS_DOWNLOAD_SHARE);
         onProgress?.({
-          fraction01: total === 0 ? 0 : Math.min(1, done / total),
+          fraction01: Math.min(1, frac),
+          phase,
           doneSegments: done,
           totalSegments: total,
         });
       } catch {
         /* progreso best-effort */
       }
+    };
+    // Remux real 90% -> 100%; sin duración conocida se queda en 90%.
+    const reportRemux = (outTimeMs: number): void => {
+      if (!(outTimeMs > 0) || !(totalDurationMs > 0)) return;
+      report(HLS_DOWNLOAD_SHARE + (1 - HLS_DOWNLOAD_SHARE) * Math.min(1, outTimeMs / totalDurationMs));
     };
 
     // Resume: mismo playlist + misma variante + mismo conteo + mismo MAP
@@ -297,8 +307,6 @@ export async function downloadHlsToMp4(
       }
     }
     await fsp.writeFile(sidecarPath, JSON.stringify(manifest)).catch(noop);
-    // Restos de ensamblados interrumpidos nunca se reutilizan.
-    await fsp.rm(path.join(cacheDir, `${baseName}.hls-concat.tmp`), { force: true }).catch(noop);
     await fsp.rm(path.join(cacheDir, `${baseName}.hls-mux.mp4`), { force: true }).catch(noop);
     report();
     const fetchSegmentGuarded = async (url: string, index: number): Promise<string> => {
@@ -349,7 +357,6 @@ export async function downloadHlsToMp4(
       return { ok: false, error: `segmento HLS irrecuperable: ${message.slice(0, 200)}` };
     }
 
-    concatPath = path.join(cacheDir, `${baseName}.hls-concat.tmp`);
     const orderedParts: string[] = [];
     if (mapBytes) {
       mapPart = path.join(cacheDir, `${baseName}.hls-init.part`);
@@ -364,11 +371,15 @@ export async function downloadHlsToMp4(
       }
       orderedParts.push(part);
     }
-    await concatFilesInOrder(orderedParts, concatPath);
+    phase = 'assembling';
+    report(HLS_DOWNLOAD_SHARE);
     tmpOut = path.join(cacheDir, `${baseName}.hls-mux.mp4`);
-    const remux = deps?.remux ?? ((concat: string, out: string) => remuxConcatToMp4(concat, out, ffmpegPath, signal));
+    const remux =
+      deps?.remux ??
+      ((parts: string[], out: string) =>
+        remuxPartsViaConcatProtocol(parts, out, ffmpegPath, signal, reportRemux, { cwd: cacheDir }));
     try {
-      await remux(concatPath, tmpOut);
+      await remux(orderedParts, tmpOut);
     } catch (error: unknown) {
       if (signal?.aborted) {
         await cleanupTransient();
@@ -397,7 +408,7 @@ export async function downloadHlsToMp4(
       return { ok: false, error: `no se pudo publicar el mp4: ${(error as Error)?.message || error}` };
     }
     await purgeHlsTemps();
-    report();
+    report(1);
     return { ok: true, bytes, segments: total, resumedSegments };
   } catch (error: unknown) {
     await cleanupTransient();

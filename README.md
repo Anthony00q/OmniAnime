@@ -54,7 +54,7 @@ Solo maneja anime con subtítulos (SUB). No hay doblaje.
 
 - **Dos fuentes a elegir**: **AnimeAV1** y **JkAnime** desde la barra lateral. Todo el contenido (inicio, catálogo, búsqueda y fichas) se adapta a la que tengas activa.
 - **Catálogo con filtros**: por género, estado, año, tipo, temporada y más, con búsqueda y scroll infinito.
-- **Fichas completas**: sinopsis, póster, episodios, géneros y relaciones con otras temporadas.
+- **Fichas completas**: sinopsis, imagen panorámica, póster, episodios, géneros y relaciones con otras temporadas.
 
 ### Descargar
 
@@ -123,7 +123,7 @@ No, solo subtítulos (SUB).
 
 ### ¿Necesito cuenta?
 
-No. No hay cuentas, nube ni inicio de sesión.
+No. No hay cuentas, nube ni inicio de sesión: la imagen de la ficha viene de un catálogo público y tampoco pide cuenta.
 
 ### ¿Una descarga falla o va lenta?
 
@@ -145,7 +145,7 @@ No, el máximo es 3.
 
 - La app solo lee, escribe o borra dentro de las carpetas que configures. Nunca toca otras rutas.
 - Los enlaces externos solo pueden abrir [animeav1.com](https://animeav1.com/) y [jkanime.net](https://jkanime.net/).
-- Las imágenes solo se cargan desde `cdn.animeav1.com` y `cdn.jkdesa.com`.
+- Las imágenes solo se cargan desde `cdn.animeav1.com`, `cdn.jkdesa.com` y `s4.anilist.co` (banners de AniList).
 
 ## Desarrollo y Build
 

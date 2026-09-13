@@ -1,8 +1,5 @@
 import { ipcMain } from 'electron';
-import axios from 'axios';
-import { USER_AGENT } from '../../../utils/windowUtils';
-import { normalizeAllowedImageUrl } from '../../../utils/networkSecurity';
-import { ANILIST_API_URL, resolveAniListBanner } from '../../../services/AniListService';
+import { resolveAniListBannerResult } from '../../anilistBanner';
 import type { IpcRegistryDependencies } from '../../IpcRegistry';
 
 // Banner visual opcional: ante error o duda devuelve null y la ficha sigue igual.
@@ -37,23 +34,16 @@ export function registerAniListHandlers({ writeGlobalLog }: IpcRegistryDependenc
           typeof raw.providerYear === 'number' || typeof raw.providerYear === 'string' ? raw.providerYear : undefined;
         const providerFormat = typeof raw.providerFormat === 'string' ? raw.providerFormat : undefined;
         const providerSeason = typeof raw.providerSeason === 'string' ? raw.providerSeason : undefined;
-        const resolved = await resolveAniListBanner(
-          { title, alternativeTitles, providerYear, providerFormat, providerSeason, malId: hasMalId ? malId : null },
-          (body) =>
-            axios
-              .post(ANILIST_API_URL, body, {
-                headers: { 'User-Agent': USER_AGENT, 'Content-Type': 'application/json', Accept: 'application/json' },
-                timeout: 8000,
-                maxContentLength: 512 * 1024,
-                maxBodyLength: 512 * 1024,
-                maxRedirects: 2,
-              })
-              .then((res) => res.data),
-        );
+        const resolved = await resolveAniListBannerResult({
+          title,
+          alternativeTitles,
+          providerYear,
+          providerFormat,
+          providerSeason,
+          malId: hasMalId ? malId : null,
+        });
         if (!resolved) return null;
-        const banner = normalizeAllowedImageUrl(resolved.banner);
-        if (!banner) return null;
-        return { anilistId: resolved.anilistId, banner };
+        return { anilistId: resolved.anilistId, banner: resolved.banner };
       } catch (error) {
         writeGlobalLog(`AniList banner error: ${error instanceof Error ? error.message : String(error)}`);
         return null;

@@ -16,7 +16,7 @@ export function PageHeader({ title, description, actions, children, align = 'sta
   return (
     <header
       className={clsx(
-        'relative z-20 shrink-0 border-b border-border/40 bg-background/75 backdrop-blur-sm',
+        'relative z-20 shrink-0 bg-background/75 backdrop-blur-sm',
         isCentered ? 'px-4 pb-6 pt-8 text-center sm:px-8 sm:pb-7 sm:pt-10' : 'px-4 pb-5 pt-6 sm:px-8 sm:pt-7',
         className,
       )}

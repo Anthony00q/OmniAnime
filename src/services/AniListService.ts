@@ -1,6 +1,7 @@
 import { computeTitleMatchScore } from '../utils/titleUtils';
 
-// Solo banner visual de AniList; sin cuentas, sin persistencia, sin identidad entre proveedores.
+// Banner visual de AniList (ficha + carpeta), sin fallback al póster:
+// si no vincula bien, no hay banner. Sin cuentas, sin identidad entre proveedores.
 export const ANILIST_API_URL = 'https://graphql.anilist.co';
 export const ANILIST_IMAGE_HOST = 's4.anilist.co';
 
@@ -68,6 +69,28 @@ export interface AniListBannerInput {
   providerFormat?: string | null;
   providerSeason?: string | null;
   malId?: number | null;
+}
+
+export interface AniListBannerSource {
+  title?: string | null;
+  alternativeTitles?: Array<string | null | undefined> | null;
+  year?: number | string | null;
+  type?: string | null;
+  season?: string | null;
+  malId?: number | null;
+}
+
+// Mismo input que la ficha de Detalles: el banner guardado en disco
+// coincide con el mostrado. Sin fallback al póster en ningún punto.
+export function anilistBannerInputFromDetails(details: AniListBannerSource | null | undefined): AniListBannerInput {
+  return {
+    title: String(details?.title ?? ''),
+    alternativeTitles: details?.alternativeTitles ?? null,
+    providerYear: details?.year ?? null,
+    providerFormat: details?.type ?? null,
+    providerSeason: details?.season ?? null,
+    malId: details?.malId ?? null,
+  };
 }
 
 export function parseMalId(rawId: number | string | null | undefined): number | null {

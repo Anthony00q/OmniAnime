@@ -15,6 +15,8 @@ export interface EpisodeAttemptProgress {
   progress: number;
   status?: string;
   progressLog?: string;
+  // Fase HLS: solo la emite el descargador nativo (resto: undefined).
+  phase?: 'downloading' | 'assembling';
 }
 
 export interface EpisodeAttemptCallbacks {
@@ -295,6 +297,7 @@ export class EpisodeDownloadAttemptService {
               callbacks.onProgress({
                 progress: hlsProgress.fraction01,
                 progressLog: pct !== lastNativePct ? `   -> EP ${episode} * HLS * ${pct}%` : undefined,
+                phase: hlsProgress.phase,
               });
               if (pct !== lastNativePct) lastNativePct = pct;
               callbacks.updateTray(`Descargando ${item.animeTitle} - EP ${episode} (${pct}%)`);

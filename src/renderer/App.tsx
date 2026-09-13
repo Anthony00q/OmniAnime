@@ -40,6 +40,7 @@ const TOAST_DURATION_MS = 4000;
 function getViewPanelClass(currentView: string, view: string): string {
   return clsx(
     'flex-1 overflow-hidden flex flex-col',
+    view !== 'details' && view !== 'player' && 'pt-10',
     currentView !== view && 'hidden',
     currentView === view && 'view-enter',
   );
@@ -169,7 +170,7 @@ export default function App() {
         />
         <Titlebar />
 
-        <div className="flex flex-1 overflow-hidden relative">
+        <div className="flex h-full overflow-hidden relative">
           <Sidebar currentView={currentView} setCurrentView={handleSetView} />
 
           <main className="flex-1 min-w-0 overflow-hidden relative flex flex-col">

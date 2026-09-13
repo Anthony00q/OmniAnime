@@ -440,12 +440,11 @@ export const LogsTab = memo(function LogsTab({ isActive = true, settings, onChan
                 onToggle={toggleAllEligible}
               />
               <span>
-                {entries.length} de {total} entradas
+                {affectedRows} de {total} entradas
                 {logQuery.isFetching ? ' · Actualizando...' : ''}
               </span>
               {selected.size > 0 ? (
                 <span className="ml-auto flex items-center gap-2">
-                  <span className="font-semibold text-foreground tabular-nums">{selected.size} sel.</span>
                   <button
                     type="button"
                     onClick={() => setSelected(new Set())}

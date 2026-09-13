@@ -143,7 +143,7 @@ export function LibraryView({ onSelectAnime, activeProvider, isActive }: Library
   }
 
   return (
-    <div className="flex h-full min-w-0 flex-col bg-background">
+    <div className="flex h-full min-w-0 flex-col bg-background pt-10">
       <PageHeader
         title="Librería Local"
         description="Tu colección, estante por estante"

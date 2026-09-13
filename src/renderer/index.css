@@ -162,6 +162,15 @@
     scrollbar-color: var(--color-border) transparent;
     scrollbar-width: thin;
   }
+
+  .details-scroll {
+    scrollbar-gutter: auto;
+    scrollbar-color: var(--color-border) var(--color-background);
+    scrollbar-width: thin;
+  }
+  .details-scroll::-webkit-scrollbar-track {
+    background: var(--color-background);
+  }
 }
 
 [data-sonner-toaster] [data-sonner-toast],
@@ -510,7 +519,7 @@ html[dir='ltr'] {
 @media (max-width: 960px) {
   .omnianime-sidebar {
     width: 72px;
-    padding-top: 1rem;
+    padding-top: 3rem;
   }
 
   .omnianime-sidebar .sidebar-provider-section {

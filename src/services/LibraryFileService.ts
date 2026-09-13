@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import * as fsp from 'fs/promises';
 import * as path from 'path';
 import type { LibraryAssetService } from './LibraryAssetService';
+import { anilistBannerInputFromDetails, type AniListBannerInput } from './AniListService';
 import { normalizeDisplayAnimeTitle } from '../utils/titleUtils';
 import { isPathWithinAnyDirectory, isPathSafeForDestructiveOperation, isSafeChildName } from '../utils/pathSecurity';
 
@@ -23,6 +24,11 @@ export interface LibraryAnimeDetails {
   title?: string;
   poster?: string | null;
   banner?: string | null;
+  alternativeTitles?: string[];
+  malId?: number | null;
+  year?: number | string | null;
+  season?: string | null;
+  type?: string | null;
 }
 
 export interface LibraryFileServiceOptions {
@@ -31,6 +37,8 @@ export interface LibraryFileServiceOptions {
   queueOwnsFolder: (folderPath: string) => boolean;
   getAnimeDetails: (slug: string) => Promise<LibraryAnimeDetails | null>;
   getActiveProviderId: () => string;
+  // Banner AniList validado para la carpeta, o null. Sin fallback al póster.
+  resolveAniListBannerUrl?: (input: AniListBannerInput) => Promise<string | null>;
   openPath: (targetPath: string) => Promise<string>;
   userDataDir: string;
   log: (error: unknown) => void;
@@ -128,7 +136,12 @@ export class LibraryFileService {
                     ? assetServiceAny.getFolderBannerFilePathAsync(folderPath)
                     : Promise.resolve(assetServiceAny.getFolderBannerFilePath(folderPath)),
                 ]);
-                if ((!hasPoster && meta.posterUrl) || (!hasBanner && (meta.bannerUrl || meta.posterUrl))) {
+                // Sin fallback al póster: el banner solo se restaura si la
+                // meta trae uno genuino de AniList (distinto del póster).
+                if (
+                  (!hasPoster && meta.posterUrl) ||
+                  (!hasBanner && meta.bannerUrl && meta.bannerUrl !== meta.posterUrl)
+                ) {
                   void this.options.assetService.restoreMissingAssets(folderPath, meta);
                 }
               }
@@ -166,7 +179,13 @@ export class LibraryFileService {
                 birthtime: stats.birthtimeMs,
                 episodeCount,
                 posterLocal: posterLocalAsync || (meta as any)?.posterUrl || null,
-                bannerLocal: bannerLocalAsync || (meta as any)?.bannerUrl || null,
+                // Sin fallback al póster: legacy guardaba el póster como
+                // bannerUrl y no se muestra como banner.
+                bannerLocal:
+                  bannerLocalAsync ||
+                  ((meta as any)?.bannerUrl && (meta as any)?.bannerUrl !== (meta as any)?.posterUrl
+                    ? (meta as any)?.bannerUrl
+                    : null),
                 metaSlug: (meta as any)?.slug || null,
                 metaTitle: (meta as any)?.title || null,
                 providerId: (meta as any)?.providerId || 'animeav1',
@@ -283,18 +302,28 @@ export class LibraryFileService {
         this.options.log(`Error limpiando assets anteriores en relink: ${error}`);
       }
 
+      // Banner como en la ficha: solo AniList validado, sin fallback al
+      // póster. Null ante error, offline o sin match.
+      let anilistBannerUrl: string | null = null;
+      try {
+        anilistBannerUrl =
+          (await this.options.resolveAniListBannerUrl?.(anilistBannerInputFromDetails(details))) ?? null;
+      } catch {
+        anilistBannerUrl = null;
+      }
+
       this.options.assetService.writeFolderLibraryMeta(folderPath, {
         slug: targetSlug,
         title: normalizeDisplayAnimeTitle(details.title || '') || targetSlug,
         posterUrl: details.poster,
-        bannerUrl: details.banner,
+        bannerUrl: anilistBannerUrl,
         providerId: this.options.getActiveProviderId(),
       });
 
       setImmediate(async () => {
         try {
           await this.options.assetService.ensureFolderPoster(folderPath, details.poster || null);
-          await this.options.assetService.ensureFolderBanner(folderPath, details.banner || details.poster || null);
+          if (anilistBannerUrl) await this.options.assetService.ensureFolderBanner(folderPath, anilistBannerUrl);
         } catch (error) {
           this.options.log(`Error descargando assets en relink: ${error}`);
         }

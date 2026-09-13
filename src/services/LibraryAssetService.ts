@@ -359,8 +359,10 @@ export class LibraryAssetService {
       if (!hasPoster && meta.posterUrl) {
         await this.ensureFolderPoster(folderPath, meta.posterUrl);
       }
-      if (!hasBanner && (meta.bannerUrl || meta.posterUrl)) {
-        await this.ensureFolderBanner(folderPath, meta.bannerUrl || meta.posterUrl);
+      // Sin fallback al póster: solo restaura un banner genuino de AniList
+      // (legacy guardaba el póster como bannerUrl y no se rellena).
+      if (!hasBanner && meta.bannerUrl && meta.bannerUrl !== meta.posterUrl) {
+        await this.ensureFolderBanner(folderPath, meta.bannerUrl);
       }
     } catch (error) {
       this.options.log(`No se pudieron restaurar assets de ${folderPath}: ${error}`);

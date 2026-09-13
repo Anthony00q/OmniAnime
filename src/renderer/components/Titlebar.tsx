@@ -41,7 +41,7 @@ export function Titlebar() {
   const handleClose = () => window.api.invoke('window-close');
 
   return (
-    <div className="h-10 shrink-0 w-full flex items-center justify-between select-none app-region-drag bg-background/95 border-b border-border/50 z-50">
+    <div className="absolute inset-x-0 top-0 h-10 flex items-center justify-between select-none app-region-drag bg-transparent z-50">
       <div className="flex items-center px-4 gap-2.5">
         {iconUrl ? (
           <img

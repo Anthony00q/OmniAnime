@@ -70,7 +70,7 @@ export const SettingsTabNav = memo(function SettingsTabNav({ activeTab, onTabCha
   }, []);
 
   return (
-    <div className="flex w-full shrink-0 gap-2 overflow-x-auto border-b border-border bg-background/50 p-3 sm:p-4 min-[960px]:w-[264px] min-[960px]:flex-col min-[960px]:overflow-visible min-[960px]:border-b-0 min-[960px]:border-r min-[960px]:p-6 min-[960px]:pt-6 backdrop-blur-sm">
+    <div className="flex w-full shrink-0 gap-2 overflow-x-auto border-b border-border/30 bg-background/50 p-3 sm:p-4 min-[960px]:w-[264px] min-[960px]:flex-col min-[960px]:overflow-visible min-[960px]:border-b-0 min-[960px]:border-r min-[960px]:p-6 min-[960px]:pt-6 backdrop-blur-sm">
       {TABS.map((tab) => (
         <button
           key={tab.id}

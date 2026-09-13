@@ -9,7 +9,7 @@ interface SettingsHeaderProps {
 
 export const SettingsHeader = memo(function SettingsHeader({ isDirty, onDiscard }: SettingsHeaderProps) {
   return (
-    <div className="shrink-0 border-b border-border/40 bg-background/80 backdrop-blur-sm p-4 pb-4 sm:p-8 sm:pb-5">
+    <div className="shrink-0 border-b border-border/30 bg-background/80 backdrop-blur-sm p-4 pb-4 sm:p-8 sm:pb-5">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight">Configuración</h1>

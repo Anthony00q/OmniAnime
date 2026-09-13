@@ -1026,7 +1026,9 @@ export class DownloadQueueProcessor {
     if (this.options.scheduleQueueProgress) {
       // Secuencial también emite foto de 1 EP: sin ella el Detalle
       // degrada el EP en vuelo a 'queued 0%' aunque el Total avance.
-      this.options.scheduleQueueProgress(item, [{ episode, progress: display, ...(server ? { server } : {}) }]);
+      this.options.scheduleQueueProgress(item, [
+        { episode, progress: display, ...(server ? { server } : {}), ...(update.phase ? { phase: update.phase } : {}) },
+      ]);
     } else {
       this.options.scheduleQueueUpdate();
     }
@@ -1261,12 +1263,16 @@ export class DownloadQueueProcessor {
     episodesToProcess: number[],
     episodeProgress: Map<number, number>,
     episodeServer: Map<number, string>,
+    episodePhase: Map<number, 'downloading' | 'assembling'>,
     episode: number,
     logId: string,
     update: EpisodeAttemptProgress,
   ): void {
     const live = Math.max(0, Math.min(1, update.progress));
     episodeProgress.set(episode, Math.max(this.frozenBaseline(item, episode, episodeServer.get(episode)), live));
+    // Fase HLS transitoria para 'Ensamblando'; nunca se persiste.
+    if (update.phase) episodePhase.set(episode, update.phase);
+    else episodePhase.delete(episode);
     const total = Math.max(1, episodesToProcess.length);
     // Pausados no cuentan como finalizados: su % congelado suma en activeSum
     const isFinal = (ep: number): boolean =>
@@ -1287,6 +1293,7 @@ export class DownloadQueueProcessor {
           episode: ep,
           progress: Math.max(0, Math.min(1, episodeProgress.get(ep) ?? 0)),
           ...(episodeServer.get(ep) ? { server: episodeServer.get(ep) as string } : {}),
+          ...(episodePhase.get(ep) ? { phase: episodePhase.get(ep) as 'downloading' | 'assembling' } : {}),
         });
       }
     }
@@ -1312,6 +1319,7 @@ export class DownloadQueueProcessor {
   ): Promise<void> {
     const episodeProgress = new Map<number, number>();
     const episodeServer = new Map<number, string>();
+    const episodePhase = new Map<number, 'downloading' | 'assembling'>();
     // Siembra anti-flash: al reanudar, los mapas arrancan del % congelado
     // solo si retoman Mega (único resume real); el resto publica ceros
     // honestos hasta que llega el progreso vivo.
@@ -1441,6 +1449,7 @@ export class DownloadQueueProcessor {
                 episodesToProcess,
                 episodeProgress,
                 episodeServer,
+                episodePhase,
                 episode,
                 logId,
                 update,

@@ -6,12 +6,15 @@ export interface DetailActiveEp {
   episode: number;
   progress: number;
   server?: string;
+  // 'downloading' equivale a bajada en curso; la fila solo pinta 'assembling'.
+  phase?: 'downloading' | 'assembling';
 }
 
 export interface DetailRow {
   episode: number;
   progress: number;
   server?: string;
+  phase?: 'assembling';
   state: 'active' | 'paused' | 'cancelled' | 'queued' | 'completed' | 'failed';
 }
 
@@ -70,6 +73,7 @@ export function buildDetailRows(input: DetailRowsInput): DetailRow[] {
     episode: e.episode,
     progress: clamp01(e.progress),
     ...(cleanServer(e.server) ? { server: cleanServer(e.server)! } : {}),
+    ...(e.phase === 'assembling' ? { phase: 'assembling' as const } : {}),
     state: 'active' as const,
   }));
 

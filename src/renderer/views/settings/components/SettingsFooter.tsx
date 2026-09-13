@@ -17,7 +17,7 @@ export const SettingsFooter = memo(function SettingsFooter({
   onSave,
 }: SettingsFooterProps) {
   return (
-    <div className="flex shrink-0 flex-col gap-3 border-t border-border bg-background/85 backdrop-blur-md p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+    <div className="flex shrink-0 flex-col gap-3 border-t border-border/30 bg-background/85 backdrop-blur-md p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
       <div className="flex items-center gap-3">
         <button
           type="button"
