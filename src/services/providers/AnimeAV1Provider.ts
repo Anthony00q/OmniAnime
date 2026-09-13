@@ -40,6 +40,42 @@ export function buildAv1EpisodeThumbUrl(mediaId: unknown, episode: unknown): str
   return `https://cdn.animeav1.com/screenshots/${id}/${num}.jpg`;
 }
 
+// MAL ID de la media actual, anclado a su slug: los géneros también traen
+// `malId` y un match global los confundiría. Solo fondo para matching.
+export function extractMediaMalId(scope: string, slug: string): number | null {
+  try {
+    const pageSlug = String(slug || '').trim();
+    if (!pageSlug) return null;
+    const escaped = pageSlug.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const found = new Set(
+      Array.from(String(scope || '').matchAll(new RegExp(`slug:"${escaped}",malId:(\\d+)`, 'g'))).map((m) => m[1]),
+    );
+    if (found.size !== 1) return null;
+    const id = Number([...found][0]);
+    return Number.isFinite(id) && id > 0 ? id : null;
+  } catch {
+    return null;
+  }
+}
+
+// aka:{...} trae un título por idioma ("en-us", "ja-jp", ...). Solo fondo
+// para matching: la UI sigue mostrando `title` y `japaneseTitle` como antes.
+export function extractAkaTitles(scope: string): { en: string; ja: string } {
+  const src = String(scope || '');
+  const pick = (pattern: RegExp): string => {
+    try {
+      const match = src.match(pattern);
+      return match && match[1] ? String(match[1]).trim() : '';
+    } catch {
+      return '';
+    }
+  };
+  return {
+    en: pick(/aka:\{[^}]*"en(?:-us)?":"([^"]+)"/),
+    ja: pick(/aka:\{[^}]*"ja(?:-jp)?":"([^"]+)"/),
+  };
+}
+
 export class AnimeAV1Provider implements AnimeProvider {
   private readonly logger: ScopedLogger;
   constructor(options?: { logger?: ScopedLogger }) {
@@ -84,7 +120,6 @@ export class AnimeAV1Provider implements AnimeProvider {
     STATUS: /status:(\d+)/,
     START_DATE: /startDate:"(\d{4})-(\d{2})/,
     CATEGORY_NAME: /category:\{[^}]+name:"([^"]+)"/,
-    JAPANESE_TITLE: /aka:\{[^}]*"ja(?:-jp)?":"([^"]+)"/,
     SCORE_VOTES: /score:([\d.]+),votes:(\d+)/,
     SERVER_URL: /\{server:"([^"]+)",url:"([^"]+)"\}/g,
     QUOTED_TITLE: /title:"((?:[^"\\]|\\.)*)"/,
@@ -651,6 +686,8 @@ export class AnimeAV1Provider implements AnimeProvider {
       let yearStr = '';
       let categoryStr = 'Anime';
       let japaneseTitleStr = '';
+      let englishTitleStr = '';
+      let malIdNum: number | null = null;
       let seasonStr = '';
       let scoreNum = 0;
       let votesNum = 0;
@@ -702,10 +739,16 @@ export class AnimeAV1Provider implements AnimeProvider {
         // Categoría por defecto.
       }
       try {
-        const akaMatch = scope.match(this.REGEX.JAPANESE_TITLE);
-        if (akaMatch) japaneseTitleStr = akaMatch[1];
+        const akaTitles = extractAkaTitles(scope);
+        if (akaTitles.ja) japaneseTitleStr = akaTitles.ja;
+        if (akaTitles.en) englishTitleStr = akaTitles.en;
       } catch {
-        // Sin título japonés.
+        // Sin títulos alternativos.
+      }
+      try {
+        malIdNum = extractMediaMalId(scope, slug);
+      } catch {
+        // Sin MAL ID.
       }
       try {
         const scoreMatch = scope.match(this.REGEX.SCORE_VOTES);
@@ -734,7 +777,10 @@ export class AnimeAV1Provider implements AnimeProvider {
         year: yearStr,
         category: categoryStr,
         japaneseTitle: japaneseTitleStr,
-        alternativeTitles: japaneseTitleStr ? [japaneseTitleStr] : [],
+        malId: malIdNum,
+        alternativeTitles: [englishTitleStr, japaneseTitleStr]
+          .map((t) => String(t || '').trim())
+          .filter((t, index, arr) => !!t && t !== title && arr.indexOf(t) === index),
         season: seasonStr,
         score: scoreNum,
         votes: votesNum,

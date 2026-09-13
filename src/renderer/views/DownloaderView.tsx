@@ -78,6 +78,48 @@ function formatEpisodeList(episodes: number[]): string {
   return ranges.join(', ');
 }
 
+// Fade del título solo si no cabe (mide overflow real).
+function useIsTitleTruncated(text: string) {
+  const titleRef = useRef<HTMLSpanElement | null>(null);
+  const [isTruncated, setIsTruncated] = useState(false);
+
+  useEffect(() => {
+    const el = titleRef.current;
+    if (!el) return;
+    let raf = 0;
+    let disposed = false;
+    const check = () => {
+      if (disposed) return;
+      // Vista keep-alive oculta: clientWidth 0, conserva el valor previo.
+      if (el.clientWidth === 0) return;
+      const next = el.scrollWidth > el.clientWidth + 1;
+      setIsTruncated((prev) => (prev === next ? prev : next));
+    };
+    const scheduleCheck = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(check);
+    };
+    check();
+    window.addEventListener('resize', scheduleCheck);
+    let ro: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver(scheduleCheck);
+      ro.observe(el);
+    }
+    if (typeof document !== 'undefined' && document.fonts) {
+      document.fonts.ready.then(check).catch(() => {});
+    }
+    return () => {
+      disposed = true;
+      window.removeEventListener('resize', scheduleCheck);
+      cancelAnimationFrame(raf);
+      ro?.disconnect();
+    };
+  }, [text]);
+
+  return { titleRef, isTruncated };
+}
+
 interface QueueRowProps {
   item: any;
   activeProvider?: string;
@@ -270,6 +312,7 @@ const QueueItemRow = memo(
     pendingEpisodeKeys,
     isPriority = false,
   }: QueueRowProps) {
+    const { titleRef, isTruncated } = useIsTitleTruncated(item.animeTitle ?? '');
     const pct = useMemo(() => {
       if (item.status === 'downloading' || item.status === 'paused' || item.status === 'pending')
         return Math.round((item.progress ?? 0) * 100);
@@ -559,18 +602,22 @@ const QueueItemRow = memo(
           <div className="min-w-0 flex-1 p-3">
             <div className="mb-2 flex flex-row items-start justify-between gap-2">
               <div className="flex-1 min-w-0">
-                <h3 className="truncate text-[15px] font-semibold leading-snug text-foreground">
+                <h3 className="min-w-0 overflow-hidden text-[15px] font-semibold leading-snug text-foreground">
                   {canOpenDetails ? (
                     <button
                       type="button"
                       onClick={handleClickDetails}
                       aria-label={`Ver detalles de ${item.animeTitle}`}
-                      className="truncate text-left transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                      className="block w-full min-w-0 max-w-full text-left transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
                     >
-                      {item.animeTitle}
+                      <span ref={titleRef} data-truncated={isTruncated || undefined} className="title-fade">
+                        {item.animeTitle}
+                      </span>
                     </button>
                   ) : (
-                    <span className="truncate">{item.animeTitle}</span>
+                    <span ref={titleRef} data-truncated={isTruncated || undefined} className="title-fade">
+                      {item.animeTitle}
+                    </span>
                   )}
                 </h3>
                 {!isProviderMatch && item.slug && onSelectAnime && (

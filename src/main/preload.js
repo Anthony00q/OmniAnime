@@ -55,6 +55,7 @@ var INVOKE_CHANNELS = new Set([
   'search-anime',
   'get-details',
   'get-episode-thumbs',
+  'get-anilist-banner',
   'select-folder',
   'search-trailer-id',
   'rename-anime-files',

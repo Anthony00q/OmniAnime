@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import { useAtom, useAtomValue } from 'jotai';
+import { useQueryClient } from '@tanstack/react-query';
 import { Toaster } from 'sonner';
 import clsx from 'clsx';
 import { Titlebar } from './components/Titlebar';
@@ -15,7 +16,7 @@ import { DownloaderView } from './views/DownloaderView';
 import { HistoryView } from './views/HistoryView';
 import { ScannerView } from './views/ScannerView';
 import { SettingsView } from './views/SettingsView';
-import { useActiveProvider, useLoadSettings } from './hooks/useQueries';
+import { useActiveProvider, useLoadSettings, prefetchAnimeDetails } from './hooks/useQueries';
 import { useAppUpdate } from './hooks/useAppUpdate';
 import { UpdateModal } from './components/update/UpdateModal';
 import { useThemeSync } from './hooks/useThemeSync';
@@ -137,7 +138,9 @@ export default function App() {
     setCurrentView(view);
   };
 
+  const queryClient = useQueryClient();
   const handleSelectAnime = (slug: string) => {
+    prefetchAnimeDetails(queryClient, activeProvider, slug);
     if (currentView !== 'details') {
       setPreviousView(currentView);
     }

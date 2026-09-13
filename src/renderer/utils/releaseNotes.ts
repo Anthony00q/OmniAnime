@@ -8,8 +8,8 @@ export type ReleaseNotesBlock =
   | { kind: 'list'; items: ReleaseNotesInline[][] }
   | { kind: 'paragraph'; content: ReleaseNotesInline[] };
 
-// Subconjunto mínimo del CHANGELOG: `Etiqueta:` agrupa, `- ` viñeta,
-// `**texto**` en negrita. Lo no reconocido cae a párrafo tal cual.
+// Subconjunto mínimo del CHANGELOG: `### Etiqueta` o `Etiqueta:` agrupa,
+// `- ` viñeta, `**texto**` en negrita. Lo no reconocido cae a párrafo tal cual.
 export function parseReleaseNotes(input: unknown): ReleaseNotesBlock[] {
   if (typeof input !== 'string') return [];
   const blocks: ReleaseNotesBlock[] = [];
@@ -44,6 +44,15 @@ export function parseReleaseNotes(input: unknown): ReleaseNotesBlock[] {
       blocks.push({ kind: 'heading', content: parseInline(line.slice(0, -1)) });
       continue;
     }
+    // Encabezado Markdown (`### Zona`): misma agrupación en el modal y
+    // encabezado real en la web de GitHub. Solo dentro de la sección.
+    const mdHeading = line.match(/^#{1,6}\s+(.+?)\s*$/);
+    if (mdHeading) {
+      flushParagraph();
+      flushList();
+      blocks.push({ kind: 'heading', content: parseInline(mdHeading[1].trim()) });
+      continue;
+    }
     flushList();
     paragraph.push(line);
   }
@@ -73,11 +82,12 @@ export interface ReleaseNotesSection {
 
 // Cose cada encabezado con su contenido: aire apretado dentro de la
 // sección y generoso entre secciones. Sin encabezado, sección suelta.
+// Un encabezado sin contenido no genera sección (evita huecos vacíos).
 export function groupReleaseSections(blocks: ReleaseNotesBlock[]): ReleaseNotesSection[] {
   const sections: ReleaseNotesSection[] = [];
   let current: ReleaseNotesSection | null = null;
   const pushCurrent = () => {
-    if (current && (current.heading || current.blocks.length > 0)) sections.push(current);
+    if (current && current.blocks.length > 0) sections.push(current);
     current = null;
   };
   for (const block of blocks) {

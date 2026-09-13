@@ -898,6 +898,22 @@ html[dir='ltr'] {
   text-wrap: balance;
 }
 
+/* Fade del título de Descargas solo con overflow (máscara, agnóstica al tema). */
+.title-fade {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.title-fade[data-truncated='true'] {
+  text-overflow: clip;
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent 100%);
+  mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent 100%);
+}
+
 .sala-empty-icon {
   display: flex;
   align-items: center;

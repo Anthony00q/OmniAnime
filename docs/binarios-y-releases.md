@@ -5,16 +5,15 @@
 `ffmpeg.exe` pesa ~101 MB y GitHub rechaza ficheros de más de 100 MB,
 así que versionar los binarios es imposible. Además engordarían el
 historial en cada actualización. Por eso están en `.gitignore` y se
-descargan con versiones fijadas y SHA256 verificado.
+descargan con versión fijada y SHA256 verificado.
 
 ## Fuente de verdad: `scripts/tools-versions.json`
 
-Único lugar donde se fijan versión + URL + SHA256 de cada binario:
+Único lugar donde se fijan versión + URL + SHA256 del binario:
 
 - **ffmpeg** `8.1.2` variante `essentials_build` — paquete versionado de
-  gyan.dev con sidecar `.sha256` público.
-- **ffprobe** `8.1.2` — sale del mismo paquete que ffmpeg
-  (campo `fromPackage` en el JSON, sin descarga propia).
+  gyan.dev con sidecar `.sha256` público (solo se instala `ffmpeg.exe`;
+  la duración la lee `music-metadata`, sin binarios).
 
 ## `npm run setup:tools`
 
@@ -58,7 +57,7 @@ git push origin vX.X.X
 
 El workflow `.github/workflows/release.yml` (runner `windows-latest`)
 hace el resto: comprueba que el tag tiene forma `vX.X.X` y coincide con
-`package.json`, extrae la sección `## vX.Y.Z` del CHANGELOG a
+`package.json`, extrae la sección `## [X.Y.Z] - fecha` del CHANGELOG a
 `release-notes.md` (falla si no existe), `npm ci`, descarga herramientas,
 `lint`, `format:check`, `build`, empaqueta el instalador NSIS **sin
 publicar**, verifica el trío exe + blockmap + `latest.yml`
@@ -74,17 +73,19 @@ el auto-update) y muestran el modal con esas notas.
 
 ## Cómo escribir las novedades del CHANGELOG
 
-La sección `## vX.Y.Z` admite un formato mínimo que el modal de
-actualización renderiza: líneas `Etiqueta:` como grupos, líneas `- ...`
-como viñetas y `**negrita**` en línea. Todo lo demás se muestra como
-texto tal cual. El extractor y `latest.yml` pasan el texto sin tocarlo,
-así que la web de GitHub lo renderiza sola desde el mismo origen.
+La sección `## [X.Y.Z] - fecha` admite un formato mínimo que el modal de
+actualización renderiza: líneas `### Zona` como grupos, líneas `- ...`
+como viñetas y `**negrita**` en línea (la forma legacy `Etiqueta:` en
+línea suelta aún renderiza en el modal, pero no la uses en secciones
+nuevas). Todo lo demás se muestra como texto tal cual. El extractor y
+`latest.yml` pasan el texto sin tocarlo, así que la web de GitHub lo
+renderiza sola desde el mismo origen (ahí `###` se ve como encabezado).
 
 Anti-instalador-vacío: `prebuild:win` y `prebuild:win:publish` ejecutan
-`setup-tools --check` antes de empaquetar; si falta algún binario o no
+`setup-tools --check` antes de empaquetar; si falta el binario o no
 coincide con lo fijado, el build falla en vez de producir un instalador
 sin herramientas. En CI ese gate siempre pasa porque el paso anterior
-acaba de descargarlas (y si la descarga falla, el job ya habría fallado).
+acaba de descargarlo (y si la descarga falla, el job ya habría fallado).
 
 Requisitos:
 

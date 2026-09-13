@@ -4,6 +4,7 @@ import * as fs from 'fs';
 import * as fsp from 'fs/promises';
 import * as path from 'path';
 import { terminateChildProcessTree } from '../utils/processUtils';
+import { withStartupTimeout } from '../utils/splashBoot';
 
 export interface ThumbnailServiceOptions {
   toolsDir: string;
@@ -16,10 +17,8 @@ export interface ThumbnailServiceOptions {
 const THUMBNAIL_DIR_NAME = 'thumbnails_v3';
 const THUMBNAIL_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 const THUMBNAIL_BATCH_SIZE = 16;
-const DURATION_TIMEOUT_MS = 2000;
+const DURATION_PARSE_TIMEOUT_MS = 2_000;
 const CAPTURE_TIMEOUT_MS = 5000;
-// Salida ffprobe mínima: tope anti-bloat.
-const DURATION_OUTPUT_LIMIT = 64 * 1024;
 
 export function computeThumbnailAttemptPoints(duration: number | null): string[] {
   if (duration && duration > 0) {
@@ -42,12 +41,25 @@ export function computeThumbnailAttemptPoints(duration: number | null): string[]
   return ['120', '240', '60', '15', '2', '0'];
 }
 
-export function parseFfprobeDuration(raw: string): number | null {
-  const token = raw.trim().split(/\s+/)[0] ?? '';
-  if (!token || token === 'N/A') return null;
-  const value = Number(token);
-  if (!Number.isFinite(value) || value <= 0) return null;
-  return Math.floor(value);
+export function parseMediaDuration(seconds: unknown): number | null {
+  if (typeof seconds !== 'number' || !Number.isFinite(seconds) || seconds <= 0) return null;
+  return Math.floor(seconds);
+}
+
+// Duración solo con cabeceras (music-metadata, sin binarios). Cualquier
+// formato no soportado o fichero roto/inexistente devuelve null y el
+// llamador usa los puntos de intento genéricos.
+export async function getMediaDuration(videoPath: string): Promise<number | null> {
+  try {
+    const { parseFile } = await import('music-metadata');
+    const { value } = await withStartupTimeout(
+      parseFile(videoPath, { duration: true, skipCovers: true }),
+      DURATION_PARSE_TIMEOUT_MS,
+    );
+    return parseMediaDuration(value?.format?.duration);
+  } catch {
+    return null;
+  }
 }
 
 export class ThumbnailService {
@@ -55,7 +67,6 @@ export class ThumbnailService {
   private runningFfmpeg = 0;
   private ffmpegQueue: Array<() => void> = [];
   private cachedFfmpegPath: string | null = null;
-  private cachedFfprobePath: string | null = null;
 
   constructor(private readonly options: ThumbnailServiceOptions) {}
 
@@ -79,14 +90,6 @@ export class ThumbnailService {
     const localFfmpeg = path.join(this.options.toolsDir, 'ffmpeg.exe');
     const resolved = fs.existsSync(localFfmpeg) ? localFfmpeg : 'ffmpeg';
     this.cachedFfmpegPath = resolved;
-    return resolved;
-  }
-
-  resolveFfprobePath(): string {
-    if (this.cachedFfprobePath) return this.cachedFfprobePath;
-    const localFfprobe = path.join(this.options.toolsDir, 'ffprobe.exe');
-    const resolved = fs.existsSync(localFfprobe) ? localFfprobe : 'ffprobe';
-    this.cachedFfprobePath = resolved;
     return resolved;
   }
 
@@ -183,7 +186,6 @@ export class ThumbnailService {
   async getThumbnail(videoPath: string): Promise<string | null> {
     try {
       const ffmpegPath = this.resolveFfmpegPath();
-      const ffprobePath = this.resolveFfprobePath();
       const thumbDir = path.join(this.options.userDataDir, THUMBNAIL_DIR_NAME);
       try {
         await fsp.mkdir(thumbDir, { recursive: true });
@@ -199,7 +201,7 @@ export class ThumbnailService {
         } catch {}
       }
 
-      const duration = await this.getVideoDuration(videoPath, ffprobePath);
+      const duration = await getMediaDuration(videoPath);
       const attempts = computeThumbnailAttemptPoints(duration);
 
       for (const startPoint of attempts) {
@@ -230,50 +232,6 @@ export class ThumbnailService {
       this.options.log(error);
       return null;
     }
-  }
-
-  private async getVideoDuration(videoPath: string, ffprobePath: string): Promise<number | null> {
-    await this.acquireFfmpegSlot();
-    return new Promise((resolve) => {
-      const childProcess = spawn(
-        ffprobePath,
-        ['-v', 'error', '-show_entries', 'format=duration', '-of', 'default=nw=1:nk=1', videoPath],
-        { windowsHide: true },
-      );
-      this.options.registerProcess(childProcess);
-
-      let output = '';
-      let finished = false;
-      let timeout: NodeJS.Timeout | null = null;
-      const finish = (duration: number | null) => {
-        if (finished) return;
-        finished = true;
-        if (timeout) clearTimeout(timeout);
-        this.options.unregisterProcess(childProcess);
-        this.releaseFfmpegSlot();
-        resolve(duration);
-      };
-
-      childProcess.stdout.on('data', (data) => {
-        if (output.length < DURATION_OUTPUT_LIMIT)
-          output += data.toString().slice(0, DURATION_OUTPUT_LIMIT - output.length);
-      });
-      // stderr solo se drena: un warning no debe contaminar el parseo de stdout.
-      childProcess.stderr?.resume();
-
-      childProcess.on('close', (code) => {
-        if (code !== 0) finish(null);
-        else finish(parseFfprobeDuration(output));
-      });
-
-      childProcess.on('error', () => finish(null));
-
-      timeout = setTimeout(() => {
-        if (finished) return;
-        terminateChildProcessTree(childProcess);
-        finish(null);
-      }, DURATION_TIMEOUT_MS);
-    });
   }
 
   private async captureAt(

@@ -1,4 +1,4 @@
-// Descarga verificada de los binarios externos a tools/win/.
+// Descarga verificada del binario externo a tools/win/.
 // Uso: node scripts/setup-tools.mjs [--force] [--check]
 // Solo Windows (objetivo de distribucion del proyecto).
 // Garantia: el binario de tools/win/ solo se reemplaza por rename atomico
@@ -97,15 +97,10 @@ async function probeFfmpegTool(exe, kind, version) {
   return firstLine.startsWith(`${kind} version ${version}`);
 }
 
-async function ensureFfmpegTools(ffmpegPin, ffprobePin, force) {
+async function ensureFfmpegTools(ffmpegPin, force) {
   const ffmpegDest = path.join(TOOLS_DIR, 'ffmpeg.exe');
-  const ffprobeDest = path.join(TOOLS_DIR, 'ffprobe.exe');
-  if (
-    !force &&
-    (await probeFfmpegTool(ffmpegDest, 'ffmpeg', ffmpegPin.version)) &&
-    (await probeFfmpegTool(ffprobeDest, 'ffprobe', ffprobePin.version))
-  ) {
-    console.log(`ffmpeg/ffprobe ${ffmpegPin.version} ya estan instalados.`);
+  if (!force && (await probeFfmpegTool(ffmpegDest, 'ffmpeg', ffmpegPin.version))) {
+    console.log(`ffmpeg ${ffmpegPin.version} ya esta instalado.`);
     return false;
   }
   if (process.platform !== 'win32') {
@@ -115,7 +110,6 @@ async function ensureFfmpegTools(ffmpegPin, ffprobePin, force) {
   const tmpZip = path.join(tmpdir(), `omnianime-ffmpeg-${stamp}.zip`);
   const tmpDir = path.join(tmpdir(), `omnianime-ffmpeg-${stamp}`);
   const stagedFfmpeg = stagedPath('ffmpeg.exe');
-  const stagedFfprobe = stagedPath('ffprobe.exe');
   try {
     console.log('Descargando paquete ffmpeg...');
     await fetchToFile(ffmpegPin.url, tmpZip);
@@ -123,7 +117,7 @@ async function ensureFfmpegTools(ffmpegPin, ffprobePin, force) {
     if (actual.toLowerCase() !== ffmpegPin.sha256.toLowerCase()) {
       throw new Error(`SHA256 del paquete ffmpeg no coincide (esperado ${ffmpegPin.sha256}, obtenido ${actual})`);
     }
-    console.log('Extrayendo ffmpeg.exe y ffprobe.exe...');
+    console.log('Extrayendo ffmpeg.exe...');
     await new Promise((resolve, reject) => {
       execFile(
         'powershell',
@@ -138,26 +132,19 @@ async function ensureFfmpegTools(ffmpegPin, ffprobePin, force) {
       );
     });
     const ffmpegExe = await findInDir(tmpDir, ffmpegPin.exePathInArchive);
-    const ffprobeExe = await findInDir(tmpDir, ffprobePin.exePathInArchive);
-    if (!ffmpegExe || !ffprobeExe) {
-      throw new Error('No se encontraron bin/ffmpeg.exe y/o bin/ffprobe.exe en el paquete descargado.');
+    if (!ffmpegExe) {
+      throw new Error('No se encontro bin/ffmpeg.exe en el paquete descargado.');
     }
     await fsp.mkdir(TOOLS_DIR, { recursive: true });
     await fsp.copyFile(ffmpegExe, stagedFfmpeg);
-    await fsp.copyFile(ffprobeExe, stagedFfprobe);
     if (!(await probeFfmpegTool(stagedFfmpeg, 'ffmpeg', ffmpegPin.version))) {
       throw new Error(`ffmpeg extraido no reporta la version fijada (${ffmpegPin.version})`);
     }
-    if (!(await probeFfmpegTool(stagedFfprobe, 'ffprobe', ffprobePin.version))) {
-      throw new Error(`ffprobe extraido no reporta la version fijada (${ffprobePin.version})`);
-    }
     await fsp.rename(stagedFfmpeg, ffmpegDest);
-    await fsp.rename(stagedFfprobe, ffprobeDest);
-    console.log(`ffmpeg/ffprobe ${ffmpegPin.version} verificados y guardados.`);
+    console.log(`ffmpeg ${ffmpegPin.version} verificado y guardado.`);
     return true;
   } catch (err) {
     await removeQuiet(stagedFfmpeg);
-    await removeQuiet(stagedFfprobe);
     throw err;
   } finally {
     await removeQuiet(tmpZip);
@@ -197,11 +184,7 @@ function loadPins(raw) {
     throw new Error('tools-versions.json no es un JSON valido');
   }
   const ffmpeg = requireFields(pins, 'ffmpeg', ['version', 'url', 'sha256', 'variant', 'exePathInArchive']);
-  const ffprobe = requireFields(pins, 'ffprobe', ['version', 'fromPackage', 'exePathInArchive']);
-  if (ffprobe.fromPackage !== 'ffmpeg') {
-    throw new Error('tools-versions.json: ffprobe solo puede provenir del paquete ffmpeg');
-  }
-  return { ffmpeg, ffprobe };
+  return { ffmpeg };
 }
 
 async function main() {
@@ -218,15 +201,13 @@ async function main() {
 
   if (checkOnly) {
     const ffmpegOk = await probeFfmpegTool(path.join(TOOLS_DIR, 'ffmpeg.exe'), 'ffmpeg', pins.ffmpeg.version);
-    const ffprobeOk = await probeFfmpegTool(path.join(TOOLS_DIR, 'ffprobe.exe'), 'ffprobe', pins.ffprobe.version);
     console.log(`ffmpeg: ${ffmpegOk ? 'OK' : 'FALTA/DESACTUALIZADO'}`);
-    console.log(`ffprobe: ${ffprobeOk ? 'OK' : 'FALTA/DESACTUALIZADO'}`);
-    process.exit(ffmpegOk && ffprobeOk ? 0 : 1);
+    process.exit(ffmpegOk ? 0 : 1);
   }
 
   await fsp.mkdir(TOOLS_DIR, { recursive: true });
   await sweepStaleStaged();
-  await ensureFfmpegTools(pins.ffmpeg, pins.ffprobe, force);
+  await ensureFfmpegTools(pins.ffmpeg, force);
   console.log('Herramientas listas en tools/win/.');
 }
 

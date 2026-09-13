@@ -20,6 +20,7 @@ import { registerWindowHandlers } from './ipc/handlers/window.handlers';
 import { registerQueueHandlers } from './ipc/handlers/queue.handlers';
 import { registerSettingsHandlers } from './ipc/handlers/settings.handlers';
 import { registerCatalogHandlers } from './ipc/handlers/catalog.handlers';
+import { registerAniListHandlers } from './ipc/handlers/anilist.handlers';
 import { registerLibraryHandlers } from './ipc/handlers/library.handlers';
 import { registerAppUpdaterHandlers } from './ipc/handlers/app-updater.handlers';
 import { registerStorageHandlers } from './ipc/handlers/storage.handlers';
@@ -73,6 +74,7 @@ export function registerIpcHandlers(dependencies: IpcRegistryDependencies): void
   registerQueueHandlers(dependencies);
   registerSettingsHandlers(dependencies);
   registerCatalogHandlers(dependencies);
+  registerAniListHandlers(dependencies);
   registerLibraryHandlers(dependencies);
   registerAppUpdaterHandlers(dependencies);
   registerStorageHandlers(dependencies);

@@ -1,4 +1,11 @@
-import { useQuery, useInfiniteQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
+import {
+  useQuery,
+  useInfiniteQuery,
+  useMutation,
+  useQueryClient,
+  keepPreviousData,
+  type QueryClient,
+} from '@tanstack/react-query';
 import { useDeferredValue, useEffect, useRef, useState } from 'react';
 import { useAtomValue } from 'jotai';
 import { activeProviderAtom } from '../store/atoms';
@@ -96,14 +103,128 @@ export function useCatalog(filters: Record<string, unknown>) {
   });
 }
 
+export function animeDetailsKey(provider: string, slug: string | null): (string | null)[] {
+  return ['details', provider, slug];
+}
+
+export function fetchAnimeDetails(slug: string | null, provider: string): Promise<any> {
+  return window.api.invoke('get-details', { slug, provider });
+}
+
 export function useAnimeDetails(slug: string | null) {
   const provider = useDeferredProvider();
 
   return useQuery({
-    queryKey: ['details', provider, slug],
-    queryFn: () => window.api.invoke('get-details', { slug, provider }),
+    queryKey: animeDetailsKey(provider, slug),
+    queryFn: () => fetchAnimeDetails(slug, provider),
     enabled: !!slug,
     staleTime: 30 * 1000,
+  });
+}
+
+// Precarga de la ficha por slug: misma key/fn que useAnimeDetails, sin fetch duplicado.
+export function prefetchAnimeDetails(
+  queryClient: QueryClient,
+  provider: string,
+  slug: string | null | undefined,
+): void {
+  if (!slug) return;
+  void queryClient.prefetchQuery({
+    queryKey: animeDetailsKey(provider, slug),
+    queryFn: () => fetchAnimeDetails(slug, provider),
+    staleTime: 30 * 1000,
+  });
+}
+
+// Banner AniList opcional con caché larga (24h), sin reintentos ni refetch.
+export const ANILIST_BANNER_STALE_MS = 24 * 60 * 60 * 1000;
+
+export interface AniListBannerRequest {
+  title?: string | null | undefined;
+  alternativeTitles?: Array<string | null | undefined> | null;
+  providerYear?: number | string | null;
+  providerFormat?: string | null;
+  providerSeason?: string | null;
+  malId?: number | null;
+}
+
+export interface NormalizedAniListRequest {
+  title: string;
+  alternativeTitles: string[];
+  providerYear: number | string | null;
+  providerFormat: string | null;
+  providerSeason: string | null;
+  malId: number | null;
+}
+
+function asOptionalText(value: unknown): string | null {
+  const text = String(value ?? '').trim();
+  return text ? text : null;
+}
+
+export function normalizeAniListRequest(
+  input: string | AniListBannerRequest | null | undefined,
+): NormalizedAniListRequest {
+  const raw: AniListBannerRequest = typeof input === 'string' ? { title: input } : input || {};
+  const title = typeof raw.title === 'string' ? raw.title.trim() : '';
+  const alternativeTitles = Array.isArray(raw.alternativeTitles)
+    ? raw.alternativeTitles.filter((t): t is string => typeof t === 'string').slice(0, 3)
+    : [];
+  const malId = Number(raw.malId);
+  return {
+    title,
+    alternativeTitles,
+    providerYear: raw.providerYear ?? null,
+    providerFormat: asOptionalText(raw.providerFormat),
+    providerSeason: asOptionalText(raw.providerSeason),
+    malId: Number.isInteger(malId) && malId > 0 ? malId : null,
+  };
+}
+
+// La key incluye todo el input: el prefetch con solo título usa otra key.
+export function anilistBannerKey(input: string | AniListBannerRequest | null | undefined): string[] {
+  const req = normalizeAniListRequest(input);
+  return [
+    'anilist-banner',
+    req.title,
+    req.alternativeTitles.join('\n'),
+    String(req.providerYear ?? ''),
+    req.providerFormat ?? '',
+    req.providerSeason ?? '',
+    String(req.malId ?? ''),
+  ];
+}
+
+export async function fetchAniListBanner(
+  input: string | AniListBannerRequest | null | undefined,
+): Promise<string | null> {
+  const req = normalizeAniListRequest(input);
+  if (!req.title && req.malId === null) return null;
+  const res = (await window.api.invoke('get-anilist-banner', req)) as {
+    anilistId: number;
+    banner: string;
+  } | null;
+  return res?.banner ?? null;
+}
+
+// Constructor único de la query del banner: misma key/fn en todos los usos.
+export function getAniListBannerQuery(input: string | AniListBannerRequest | null | undefined) {
+  const queryKey = anilistBannerKey(input);
+  return { queryKey, queryFn: () => fetchAniListBanner(input) };
+}
+
+export function useAniListBanner(input: string | AniListBannerRequest | null | undefined, enabled = true) {
+  const { queryKey, queryFn } = getAniListBannerQuery(input);
+  const req = normalizeAniListRequest(input);
+  return useQuery({
+    queryKey,
+    queryFn,
+    enabled: enabled && (queryKey[1].length > 0 || req.malId !== null),
+    staleTime: ANILIST_BANNER_STALE_MS,
+    gcTime: 7 * 24 * 60 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    retry: false,
   });
 }
 

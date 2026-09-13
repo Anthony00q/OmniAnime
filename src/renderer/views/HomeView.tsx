@@ -1,9 +1,10 @@
 import { RefreshCcw, Clock, Loader2, Clapperboard } from 'lucide-react';
 import { memo, useEffect, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAtomValue, useSetAtom } from 'jotai';
 import type { KeyboardEvent } from 'react';
 import { activeProviderAtom, openAnimeAtom, navigateToCatalogAtom } from '../store/atoms';
-import { useConnectivityStatus, useHomeData, useSearchAnime } from '../hooks/useQueries';
+import { useConnectivityStatus, useHomeData, useSearchAnime, prefetchAnimeDetails } from '../hooks/useQueries';
 import { shouldShowOfflineEmpty } from '../utils/offlineEmpty';
 import { PosterCard } from '../components/anime/PosterCard';
 import { PosterImage } from '../components/anime/PosterImage';
@@ -16,6 +17,8 @@ import { EmptyState } from '../components/ui/EmptyState';
 
 const HomePosterItem = memo(function HomePosterItem({ item, priority }: { item: any; priority: boolean }) {
   const setOpenAnime = useSetAtom(openAnimeAtom);
+  const queryClient = useQueryClient();
+  const providerId = useAtomValue(activeProviderAtom);
 
   return (
     <PosterCard
@@ -36,7 +39,10 @@ const HomePosterItem = memo(function HomePosterItem({ item, priority }: { item: 
           </span>
         </>
       }
-      onClick={() => setOpenAnime(item.slug)}
+      onClick={() => {
+        prefetchAnimeDetails(queryClient, providerId, item.slug);
+        setOpenAnime(item.slug);
+      }}
     />
   );
 });
@@ -99,7 +105,10 @@ export function HomeView({ isActive }: { isActive?: boolean }) {
     return () => document.removeEventListener('click', handleClickOutside);
   }, []);
 
+  const queryClient = useQueryClient();
+
   const handleSelectAnime = (slug: string) => {
+    prefetchAnimeDetails(queryClient, providerId, slug);
     setOpenAnime(slug);
     setShowDropdown(false);
     setActiveSearchIndex(-1);

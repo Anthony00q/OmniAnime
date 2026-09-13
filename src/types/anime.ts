@@ -36,6 +36,7 @@ export interface AnimeDetails {
   category: string;
   japaneseTitle: string;
   alternativeTitles?: string[];
+  malId?: number | null;
   season: string;
   score: number;
   votes: number;

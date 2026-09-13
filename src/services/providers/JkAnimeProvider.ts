@@ -142,6 +142,51 @@ export function collectJkEpisodeThumbs(items: unknown, posterUrl: unknown): Reco
   return out;
 }
 
+// Bloque "Titulos Alternativos": Sinonimos / Ingles / Japones. Solo fondo
+// para matching: la UI sigue mostrando `title` como antes.
+export function extractJkAlternativeTitles($: ReturnType<typeof cheerio.load>): {
+  synonyms: string;
+  english: string;
+  japanese: string;
+} {
+  const out = { synonyms: '', english: '', japanese: '' };
+  try {
+    const container = $('.alternativost #c').first();
+    if (!container.length) return out;
+    let current: keyof typeof out | null = null;
+    container.contents().each((_: any, node: any) => {
+      if (node.type === 'tag' && node.name === 'b') {
+        const label = $(node)
+          .text()
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '');
+        if (label.includes('sinonimo')) current = 'synonyms';
+        else if (label.includes('ingles')) current = 'english';
+        else if (label.includes('japones')) current = 'japanese';
+        else current = null;
+      } else if (node.type === 'text' && current) {
+        const text = $(node).text().replace(/\s+/g, ' ').trim();
+        if (text) out[current] = out[current] ? `${out[current]} ${text}` : text;
+      }
+    });
+  } catch {}
+  return out;
+}
+
+// MAL ID del anime: `.anisabi_player[data-id]` (`data-anime` es el ID
+// interno de JKAnime, no un MAL ID). Solo fondo para matching.
+export function extractJkMalId($: ReturnType<typeof cheerio.load>): number | null {
+  try {
+    const raw = String($('.anisabi_player').first().attr('data-id') || '').trim();
+    if (!/^\d+$/.test(raw)) return null;
+    const id = Number(raw);
+    return Number.isFinite(id) && id > 0 ? id : null;
+  } catch {
+    return null;
+  }
+}
+
 // Temporada de la ficha: valor directo del li 'Temporada:'; si falta se
 // deriva del mes de 'Emitido:'. Vacío = la fila se oculta en la UI.
 export function resolveJkSeasonFromTexts(temporadaValue: unknown, emitidoText: unknown, year: unknown): string {
@@ -610,6 +655,7 @@ export class JkAnimeProvider implements AnimeProvider {
       const episodes = epsCount !== null ? Array.from({ length: epsCount }, (_, i) => i + 1) : [];
 
       const alternativeTitle = $('.anime_info h3').first().next('span').text().trim() || '';
+      const altTitles = extractJkAlternativeTitles($);
 
       const genres: string[] = [];
       $('a[href*="/genero/"]').each((_: any, el: any) => {
@@ -762,7 +808,10 @@ export class JkAnimeProvider implements AnimeProvider {
         year,
         category,
         japaneseTitle: alternativeTitle || '',
-        alternativeTitles: alternativeTitle ? [alternativeTitle] : [],
+        malId: extractJkMalId($),
+        alternativeTitles: [altTitles.english, alternativeTitle, altTitles.synonyms, altTitles.japanese]
+          .map((t) => String(t || '').trim())
+          .filter((t, index, arr) => !!t && t !== title && arr.indexOf(t) === index),
         season,
         episodeThumbnails,
         score: 0,

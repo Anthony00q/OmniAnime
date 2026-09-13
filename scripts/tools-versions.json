@@ -8,13 +8,5 @@
     "url": "https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-8.1.2-essentials_build.zip",
     "variant": "essentials_build",
     "version": "8.1.2"
-  },
-  "ffprobe": {
-    "exePathInArchive": "bin/ffprobe.exe",
-    "fromPackage": "ffmpeg",
-    "license": "GPLv3 (build estatico gyan.dev)",
-    "name": "ffprobe",
-    "source": "mismo paquete que ffmpeg (gyan.dev)",
-    "version": "8.1.2"
   }
 }

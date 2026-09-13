@@ -1,4 +1,4 @@
-const ALLOWED_IMAGE_HOSTS = new Set(['cdn.animeav1.com', 'cdn.jkdesa.com']);
+const ALLOWED_IMAGE_HOSTS = new Set(['cdn.animeav1.com', 'cdn.jkdesa.com', 's4.anilist.co']);
 
 export function isAllowedImageUrl(rawUrl: string): boolean {
   try {

@@ -9,9 +9,20 @@ interface PosterImageProps {
   className?: string;
   priority?: boolean;
   draggable?: boolean;
+  onError?: () => void;
+  onLoad?: () => void;
 }
 
-export function PosterImage({ src, alt, fallbackLabel, className, priority = false, draggable }: PosterImageProps) {
+export function PosterImage({
+  src,
+  alt,
+  fallbackLabel,
+  className,
+  priority = false,
+  draggable,
+  onError,
+  onLoad,
+}: PosterImageProps) {
   const [hasError, setHasError] = useState(false);
   const normalizedSrc = typeof src === 'string' ? src.trim() : '';
   const hasSource = normalizedSrc.length > 0;
@@ -47,7 +58,13 @@ export function PosterImage({ src, alt, fallbackLabel, className, priority = fal
       decoding="async"
       draggable={draggable}
       className={className}
-      onError={() => setHasError(true)}
+      onError={() => {
+        setHasError(true);
+        onError?.();
+      }}
+      onLoad={() => {
+        onLoad?.();
+      }}
     />
   );
 }

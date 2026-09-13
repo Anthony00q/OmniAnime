@@ -39,7 +39,14 @@ import { useEpisodeView } from '../utils/episodeView';
 import { EpisodeViewMenu } from './libraryDetails/components/EpisodeViewMenu';
 import { normalizeSeasonLabel } from '../utils/seasonLabel';
 import { buildExternalUrl } from '../../utils/externalUrl';
-import { useAnimeDetails, useAddToQueue, useConnectivityStatus, useJkEpisodeThumbs } from '../hooks/useQueries';
+import {
+  useAnimeDetails,
+  useAddToQueue,
+  useConnectivityStatus,
+  useJkEpisodeThumbs,
+  useAniListBanner,
+  prefetchAnimeDetails,
+} from '../hooks/useQueries';
 import { shouldShowOfflineEmpty } from '../utils/offlineEmpty';
 import { Dialog } from '../components/Dialog';
 import { AppTooltip } from '../components/ui/AppTooltip';
@@ -204,6 +211,8 @@ function FranchiseRelationItem({
 }) {
   const titleRef = useRef<HTMLSpanElement | null>(null);
   const [isTruncated, setIsTruncated] = useState(false);
+  const queryClient = useQueryClient();
+  const providerId = useAtomValue(activeProviderAtom);
 
   useLayoutEffect(() => {
     const el = titleRef.current;
@@ -223,6 +232,7 @@ function FranchiseRelationItem({
       type="button"
       onClick={() => {
         if (rel.slug) {
+          prefetchAnimeDetails(queryClient, providerId, rel.slug);
           if (onSelectAnime) onSelectAnime(rel.slug);
           else if ((window as any).openAnime) (window as any).openAnime(rel.slug);
         } else {
@@ -302,6 +312,27 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
   const { data: isOnline } = useConnectivityStatus(isDetailsEmpty && !!slug);
   const showOfflineDetails = shouldShowOfflineEmpty(data ? 1 : 0, isOnline);
   const addToQueue = useAddToQueue();
+  // Hero con solo banner de AniList o nada; sin provisional del proveedor.
+  const { data: anilistBanner, isFetching: isBannerFetching } = useAniListBanner(
+    !isLoading && data
+      ? {
+          title: data.title,
+          alternativeTitles: data.alternativeTitles,
+          providerYear: data.year,
+          providerFormat: data.type,
+          providerSeason: data.season,
+          malId: data.malId,
+        }
+      : null,
+    !isLoading && !!data,
+  );
+  const [bannerFailed, setBannerFailed] = useState(false);
+  const [bannerShown, setBannerShown] = useState(false);
+  const [graceExpired, setGraceExpired] = useState(false);
+  const bannerUrl = !bannerFailed && anilistBanner ? anilistBanner : null;
+  const awaitingBanner = !bannerShown && !bannerFailed && (isBannerFetching || !!anilistBanner);
+  const showBanner = bannerShown && !!bannerUrl;
+  const showShimmer = !bannerShown && awaitingBanner && !graceExpired;
   const isActiveRef = useRef(isActive);
   useEffect(() => {
     isActiveRef.current = isActive;
@@ -340,6 +371,9 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
 
   useEffect(() => {
     setSelected(new Set());
+    setBannerFailed(false);
+    setBannerShown(false);
+    setGraceExpired(false);
     setRangeFrom('1');
     setRangeTo('');
     setShowFullSynopsis(false);
@@ -353,6 +387,13 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
     setThumbWindow(null);
     lastThumbReqRef.current = '';
   }, [slug]);
+
+  // Pasados 2 s sin banner, el hero queda en plano; si llega, disuelve igual.
+  useEffect(() => {
+    if (!awaitingBanner || bannerShown || graceExpired) return;
+    const timer = setTimeout(() => setGraceExpired(true), 2000);
+    return () => clearTimeout(timer);
+  }, [awaitingBanner, bannerShown, graceExpired, slug]);
 
   const availableLanguages: AnimeLanguage[] = ['SUB']; // DUB desactivado: solo SUB
 
@@ -649,13 +690,36 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
   return (
     <div className="relative flex h-full min-w-0 flex-col overflow-hidden bg-background">
       <div className="absolute left-0 top-0 z-0 h-[46vh] min-h-[240px] w-full overflow-hidden">
-        <PosterImage
-          src={data.banner || data.poster}
-          alt={`Banner de ${data.title}`}
-          priority={!!isActive}
-          className="h-full w-full scale-105 object-cover opacity-10 blur-[2px]"
-        />
-        <div className="absolute inset-0 bg-gradient-to-b from-background/10 via-background/60 to-background"></div>
+        {bannerUrl && (
+          <PosterImage
+            src={bannerUrl}
+            alt={`Banner de ${data.title}`}
+            priority={!!isActive}
+            onLoad={() => setBannerShown(true)}
+            onError={() => setBannerFailed(true)}
+            className={`h-full w-full object-cover object-[center_20%] transition-opacity duration-200 ${
+              showBanner ? 'opacity-100' : 'invisible opacity-0'
+            }`}
+          />
+        )}
+        {showShimmer && <div aria-hidden="true" className="absolute inset-0 animate-pulse bg-secondary/40" />}
+        {showBanner ? (
+          <>
+            <div
+              aria-hidden="true"
+              className="absolute inset-0 bg-gradient-to-r from-background/90 via-background/50 to-transparent sm:from-background sm:via-background/60"
+            />
+            <div
+              aria-hidden="true"
+              className="absolute inset-x-0 bottom-0 h-3/5 bg-gradient-to-b from-transparent via-background/40 to-background"
+            />
+          </>
+        ) : (
+          <div
+            aria-hidden="true"
+            className="absolute inset-0 bg-gradient-to-b from-secondary/20 via-background/60 to-background"
+          />
+        )}
         <div
           aria-hidden="true"
           className="pointer-events-none absolute inset-x-0 top-0 h-12 bg-gradient-to-b from-background to-transparent"
@@ -697,12 +761,12 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
             </h1>
 
             {(data.japaneseTitle || (data.alternativeTitles && data.alternativeTitles.length > 0)) && (
-              <h2 className="mb-4 select-text cursor-text text-base font-semibold text-white/60 sm:mb-6 sm:text-xl">
+              <h2 className="mb-4 select-text cursor-text text-base font-semibold text-white/60 drop-shadow-[0_2px_12px_rgba(0,0,0,0.8)] sm:mb-6 sm:text-xl">
                 {data.japaneseTitle || data.alternativeTitles?.join(', ')}
               </h2>
             )}
 
-            <p className="mb-4 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[13px] font-medium text-muted-foreground sm:mb-5 sm:justify-start">
+            <p className="mb-4 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[13px] font-medium text-muted-foreground drop-shadow-[0_2px_12px_rgba(0,0,0,0.8)] sm:mb-5 sm:justify-start">
               <span className="inline-flex items-center gap-1.5">
                 <span
                   className={`inline-flex h-2 w-2 shrink-0 rounded-full ${statusStyles.dotBg}`}
@@ -757,7 +821,7 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
             </p>
 
             {data.genres && data.genres.length > 0 && (
-              <p className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 sm:justify-start">
+              <p className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 drop-shadow-[0_2px_12px_rgba(0,0,0,0.8)] sm:justify-start">
                 {data.genres.map((g: string, idx: number) => (
                   <span key={idx} className="inline-flex items-center">
                     <button

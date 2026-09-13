@@ -55,7 +55,7 @@ jobs:
           node scripts/extract-release-notes.mjs $version --output release-notes.md
           if ($LASTEXITCODE -ne 0) { exit 1 }
 
-      - name: Descargar herramientas (ffmpeg/ffprobe)
+      - name: Descargar herramientas (ffmpeg)
         run: node scripts/setup-tools.mjs
 
       - name: Lint (ESLint)

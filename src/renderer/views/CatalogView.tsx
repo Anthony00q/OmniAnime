@@ -1,5 +1,6 @@
 import { memo, useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Filter, Loader2, SearchX } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAtomValue, useSetAtom, useAtom } from 'jotai';
 import { CustomSelect } from '../components/CustomSelect';
 import { EmptyState } from '../components/ui/EmptyState';
@@ -11,7 +12,7 @@ import {
   pendingCatalogGenreAtom,
   openAnimeAtom,
 } from '../store/atoms';
-import { useCatalog, useConnectivityStatus, useFiltersData } from '../hooks/useQueries';
+import { useCatalog, useConnectivityStatus, useFiltersData, prefetchAnimeDetails } from '../hooks/useQueries';
 import { shouldShowOfflineEmpty } from '../utils/offlineEmpty';
 import { PosterCard } from '../components/anime/PosterCard';
 import { PosterGrid } from '../components/anime/PosterGrid';
@@ -25,6 +26,8 @@ import { ActiveFilterChips } from '../components/catalog/ActiveFilterChips';
 
 const CatalogPosterItem = memo(function CatalogPosterItem({ item, priority }: { item: any; priority: boolean }) {
   const setOpenAnime = useSetAtom(openAnimeAtom);
+  const queryClient = useQueryClient();
+  const providerId = useAtomValue(activeProviderAtom);
 
   return (
     <PosterCard
@@ -41,7 +44,10 @@ const CatalogPosterItem = memo(function CatalogPosterItem({ item, priority }: { 
           {item.year && <span className="text-[12px] font-medium tabular-nums text-white/55">{item.year}</span>}
         </>
       }
-      onClick={() => setOpenAnime(item.slug)}
+      onClick={() => {
+        prefetchAnimeDetails(queryClient, providerId, item.slug);
+        setOpenAnime(item.slug);
+      }}
     />
   );
 });

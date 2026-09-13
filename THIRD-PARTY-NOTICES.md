@@ -6,13 +6,13 @@ Las versiones fijadas viven en `scripts/tools-versions.json`
 (única fuente de verdad); este archivo documenta sus licencias y
 cómo cumplir las condiciones de redistribución.
 
-## ffmpeg 8.1.2 + ffprobe 8.1.2 (`ffmpeg.exe`, `ffprobe.exe`)
+## ffmpeg 8.1.2 (`ffmpeg.exe`)
 
 - Origen: Gyan Doshi (gyan.dev), variante **`essentials_build`**.
 - Paquete:
   `https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-8.1.2-essentials_build.zip`
-  (SHA-256 fijado en `tools-versions.json`); de él se extraen
-  `bin/ffmpeg.exe` y `bin/ffprobe.exe`.
+  (SHA-256 fijado en `tools-versions.json`); de él se extrae
+  `bin/ffmpeg.exe` (la duración de vídeo la lee `music-metadata`, sin binarios).
 - Licencia: **GPLv3** (build estático; según la página oficial de builds,
   todos los builds son de 64-bit, estáticos y GPLv3).
 - Código fuente correspondiente: tarball oficial
@@ -28,6 +28,6 @@ cómo cumplir las condiciones de redistribución.
 
 `electron-builder` copia `tools/win/` a `resources/tools/win/` y este
 archivo a `resources/THIRD-PARTY-NOTICES.md` (junto a `resources/LICENSE`
-con la licencia GPL-3.0-or-later del código propio). La app los resuelve con
+con la licencia GPL-3.0-or-later del código propio). La app lo resuelve con
 `getToolsDir()` (`src/main/runtimePaths.ts`) y nunca ejecuta copias
 globales del sistema como primera opción.
