@@ -6,9 +6,8 @@ import { megaResumeFiles } from './DownloadService';
 import type { ProviderDownloadLink, QueueItem } from '../types/queue';
 import type { DownloadSettings } from '../types/settings';
 import { normalizeDownloadSettings } from '../utils/downloadSettings';
-import { normalizeMp4UploadUrl, providerDownloadReferer, resolveHlsPlaybackUrl } from '../utils/serverUtils';
-import { downloadHlsToMp4 } from './hls/HlsNativeDownloader';
-import { MP4UPLOAD_REFERER, resolveMp4UploadDirect } from './Mp4UploadResolver';
+import type { DownloadEngine, EngineProgress } from './downloads/downloadContracts';
+import { createDefaultDownloadEngines, findDownloadEngine } from './downloads/downloadEngines';
 import type { Mp4UploadResolveFn } from './Mp4UploadResolver';
 
 export interface EpisodeAttemptProgress {
@@ -45,6 +44,8 @@ export interface EpisodeDownloadAttemptOptions {
   logError: (error: unknown) => void;
   getDownloadSettings?: () => DownloadSettings | undefined;
   resolveMp4UploadDirect?: Mp4UploadResolveFn;
+  // Opcional por compatibilidad: por defecto se construye desde estas opciones.
+  engines?: DownloadEngine[];
 }
 
 const START_TIMEOUT_MS = 90_000;
@@ -61,8 +62,19 @@ export function isSameStemCandidate(destFileName: string, candidateName: string)
 export class EpisodeDownloadAttemptService {
   private readonly activeAttempts = new Map<string, AbortController>();
   private readonly skipEpochs = new Map<string, number>();
+  private readonly engines: DownloadEngine[];
 
-  constructor(private readonly options: EpisodeDownloadAttemptOptions) {}
+  constructor(private readonly options: EpisodeDownloadAttemptOptions) {
+    this.engines =
+      options.engines ??
+      createDefaultDownloadEngines({
+        downloadService: options.downloadService,
+        getFfmpegTools: options.getFfmpegTools,
+        userAgent: options.userAgent,
+        hlsPlayerReferer: options.hlsPlayerReferer,
+        resolveMp4UploadDirect: options.resolveMp4UploadDirect,
+      });
+  }
 
   private attemptKey(itemId: string, episode: number): string {
     return `${itemId}:${episode}`;
@@ -227,122 +239,32 @@ export class EpisodeDownloadAttemptService {
     let toolFailureMessage: string | null = null;
 
     try {
-      if (attemptAbort.signal.aborted) {
-        success = false;
-      } else if (link.server === 'Mega') {
-        let lastReportedPctMega = -1;
-        if (attemptAbort.signal.aborted) {
-          success = false;
-        } else {
-          if (!dl.allowContinue) await this.purgeMegaResumeFiles(dest);
-          success = await this.options.downloadService.downloadMega(
-            link.url,
-            dest,
-            (progress) => {
-              markStarted();
-              const pct = Math.round(progress * 100);
-              if (pct === lastReportedPctMega) {
-                callbacks.updateTray(`Descargando ${item.animeTitle} - EP ${episode} (${pct}%)`);
-                return;
-              }
-              lastReportedPctMega = pct;
-              callbacks.onProgress({ progress, progressLog: `   -> EP ${episode} * Mega * ${pct}%` });
-              callbacks.updateTray(`Descargando ${item.animeTitle} - EP ${episode} (${pct}%)`);
-            },
-            attemptAbort.signal,
-          );
+      // Un intento = un engine. Sin dispatch por servidor: el registry resuelve
+      // el engine por la fuente y el engine delega en la implementación existente.
+      const engine = findDownloadEngine(this.engines, link);
+      if (!attemptAbort.signal.aborted && engine) {
+        if (!dl.allowContinue) await this.purgeResumeForServer(link.server, dest);
+        callbacks.updateTray(`Descargando ${item.animeTitle} - EP ${episode}...`);
+        const progressState = { lastPct: -1 };
+        const engineResult = await engine.download(link, {
+          item,
+          episode,
+          dest,
+          signal: attemptAbort.signal,
+          settings: dl,
+          onProgress: (engineProgress) => {
+            markStarted();
+            this.reportEngineProgress(item, episode, link.server, progressState, callbacks, engineProgress);
+          },
+        });
+        success = engineResult.ok;
+        if (!success && !attemptAbort.signal.aborted && engineResult.error) {
+          toolFailureMessage = engineResult.error;
         }
-      } else if (link.server === 'Mediafire') {
-        let lastReportedPct = -1;
-        if (attemptAbort.signal.aborted) {
-          success = false;
-        } else {
-          if (!dl.allowContinue) await this.purgeDirectResumeFiles(dest);
-          success = await this.options.downloadService.downloadMediafire(
-            link.url,
-            dest,
-            (progress) => {
-              markStarted();
-              const pct = Math.round(progress * 100);
-              callbacks.onProgress({
-                progress,
-                progressLog: pct !== lastReportedPct ? `   -> EP ${episode} * Mediafire * ${pct}%` : undefined,
-              });
-              if (pct !== lastReportedPct) lastReportedPct = pct;
-              callbacks.updateTray(`Descargando ${item.animeTitle} - EP ${episode} (${pct}%)`);
-            },
-            attemptAbort.signal,
-            providerDownloadReferer(item.providerId),
-            dl.directConnections,
-          );
-        }
-      } else if (link.server === 'HLS') {
-        const downloadUrl = resolveHlsPlaybackUrl(link.url);
-        if (!attemptAbort.signal.aborted) {
-          if (!dl.allowContinue) await this.purgeHlsResumeFiles(dest);
-          const ffmpegDir = this.options.getFfmpegTools()?.ffmpegDir;
-          const ffmpegPath = ffmpegDir ? path.join(ffmpegDir, 'ffmpeg.exe') : 'ffmpeg.exe';
-          let lastNativePct = -1;
-          callbacks.updateTray(`Descargando ${item.animeTitle} - EP ${episode}...`);
-          const hlsResult = await downloadHlsToMp4(downloadUrl, dest, {
-            userAgent: this.options.userAgent,
-            referer: this.options.hlsPlayerReferer,
-            concurrency: dl.hlsConnections,
-            attempts: Math.max(1, Math.min(3, dl.retries)),
-            ffmpegPath,
-            signal: attemptAbort.signal,
-            onProgress: (hlsProgress) => {
-              markStarted();
-              const pct = Math.round(hlsProgress.fraction01 * 100);
-              callbacks.onProgress({
-                progress: hlsProgress.fraction01,
-                progressLog: pct !== lastNativePct ? `   -> EP ${episode} * HLS * ${pct}%` : undefined,
-                phase: hlsProgress.phase,
-              });
-              if (pct !== lastNativePct) lastNativePct = pct;
-              callbacks.updateTray(`Descargando ${item.animeTitle} - EP ${episode} (${pct}%)`);
-            },
-          });
-          success = hlsResult.ok;
-          if (!success && !attemptAbort.signal.aborted) {
-            toolFailureMessage = hlsResult.error || 'Descarga HLS nativa falló.';
-          }
-        }
-      } else if (link.server === 'MP4Upload') {
-        const downloadUrl = normalizeMp4UploadUrl(link.url);
-        // Resolución directa propia → axios (multihilo según ajuste). Es la
-        // única vía: si falla, el procesador prueba el siguiente servidor.
-        if (!attemptAbort.signal.aborted) {
-          if (!dl.allowContinue) await this.purgeDirectResumeFiles(dest);
-          const resolveFn = this.options.resolveMp4UploadDirect ?? resolveMp4UploadDirect;
-          const resolved = await resolveFn(downloadUrl).catch(() => ({ ok: false as const }));
-          if (resolved.ok && resolved.directUrl && !attemptAbort.signal.aborted) {
-            let lastReportedPctDirect = -1;
-            success = await this.options.downloadService.downloadDirectAxios(
-              resolved.directUrl,
-              dest,
-              (progress) => {
-                markStarted();
-                const pct = Math.round(progress * 100);
-                callbacks.onProgress({
-                  progress,
-                  progressLog: pct !== lastReportedPctDirect ? `   -> EP ${episode} * MP4Upload * ${pct}%` : undefined,
-                });
-                if (pct !== lastReportedPctDirect) lastReportedPctDirect = pct;
-                callbacks.updateTray(`Descargando ${item.animeTitle} - EP ${episode} (${pct}%)`);
-              },
-              attemptAbort.signal,
-              MP4UPLOAD_REFERER,
-              dl.directConnections,
-            );
-          }
-        }
-      } else {
+      } else if (!attemptAbort.signal.aborted) {
         // Defensa en profundidad: la allowlist de main ya filtra servidores
         // no canónicos antes de llegar aquí.
-        if (!attemptAbort.signal.aborted) {
-          toolFailureMessage = `Servidor no soportado: ${link.server}`;
-        }
+        toolFailureMessage = `Servidor no soportado: ${link.server}`;
       }
 
       if (success) {
@@ -375,6 +297,38 @@ export class EpisodeDownloadAttemptService {
       toolFailureMessage,
       started,
     };
+  }
+
+  // Purga de resume por tipo de fuente cuando allowContinue=false.
+  // Mapeo histórico: Mega → mega, HLS → hls, resto (Mediafire/MP4Upload) → directo.
+  private purgeResumeForServer(server: string, destPath: string): Promise<void> {
+    if (server === 'HLS') return this.purgeHlsResumeFiles(destPath);
+    if (server === 'Mega') return this.purgeMegaResumeFiles(destPath);
+    return this.purgeDirectResumeFiles(destPath);
+  }
+
+  // Mapeo único de progreso crudo del engine → callbacks del attempt.
+  // Conserva el matiz histórico de Mega (sin onProgress si no cambia el %);
+  // el throttle de QueueStore coalescea el resto, sin cambio observable.
+  private reportEngineProgress(
+    item: QueueItem,
+    episode: number,
+    server: string,
+    state: { lastPct: number },
+    callbacks: EpisodeAttemptCallbacks,
+    engineProgress: EngineProgress,
+  ): void {
+    const pct = Math.round(engineProgress.fraction01 * 100);
+    const changed = pct !== state.lastPct;
+    if (changed || server !== 'Mega') {
+      callbacks.onProgress({
+        progress: engineProgress.fraction01,
+        progressLog: changed ? `   -> EP ${episode} * ${server} * ${pct}%` : undefined,
+        ...(engineProgress.phase ? { phase: engineProgress.phase } : {}),
+      });
+    }
+    if (changed) state.lastPct = pct;
+    callbacks.updateTray(`Descargando ${item.animeTitle} - EP ${episode} (${pct}%)`);
   }
 
   async cleanEpisodeTemps(destPath: string): Promise<void> {

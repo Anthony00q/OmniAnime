@@ -2,7 +2,8 @@ import type { HistoryStatus, HistoryWriteRecord } from '../types/history';
 import type { ProviderDownloadLink, QueueItem } from '../types/queue';
 import type { EpisodeAttemptProgress } from './EpisodeDownloadAttemptService';
 import { EpisodeDownloadAttemptService } from './EpisodeDownloadAttemptService';
-import { categorizeAttemptFailure, type ServerAttemptOutcome } from './ServerStatsStore';
+import { DownloadCoordinator, type FallbackAttemptPort } from './downloads/DownloadCoordinator';
+import type { ServerAttemptOutcome } from './ServerStatsStore';
 import { noopScopedLogger, type ScopedLogger } from './AppLogger';
 import { QueueStore } from './QueueStore';
 
@@ -50,6 +51,9 @@ export interface DownloadQueueProcessorOptions {
   shouldNotifyCompletion: () => boolean;
   logError: (error: unknown) => void;
   logger?: ScopedLogger;
+  // Coordinador de fallback por episodio (opcional): por defecto se construye
+  // desde el resto de opciones, así los constructores existentes no cambian.
+  coordinator?: DownloadCoordinator;
 }
 
 export type EpisodeGateReason = 'resume' | 'cancel' | 'total';
@@ -82,8 +86,26 @@ export class DownloadQueueProcessor {
   private readonly runEpoch = new Map<string, number>();
   private activeQueueItemId: string | null = null;
   private isProcessingQueue = false;
+  private readonly coordinator: DownloadCoordinator;
 
-  constructor(private readonly options: DownloadQueueProcessorOptions) {}
+  constructor(private readonly options: DownloadQueueProcessorOptions) {
+    this.coordinator =
+      options.coordinator ??
+      new DownloadCoordinator({
+        getServerSpeed: (server) => this.options.getServerSpeed(server),
+        sendLog: (message, type) => this.options.sendLog(message, type),
+        sendStatus: (message, isBatch) => this.options.sendStatus(message, isBatch),
+        updateTray: (text) => this.options.updateTray(text),
+        // scheduleQueueUpdate es opcional (los tests lo omiten a veces):
+        // se propaga tal cual para conservar la rama condicional original.
+        scheduleQueueUpdate: this.options.scheduleQueueUpdate ? () => this.options.scheduleQueueUpdate() : undefined,
+        sendQueueUpdate: () => this.options.sendQueueUpdate(),
+        recordServerOutcome: (outcome) => this.options.recordServerOutcome?.(outcome),
+        cleanEpisodeTemps: (dest) => this.options.attemptService.cleanEpisodeTemps(dest),
+        cleanEpisodeCache: (dest) => this.options.attemptService.cleanEpisodeCacheForEpisode(dest),
+        getStartTimeoutSec: () => this.getStartTimeoutSec(),
+      });
+  }
 
   private get fileLog(): ScopedLogger {
     return this.options.logger ?? noopScopedLogger;
@@ -1077,22 +1099,14 @@ export class DownloadQueueProcessor {
     }
   }
 
+  // Orden de servidores: delega en el coordinador (los tests acceden por
+  // cast a este nombre/firma, se conserva como wrapper).
   private sortLinksForEpisode(
     links: ProviderDownloadLink[],
     order: string[],
     preferredServer?: string,
   ): ProviderDownloadLink[] {
-    const sorted = links.filter((link) => order.includes(link.canonicalServer));
-    sorted.sort((a, b) => order.indexOf(a.canonicalServer) - order.indexOf(b.canonicalServer));
-    if (preferredServer) {
-      sorted.sort((a, b) => {
-        const aIsPrevious = a.canonicalServer === preferredServer ? 0 : 1;
-        const bIsPrevious = b.canonicalServer === preferredServer ? 0 : 1;
-        if (aIsPrevious !== bIsPrevious) return aIsPrevious - bIsPrevious;
-        return order.indexOf(a.canonicalServer) - order.indexOf(b.canonicalServer);
-      });
-    }
-    return sorted;
+    return this.coordinator.sortLinksForEpisode(links, order, preferredServer);
   }
 
   private serverSlotKey(id: string, server: string): string {
@@ -1136,6 +1150,9 @@ export class DownloadQueueProcessor {
     }
   }
 
+  // Fallback secuencial por episodio: delega en el coordinador. Los slots por
+  // servidor (tope 2 EPs, retención entre links del mismo host) siguen siendo
+  // responsabilidad de la cola y viajan en el puerto de intento.
   private async attemptServersSequentially(
     item: QueueItem,
     episode: number,
@@ -1145,24 +1162,9 @@ export class DownloadQueueProcessor {
     onProgress: (update: EpisodeAttemptProgress) => void,
     onServerChange?: (server: string) => void,
   ): Promise<{ success: boolean; failureReason: string }> {
-    let success = false;
-    let failureReason = 'Todos los servidores disponibles fallaron';
     let heldServer: string | null = null;
-    try {
-      for (const link of sortedLinks) {
-        if (episodeAbort.signal.aborted) break;
-        const speed = this.options.getServerSpeed(link.server) || '–';
-        const resolvedLabel = link.sourceEpisode !== episode ? ` (fuente EP ${link.sourceEpisode})` : '';
-        this.options.sendLog(
-          `▶ Intentando "${link.server}" desde ${link.provider}${resolvedLabel} (${speed})...`,
-          'info',
-        );
-        item.currentServer = link.server;
-        onServerChange?.(link.server);
-        // Aviso liviano y throttled: el progreso en vuelo ya viaja por delta
-        // 250ms, no hace falta un full sync por cada salto de servidor.
-        if (this.options.scheduleQueueUpdate) this.options.scheduleQueueUpdate();
-        else this.options.sendQueueUpdate();
+    const port: FallbackAttemptPort = {
+      attempt: async (link, callbacks) => {
         // Tope por servidor: si ya hay 2 EPs en este host, espera un hueco en
         // vez de saturarlo. Al abortar/pausar sale y sigue la ruta de aborto.
         if (heldServer !== link.canonicalServer) {
@@ -1171,78 +1173,48 @@ export class DownloadQueueProcessor {
             heldServer = null;
           }
           const acquired = await this.acquireServerSlot(item, episode, link.canonicalServer, episodeAbort.signal);
-          if (!acquired) break;
+          if (!acquired) {
+            return {
+              success: false,
+              aborted: episodeAbort.signal.aborted,
+              parentAborted: episodeAbort.signal.aborted,
+              skipRequested: false,
+              attemptTimedOut: false,
+              invalidMp4: false,
+              toolFailureMessage: null,
+              started: false,
+              attempted: false,
+            };
+          }
           heldServer = link.canonicalServer;
         }
-        const startedAt = Date.now();
-        const result = await this.options.attemptService.attempt(item, episode, link, dest, episodeAbort.signal, {
-          onProgress,
-          updateTray: (text) => this.options.updateTray(text),
-        });
-        success = result.success;
-        try {
-          this.options.recordServerOutcome?.({
-            provider: String(link.provider || ''),
-            server: String(link.canonicalServer || link.server || ''),
-            resolveSuccess: result.started || result.success,
-            downloadStart: result.started || result.success,
-            downloadSuccess: result.success,
-            failureCategory: categorizeAttemptFailure({
-              success: result.success,
-              parentAborted: result.parentAborted,
-              skipRequested: result.skipRequested,
-              attemptTimedOut: result.attemptTimedOut,
-              invalidMp4: result.invalidMp4,
-              toolFailureMessage: result.toolFailureMessage,
-            }),
-          });
-        } catch {
-          // La observabilidad nunca rompe descargas.
+        const result = await this.options.attemptService.attempt(
+          item,
+          episode,
+          link,
+          dest,
+          episodeAbort.signal,
+          callbacks,
+        );
+        return { ...result, attempted: true };
+      },
+      release: () => {
+        if (heldServer) {
+          this.releaseServerSlot(item.id, heldServer);
+          heldServer = null;
         }
-
-        if (success) {
-          const elapsedMs = Date.now() - startedAt;
-          this.options.sendLog(
-            `✓ EP ${episode} descargado desde "${link.server}"${resolvedLabel} en ${(elapsedMs / 1000).toFixed(1)}s`,
-            'success',
-          );
-          this.options.sendStatus(`EP ${episode} Completado ✓`, item.episodes.length > 1);
-          break;
-        }
-        if (result.invalidMp4) continue;
-        if (result.attemptTimedOut && !result.parentAborted) {
-          failureReason = `El servidor "${link.server}" no inició la descarga a tiempo`;
-          const timeoutSec = this.getStartTimeoutSec();
-          this.options.sendLog(
-            `⌛ "${link.server}" no inició descarga en ${timeoutSec}s. Probando siguiente...`,
-            'warn',
-          );
-          await this.options.attemptService.cleanEpisodeTemps(dest);
-          await this.options.attemptService.cleanEpisodeCacheForEpisode(dest);
-        } else if (result.toolFailureMessage && !result.parentAborted) {
-          failureReason = result.toolFailureMessage;
-          this.options.sendLog(`✗ ${result.toolFailureMessage}`, 'error');
-          await this.options.attemptService.cleanEpisodeCacheForEpisode(dest);
-        } else if (!result.parentAborted) {
-          await this.options.attemptService.cleanEpisodeCacheForEpisode(dest);
-          const isLast = sortedLinks.indexOf(link) === sortedLinks.length - 1;
-          if (result.skipRequested) {
-            this.options.sendLog(
-              `⏭️ "${link.server}" cancelado, probando siguiente...${isLast ? ' (Último servidor)' : ''}`,
-              'warn',
-            );
-          } else {
-            this.options.sendLog(
-              `✗ "${link.server}" falló.${isLast ? ' Sin más servidores.' : ' Probando siguiente...'}`,
-              'error',
-            );
-          }
-        }
-      }
-    } finally {
-      if (heldServer) this.releaseServerSlot(item.id, heldServer);
-    }
-    return { success, failureReason };
+      },
+    };
+    return this.coordinator.attemptServersSequentially(
+      item,
+      episode,
+      dest,
+      episodeAbort,
+      sortedLinks,
+      onProgress,
+      onServerChange,
+      port,
+    );
   }
 
   // Suelo de display al reanudar: solo cuando hay resume real de bytes
