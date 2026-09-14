@@ -116,13 +116,12 @@ export function filterLogEntries(entries: LogPageEntry[], filters: LogPageFilter
 }
 
 export interface LogDeleteRules {
-  now: number;
   sessionStart: string;
-  minAgeMs?: number;
+  // `now` se conserva como campo opcional legacy: ya no gatea el borrado.
+  now?: number;
 }
 
 export const LOG_ENTRY_MAX_CHARS = 2000;
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 export function capEntryText(text: string): string {
   return text.length > LOG_ENTRY_MAX_CHARS ? text.slice(0, LOG_ENTRY_MAX_CHARS) + '…[recortado]' : text;
@@ -137,9 +136,11 @@ function timestampMs(ts: string): number | null {
 export function isDeletableEntry(ts: string, rules: LogDeleteRules): boolean {
   const t = timestampMs(ts);
   if (t === null) return false;
-  if (rules.now - t < (rules.minAgeMs ?? DAY_MS)) return false;
+  // Sin limite de 24h: cualquier entrada anterior a la sesion actual se puede borrar.
+  // Si sessionStart es invalido se falla cerrado (no borrar) para no exponer la sesion actual.
   const session = timestampMs(rules.sessionStart);
-  if (session !== null && t >= session) return false;
+  if (session === null) return false;
+  if (t >= session) return false;
   return true;
 }
 

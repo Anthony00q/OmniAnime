@@ -85,7 +85,7 @@ export function registerLogsHandlers(dependencies: IpcRegistryDependencies): voi
         byFile.set(file, list);
       }
       if (byFile.size === 0) return { ok: false as const, deleted: 0, skipped: 0, error: 'Sin entradas válidas' };
-      const rules = { now: Date.now(), sessionStart: dependencies.getSessionStart() };
+      const rules = { sessionStart: dependencies.getSessionStart() };
       const home = app.getPath('home');
       const toViewerText = (text: string): string => redactLogText(capEntryText(text), home);
       let deleted = 0;

@@ -70,11 +70,7 @@ function DeleteCheckbox({
   onToggle: () => void;
 }) {
   return (
-    <AppTooltip
-      content={
-        disabled ? 'Solo se pueden eliminar entradas de hace más de 1 día; la sesión actual está protegida.' : ''
-      }
-    >
+    <AppTooltip content={disabled ? 'La sesión actual está protegida; el resto se puede eliminar.' : ''}>
       <span className="inline-flex shrink-0">
         <button
           type="button"
@@ -220,10 +216,7 @@ export const LogsTab = memo(function LogsTab({ isActive = true, settings, onChan
   }, [view, level, scope, appliedQuery]);
 
   const applySearch = () => setAppliedQuery(query.trim());
-  const entryDeletable = useCallback(
-    (ts: string): boolean => isDeletableEntry(ts, { now: Date.now(), sessionStart }),
-    [sessionStart],
-  );
+  const entryDeletable = useCallback((ts: string): boolean => isDeletableEntry(ts, { sessionStart }), [sessionStart]);
   const toggleEntry = useCallback((entry: any) => {
     const key = entryKey(entry);
     setSelected((prev) => {
@@ -601,7 +594,7 @@ export const LogsTab = memo(function LogsTab({ isActive = true, settings, onChan
           if (!deleting) setConfirmOpen(open);
         }}
         title="¿Eliminar entradas del registro?"
-        message={`Se eliminarán ${affectedRows} entrada(s) de hace más de 1 día. La sesión actual está protegida y no se toca.`}
+        message={`Se eliminarán ${affectedRows} entrada(s). La sesión actual está protegida y no se toca.`}
         confirmLabel="Eliminar"
         cancelLabel="Cancelar"
         danger={true}
