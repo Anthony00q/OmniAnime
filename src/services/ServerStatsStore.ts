@@ -27,6 +27,14 @@ export interface ServerStatEntry {
   downloadStart: number;
   downloadSuccess: number;
   failures: Record<string, number>;
+  // Agregados de instrumentación (solo contadores; ausentes en JSON antiguo → 0).
+  attempts: number;
+  totalDurationMs: number;
+  successDurationMs: number;
+  fallbackAttempts: number;
+  episodes: number;
+  episodesSuccess: number;
+  episodesWithFallback: number;
 }
 
 export interface ServerStatRow extends ServerStatEntry {
@@ -48,6 +56,23 @@ export interface ServerAttemptOutcome {
   downloadStart: boolean;
   downloadSuccess: boolean;
   failureCategory?: ServerFailureCategory | null;
+  // Solo instrumentación (opcionales por compat con JSON/tests antiguos).
+  durationMs?: number;
+  attemptIndex?: number;
+}
+
+// Resumen en memoria de un EP (no se persiste; solo agrega contadores).
+export interface EpisodeDownloadSummary {
+  provider: string;
+  episode: number;
+  success: boolean;
+  // Links realmente intentados (attempted:true). 0 = nada que agregar.
+  attempts: number;
+  serversTried: string[];
+  finalServer: string | null;
+  fallbackTriggered: boolean;
+  totalDurationMs: number;
+  failureCategory: ServerFailureCategory | null;
 }
 
 // Banderas mínimas del resultado de un intento, sin arrastrar tipos del
@@ -88,6 +113,18 @@ function sanitizeCount(value: unknown): number {
   return typeof value === 'number' && Number.isInteger(value) && value >= 0 ? value : 0;
 }
 
+// Tope defensivo: un intento real nunca llega a 24h.
+const MAX_DURATION_MS = 86_400_000;
+
+function sanitizeDurationMs(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) return 0;
+  return Math.min(Math.floor(value), MAX_DURATION_MS);
+}
+
+function sanitizeAttemptIndex(value: unknown): number | null {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 1 ? value : null;
+}
+
 function sanitizeEntry(raw: unknown): ServerStatEntry | null {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
   const record = raw as Record<string, unknown>;
@@ -105,6 +142,14 @@ function sanitizeEntry(raw: unknown): ServerStatEntry | null {
     downloadStart: sanitizeCount(record.downloadStart),
     downloadSuccess: sanitizeCount(record.downloadSuccess),
     failures,
+    // JSON antiguo sin estos campos → 0 (compat hacia atrás).
+    attempts: sanitizeCount(record.attempts),
+    totalDurationMs: sanitizeDurationMs(record.totalDurationMs),
+    successDurationMs: sanitizeDurationMs(record.successDurationMs),
+    fallbackAttempts: sanitizeCount(record.fallbackAttempts),
+    episodes: sanitizeCount(record.episodes),
+    episodesSuccess: sanitizeCount(record.episodesSuccess),
+    episodesWithFallback: sanitizeCount(record.episodesWithFallback),
   };
 }
 
@@ -164,12 +209,40 @@ export class ServerStatsStore {
   recordOutcome(outcome: ServerAttemptOutcome): void {
     const entry = this.entryFor(outcome.provider, outcome.server);
     if (!entry) return;
+    // Solo llega attempted:true; cada llamada es un intento real.
+    entry.attempts += 1;
+    const durationMs = sanitizeDurationMs(outcome.durationMs);
+    entry.totalDurationMs += durationMs;
+    if (outcome.downloadSuccess) {
+      entry.successDurationMs += durationMs;
+    }
+    const attemptIndex = sanitizeAttemptIndex(outcome.attemptIndex);
+    if (attemptIndex !== null && attemptIndex > 1) entry.fallbackAttempts += 1;
     if (outcome.resolveSuccess) entry.resolveSuccess += 1;
     if (outcome.downloadStart) entry.downloadStart += 1;
     if (outcome.downloadSuccess) entry.downloadSuccess += 1;
     if (!outcome.downloadSuccess && outcome.failureCategory && FAILURE_CATEGORIES.has(outcome.failureCategory)) {
       entry.failures[outcome.failureCategory] = (entry.failures[outcome.failureCategory] || 0) + 1;
     }
+    this.scheduleSave();
+  }
+
+  // Solo EPs evaluables: con intentos reales y sin cancel/skip.
+  recordEpisode(summary: EpisodeDownloadSummary): void {
+    const attempts = sanitizeCount(summary.attempts);
+    if (attempts <= 0) return;
+    if (summary.failureCategory === 'cancelled' || summary.failureCategory === 'skipped') return;
+    // Las duraciones ya las agregó recordOutcome; aquí solo se cuentan EPs.
+    const tried = Array.isArray(summary.serversTried) ? summary.serversTried : [];
+    const lastTried = tried.length > 0 ? tried[tried.length - 1] : null;
+    // Un EP cuenta una vez: en el servidor final o en el último intentado.
+    const keyServer = summary.success ? summary.finalServer || lastTried : lastTried;
+    if (!keyServer) return;
+    const entry = this.entryFor(summary.provider, keyServer);
+    if (!entry) return;
+    entry.episodes += 1;
+    if (summary.success) entry.episodesSuccess += 1;
+    if (summary.fallbackTriggered || attempts > 1) entry.episodesWithFallback += 1;
     this.scheduleSave();
   }
 
@@ -202,7 +275,21 @@ export class ServerStatsStore {
     let entry = this.memory.get(key);
     if (!entry) {
       if (this.memory.size >= MAX_ENTRIES) return null;
-      entry = { found: 0, allowlisted: 0, resolveSuccess: 0, downloadStart: 0, downloadSuccess: 0, failures: {} };
+      entry = {
+        found: 0,
+        allowlisted: 0,
+        resolveSuccess: 0,
+        downloadStart: 0,
+        downloadSuccess: 0,
+        failures: {},
+        attempts: 0,
+        totalDurationMs: 0,
+        successDurationMs: 0,
+        fallbackAttempts: 0,
+        episodes: 0,
+        episodesSuccess: 0,
+        episodesWithFallback: 0,
+      };
       this.memory.set(key, entry);
     }
     return entry;

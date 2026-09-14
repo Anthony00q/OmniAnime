@@ -853,8 +853,8 @@ const episodeDownloadAttemptService = new EpisodeDownloadAttemptService({
 });
 
 const SERVER_SPEED: Record<string, string> = {
-  Mega: 'rápido ⚡',
-  HLS: 'streaming ⚡',
+  Mega: 'rápido',
+  HLS: 'streaming',
 };
 
 function normalizeServerName(serverRaw: string): string {
@@ -898,7 +898,7 @@ async function getEpisodeLinksFromProviders(
   const targetProviderId = (item.providerId || providerManager.activeProviderIdName) as DownloadProvider;
   const order = getServerPriorityOrder(targetProviderId);
   const provider = providerManager.getProvider(targetProviderId) || providerManager.activeProvider;
-  sendLog(`🔎 EP ${ep}: buscando servidores en ${targetProviderId}...`, 'info');
+  sendLog(`EP ${ep}: buscando servidores en ${targetProviderId}...`, 'info');
 
   const providerLinks: ProviderDownloadLink[] = [];
   const dedupe = new Set<string>();
@@ -949,13 +949,13 @@ async function getEpisodeLinksFromProviders(
   if (providerLinks.length > 0) {
     const names = Array.from(new Set(providerLinks.map((link) => link.canonicalServer)));
     sendLog(
-      `✅ EP ${ep}: en ${targetProviderId} se encontraron ${providerLinks.length} servidor(es): ${names.join(', ')}`,
+      `EP ${ep}: en ${targetProviderId} se encontraron ${providerLinks.length} servidor(es): ${names.join(', ')}`,
       'info',
     );
     return providerLinks;
   }
 
-  sendLog(`⚠ EP ${ep}: en ${targetProviderId} no se encontró servidor disponible.`, 'warn');
+  sendLog(`EP ${ep}: en ${targetProviderId} no se encontró servidor disponible.`, 'warn');
   return [];
 }
 
@@ -996,6 +996,7 @@ const queueProcessor = new DownloadQueueProcessor({
   scheduleQueueProgress,
   sendQueueUpdate,
   recordServerOutcome: (outcome) => serverStatsStore.recordOutcome(outcome),
+  recordEpisodeOutcome: (summary) => serverStatsStore.recordEpisode(summary),
   sendDownloadStarted: (item) => {
     const mainWindow = getMainWindow();
     if (mainWindow) {

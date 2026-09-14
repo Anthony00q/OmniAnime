@@ -3,7 +3,7 @@ import type { ProviderDownloadLink, QueueItem } from '../types/queue';
 import type { EpisodeAttemptProgress } from './EpisodeDownloadAttemptService';
 import { EpisodeDownloadAttemptService } from './EpisodeDownloadAttemptService';
 import { DownloadCoordinator, type FallbackAttemptPort } from './downloads/DownloadCoordinator';
-import type { ServerAttemptOutcome } from './ServerStatsStore';
+import type { EpisodeDownloadSummary, ServerAttemptOutcome } from './ServerStatsStore';
 import { noopScopedLogger, type ScopedLogger } from './AppLogger';
 import { QueueStore } from './QueueStore';
 
@@ -44,6 +44,7 @@ export interface DownloadQueueProcessorOptions {
   sendQueueUpdate: () => void;
   // Observabilidad por servidor (opcional, best-effort, sin URLs).
   recordServerOutcome?: (outcome: ServerAttemptOutcome) => void;
+  recordEpisodeOutcome?: (summary: EpisodeDownloadSummary) => void;
   sendDownloadStarted: (item: QueueItem) => void;
   sendEpisodeDownloaded: (item: QueueItem, episode: number, success: boolean) => void;
   sendNotification: (title: string, body: string, type: DownloadNotificationType) => void;
@@ -101,6 +102,7 @@ export class DownloadQueueProcessor {
         scheduleQueueUpdate: this.options.scheduleQueueUpdate ? () => this.options.scheduleQueueUpdate() : undefined,
         sendQueueUpdate: () => this.options.sendQueueUpdate(),
         recordServerOutcome: (outcome) => this.options.recordServerOutcome?.(outcome),
+        recordEpisodeOutcome: (summary) => this.options.recordEpisodeOutcome?.(summary),
         cleanEpisodeTemps: (dest) => this.options.attemptService.cleanEpisodeTemps(dest),
         cleanEpisodeCache: (dest) => this.options.attemptService.cleanEpisodeCacheForEpisode(dest),
         getStartTimeoutSec: () => this.getStartTimeoutSec(),
@@ -634,7 +636,7 @@ export class DownloadQueueProcessor {
         }
         this.options.sendDownloadStarted(item);
         this.options.sendLog(
-          `🎬 Iniciando "${item.animeTitle}" — ${this.formatEpisodeCountLabel(episodesToProcess.length, true)} en cola`,
+          `Iniciando "${item.animeTitle}" — ${this.formatEpisodeCountLabel(episodesToProcess.length, true)} en cola`,
           'info',
         );
         this.options.sendStatus(`Iniciando "${item.animeTitle}"`, episodesToProcess.length > 1);
@@ -647,7 +649,7 @@ export class DownloadQueueProcessor {
               item.status = 'cancelled';
               this.options.updateTray();
               this.options.sendQueueUpdate();
-              this.options.sendLog(`⛔ Descarga de "${item.animeTitle}" cancelada por el usuario`, 'warn');
+              this.options.sendLog(`Descarga de "${item.animeTitle}" cancelada por el usuario`, 'warn');
               this.options.sendStatus(`Cancelado: ${item.animeTitle}`, episodesToProcess.length > 1);
               break;
             }
@@ -655,7 +657,7 @@ export class DownloadQueueProcessor {
               item.status = 'paused';
               this.options.updateTray();
               this.options.sendQueueUpdate();
-              this.options.sendLog(`⏸ Descarga de "${item.animeTitle}" pausada por el usuario`, 'warn');
+              this.options.sendLog(`Descarga de "${item.animeTitle}" pausada por el usuario`, 'warn');
               break;
             }
             if ((item.cancelledEps || []).includes(episode)) continue;
@@ -667,13 +669,13 @@ export class DownloadQueueProcessor {
             item.progress = this.frozenBaseline(item, episode, item.pausedEpSnapshot?.[String(episode)]?.server);
             this.options.updateTray(`Preparando ${item.animeTitle} - EP ${episode}...`);
             this.options.sendQueueUpdate();
-            this.options.sendLog(`🔍 Buscando servidores para EP ${episode}...`, 'info');
-            this.options.sendLog(`🧭 Ruta activa: ${item.downloadSlug || item.slug}`, 'info');
+            this.options.sendLog(`Buscando servidores para EP ${episode}...`, 'info');
+            this.options.sendLog(`Ruta activa: ${item.downloadSlug || item.slug}`, 'info');
             this.options.sendStatus(`Buscando EP ${episode}...`, episodesToProcess.length > 1);
 
             const dest = this.options.buildEpisodePath(item, episode);
             if (this.options.attemptService.hasCompletedFile(dest)) {
-              this.options.sendLog(`💡 EP ${episode} ya existe en disco. Omitiendo.`, 'info');
+              this.options.sendLog(`EP ${episode} ya existe en disco. Omitiendo.`, 'info');
               this.removeEpisode(item.failedEps, episode);
               this.pushUniqueEpisode(item.completedEps, episode);
               this.removeFailureReason(item, episode);
@@ -695,7 +697,7 @@ export class DownloadQueueProcessor {
                 this.activeEpisodeControllers.delete(epKey);
                 if (this.activeEpisodeControllers.size === 0) this.activeQueueItemId = null;
                 this.options.sendQueueUpdate();
-                this.options.sendLog(`⛔ EP ${episode}: cancelado por el usuario (sigue el resto)`, 'warn');
+                this.options.sendLog(`EP ${episode}: cancelado por el usuario (sigue el resto)`, 'warn');
                 continue;
               }
               if (this.pausedItemIds.has(item.id)) {
@@ -703,14 +705,14 @@ export class DownloadQueueProcessor {
                 this.activeEpisodeControllers.delete(epKey);
                 if (this.activeEpisodeControllers.size === 0) this.activeQueueItemId = null;
                 this.options.sendQueueUpdate();
-                this.options.sendLog(`⏸ EP ${episode}: pausado por el usuario`, 'warn');
+                this.options.sendLog(`EP ${episode}: pausado por el usuario`, 'warn');
                 break;
               }
               if ((item.pausedEps || []).includes(episode)) {
                 this.activeEpisodeControllers.delete(epKey);
                 if (this.activeEpisodeControllers.size === 0) this.activeQueueItemId = null;
                 this.options.sendQueueUpdate();
-                this.options.sendLog(`⏸ EP ${episode}: aparcado, conserva su slot`, 'warn');
+                this.options.sendLog(`EP ${episode}: aparcado, conserva su slot`, 'warn');
                 const reason = await this.parkEpisode(item.id, episode);
                 if (this.runEpoch.get(item.id) !== runEpoch) break;
                 if (reason === 'resume') {
@@ -745,25 +747,25 @@ export class DownloadQueueProcessor {
               this.activeEpisodeControllers.delete(epKey);
               if (this.activeEpisodeControllers.size === 0) this.activeQueueItemId = null;
               this.options.sendQueueUpdate();
-              this.options.sendLog(`⛔ EP ${episode}: descarga cancelada por el usuario`, 'warn');
+              this.options.sendLog(`EP ${episode}: descarga cancelada por el usuario`, 'warn');
               break;
             }
 
             if (!links || links.length === 0) {
-              this.options.sendLog(`✗ EP ${episode}: No se encontraron servidores disponibles`, 'error');
+              this.options.sendLog(`EP ${episode}: No se encontraron servidores disponibles`, 'error');
               this.finalizeEpisodeResult(item, episode, dest, 'fail', 'No se encontraron servidores disponibles');
               this.activeEpisodeControllers.delete(epKey);
               if (this.activeEpisodeControllers.size === 0) this.activeQueueItemId = null;
               continue;
             }
 
-            this.options.sendLog(`⏳ Analizando servidores disponibles para EP ${episode}...`, 'info');
+            this.options.sendLog(`Analizando servidores disponibles para EP ${episode}...`, 'info');
             const order = this.options.getServerPriorityOrder(item.providerId);
             const sortedLinks = this.sortLinksForEpisode(links, order, item.currentServer);
 
             if (sortedLinks.length === 0) {
               this.options.sendLog(
-                `✗ EP ${episode}: Ninguno de los servidores disponibles está en tu lista de prioridad`,
+                `EP ${episode}: Ninguno de los servidores disponibles está en tu lista de prioridad`,
                 'error',
               );
               this.finalizeEpisodeResult(
@@ -779,7 +781,7 @@ export class DownloadQueueProcessor {
             }
 
             this.options.sendLog(
-              `📋 ${sortedLinks.length} candidato(s): ${sortedLinks.map((link) => link.server).join(' → ')}`,
+              `${sortedLinks.length} candidato(s): ${sortedLinks.map((link) => link.server).join(' → ')}`,
               'info',
             );
 
@@ -799,18 +801,18 @@ export class DownloadQueueProcessor {
               if ((item.cancelledEps || []).includes(episode)) {
                 this.finalizeEpisodeResult(item, episode, dest, 'cancelled');
                 this.options.sendQueueUpdate();
-                this.options.sendLog(`⛔ EP ${episode}: cancelado por el usuario (sigue el resto)`, 'warn');
+                this.options.sendLog(`EP ${episode}: cancelado por el usuario (sigue el resto)`, 'warn');
                 continue;
               }
               if (this.pausedItemIds.has(item.id)) {
                 item.status = 'paused';
                 this.options.sendQueueUpdate();
-                this.options.sendLog(`⏸ EP ${episode}: pausado por el usuario`, 'warn');
+                this.options.sendLog(`EP ${episode}: pausado por el usuario`, 'warn');
                 break;
               }
               if ((item.pausedEps || []).includes(episode)) {
                 this.options.sendQueueUpdate();
-                this.options.sendLog(`⏸ EP ${episode}: aparcado, conserva su slot`, 'warn');
+                this.options.sendLog(`EP ${episode}: aparcado, conserva su slot`, 'warn');
                 const reason = await this.parkEpisode(item.id, episode);
                 if (this.runEpoch.get(item.id) !== runEpoch) break;
                 if (reason === 'resume') {
@@ -838,13 +840,13 @@ export class DownloadQueueProcessor {
               item.status = 'cancelled';
               this.finalizeEpisodeResult(item, episode, dest, 'cancelled');
               this.options.sendQueueUpdate();
-              this.options.sendLog(`⛔ EP ${episode}: descarga cancelada por el usuario`, 'warn');
+              this.options.sendLog(`EP ${episode}: descarga cancelada por el usuario`, 'warn');
               break;
             } else if (success) {
               this.finalizeEpisodeResult(item, episode, dest, 'ok');
             } else {
               this.finalizeEpisodeResult(item, episode, dest, 'fail', failureReason);
-              this.options.sendLog(`⚠ EP ${episode}: falló en todos los servidores disponibles`, 'warn');
+              this.options.sendLog(`EP ${episode}: falló en todos los servidores disponibles`, 'warn');
             }
           }
         } else {
@@ -938,7 +940,7 @@ export class DownloadQueueProcessor {
             'La descarga terminó por un error inesperado',
           );
           failedItem.status = 'failed';
-          this.options.sendLog(`✗ La descarga de "${failedItem.animeTitle}" terminó por un error inesperado.`, 'error');
+          this.options.sendLog(`La descarga de "${failedItem.animeTitle}" terminó por un error inesperado.`, 'error');
         } else if (wasCancelled) {
           failedItem.status = 'cancelled';
         } else {
@@ -1327,10 +1329,10 @@ export class DownloadQueueProcessor {
           }
           return;
         }
-        this.options.sendLog(`🔍 Buscando servidores para EP ${episode}...`, 'info');
+        this.options.sendLog(`Buscando servidores para EP ${episode}...`, 'info');
         const dest = this.options.buildEpisodePath(item, episode);
         if (this.options.attemptService.hasCompletedFile(dest)) {
-          this.options.sendLog(`💡 EP ${episode} ya existe en disco. Omitiendo.`, 'info');
+          this.options.sendLog(`EP ${episode} ya existe en disco. Omitiendo.`, 'info');
           this.removeEpisode(item.failedEps, episode);
           this.pushUniqueEpisode(item.completedEps, episode);
           this.removeFailureReason(item, episode);
@@ -1350,18 +1352,18 @@ export class DownloadQueueProcessor {
             if ((item.cancelledEps || []).includes(episode)) {
               this.finalizeEpisodeResult(item, episode, dest, 'cancelled');
               this.options.sendQueueUpdate();
-              this.options.sendLog(`⛔ EP ${episode}: cancelado por el usuario (sigue el resto)`, 'warn');
+              this.options.sendLog(`EP ${episode}: cancelado por el usuario (sigue el resto)`, 'warn');
               return;
             }
             if (this.pausedItemIds.has(item.id)) {
               if ((item.status as string) !== 'paused') item.status = 'paused';
               this.options.sendQueueUpdate();
-              this.options.sendLog(`⏸ EP ${episode}: pausado por el usuario`, 'warn');
+              this.options.sendLog(`EP ${episode}: pausado por el usuario`, 'warn');
               return;
             }
             if ((item.pausedEps || []).includes(episode)) {
               this.options.sendQueueUpdate();
-              this.options.sendLog(`⏸ EP ${episode}: aparcado, conserva su slot`, 'warn');
+              this.options.sendLog(`EP ${episode}: aparcado, conserva su slot`, 'warn');
               const reason = await this.parkEpisode(item.id, episode);
               if (this.parallelContexts.get(item.id) !== runCtx) return;
               if (reason === 'resume') continue;
@@ -1384,11 +1386,11 @@ export class DownloadQueueProcessor {
             item.status = 'cancelled';
             this.finalizeEpisodeResult(item, episode, dest, 'cancelled');
             this.options.sendQueueUpdate();
-            this.options.sendLog(`⛔ EP ${episode}: descarga cancelada por el usuario`, 'warn');
+            this.options.sendLog(`EP ${episode}: descarga cancelada por el usuario`, 'warn');
             return;
           }
           if (!links || links.length === 0) {
-            this.options.sendLog(`✗ EP ${episode}: No se encontraron servidores disponibles`, 'error');
+            this.options.sendLog(`EP ${episode}: No se encontraron servidores disponibles`, 'error');
             this.finalizeEpisodeResult(item, episode, dest, 'fail', 'No se encontraron servidores disponibles');
             return;
           }
@@ -1469,7 +1471,7 @@ export class DownloadQueueProcessor {
             this.finalizeEpisodeResult(item, episode, dest, 'ok');
           } else {
             this.finalizeEpisodeResult(item, episode, dest, 'fail', failureReason);
-            this.options.sendLog(`⚠ EP ${episode}: falló en todos los servidores disponibles`, 'warn');
+            this.options.sendLog(`EP ${episode}: falló en todos los servidores disponibles`, 'warn');
           }
           return;
         } finally {

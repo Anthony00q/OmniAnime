@@ -397,7 +397,7 @@ export class DownloadService {
       const resetStreamTimeout = () => {
         if (streamTimeout) clearTimeout(streamTimeout);
         streamTimeout = setTimeout(() => {
-          this.logger.warn('pixeldrain stream stalled. Aborting.');
+          this.logger.warn('direct stream stalled. Aborting.');
           freezeAndKill();
         }, 30000);
       };
@@ -453,14 +453,14 @@ export class DownloadService {
             await fsp.rm(sidecarDest, { force: true }).catch(() => undefined);
             resolve(true);
           } catch (e) {
-            this.logger.error(`pixeldrain rename: ${e}`);
+            this.logger.error(`direct rename: ${e}`);
             resolve(false);
           }
         });
 
         writer!.on('error', (err) => {
           finishCleanup();
-          this.logger.error(`pixeldrain writer: ${err}`);
+          this.logger.error(`direct writer: ${err}`);
           resolve(false);
         });
 
@@ -475,7 +475,7 @@ export class DownloadService {
       if (signal?.aborted || e.name === 'AbortError' || axios.isCancel(e)) {
         // Ya manejado por onExternalAbort
       } else {
-        this.logger.error(`pixeldrain crítico: ${e.message}`);
+        this.logger.error(`direct crítico: ${e.message}`);
       }
       if (signal) signal.removeEventListener('abort', onExternalAbort);
       this.untrackController(internalController);

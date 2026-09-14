@@ -274,7 +274,7 @@ export class EpisodeDownloadAttemptService {
           invalidMp4 = true;
           if (link.server === 'Mega') await this.purgeMegaResumeFiles(dest);
           this.options.log(
-            `WARN  "${link.server}" reporto exito, pero no quedo archivo .mp4 valido. Probando siguiente...`,
+            `WARN "${link.server}" reporto exito, pero no quedo archivo .mp4 valido. Probando siguiente...`,
             'warn',
           );
         } else if (dl.cleanCacheOnComplete) {
@@ -358,7 +358,7 @@ export class EpisodeDownloadAttemptService {
     const failure = results.find((r) => r.status === 'rejected');
     if (failure) {
       this.options.log(
-        `WARN ️ Error limpiando temporales de ${path.basename(destPath)}: ${(failure as PromiseRejectedResult).reason}`,
+        `WARN Error limpiando temporales de ${path.basename(destPath)}: ${(failure as PromiseRejectedResult).reason}`,
         'warn',
       );
     } else {

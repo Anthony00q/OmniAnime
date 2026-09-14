@@ -1,6 +1,11 @@
 import type { ProviderDownloadLink, QueueItem } from '../../types/queue';
 import type { EpisodeAttemptCallbacks, EpisodeAttemptResult } from '../EpisodeDownloadAttemptService';
-import { categorizeAttemptFailure, type ServerAttemptOutcome } from '../ServerStatsStore';
+import {
+  categorizeAttemptFailure,
+  type EpisodeDownloadSummary,
+  type ServerAttemptOutcome,
+  type ServerFailureCategory,
+} from '../ServerStatsStore';
 
 // Alcance episodio: ordenar + fallback. Sin cola, workers, pausa, gates, slots,
 // historial, SQLite, tray, IPC ni persistencia; los efectos llegan inyectados.
@@ -31,6 +36,8 @@ export interface DownloadCoordinatorDeps {
   sendQueueUpdate: () => void;
   // Observabilidad por servidor (opcional, best-effort, sin URLs).
   recordServerOutcome?: (outcome: ServerAttemptOutcome) => void;
+  // Agregado por episodio (opcional, best-effort): se emite una vez por EP.
+  recordEpisodeOutcome?: (summary: EpisodeDownloadSummary) => void;
   cleanEpisodeTemps: (dest: string) => Promise<void>;
   cleanEpisodeCache: (dest: string) => Promise<void>;
   getStartTimeoutSec: () => number;
@@ -69,12 +76,23 @@ export class DownloadCoordinator {
   ): Promise<ServerFallbackResult> {
     let success = false;
     let failureReason = 'Todos los servidores disponibles fallaron';
+    const serversTried: string[] = [];
+    let attempts = 0;
+    let totalDurationMs = 0;
+    let finalServer: string | null = null;
+    let lastFailureCategory: ServerFailureCategory | null = null;
     try {
-      for (const link of sortedLinks) {
+      for (let index = 0; index < sortedLinks.length; index += 1) {
+        const link = sortedLinks[index];
         if (episodeAbort.signal.aborted) break;
         const speed = this.deps.getServerSpeed(link.server) || '–';
         const resolvedLabel = link.sourceEpisode !== episode ? ` (fuente EP ${link.sourceEpisode})` : '';
-        this.deps.sendLog(`▶ Intentando "${link.server}" desde ${link.provider}${resolvedLabel} (${speed})...`, 'info');
+        const totalAttempts = sortedLinks.length;
+        const attemptIndex = index + 1;
+        this.deps.sendLog(
+          `Intentando "${link.server}" desde ${link.provider}${resolvedLabel} (${speed})... (EP ${episode} · intento ${attemptIndex}/${totalAttempts})`,
+          'info',
+        );
         item.currentServer = link.server;
         onServerChange?.(link.server);
         // Aviso liviano y throttled: el progreso en vuelo ya viaja por delta
@@ -88,22 +106,40 @@ export class DownloadCoordinator {
         });
         // Sin intento (slot/abort): detener en silencio, como el break original.
         if (!result.attempted) break;
+        const durationMs = Date.now() - startedAt;
+        const canonicalServer = String(link.canonicalServer || link.server || '');
+        serversTried.push(canonicalServer);
+        attempts += 1;
+        totalDurationMs += durationMs;
+        const failureCategory = categorizeAttemptFailure({
+          success: result.success,
+          parentAborted: result.parentAborted,
+          skipRequested: result.skipRequested,
+          attemptTimedOut: result.attemptTimedOut,
+          invalidMp4: result.invalidMp4,
+          toolFailureMessage: result.toolFailureMessage,
+        });
+        lastFailureCategory = failureCategory;
+        if (result.success) finalServer = canonicalServer;
         success = result.success;
+        // Sufijo diagnóstico del intento (sin URLs ni secretos).
+        const isLast = index === sortedLinks.length - 1;
+        const nextLabel = isLast ? 'fin' : `fallback → ${sortedLinks[index + 1].server}`;
+        const providerLabel = String(link.provider || '');
+        const outcomeTag =
+          `EP ${episode} · intento ${attemptIndex}/${totalAttempts} · ${providerLabel}` +
+          ` · ${canonicalServer} · ${failureCategory ?? 'success'}` +
+          ` · ${(durationMs / 1000).toFixed(1)}s · ${success ? 'fin' : nextLabel}`;
         try {
           this.deps.recordServerOutcome?.({
             provider: String(link.provider || ''),
-            server: String(link.canonicalServer || link.server || ''),
+            server: canonicalServer,
             resolveSuccess: result.started || result.success,
             downloadStart: result.started || result.success,
             downloadSuccess: result.success,
-            failureCategory: categorizeAttemptFailure({
-              success: result.success,
-              parentAborted: result.parentAborted,
-              skipRequested: result.skipRequested,
-              attemptTimedOut: result.attemptTimedOut,
-              invalidMp4: result.invalidMp4,
-              toolFailureMessage: result.toolFailureMessage,
-            }),
+            failureCategory,
+            durationMs,
+            attemptIndex,
           });
         } catch {
           // La observabilidad nunca rompe descargas.
@@ -112,41 +148,64 @@ export class DownloadCoordinator {
         if (success) {
           const elapsedMs = Date.now() - startedAt;
           this.deps.sendLog(
-            `✓ EP ${episode} descargado desde "${link.server}"${resolvedLabel} en ${(elapsedMs / 1000).toFixed(1)}s`,
+            `EP ${episode} descargado desde "${link.server}"${resolvedLabel} en ${(elapsedMs / 1000).toFixed(1)}s` +
+              ` (intento ${attemptIndex}/${totalAttempts})`,
             'success',
           );
-          this.deps.sendStatus(`EP ${episode} Completado ✓`, item.episodes.length > 1);
+          this.deps.sendStatus(`EP ${episode} Completado`, item.episodes.length > 1);
           break;
         }
         if (result.invalidMp4) continue;
         if (result.attemptTimedOut && !result.parentAborted) {
           failureReason = `El servidor "${link.server}" no inició la descarga a tiempo`;
           const timeoutSec = this.deps.getStartTimeoutSec();
-          this.deps.sendLog(`⌛ "${link.server}" no inició descarga en ${timeoutSec}s. Probando siguiente...`, 'warn');
+          this.deps.sendLog(
+            `"${link.server}" no inició descarga en ${timeoutSec}s. Probando siguiente... (${outcomeTag})`,
+            'warn',
+          );
           await this.deps.cleanEpisodeTemps(dest);
           await this.deps.cleanEpisodeCache(dest);
         } else if (result.toolFailureMessage && !result.parentAborted) {
           failureReason = result.toolFailureMessage;
-          this.deps.sendLog(`✗ ${result.toolFailureMessage}`, 'error');
+          // Intermedio con fallback: warn; el último servidor es error.
+          this.deps.sendLog(`${result.toolFailureMessage} (${outcomeTag})`, isLast ? 'error' : 'warn');
           await this.deps.cleanEpisodeCache(dest);
         } else if (!result.parentAborted) {
           await this.deps.cleanEpisodeCache(dest);
-          const isLast = sortedLinks.indexOf(link) === sortedLinks.length - 1;
           if (result.skipRequested) {
             this.deps.sendLog(
-              `⏭️ "${link.server}" cancelado, probando siguiente...${isLast ? ' (Último servidor)' : ''}`,
+              `"${link.server}" cancelado, probando siguiente...${isLast ? ' (Último servidor)' : ''} (${outcomeTag})`,
               'warn',
             );
           } else {
+            // Intermedio con fallback: warn; sin más servidores es error.
             this.deps.sendLog(
-              `✗ "${link.server}" falló.${isLast ? ' Sin más servidores.' : ' Probando siguiente...'}`,
-              'error',
+              `"${link.server}" falló.${isLast ? ' Sin más servidores.' : ' Probando siguiente...'} (${outcomeTag})`,
+              isLast ? 'error' : 'warn',
             );
           }
         }
       }
     } finally {
       port.release();
+    }
+    // Un resumen por EP; best-effort, sin efecto en la descarga.
+    if (attempts > 0) {
+      try {
+        this.deps.recordEpisodeOutcome?.({
+          provider: String(item.providerId || sortedLinks[0]?.provider || ''),
+          episode,
+          success,
+          attempts,
+          serversTried: [...serversTried],
+          finalServer,
+          fallbackTriggered: attempts > 1,
+          totalDurationMs,
+          failureCategory: success ? null : lastFailureCategory,
+        });
+      } catch {
+        // La observabilidad nunca rompe descargas.
+      }
     }
     return { success, failureReason };
   }
