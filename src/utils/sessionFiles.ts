@@ -3,7 +3,7 @@ export const APP_ERROR_LOG_FILENAME = 'app_errors.log';
 export const SESSION_FILE_RE = /^sesion-\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.log$/;
 export const SESSION_BACKUP_SUFFIX = '.1.log';
 export const SESSION_BACKUP_RE = /^sesion-\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.log\.1\.log$/;
-export const MAX_SESSION_FILES = 20;
+export const MAX_SESSION_FILES = 50;
 
 export function isSessionBackupFile(name: string): boolean {
   return SESSION_BACKUP_RE.test(name);

@@ -15,7 +15,7 @@ export {
 } from './sessionFiles';
 
 // Lectura acotada del visor: colas por fichero y total para no bloquear main.
-export const LOG_VIEW_MAX_FILES = 20;
+export const LOG_VIEW_MAX_FILES = 50;
 export const LOG_VIEW_MAX_BYTES_PER_FILE = 256 * 1024;
 export const LOG_VIEW_MAX_TOTAL_BYTES = 5 * 1024 * 1024;
 

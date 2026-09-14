@@ -286,7 +286,7 @@ export const LogsTab = memo(function LogsTab({ isActive = true, settings, onChan
             <div className="min-w-0 flex-1">
               <span className="flex items-center gap-1.5 text-sm font-semibold select-none">
                 Registro detallado
-                <AppTooltip content="Guarda trazas de proveedores y reintentos. Cada sesión rota a 2 MB con una copia de respaldo y se conservan hasta 20 sesiones (unos 80 MB como máximo).">
+                <AppTooltip content="Guarda trazas de proveedores y reintentos. Cada sesión rota a 2 MB con una copia de respaldo y se conservan hasta 50 sesiones (unos 200 MB como máximo).">
                   <span aria-hidden="true" className="inline-flex text-muted-foreground">
                     <Info className="w-3.5 h-3.5" />
                   </span>
