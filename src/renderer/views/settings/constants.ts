@@ -31,7 +31,7 @@ export const DOWNLOAD_PARALLEL_OPTIONS = [
 export const DOWNLOAD_DIRECT_CONNECTIONS_OPTIONS = [
   { value: '1', label: '1 conexión' },
   { value: '2', label: '2 conexiones' },
-  { value: '4', label: '4 conexiones', badge: 'Recomendado' },
+  { value: '4', label: '4 conexiones' },
   { value: '6', label: '6 conexiones' },
   { value: '8', label: '8 conexiones' },
 ] as const;
@@ -40,7 +40,7 @@ export const DOWNLOAD_HLS_CONNECTIONS_OPTIONS = [
   { value: '4', label: '4 segmentos' },
   { value: '6', label: '6 segmentos' },
   { value: '8', label: '8 segmentos' },
-  { value: '10', label: '10 segmentos', badge: 'Recomendado' },
+  { value: '10', label: '10 segmentos' },
   { value: '12', label: '12 segmentos' },
   { value: '16', label: '16 segmentos' },
 ] as const;

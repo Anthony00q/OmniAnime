@@ -13,7 +13,8 @@ export interface DownloadSettings {
   startTimeoutSec: number;
   allowContinue: boolean;
   cleanCacheOnComplete: boolean;
-  directConnections: number;
+  mediafireConnections: number;
+  mp4uploadConnections: number;
   hlsConnections: number;
 }
 

@@ -52,7 +52,7 @@ export class MediafireDownloadEngine implements DownloadEngine {
       },
       ctx.signal,
       providerDownloadReferer(ctx.item.providerId),
-      ctx.settings.directConnections,
+      ctx.settings.mediafireConnections,
     );
     return { ok };
   }
@@ -83,7 +83,7 @@ export class Mp4UploadDownloadEngine implements DownloadEngine {
       },
       ctx.signal,
       MP4UPLOAD_REFERER,
-      ctx.settings.directConnections,
+      ctx.settings.mp4uploadConnections,
     );
     return { ok };
   }

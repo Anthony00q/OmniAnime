@@ -43,9 +43,7 @@ export const DownloadsTab = memo(function DownloadsTab({ settings, namingPreview
             </div>
             <div>
               <h2 className="text-base font-bold tracking-tight">Concurrencia</h2>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Paralelismo de tus descargas: episodios y conexiones. Por defecto secuencial.
-              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">Paralelismo de episodios, conexiones y segmentos.</p>
             </div>
           </div>
 
@@ -77,25 +75,46 @@ export const DownloadsTab = memo(function DownloadsTab({ settings, namingPreview
           <div className="rounded-xl border border-border/60 bg-background p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 mt-3">
             <div className="min-w-0">
               <span className="flex items-center gap-1.5 text-sm font-semibold select-none">
-                Conexiones por archivo
-                <AppTooltip content="MediaFire y MP4Upload: divide cada descarga directa en segmentos en paralelo. Solo se usa si el servidor lo soporta; si no, se descarga a 1 conexión automáticamente.">
+                MediaFire: conexiones por archivo
+                <AppTooltip content="Divide cada descarga de MediaFire en segmentos en paralelo. Solo se usa si el servidor lo soporta; si no, baja solo a 1 conexión.">
                   <span aria-hidden="true" className="inline-flex text-muted-foreground">
                     <Info className="w-3.5 h-3.5" />
                   </span>
                 </AppTooltip>
               </span>
-              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                Afecta a descargas directas (MediaFire y MP4Upload). Más conexiones no siempre es más rápido; si falla,
-                se reintenta a 1.
-              </p>
+              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">Solo afecta a MediaFire.</p>
             </div>
             <CustomSelect
               value={snapToClosestOption(
-                dl.directConnections ?? 1,
+                dl.mediafireConnections ?? 1,
                 DOWNLOAD_DIRECT_CONNECTIONS_OPTIONS.map((o) => o.value),
               )}
-              onChange={(v) => onDlChange('directConnections', Number(v))}
-              ariaLabel="Conexiones por archivo"
+              onChange={(v) => onDlChange('mediafireConnections', Number(v))}
+              ariaLabel="Conexiones por archivo en MediaFire"
+              className="w-full sm:w-60 shrink-0"
+              options={DOWNLOAD_DIRECT_CONNECTIONS_OPTIONS.map((o) => ({ ...o }))}
+            />
+          </div>
+
+          <div className="rounded-xl border border-border/60 bg-background p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 mt-3">
+            <div className="min-w-0">
+              <span className="flex items-center gap-1.5 text-sm font-semibold select-none">
+                MP4Upload: conexiones por archivo
+                <AppTooltip content="Divide cada descarga directa en segmentos en paralelo. Solo se usa si el servidor lo soporta; si no, se descarga a 1 conexión automáticamente.">
+                  <span aria-hidden="true" className="inline-flex text-muted-foreground">
+                    <Info className="w-3.5 h-3.5" />
+                  </span>
+                </AppTooltip>
+              </span>
+              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">Solo afecta a MP4Upload.</p>
+            </div>
+            <CustomSelect
+              value={snapToClosestOption(
+                dl.mp4uploadConnections ?? 1,
+                DOWNLOAD_DIRECT_CONNECTIONS_OPTIONS.map((o) => o.value),
+              )}
+              onChange={(v) => onDlChange('mp4uploadConnections', Number(v))}
+              ariaLabel="Conexiones por archivo en MP4Upload"
               className="w-full sm:w-60 shrink-0"
               options={DOWNLOAD_DIRECT_CONNECTIONS_OPTIONS.map((o) => ({ ...o }))}
             />
@@ -112,7 +131,7 @@ export const DownloadsTab = memo(function DownloadsTab({ settings, namingPreview
                 </AppTooltip>
               </span>
               <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                Afecta solo a HLS. Más no siempre es más rápido; si el servidor limita, baja a 6–8.
+                Afecta solo a HLS. Más no siempre es más rápido.
               </p>
             </div>
             <CustomSelect
@@ -287,7 +306,7 @@ export const DownloadsTab = memo(function DownloadsTab({ settings, namingPreview
                 <div className="min-w-0">
                   <div className="text-sm font-semibold leading-tight flex items-center gap-1.5">
                     Continuar parciales
-                    <AppTooltip content="Si pausas y sigues más tarde, continúa donde se quedó en vez de empezar de cero. Hay servidores donde siempre empieza de cero, y si uno falla se prueba automáticamente con otro.">
+                    <AppTooltip content="Si pausas y sigues más tarde, continúa donde se quedó en vez de empezar de cero. A veces hay que empezar de cero (si cambia el enlace, el servidor no lo permite o se prueba con otro servidor).">
                       <span aria-hidden="true" className="inline-flex text-muted-foreground">
                         <Info className="w-3.5 h-3.5" />
                       </span>

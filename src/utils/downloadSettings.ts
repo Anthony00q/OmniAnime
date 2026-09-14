@@ -6,7 +6,8 @@ export const DEFAULT_DOWNLOAD_SETTINGS: DownloadSettings = {
   startTimeoutSec: 90,
   allowContinue: true,
   cleanCacheOnComplete: false,
-  directConnections: 1,
+  mediafireConnections: 1,
+  mp4uploadConnections: 1,
   hlsConnections: 10,
 };
 
@@ -29,7 +30,8 @@ export function normalizeDownloadSettings(input: unknown): DownloadSettings {
     startTimeoutSec: clampInt(raw.startTimeoutSec, 30, 120, DEFAULT_DOWNLOAD_SETTINGS.startTimeoutSec),
     allowContinue: toBoolean(raw.allowContinue, DEFAULT_DOWNLOAD_SETTINGS.allowContinue),
     cleanCacheOnComplete: toBoolean(raw.cleanCacheOnComplete, DEFAULT_DOWNLOAD_SETTINGS.cleanCacheOnComplete),
-    directConnections: clampInt(raw.directConnections, 1, 8, DEFAULT_DOWNLOAD_SETTINGS.directConnections),
+    mediafireConnections: clampInt(raw.mediafireConnections, 1, 8, DEFAULT_DOWNLOAD_SETTINGS.mediafireConnections),
+    mp4uploadConnections: clampInt(raw.mp4uploadConnections, 1, 8, DEFAULT_DOWNLOAD_SETTINGS.mp4uploadConnections),
     hlsConnections: clampInt(raw.hlsConnections, 1, 16, DEFAULT_DOWNLOAD_SETTINGS.hlsConnections),
   };
 }
