@@ -621,11 +621,12 @@ export interface LogPageFilters {
   level: string;
   scope: string;
   query: string;
+  sessionOnly: boolean;
 }
 
 export function useLogPages(filters: LogPageFilters, enabled = true) {
   return useInfiniteQuery({
-    queryKey: ['log-page', filters.level, filters.scope, filters.query],
+    queryKey: ['log-page', filters.sessionOnly, filters.level, filters.scope, filters.query],
     queryFn: async ({ pageParam }: { pageParam: number }) => {
       const res: any = await window.api.invoke('get-log-page', { ...filters, cursor: pageParam, limit: 100 });
       if (res?.ok !== true) throw new Error('No se pudo leer el registro');

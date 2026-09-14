@@ -17,6 +17,7 @@ export interface DiagnosticsSelection {
   level?: string;
   scope?: string;
   query?: string;
+  sessionOnly?: boolean;
 }
 
 export async function exportDiagnostics(selection?: DiagnosticsSelection): Promise<boolean> {

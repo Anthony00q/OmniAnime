@@ -21,7 +21,7 @@ import { EmptyState } from '../../../components/ui/EmptyState';
 import { SearchField } from '../../../components/ui/SearchField';
 import { useLogPages } from '../../../hooks/useQueries';
 import { exportDiagnostics, revealLogFile } from '../../../utils/diagnosticsActions';
-import { isDeletableEntry } from '../../../../utils/logPage';
+import { groupLogEntriesByFile, isDeletableEntry } from '../../../../utils/logPage';
 
 const LEVEL_OPTIONS = [
   { value: 'all', label: 'Todos los niveles' },
@@ -179,15 +179,27 @@ export const LogsTab = memo(function LogsTab({ isActive = true, settings, onChan
   const [scope, setScope] = useState('all');
   const [query, setQuery] = useState('');
   const [appliedQuery, setAppliedQuery] = useState('');
+  const [view, setView] = useState<'session' | 'all'>('session');
   useEffect(() => {
     const timer = setTimeout(() => setAppliedQuery(query.trim()), 400);
     return () => clearTimeout(timer);
   }, [query]);
-  const filters = useMemo(() => ({ level, scope, query: appliedQuery }), [level, scope, appliedQuery]);
+  const filters = useMemo(
+    () =>
+      view === 'session'
+        ? { level: 'all', scope: 'all', query: appliedQuery, sessionOnly: true as const }
+        : { level, scope, query: appliedQuery, sessionOnly: false as const },
+    [view, level, scope, appliedQuery],
+  );
   const logQuery: any = useLogPages(filters, isActive);
   const entries: any[] = useMemo(
     () => (logQuery.data?.pages || []).flatMap((p: any) => p?.entries || []),
     [logQuery.data],
+  );
+  // Agrupado por sesión/fichero: evita ver cabeceras SESSION y errores sueltos sin contexto.
+  const groups: Array<{ file: string; label: string; entries: any[] }> = useMemo(
+    () => groupLogEntriesByFile(entries),
+    [entries],
   );
   const total = logQuery.data?.pages?.[0]?.total ?? 0;
   const sessionStart = (logQuery.data?.pages?.[0] as any)?.sessionStart || '';
@@ -205,7 +217,7 @@ export const LogsTab = memo(function LogsTab({ isActive = true, settings, onChan
   useEffect(() => {
     setSelected(new Set());
     setExpanded(new Set());
-  }, [level, scope, appliedQuery]);
+  }, [view, level, scope, appliedQuery]);
 
   const applySearch = () => setAppliedQuery(query.trim());
   const entryDeletable = useCallback(
@@ -388,9 +400,37 @@ export const LogsTab = memo(function LogsTab({ isActive = true, settings, onChan
             </button>
           </div>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-3">
-          <CustomSelect value={level} options={LEVEL_OPTIONS} onChange={setLevel} ariaLabel="Filtrar por nivel" />
-          <CustomSelect value={scope} options={SCOPE_OPTIONS} onChange={setScope} ariaLabel="Filtrar por módulo" />
+        <div
+          role="group"
+          aria-label="Alcance del registro"
+          className="inline-flex rounded-xl border border-border/60 bg-background p-1 gap-1 mb-3"
+        >
+          {(
+            [
+              { value: 'session', label: 'Sesión actual' },
+              { value: 'all', label: 'Todas las sesiones' },
+            ] as const
+          ).map((o) => (
+            <button
+              key={o.value}
+              type="button"
+              aria-pressed={view === o.value}
+              onClick={() => setView(o.value)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 ${
+                view === o.value ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+        <div className={`grid grid-cols-1 gap-2 mb-3 ${view === 'all' ? 'sm:grid-cols-3' : ''}`}>
+          {view === 'all' ? (
+            <>
+              <CustomSelect value={level} options={LEVEL_OPTIONS} onChange={setLevel} ariaLabel="Filtrar por nivel" />
+              <CustomSelect value={scope} options={SCOPE_OPTIONS} onChange={setScope} ariaLabel="Filtrar por módulo" />
+            </>
+          ) : null}
           <SearchField
             value={query}
             onChange={(event) => setQuery(event.target.value)}
@@ -421,7 +461,11 @@ export const LogsTab = memo(function LogsTab({ isActive = true, settings, onChan
         ) : entries.length === 0 ? (
           <EmptyState
             title="Sin entradas"
-            description="No hay registros con esos filtros. Prueba con Todos los niveles o activa el registro detallado."
+            description={
+              view === 'session'
+                ? 'No hay registros en esta sesión con esa búsqueda. Prueba con otro texto o mira Todas las sesiones.'
+                : 'No hay registros con esos filtros. Prueba con Todos los niveles o activa el registro detallado.'
+            }
             actionLabel="Limpiar filtros"
             onAction={() => {
               setLevel('all');
@@ -433,17 +477,30 @@ export const LogsTab = memo(function LogsTab({ isActive = true, settings, onChan
         ) : (
           <div className="rounded-xl border border-border/60 bg-background overflow-hidden">
             <div className="px-3 py-2 border-b border-border/40 text-[11px] text-muted-foreground flex items-center gap-2">
-              <DeleteCheckbox
-                checked={allEligibleChecked}
-                disabled={eligibleLoaded.length === 0}
-                label="Seleccionar entradas visibles para eliminar"
-                onToggle={toggleAllEligible}
-              />
+              {view === 'all' ? (
+                <DeleteCheckbox
+                  checked={allEligibleChecked}
+                  disabled={eligibleLoaded.length === 0}
+                  label="Seleccionar entradas visibles para eliminar"
+                  onToggle={toggleAllEligible}
+                />
+              ) : null}
               <span>
-                {affectedRows} de {total} entradas
+                {view === 'session' ? (
+                  <>
+                    {total} {total === 1 ? 'entrada' : 'entradas'} de esta sesión
+                  </>
+                ) : (
+                  <>
+                    {affectedRows} de {total} entradas
+                  </>
+                )}
                 {logQuery.isFetching ? ' · Actualizando...' : ''}
               </span>
-              {selected.size > 0 ? (
+              {view === 'session' ? (
+                <span className="ml-auto shrink-0">Sesión protegida: no se puede borrar</span>
+              ) : null}
+              {view === 'all' && selected.size > 0 ? (
                 <span className="ml-auto flex items-center gap-2">
                   <button
                     type="button"
@@ -462,24 +519,38 @@ export const LogsTab = memo(function LogsTab({ isActive = true, settings, onChan
                 </span>
               ) : null}
             </div>
-            <ul className="divide-y divide-border/40 max-h-[420px] overflow-y-auto custom-scrollbar">
-              {entries.map((e: any, idx: number) => (
-                <LogEntryRow
-                  key={`${e.file || ''}-${e.ts}-${idx}`}
-                  entry={e}
-                  index={idx}
-                  checked={selected.has(entryKey(e))}
-                  canDelete={entryDeletable(e.ts)}
-                  open={expanded.has(entryKey(e))}
-                  collapsible={typeof e.text === 'string' && e.text.includes('\n')}
-                  onToggle={toggleEntry}
-                  onToggleOpen={toggleOpen}
-                />
+            <div className="max-h-[420px] overflow-y-auto custom-scrollbar">
+              {groups.map((g, gi) => (
+                <section key={`${g.file || g.label}-${gi}`} aria-label={g.label}>
+                  <div
+                    className={`sticky top-0 z-10 px-3 py-1.5 bg-background/95 backdrop-blur border-border/40 text-[11px] font-semibold text-muted-foreground flex items-center gap-2 ${gi === 0 ? 'border-b' : 'border-y'}`}
+                  >
+                    <span className="truncate">{g.label}</span>
+                    <span className="ml-auto shrink-0 tabular-nums">
+                      {g.entries.length} {g.entries.length === 1 ? 'entrada' : 'entradas'}
+                    </span>
+                  </div>
+                  <ul className="divide-y divide-border/40">
+                    {g.entries.map((e: any, li: number) => (
+                      <LogEntryRow
+                        key={`${e.file || ''}-${e.ts}-${gi}-${li}`}
+                        entry={e}
+                        index={li}
+                        checked={selected.has(entryKey(e))}
+                        canDelete={entryDeletable(e.ts)}
+                        open={expanded.has(entryKey(e))}
+                        collapsible={typeof e.text === 'string' && e.text.includes('\n')}
+                        onToggle={toggleEntry}
+                        onToggleOpen={toggleOpen}
+                      />
+                    ))}
+                  </ul>
+                </section>
               ))}
-            </ul>
+            </div>
             {entries.length >= MAX_LOADED_ENTRIES ? (
               <p className="px-3 py-2.5 text-[11px] text-muted-foreground border-t border-border/40">
-                Mostrando las {MAX_LOADED_ENTRIES} primeras: afina los filtros para ver el resto.
+                Mostrando las {MAX_LOADED_ENTRIES} últimas: afina los filtros para ver el resto.
               </p>
             ) : logQuery.hasNextPage ? (
               <button

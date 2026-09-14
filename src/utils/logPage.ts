@@ -1,5 +1,5 @@
 import { redactLogText, type LogLevel } from './redactLog';
-import { MAX_SESSION_FILES, SESSION_FILE_RE } from './sessionFiles';
+import { APP_LOG_FILENAME, MAX_SESSION_FILES, SESSION_BACKUP_SUFFIX, SESSION_FILE_RE } from './sessionFiles';
 
 export {
   APP_LOG_FILENAME,
@@ -218,7 +218,7 @@ export function applyLogSelection(
 }
 
 export function selectLogEntries(raw: string, selection: LogSelection, sessionStart: string): LogPageEntry[] {
-  return applyLogSelection(parseLogEntries(raw), selection, sessionStart);
+  return sortLogEntriesNewestFirst(applyLogSelection(parseLogEntries(raw), selection, sessionStart));
 }
 
 export function selectLogEntriesFromSources(
@@ -230,7 +230,53 @@ export function selectLogEntriesFromSources(
   for (const source of sources) {
     for (const entry of parseLogEntries(source.raw, source.name)) entries.push(entry);
   }
-  return applyLogSelection(entries, selection, sessionStart);
+  return sortLogEntriesNewestFirst(applyLogSelection(entries, selection, sessionStart));
+}
+
+// La página 0 es lo último escrito: el cursor avanza hacia lo antiguo.
+export function sortLogEntriesNewestFirst(entries: LogPageEntry[]): LogPageEntry[] {
+  return entries
+    .map((entry, index) => ({ entry, index }))
+    .sort((a, b) => {
+      const ta = timestampMs(a.entry.ts);
+      const tb = timestampMs(b.entry.ts);
+      if (ta === null && tb === null) return a.index - b.index;
+      if (ta === null) return 1;
+      if (tb === null) return -1;
+      if (tb !== ta) return tb - ta;
+      return a.index - b.index;
+    })
+    .map(({ entry }) => entry);
+}
+
+// Etiqueta legible para agrupar por fichero sin exponer rutas.
+export function formatSessionFileLabel(file?: string): string {
+  if (!file) return 'Sesión actual';
+  if (file === APP_LOG_FILENAME) return 'Registro general (legacy)';
+  const m = file.match(/^sesion-(\d{4})-(\d{2})-(\d{2})_(\d{2})-(\d{2})-(\d{2})\.log(\.1\.log)?$/);
+  if (m) {
+    const [, year, month, day, hour, min, sec] = m;
+    const backup = file.endsWith(SESSION_BACKUP_SUFFIX) ? ' · respaldo' : '';
+    return `Sesión ${day}/${month}/${year} ${hour}:${min}:${sec}${backup}`;
+  }
+  return file;
+}
+
+export interface LogFileGroup {
+  file: string;
+  label: string;
+  entries: LogPageEntry[];
+}
+
+export function groupLogEntriesByFile(entries: LogPageEntry[]): LogFileGroup[] {
+  const groups: LogFileGroup[] = [];
+  for (const entry of entries) {
+    const file = entry.file || '';
+    const last = groups[groups.length - 1];
+    if (last && last.file === file) last.entries.push(entry);
+    else groups.push({ file, label: formatSessionFileLabel(entry.file), entries: [entry] });
+  }
+  return groups;
 }
 
 export function paginateLogEntries(
