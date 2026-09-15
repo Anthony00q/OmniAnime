@@ -19,15 +19,14 @@ const EpisodeViewSetting = memo(function EpisodeViewSetting({
   const [live] = useEpisodeView();
   const view = pending ?? live;
   const options: Array<{ value: EpisodeView; label: string; desc: string; Icon: typeof LayoutGrid }> = [
-    { value: 'cards', label: 'Miniaturas', desc: 'Fichas con imagen', Icon: LayoutGrid },
-    { value: 'list', label: 'Lista', desc: 'Números sin imagen', Icon: List },
+    { value: 'cards', label: 'Miniaturas', desc: 'Con imagen', Icon: LayoutGrid },
+    { value: 'list', label: 'Lista', desc: 'Solo texto', Icon: List },
   ];
   return (
     <div>
       <div className="block text-sm font-semibold">Vista de episodios</div>
       <p className="text-xs text-muted-foreground mt-0.5 mb-3">
-        Cómo se muestran los capítulos en Detalles. Aquí se aplica al Guardar; con clic derecho sobre un capítulo, al
-        instante.
+        Cómo se muestran los episodios en Detalles. Aquí se aplica al guardar.
       </p>
       <div role="radiogroup" aria-label="Vista de episodios" className="grid grid-cols-2 gap-3">
         {options.map(({ value, label, desc, Icon }) => {
@@ -205,7 +204,7 @@ export const AppearanceTab = memo(
               </div>
               <div>
                 <h2 className="text-base font-bold tracking-tight">Apariencia y UI</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">Interfaz nocturna · tema, acento y vista previa.</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Tema, acento y vista de episodios.</p>
               </div>
             </div>
 
@@ -213,7 +212,7 @@ export const AppearanceTab = memo(
               <div className="xl:col-span-3 space-y-6">
                 <div>
                   <div className="flex items-baseline gap-2 mb-5">
-                    <label className="block text-sm font-semibold">Tema de la Interfaz</label>
+                    <label className="block text-sm font-semibold">Tema de la interfaz</label>
                   </div>
                   <div
                     role="radiogroup"
@@ -261,8 +260,8 @@ export const AppearanceTab = memo(
                     })}
                   </div>
                   <p className="text-xs text-muted-foreground mt-2.5 leading-relaxed">
-                    Todos optimizados para baja luz. <span className="font-medium text-foreground/80">OLED</span> ahorra
-                    batería, <span className="font-medium text-foreground/80">Quantum</span> profundidad azul.
+                    Todos están pensados para poca luz. <span className="font-medium text-foreground/80">OLED</span>{' '}
+                    ahorra batería y <span className="font-medium text-foreground/80">Quantum</span> aporta profundidad.
                   </p>
                 </div>
 
@@ -270,14 +269,14 @@ export const AppearanceTab = memo(
 
                 <div>
                   <label htmlFor="accent-color-text" className="block text-sm font-semibold mb-2">
-                    Color de Acento
+                    Color de acento
                   </label>
                   <div className="flex gap-2">
                     <button
                       type="button"
                       onClick={handleSwatchClick}
                       onKeyDown={handleSwatchKeyDown}
-                      aria-label={`Selector de color de acento, actual ${accentHex}. Presiona Enter para abrir`}
+                      aria-label={`Selector de color de acento, actual ${accentHex}. Pulsa Enter para abrir`}
                       aria-haspopup="dialog"
                       className="relative w-11 h-11 rounded-xl shrink-0 border border-border bg-secondary p-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-card transition-[transform,border-color,box-shadow] duration-150 active:scale-[0.97] hover:border-border-strong hover:shadow-sm group"
                     >
@@ -343,12 +342,12 @@ export const AppearanceTab = memo(
                       </p>
                     ) : isEmpty ? (
                       <p id="accent-hint-empty" className="text-xs text-muted-foreground leading-relaxed">
-                        Vacío — se usará <span className="font-mono text-foreground/80">#3b82f6</span> por defecto.
-                        Escribe un HEX/HSL o elige abajo.
+                        Vacío: se usará <span className="font-mono text-foreground/80">#3b82f6</span>. Escribe un
+                        HEX/HSL o elige uno abajo.
                       </p>
                     ) : (
                       <p id="accent-hint" className="text-xs text-muted-foreground">
-                        HEX o HSL válido. El cambio se previsualiza al instante.
+                        HEX o HSL válido. Se previsualiza al instante.
                       </p>
                     )}
                   </div>
@@ -387,7 +386,7 @@ export const AppearanceTab = memo(
                       })}
                     </div>
                     <p className="text-[11px] text-muted-foreground mt-2">
-                      8 tonos nocturnos curados · el anillo de foco y la selección usarán este acento.
+                      8 tonos pensados para modo oscuro. Se aplicará a los destacados de la interfaz.
                     </p>
                   </div>
                 </div>
@@ -509,8 +508,7 @@ export const AppearanceTab = memo(
                     </div>
                   </div>
                   <p className="text-xs text-muted-foreground mt-3 leading-relaxed">
-                    Previsualización con layout real (póster, barra, badges, toast). El acento se refleja en toda la
-                    interfaz y se persiste al <span className="font-medium text-foreground">Guardar</span>.
+                    Vista previa orientativa. Se aplicará a toda la interfaz al guardar.
                   </p>
                 </div>
               </div>

@@ -43,7 +43,7 @@ export const DownloadsTab = memo(function DownloadsTab({ settings, namingPreview
             </div>
             <div>
               <h2 className="text-base font-bold tracking-tight">Concurrencia</h2>
-              <p className="text-xs text-muted-foreground mt-0.5">Paralelismo de episodios, conexiones y segmentos.</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Cuántos episodios y conexiones se usan a la vez.</p>
             </div>
           </div>
 
@@ -51,7 +51,7 @@ export const DownloadsTab = memo(function DownloadsTab({ settings, namingPreview
             <div className="min-w-0">
               <span className="flex items-center gap-1.5 text-sm font-semibold select-none">
                 Episodios en paralelo
-                <AppTooltip content="Cuántos episodios del mismo anime se descargan a la vez. Con 1 van uno por uno, como siempre.">
+                <AppTooltip content="Cuántos episodios del mismo anime se descargan a la vez. Con 1 van uno por uno.">
                   <span aria-hidden="true" className="inline-flex text-muted-foreground">
                     <Info className="w-3.5 h-3.5" />
                   </span>
@@ -68,7 +68,7 @@ export const DownloadsTab = memo(function DownloadsTab({ settings, namingPreview
           </div>
           {dl.maxParallelEpisodes >= 3 && (
             <p className="text-[11px] text-warning leading-relaxed select-none mt-3" role="note">
-              Con 3, como máximo 2 episodios usan el mismo servidor a la vez para no saturarlo.
+              Con 3 en paralelo, como máximo 2 usan el mismo servidor para no saturarlo.
             </p>
           )}
 
@@ -76,13 +76,12 @@ export const DownloadsTab = memo(function DownloadsTab({ settings, namingPreview
             <div className="min-w-0">
               <span className="flex items-center gap-1.5 text-sm font-semibold select-none">
                 MediaFire: conexiones por archivo
-                <AppTooltip content="Divide cada descarga de MediaFire en segmentos en paralelo. Solo se usa si el servidor lo soporta; si no, baja solo a 1 conexión.">
+                <AppTooltip content="Divide cada descarga en segmentos en paralelo. Si el servidor no lo permite, usa 1 conexión.">
                   <span aria-hidden="true" className="inline-flex text-muted-foreground">
                     <Info className="w-3.5 h-3.5" />
                   </span>
                 </AppTooltip>
               </span>
-              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">Solo afecta a MediaFire.</p>
             </div>
             <CustomSelect
               value={snapToClosestOption(
@@ -100,13 +99,12 @@ export const DownloadsTab = memo(function DownloadsTab({ settings, namingPreview
             <div className="min-w-0">
               <span className="flex items-center gap-1.5 text-sm font-semibold select-none">
                 MP4Upload: conexiones por archivo
-                <AppTooltip content="Divide cada descarga directa en segmentos en paralelo. Solo se usa si el servidor lo soporta; si no, se descarga a 1 conexión automáticamente.">
+                <AppTooltip content="Divide cada descarga en segmentos en paralelo. Si el servidor no lo permite, usa 1 conexión.">
                   <span aria-hidden="true" className="inline-flex text-muted-foreground">
                     <Info className="w-3.5 h-3.5" />
                   </span>
                 </AppTooltip>
               </span>
-              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">Solo afecta a MP4Upload.</p>
             </div>
             <CustomSelect
               value={snapToClosestOption(
@@ -123,6 +121,29 @@ export const DownloadsTab = memo(function DownloadsTab({ settings, namingPreview
           <div className="rounded-xl border border-border/60 bg-background p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 mt-3">
             <div className="min-w-0">
               <span className="flex items-center gap-1.5 text-sm font-semibold select-none">
+                Mega: conexiones por archivo
+                <AppTooltip content="Divide cada descarga de Mega en partes en paralelo. Más conexiones no siempre es más rápido.">
+                  <span aria-hidden="true" className="inline-flex text-muted-foreground">
+                    <Info className="w-3.5 h-3.5" />
+                  </span>
+                </AppTooltip>
+              </span>
+            </div>
+            <CustomSelect
+              value={snapToClosestOption(
+                dl.megaConnections ?? 6,
+                DOWNLOAD_DIRECT_CONNECTIONS_OPTIONS.map((o) => o.value),
+              )}
+              onChange={(v) => onDlChange('megaConnections', Number(v))}
+              ariaLabel="Conexiones por archivo en Mega"
+              className="w-full sm:w-60 shrink-0"
+              options={DOWNLOAD_DIRECT_CONNECTIONS_OPTIONS.map((o) => ({ ...o }))}
+            />
+          </div>
+
+          <div className="rounded-xl border border-border/60 bg-background p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 mt-3">
+            <div className="min-w-0">
+              <span className="flex items-center gap-1.5 text-sm font-semibold select-none">
                 Segmentos HLS en paralelo
                 <AppTooltip content="HLS (AnimeAV1): cuántos fragmentos del episodio se descargan a la vez. Solo se usa en HLS; el resto de servidores no cambia.">
                   <span aria-hidden="true" className="inline-flex text-muted-foreground">
@@ -131,7 +152,7 @@ export const DownloadsTab = memo(function DownloadsTab({ settings, namingPreview
                 </AppTooltip>
               </span>
               <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                Afecta solo a HLS. Más no siempre es más rápido.
+                Más segmentos no siempre es más rápido.
               </p>
             </div>
             <CustomSelect
@@ -147,7 +168,7 @@ export const DownloadsTab = memo(function DownloadsTab({ settings, namingPreview
           </div>
 
           <div className="mt-4 rounded-xl bg-background border border-border/60 px-3 py-2.5 flex items-center gap-2 text-xs text-muted-foreground">
-            <AppTooltip content="Si cambias algo mientras se descarga, se nota en las siguientes, no en la que ya está en marcha.">
+            <AppTooltip content="Si cambias algo durante una descarga, se aplicará a las siguientes, no a la que está en marcha.">
               <span aria-hidden="true" className="inline-flex shrink-0">
                 <Info className="w-3.5 h-3.5" />
               </span>
@@ -179,7 +200,7 @@ export const DownloadsTab = memo(function DownloadsTab({ settings, namingPreview
                 <span className="text-[11px] font-bold tracking-widest uppercase bg-secondary text-muted-foreground border border-border/60 px-1.5 py-0.5 rounded">
                   {provider.hint}
                 </span>
-                <AppTooltip content="No todos los servidores aparecen en cada episodio. Si uno no está o falla, se intenta automáticamente con el siguiente.">
+                <AppTooltip content="Orden en el que se prueban los servidores.">
                   <span
                     aria-hidden="true"
                     className="ml-auto inline-flex items-center justify-center w-6 h-6 rounded-lg text-muted-foreground"
@@ -217,7 +238,7 @@ export const DownloadsTab = memo(function DownloadsTab({ settings, namingPreview
         </div>
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
           <div className="space-y-2">
-            <span className="block text-sm font-semibold">Estilo de Nombramiento</span>
+            <span className="block text-sm font-semibold">Estilo de nombre</span>
             <CustomSelect
               value={settings.namingStyle || 'descriptive'}
               onChange={(v) => onChange('namingStyle', v)}
@@ -230,7 +251,7 @@ export const DownloadsTab = memo(function DownloadsTab({ settings, namingPreview
             />
             <p className="text-[11px] text-muted-foreground leading-relaxed">
               {settings.namingStyle === 'minimal'
-                ? 'Solo número de episodio, ideal para bibliotecas limpias.'
+                ? 'Solo el número de episodio, ideal para una biblioteca limpia.'
                 : 'Incluye el título del anime para identificar archivos rápidamente.'}
             </p>
           </div>
@@ -261,7 +282,7 @@ export const DownloadsTab = memo(function DownloadsTab({ settings, namingPreview
             <span>
               <span className="block text-sm font-bold tracking-tight">Opciones avanzadas</span>
               <span className="block text-xs text-muted-foreground mt-0.5">
-                Si algo tarda o falla, cuántas veces lo intenta. Ya viene bien configurado.
+                Reintentos, tiempos de espera y archivos temporales. Ya viene bien configurado.
               </span>
             </span>
           </span>
@@ -288,14 +309,14 @@ export const DownloadsTab = memo(function DownloadsTab({ settings, namingPreview
                 />
               </div>
               <div className="space-y-2">
-                <span className="block text-sm font-semibold">Timeout de inicio</span>
+                <span className="block text-sm font-semibold">Tiempo de espera al iniciar</span>
                 <CustomSelect
                   value={snapToClosestOption(
                     dl.startTimeoutSec,
                     DOWNLOAD_START_TIMEOUT_OPTIONS.map((o) => o.value),
                   )}
                   onChange={(v) => onDlChange('startTimeoutSec', Number(v))}
-                  ariaLabel="Timeout de inicio"
+                  ariaLabel="Tiempo de espera al iniciar"
                   className="w-full"
                   options={DOWNLOAD_START_TIMEOUT_OPTIONS.map((o) => ({ ...o }))}
                 />
@@ -305,8 +326,8 @@ export const DownloadsTab = memo(function DownloadsTab({ settings, namingPreview
               <div className="rounded-xl border border-border/60 bg-background p-4 flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="text-sm font-semibold leading-tight flex items-center gap-1.5">
-                    Continuar parciales
-                    <AppTooltip content="Si pausas y sigues más tarde, continúa donde se quedó en vez de empezar de cero. A veces hay que empezar de cero (si cambia el enlace, el servidor no lo permite o se prueba con otro servidor).">
+                    Continuar descargas interrumpidas
+                    <AppTooltip content="Si pausas y continúas más tarde, sigue donde se quedó. A veces hay que empezar de cero (si cambia el enlace o el servidor no lo permite).">
                       <span aria-hidden="true" className="inline-flex text-muted-foreground">
                         <Info className="w-3.5 h-3.5" />
                       </span>
@@ -325,21 +346,21 @@ export const DownloadsTab = memo(function DownloadsTab({ settings, namingPreview
               <div className="rounded-xl border border-border/60 bg-background p-4 flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="text-sm font-semibold leading-tight flex items-center gap-1.5">
-                    <FolderDown className="w-3.5 h-3.5 text-muted-foreground" /> Limpiar al completar
-                    <AppTooltip content="Cuando un episodio termina bien, borra sus archivos temporales. Si lo dejas apagado pueden quedar restos que ocupan espacio; puedes borrarlos luego en Almacenamiento. Si algo falla, siempre se limpia solo para volver a intentarlo.">
+                    <FolderDown className="w-3.5 h-3.5 text-muted-foreground" /> Limpiar al terminar
+                    <AppTooltip content="Al terminar bien, borra sus temporales. Si lo dejas apagado, puedes borrarlos luego en Almacenamiento.">
                       <span aria-hidden="true" className="inline-flex text-muted-foreground">
                         <Info className="w-3.5 h-3.5" />
                       </span>
                     </AppTooltip>
                   </div>
                   <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                    Borra los archivos temporales cuando termina bien.
+                    Borra los temporales cuando el episodio termina bien.
                   </p>
                 </div>
                 <CustomSwitch
                   checked={dl.cleanCacheOnComplete}
                   onChange={(c) => onDlChange('cleanCacheOnComplete', c)}
-                  ariaLabel="Limpiar temporales al completar"
+                  ariaLabel="Limpiar temporales al terminar"
                 />
               </div>
             </div>

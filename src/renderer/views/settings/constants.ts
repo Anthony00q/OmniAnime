@@ -16,7 +16,7 @@ export { DEFAULT_ACCENT_HEX };
 
 export const THEME_META: Record<ThemeId, { desc: string; hint: string; shortLabel: string }> = {
   dark: { desc: 'Equilibrio entre contraste y descanso visual', hint: 'Recomendado', shortLabel: 'Oscuro' },
-  oled: { desc: 'Negro puro para paneles OLED, máximo ahorro', hint: 'AMOLED', shortLabel: 'OLED' },
+  oled: { desc: 'Negro puro para OLED con menor consumo', hint: 'AMOLED', shortLabel: 'OLED' },
   quantum: { desc: 'Azul profundo con acentos cian', hint: 'Futurista', shortLabel: 'Quantum' },
 };
 
@@ -47,9 +47,9 @@ export const DOWNLOAD_HLS_CONNECTIONS_OPTIONS = [
 
 export const DOWNLOAD_RETRIES_OPTIONS = [
   { value: '0', label: 'Sin reintentos' },
-  { value: '3', label: '3 intentos' },
-  { value: '5', label: '5 intentos' },
-  { value: '10', label: '10 intentos' },
+  { value: '3', label: '3 reintentos' },
+  { value: '5', label: '5 reintentos' },
+  { value: '10', label: '10 reintentos' },
 ] as const;
 
 export const DOWNLOAD_START_TIMEOUT_OPTIONS = [

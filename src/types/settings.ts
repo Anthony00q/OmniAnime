@@ -15,6 +15,7 @@ export interface DownloadSettings {
   cleanCacheOnComplete: boolean;
   mediafireConnections: number;
   mp4uploadConnections: number;
+  megaConnections: number;
   hlsConnections: number;
 }
 

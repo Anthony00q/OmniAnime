@@ -143,7 +143,7 @@ export function SettingsView({ isActive = true }: { isActive?: boolean }) {
     try {
       await (window as any).api?.invoke?.('app-restart');
     } catch {
-      toast.error('No se pudo reiniciar. Ciérrala y ábrela de nuevo.');
+      toast.error('No se pudo reiniciar. Cierra y vuelve a abrir la app.');
       setRestartLoading(false);
       setShowRestartConfirm(false);
     }
@@ -211,7 +211,7 @@ export function SettingsView({ isActive = true }: { isActive?: boolean }) {
       const fallbackHex = getAccentHex((initialSettings as AppSettings | null)?.accentColor || DEFAULT_ACCENT_HEX);
       nextSettings.accentColor = fallbackHex;
       toast.error('Color de acento no válido', {
-        description: 'Usa HEX como #3b82f6 o HSL como hsl(217 91% 60%). Se restauró el anterior.',
+        description: 'Usa formato HEX como #3b82f6 o HSL como hsl(217 91% 60%). Se recuperó el anterior.',
       });
     }
     const hwChanged = (nextSettings?.hardwareAcceleration !== false) !== prevHwAccelRef.current;
@@ -228,7 +228,7 @@ export function SettingsView({ isActive = true }: { isActive?: boolean }) {
           setPendingEpView(null);
           setLiveEpView(committedEpView);
         }
-        toast.success('Configuración guardada correctamente');
+        toast.success('Configuración guardada');
         setSettings(nextSettings);
         setInitialSettings(nextSettings);
         try {
@@ -279,7 +279,7 @@ export function SettingsView({ isActive = true }: { isActive?: boolean }) {
           }
           setAccentInput(nextSettings.accentColor || DEFAULT_ACCENT_HEX);
           setGlobalSettings(nextSettings);
-          toast.success('Todos los ajustes se han restaurado y guardado correctamente.');
+          toast.success('Ajustes restablecidos y guardados.');
           const items: string[] = [];
           if (hwChanged) items.push('Aceleración por hardware');
           if (providerChanged) items.push('Proveedor por defecto');
@@ -367,7 +367,7 @@ export function SettingsView({ isActive = true }: { isActive?: boolean }) {
       const selectedPath = await window.api.invoke('select-folder');
       if (!selectedPath) return;
       if (typeof selectedPath !== 'string' || !isValidOutputDirString(selectedPath)) {
-        toast.error('Carpeta no válida. Elige una carpeta dentro de un disco, no la raíz.');
+        toast.error('Carpeta no válida. Elige una carpeta dentro de un disco, no su raíz.');
         return;
       }
       const s = settings as unknown as { outputDirs?: string[]; defaultOutputDir?: string };
@@ -375,7 +375,7 @@ export function SettingsView({ isActive = true }: { isActive?: boolean }) {
       newDirs[index] = selectedPath;
       handleChange('outputDirs', newDirs);
     } catch {
-      toast.error('Error al seleccionar carpeta');
+      toast.error('No se pudo seleccionar la carpeta');
     }
   };
 
@@ -393,7 +393,7 @@ export function SettingsView({ isActive = true }: { isActive?: boolean }) {
     const s = settings as unknown as { outputDirs?: string[]; defaultOutputDir?: string };
     const dirs = s.outputDirs || (s.defaultOutputDir ? [s.defaultOutputDir] : []);
     if (dirs.length >= 3) {
-      toast.error('Máximo 3 carpetas permitidas');
+      toast.error('Máximo 3 carpetas.');
       return;
     }
     handleChange('outputDirs', [...dirs, '']);
@@ -403,7 +403,7 @@ export function SettingsView({ isActive = true }: { isActive?: boolean }) {
     const s = settings as unknown as { outputDirs?: string[]; defaultOutputDir?: string };
     const dirs = s.outputDirs || (s.defaultOutputDir ? [s.defaultOutputDir] : []);
     if (dirs.length <= 1) {
-      toast.error('Debe haber al menos 1 carpeta configurada');
+      toast.error('Debe haber al menos una carpeta.');
       return;
     }
     const newDirs = dirs.filter((_: string, i: number) => i !== index);
@@ -523,7 +523,7 @@ export function SettingsView({ isActive = true }: { isActive?: boolean }) {
         open={showRestoreConfirm}
         onOpenChange={setShowRestoreConfirm}
         title="¿Restablecer ajustes?"
-        message="Se restaurarán carpetas, descargas, tema, colores, notificaciones y atajos a los valores de fábrica. Esta acción se guarda automáticamente."
+        message="Se restablecerán carpetas, descargas, tema, colores, notificaciones y atajos a sus valores predeterminados. Esta acción se guarda automáticamente."
         confirmLabel="Restablecer"
         danger={true}
         onConfirm={confirmRestore}
@@ -534,7 +534,7 @@ export function SettingsView({ isActive = true }: { isActive?: boolean }) {
           if (!restartLoading) setShowRestartConfirm(open);
         }}
         title="Reiniciar para aplicar"
-        message={`Esto aplicará: ${restartItems.join(', ')}.${restartHasDownloads ? ' Hay descargas en curso, se interrumpirán.' : ''}`}
+        message={`Necesita reiniciar para aplicar: ${restartItems.join(', ')}.${restartHasDownloads ? ' Hay descargas en curso que se interrumpirán.' : ''}`}
         confirmLabel="Reiniciar ahora"
         cancelLabel="Más tarde"
         confirmLoading={restartLoading}

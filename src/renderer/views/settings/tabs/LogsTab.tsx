@@ -33,18 +33,18 @@ const LEVEL_OPTIONS = [
 
 const SCOPE_OPTIONS = [
   { value: 'all', label: 'Todos los módulos' },
-  { value: 'app', label: 'app' },
-  { value: 'queue', label: 'queue' },
-  { value: 'download', label: 'download' },
-  { value: 'provider', label: 'provider' },
-  { value: 'db', label: 'db' },
-  { value: 'settings', label: 'settings' },
-  { value: 'window', label: 'window' },
-  { value: 'splash', label: 'splash' },
-  { value: 'protocol', label: 'protocol' },
-  { value: 'ui', label: 'ui' },
-  { value: 'ipc', label: 'ipc' },
-  { value: 'updater', label: 'updater' },
+  { value: 'app', label: 'App' },
+  { value: 'queue', label: 'Cola' },
+  { value: 'download', label: 'Descarga' },
+  { value: 'provider', label: 'Proveedor' },
+  { value: 'db', label: 'Base de datos' },
+  { value: 'settings', label: 'Ajustes' },
+  { value: 'window', label: 'Ventana' },
+  { value: 'splash', label: 'Arranque' },
+  { value: 'protocol', label: 'Protocolo' },
+  { value: 'ui', label: 'Interfaz' },
+  { value: 'ipc', label: 'IPC' },
+  { value: 'updater', label: 'Actualizaciones' },
 ];
 
 const LEVEL_STYLE: Record<string, string> = {
@@ -298,7 +298,7 @@ export const LogsTab = memo(function LogsTab({ isActive = true, settings, onChan
                 </AppTooltip>
               </span>
               <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                Guarda trazas de proveedores y reintentos. Úsalo solo para diagnosticar: ocupa más disco.
+                Úsalo solo para diagnosticar, ocupa más disco.
               </p>
             </div>
             <CustomSwitch
@@ -310,7 +310,7 @@ export const LogsTab = memo(function LogsTab({ isActive = true, settings, onChan
           <div className="flex items-center justify-between gap-3 pt-1">
             <span className="flex items-center gap-1.5 text-sm font-medium text-foreground select-none">
               Nivel mínimo
-              <AppTooltip content="De más a menos detalle: Debug, Info, Avisos, Errores. Con Errores solo se guarda lo grave y el visor muestra menos, no más.">
+              <AppTooltip content="De más a menos detalle: Debug, Info, Avisos y Errores. Con Errores solo se guarda lo importante.">
                 <span aria-hidden="true" className="inline-flex text-muted-foreground">
                   <Info className="w-3.5 h-3.5" />
                 </span>
@@ -325,7 +325,7 @@ export const LogsTab = memo(function LogsTab({ isActive = true, settings, onChan
           </div>
           {verbose ? (
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Con el registro detallado el nivel efectivo es Debug.
+              Con el registro detallado, el nivel efectivo es Debug.
             </p>
           ) : null}
         </div>
@@ -483,16 +483,18 @@ export const LogsTab = memo(function LogsTab({ isActive = true, settings, onChan
                   <>
                     {total} {total === 1 ? 'entrada' : 'entradas'} de esta sesión
                   </>
+                ) : selected.size > 0 ? (
+                  <>
+                    {affectedRows} {affectedRows === 1 ? 'seleccionada' : 'seleccionadas'} de {total}
+                  </>
                 ) : (
                   <>
-                    {affectedRows} de {total} entradas
+                    {total} {total === 1 ? 'entrada' : 'entradas'}
                   </>
                 )}
                 {logQuery.isFetching ? ' · Actualizando...' : ''}
               </span>
-              {view === 'session' ? (
-                <span className="ml-auto shrink-0">Sesión protegida: no se puede borrar</span>
-              ) : null}
+              {view === 'session' ? <span className="ml-auto shrink-0">La sesión actual está protegida</span> : null}
               {view === 'all' && selected.size > 0 ? (
                 <span className="ml-auto flex items-center gap-2">
                   <button
@@ -543,7 +545,7 @@ export const LogsTab = memo(function LogsTab({ isActive = true, settings, onChan
             </div>
             {entries.length >= MAX_LOADED_ENTRIES ? (
               <p className="px-3 py-2.5 text-[11px] text-muted-foreground border-t border-border/40">
-                Mostrando las {MAX_LOADED_ENTRIES} últimas: afina los filtros para ver el resto.
+                Mostrando las {MAX_LOADED_ENTRIES} últimas. Afina los filtros para ver el resto.
               </p>
             ) : logQuery.hasNextPage ? (
               <button
@@ -567,8 +569,7 @@ export const LogsTab = memo(function LogsTab({ isActive = true, settings, onChan
           <h3 className="text-sm font-bold tracking-tight">Archivo y exportación</h3>
         </div>
         <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
-          Muestra el archivo de registro en el explorador o exporta lo que ves en el visor con los filtros actuales
-          (versión, servidores y cola, sin rutas personales).
+          Muestra el archivo en el explorador o exporta lo que ves con los filtros actuales.
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           <button
@@ -583,7 +584,7 @@ export const LogsTab = memo(function LogsTab({ isActive = true, settings, onChan
             onClick={() => void exportDiagnostics(filters)}
             className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 bg-secondary hover:bg-secondary/80 border border-border rounded-xl text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
           >
-            <Download className="w-4 h-4" /> Exportar .log
+            <Download className="w-4 h-4" /> Exportar registro
           </button>
         </div>
       </section>
@@ -594,7 +595,7 @@ export const LogsTab = memo(function LogsTab({ isActive = true, settings, onChan
           if (!deleting) setConfirmOpen(open);
         }}
         title="¿Eliminar entradas del registro?"
-        message={`Se eliminarán ${affectedRows} entrada(s). La sesión actual está protegida y no se toca.`}
+        message={`Se eliminarán ${affectedRows} ${affectedRows === 1 ? 'entrada' : 'entradas'}. La sesión actual está protegida.`}
         confirmLabel="Eliminar"
         cancelLabel="Cancelar"
         danger={true}

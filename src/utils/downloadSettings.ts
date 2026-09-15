@@ -8,6 +8,7 @@ export const DEFAULT_DOWNLOAD_SETTINGS: DownloadSettings = {
   cleanCacheOnComplete: false,
   mediafireConnections: 1,
   mp4uploadConnections: 1,
+  megaConnections: 6,
   hlsConnections: 10,
 };
 
@@ -32,6 +33,7 @@ export function normalizeDownloadSettings(input: unknown): DownloadSettings {
     cleanCacheOnComplete: toBoolean(raw.cleanCacheOnComplete, DEFAULT_DOWNLOAD_SETTINGS.cleanCacheOnComplete),
     mediafireConnections: clampInt(raw.mediafireConnections, 1, 8, DEFAULT_DOWNLOAD_SETTINGS.mediafireConnections),
     mp4uploadConnections: clampInt(raw.mp4uploadConnections, 1, 8, DEFAULT_DOWNLOAD_SETTINGS.mp4uploadConnections),
+    megaConnections: clampInt(raw.megaConnections, 1, 8, DEFAULT_DOWNLOAD_SETTINGS.megaConnections),
     hlsConnections: clampInt(raw.hlsConnections, 1, 16, DEFAULT_DOWNLOAD_SETTINGS.hlsConnections),
   };
 }

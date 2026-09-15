@@ -20,9 +20,9 @@ export const ShortcutsTab = memo(function ShortcutsTab({ settings, onChange }: S
               <Keyboard className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <h2 className="text-base font-bold tracking-tight">Atajos de Teclado</h2>
+              <h2 className="text-base font-bold tracking-tight">Atajos de teclado</h2>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Atajos disponibles en la app, menos cuando estás escribiendo.
+                No funcionan mientras escribes en un campo de texto.
               </p>
             </div>
           </div>
@@ -39,7 +39,7 @@ export const ShortcutsTab = memo(function ShortcutsTab({ settings, onChange }: S
                 <div className="min-w-0">
                   <div className="text-sm font-bold leading-tight">Buscar anime</div>
                   <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                    Enfoca el buscador de Inicio o Catálogo.
+                    Abre el buscador de Inicio o Catálogo.
                   </p>
                 </div>
               </div>
@@ -59,7 +59,7 @@ export const ShortcutsTab = memo(function ShortcutsTab({ settings, onChange }: S
                       if (v.length > 1) return;
                       const next = v || 'F';
                       if (RESERVED_SEARCH_KEYS.has(next)) {
-                        toast.error('Esa letra choca con copiar/pegar y otros atajos. Elige otra.');
+                        toast.error('Esa tecla está reservada (copiar, pegar…). Elige otra.');
                         return;
                       }
                       onChange('search', next, 'shortcuts');
@@ -80,7 +80,7 @@ export const ShortcutsTab = memo(function ShortcutsTab({ settings, onChange }: S
                 <div className="min-w-0 flex-1">
                   <div className="text-sm font-bold leading-tight">Cerrar modales / Salir</div>
                   <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                    Cierra diálogos, detalles o la app según el contexto.
+                    Cierra diálogos o vuelve a la vista anterior.
                   </p>
                 </div>
                 <kbd className="shrink-0 px-2.5 py-1.5 bg-secondary border border-border rounded-lg text-xs font-mono font-bold shadow-sm">
@@ -88,7 +88,7 @@ export const ShortcutsTab = memo(function ShortcutsTab({ settings, onChange }: S
                 </kbd>
               </div>
               <div className="mt-4 rounded-xl bg-secondary/30 border border-border/40 px-3 py-2 text-xs text-muted-foreground">
-                Fijo por ahora para no chocar con el cierre de ventana.
+                Fijo para no interferir con la ventana.
               </div>
             </div>
 
@@ -99,7 +99,9 @@ export const ShortcutsTab = memo(function ShortcutsTab({ settings, onChange }: S
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="text-sm font-bold leading-tight">Cambiar de vista</div>
-                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">Cambia de sección con ← y →.</p>
+                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                    Muévete entre secciones con ← y →.
+                  </p>
                 </div>
                 <kbd className="shrink-0 px-2.5 py-1.5 bg-secondary border border-border rounded-lg text-xs font-mono font-bold shadow-sm">
                   ← →
@@ -117,7 +119,7 @@ export const ShortcutsTab = memo(function ShortcutsTab({ settings, onChange }: S
 
             <div className="rounded-2xl border border-border/50 bg-background p-4 sm:col-span-2">
               <div className="flex items-center justify-between gap-3">
-                <div className="text-sm font-medium text-foreground">Restablecer configuración de atajos</div>
+                <div className="text-sm font-medium text-foreground">Restablecer atajos</div>
                 <button
                   type="button"
                   onClick={() => {

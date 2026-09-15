@@ -26,10 +26,8 @@ export const NotificationsTab = memo(function NotificationsTab({
               <Bell className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <h2 className="text-base font-bold tracking-tight">Notificaciones y Alertas</h2>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Controla avisos del sistema y sonidos. Las toasts internas se limitan a 3 visibles.
-              </p>
+              <h2 className="text-base font-bold tracking-tight">Notificaciones y alertas</h2>
+              <p className="text-xs text-muted-foreground mt-0.5">Elige qué avisos y sonidos quieres ver.</p>
             </div>
           </div>
 
@@ -37,25 +35,25 @@ export const NotificationsTab = memo(function NotificationsTab({
             <div className="space-y-4">
               <div className="flex items-center gap-2">
                 <div className="w-1 h-4 rounded-full bg-primary" />
-                <h3 className="text-sm font-bold">Eventos de Notificación</h3>
+                <h3 className="text-sm font-bold">Eventos de notificación</h3>
               </div>
               <div className="space-y-1 rounded-xl border border-border/50 bg-background p-3">
                 {[
                   {
                     key: 'showDownloadStarted',
                     label: 'Descarga iniciada',
-                    desc: 'Al encolar y comenzar cada episodio',
+                    desc: 'Al empezar cada episodio',
                   },
                   {
                     key: 'showDownloadFinished',
                     label: 'Descarga completada',
-                    desc: 'Cuando todos los episodios terminan',
+                    desc: 'Cuando termina una descarga',
                   },
-                  { key: 'showDownloadError', label: 'Error de descarga', desc: 'Fallo de servidor o red' },
+                  { key: 'showDownloadError', label: 'Error de descarga', desc: 'Si falla la red o el servidor' },
                   {
                     key: 'showSystemMessages',
                     label: 'Mensajes del sistema',
-                    desc: 'Avisos de red, actualizaciones y mantenimiento',
+                    desc: 'Avisos de la app y actualizaciones',
                   },
                 ].map((item) => (
                   <div
@@ -102,7 +100,7 @@ export const NotificationsTab = memo(function NotificationsTab({
                 <button
                   type="button"
                   onClick={() => {
-                    toast.success('Notificación de prueba: ¡Así se verán!', {
+                    toast.success('Notificación de prueba.', {
                       position: settings.toastPosition || 'top-center',
                     });
                     if (settings.notificationsSound !== false) onTestSound();
@@ -112,7 +110,7 @@ export const NotificationsTab = memo(function NotificationsTab({
                   <Bell className="w-4 h-4" /> Probar notificación
                 </button>
                 <p className="text-[11px] text-muted-foreground mt-2 text-center">
-                  Se usa la misma posición que las toasts reales de descargas.
+                  Se aplica a todas las notificaciones de la app.
                 </p>
               </div>
             </div>
@@ -120,7 +118,7 @@ export const NotificationsTab = memo(function NotificationsTab({
             <div className="space-y-4">
               <div className="flex items-center gap-2">
                 <div className="w-1 h-4 rounded-full bg-emerald-500" />
-                <h3 className="text-sm font-bold">Alertas Sonoras</h3>
+                <h3 className="text-sm font-bold">Alertas sonoras</h3>
               </div>
 
               <div className="rounded-xl border border-border/50 bg-background p-4">
@@ -128,7 +126,7 @@ export const NotificationsTab = memo(function NotificationsTab({
                   <div className="min-w-0">
                     <div className="text-sm font-semibold">Activar sonidos</div>
                     <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                      Sonido suave al completar o fallar.
+                      Suena al completar o si algo falla.
                     </p>
                   </div>
                   <CustomSwitch
@@ -189,10 +187,10 @@ export const NotificationsTab = memo(function NotificationsTab({
                     >
                       {(
                         [
-                          { key: 'download', label: 'Descarga', desc: 'Inicio de episodio' },
-                          { key: 'success', label: 'Éxito', desc: 'Descarga completada' },
-                          { key: 'error', label: 'Error', desc: 'Fallo de servidor' },
-                          { key: 'info', label: 'Info', desc: 'Sistema' },
+                          { key: 'download', label: 'Descarga', desc: 'Al empezar' },
+                          { key: 'success', label: 'Éxito', desc: 'Al terminar' },
+                          { key: 'error', label: 'Error', desc: 'Si algo falla' },
+                          { key: 'info', label: 'Info', desc: 'Avisos del sistema' },
                         ] as const
                       ).map((item) => {
                         const enabled = (settings.soundEnabled?.[item.key] ?? true) !== false;
@@ -249,21 +247,20 @@ export const NotificationsTab = memo(function NotificationsTab({
                       })}
                     </div>
                     <p className="text-[11px] text-muted-foreground leading-relaxed">
-                      Volumen final = global × tipo. Desactivar un tipo lo silencia aunque el global esté activo.
+                      El volumen final combina el general con el de cada tipo. Si desactivas un tipo, no sonará.
                     </p>
                   </div>
                 </div>
                 <p className="text-xs text-muted-foreground mt-3 px-1 leading-relaxed flex items-start gap-2">
-                  <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" /> Respeta el límite de 3 toasts visibles y se silencia
-                  si desactivas los eventos arriba.
+                  <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" /> Si desactivas un evento, no verás ni oirás sus
+                  avisos.
                 </p>
               </div>
 
               <div className="flex items-start gap-2 px-1">
                 <Zap className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
                 <p className="text-xs leading-relaxed text-muted-foreground">
-                  Los avisos del sistema usan notificación nativa y los de descargas usan avisos dentro de la app. El
-                  sonido se silencia con <span className="font-medium text-foreground">Activar sonidos</span>.
+                  Los avisos del sistema usan notificaciones del sistema y los de descargas aparecen en la app.
                 </p>
               </div>
             </div>

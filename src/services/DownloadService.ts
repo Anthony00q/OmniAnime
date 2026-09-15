@@ -490,9 +490,11 @@ export class DownloadService {
     signal?: AbortSignal,
     probe?: AttemptProbe,
     megaFileFactory?: MegaFileFactory,
+    connections?: number,
   ): Promise<boolean> {
     const factory = megaFileFactory ?? ((u: string) => megajs.File.fromURL(u) as unknown as MegaFileLike);
     const normalizedUrl = normalizeMegaUrl(String(url || '').trim());
+    const megaConnections = clampDirectConnections(connections ?? 6);
 
     const destDir = path.dirname(dest);
     const cacheDir = path.join(destDir, '.cache');
@@ -586,6 +588,7 @@ export class DownloadService {
             onProgress,
             signal,
             probe,
+            megaConnections,
           );
           if (outcome === 'completed') return !signal?.aborted;
           if (outcome === 'fatal' || signal?.aborted) return false;
@@ -620,6 +623,7 @@ export class DownloadService {
     onProgress?: (p: number) => void,
     signal?: AbortSignal,
     probe?: AttemptProbe,
+    maxConnections = 6,
   ): Promise<'completed' | 'retry' | 'fatal'> {
     const internalController = new AbortController();
     this.trackController(internalController);
@@ -702,7 +706,7 @@ export class DownloadService {
           try {
             readableInstance = file.download({
               start: startOffset,
-              maxConnections: 6,
+              maxConnections,
               initialChunkSize: 512 * 1024,
               maxChunkSize: 1024 * 1024,
             });

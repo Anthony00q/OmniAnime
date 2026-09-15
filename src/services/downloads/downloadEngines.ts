@@ -29,6 +29,9 @@ export class MegaDownloadEngine implements DownloadEngine {
         ctx.onProgress({ fraction01 });
       },
       ctx.signal,
+      undefined,
+      undefined,
+      ctx.settings.megaConnections,
     );
     return { ok };
   }

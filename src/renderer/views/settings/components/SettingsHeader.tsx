@@ -14,7 +14,7 @@ export const SettingsHeader = memo(function SettingsHeader({ isDirty, onDiscard 
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight">Configuración</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Ajusta OmniAnime a tu medida — los cambios requieren guardar.
+            Ajusta OmniAnime a tu medida. Los cambios se aplican al guardar.
           </p>
         </div>
         {isDirty && (

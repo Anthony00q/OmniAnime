@@ -25,11 +25,11 @@ export const SettingsFooter = memo(function SettingsFooter({
           className="inline-flex items-center justify-center gap-2 rounded-xl border border-border/60 bg-secondary/20 px-4 py-2.5 text-sm font-medium text-muted-foreground transition-colors duration-150 hover:border-border hover:bg-secondary/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
         >
           <RotateCcw className="w-4 h-4" />
-          Restaurar por defecto
+          Restablecer
         </button>
         <span className="hidden sm:inline-flex items-center gap-1.5 text-xs text-muted-foreground">
           <span className={`w-2 h-2 rounded-full ${isDirty ? 'bg-amber-500' : 'bg-emerald-500'}`} />
-          {isDirty ? 'Cambios pendientes' : 'Sincronizado'}
+          {isDirty ? 'Cambios pendientes' : 'Sin cambios'}
         </span>
       </div>
       <button
@@ -43,7 +43,7 @@ export const SettingsFooter = memo(function SettingsFooter({
         }`}
       >
         {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-        {isSaving ? 'Guardando...' : isSaved ? '¡Guardado!' : isDirty ? 'Guardar cambios' : 'Guardar cambios'}
+        {isSaving ? 'Guardando...' : isSaved ? 'Guardado' : isDirty ? 'Guardar cambios' : 'Guardar cambios'}
       </button>
     </div>
   );

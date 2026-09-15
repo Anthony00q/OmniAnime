@@ -174,9 +174,9 @@ export const SystemTab = memo(function SystemTab({
                 <Folder className="w-5 h-5 text-primary" />
               </div>
               <div>
-                <h2 className="text-base font-bold tracking-tight">Carpetas de Descarga</h2>
+                <h2 className="text-base font-bold tracking-tight">Carpetas de descarga</h2>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Hasta 3 destinos. El escáner trabaja en paralelo y la cola respeta la carpeta al encolar.
+                  Hasta 3 carpetas. Las nuevas descargas usan la carpeta que elijas al añadirlas.
                 </p>
               </div>
             </div>
@@ -236,9 +236,7 @@ export const SystemTab = memo(function SystemTab({
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="text-sm truncate font-medium text-foreground">
-                          {dir || (
-                            <span className="text-muted-foreground italic">Sin definir — selecciona una carpeta</span>
-                          )}
+                          {dir || <span className="text-muted-foreground italic">Sin definir. Elige una carpeta</span>}
                         </div>
                         {dir && <div className="text-[11px] text-muted-foreground truncate select-text">{dir}</div>}
                       </div>
@@ -278,7 +276,7 @@ export const SystemTab = memo(function SystemTab({
                           <button
                             type="button"
                             onClick={() => onRemoveOutputDir(idx)}
-                            aria-label={`Eliminar carpeta ${idx + 1}`}
+                            aria-label={`Quitar carpeta ${idx + 1}`}
                             className="inline-flex items-center justify-center bg-background hover:bg-destructive/10 hover:text-destructive-fg hover:border-destructive/20 border border-border px-3 py-2 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
                           >
                             <X className="w-4 h-4" />
@@ -330,8 +328,8 @@ export const SystemTab = memo(function SystemTab({
 
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
             <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-              <Info className="w-3.5 h-3.5" /> Cambiar carpetas no mueve descargas en curso. Las nuevas usan la carpeta
-              elegida al encolar.
+              <Info className="w-3.5 h-3.5" /> Cambiar carpetas no mueve lo que ya está en curso. Las nuevas usan la
+              carpeta elegida al añadirlas.
             </p>
             {outputDirs.length < 3 && (
               <button
@@ -356,7 +354,7 @@ export const SystemTab = memo(function SystemTab({
         <div className="grid grid-cols-1 gap-5">
           <div className="space-y-2">
             <span className="flex items-center gap-1.5 text-sm font-semibold">
-              Proveedor por Defecto al Iniciar
+              Proveedor por defecto al iniciar
               <span className="text-[11px] font-bold tracking-widest uppercase bg-secondary text-muted-foreground border border-border/60 px-1.5 py-0.5 rounded">
                 Reinicio
               </span>
@@ -377,8 +375,8 @@ export const SystemTab = memo(function SystemTab({
               />
               <span className="text-xs text-muted-foreground leading-relaxed">
                 {settings.defaultProvider === 'animeav1'
-                  ? 'AnimeAV1 ofrece mayor catálogo y servidores HLS estables. Inicio, filtros y catálogo se precargan antes del primer render. Se aplicará al reiniciar.'
-                  : 'JkAnime como respaldo. Inicio, filtros y catálogo se precargan antes del primer render. Se aplicará al reiniciar.'}
+                  ? 'AnimeAV1 ofrece mayor catálogo y servidores HLS estables. Se aplicará al reiniciar.'
+                  : 'JkAnime como alternativa. Se aplicará al reiniciar.'}
               </span>
             </div>
           </div>
@@ -390,7 +388,7 @@ export const SystemTab = memo(function SystemTab({
           <div className="p-1.5 bg-primary/10 rounded-lg">
             <Monitor className="w-4 h-4 text-primary" />
           </div>
-          <h3 className="text-sm font-bold tracking-tight">Comportamiento y Rendimiento</h3>
+          <h3 className="text-sm font-bold tracking-tight">Comportamiento y rendimiento</h3>
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="rounded-xl border border-border/60 bg-background p-4 flex items-start justify-between gap-3">
@@ -401,7 +399,7 @@ export const SystemTab = memo(function SystemTab({
               <div className="min-w-0">
                 <div className="text-sm font-semibold leading-tight">Minimizar a la bandeja al cerrar</div>
                 <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                  Mantiene la app en segundo plano y conserva descargas activas.
+                  Mantiene la app en segundo plano y conserva las descargas activas.
                 </p>
               </div>
             </div>
@@ -419,13 +417,13 @@ export const SystemTab = memo(function SystemTab({
               </div>
               <div className="min-w-0">
                 <div className="text-sm font-semibold leading-tight flex items-center gap-1.5">
-                  Aceleración por Hardware
+                  Aceleración por hardware
                   <span className="text-[11px] font-bold tracking-widest uppercase bg-secondary text-muted-foreground border border-border/60 px-1.5 py-0.5 rounded">
                     Reinicio
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                  Usa la GPU para animaciones y scroll más fluido. Requiere reiniciar.
+                  Usa la GPU para una interfaz más fluida. Requiere reiniciar.
                 </p>
               </div>
             </div>
@@ -451,19 +449,19 @@ export const SystemTab = memo(function SystemTab({
                   <span className="text-[11px] font-bold tracking-widest uppercase bg-secondary text-muted-foreground border border-border/60 px-1.5 py-0.5 rounded">
                     Reinicio
                   </span>
-                  <AppTooltip content="Se aplica una sola vez en el próximo inicio y luego se apaga solo. Ordena los videos de tus carpetas al estilo elegido, también los no vinculados. Si lo necesitas de nuevo, vuelve a encenderlo.">
+                  <AppTooltip content="Se aplica una vez en el próximo inicio y luego se desactiva sola. Ordena los vídeos de tus carpetas según el estilo elegido. Puedes volver a activarla cuando quieras.">
                     <span aria-hidden="true" className="inline-flex text-muted-foreground">
                       <Info className="w-3.5 h-3.5" />
                     </span>
                   </AppTooltip>
                   {settings.autoRenameRetroactive && (
                     <span className="text-[11px] font-bold tracking-widest uppercase bg-amber-500/10 text-amber-600 border border-amber-500/20 px-1.5 py-0.5 rounded">
-                      Masiva
+                      Pendiente
                     </span>
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                  En el próximo inicio ordena los archivos al estilo elegido. Se desactiva solo al terminar.
+                  En el próximo inicio ordena los archivos según el estilo elegido. Se desactiva sola al terminar.
                 </p>
               </div>
             </div>

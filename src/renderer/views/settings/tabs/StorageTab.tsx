@@ -23,7 +23,7 @@ export const StorageTab = memo(function StorageTab({
           <div className="p-1.5 bg-primary/10 rounded-lg">
             <BarChart3 className="w-4 h-4 text-primary" />
           </div>
-          <h3 className="text-sm font-bold tracking-tight">Estado de Almacenamiento</h3>
+          <h3 className="text-sm font-bold tracking-tight">Estado de almacenamiento</h3>
         </div>
 
         {storageStatsQuery.isLoading ? (
@@ -130,7 +130,7 @@ export const StorageTab = memo(function StorageTab({
                         {isEmpty ? 'Vacío' : `${cache.count} archivos · ${formatBytes(cache.size)}`}
                       </div>
                       <div className="text-[11px] text-muted-foreground mt-1">
-                        {isEmpty ? 'No hay restos de descargas' : 'Restos de descargas que no terminaron'}
+                        {isEmpty ? 'No hay restos de descargas' : 'Restos de descargas sin terminar'}
                       </div>
                     </>
                   );
@@ -229,7 +229,7 @@ export const StorageTab = memo(function StorageTab({
               <div className="min-w-0">
                 <div className="text-sm font-semibold">Vistas previas antiguas</div>
                 <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                  Elimina las imágenes previas que ya no usas. Se crean de nuevo solas cuando vuelves a ver el video.
+                  Elimina las vistas previas que ya no usas. Se crean de nuevo al ver el vídeo.
                 </p>
               </div>
             </div>
@@ -262,7 +262,7 @@ export const StorageTab = memo(function StorageTab({
                 )}
                 Limpiar antiguas
               </button>
-              <AppTooltip content="Borrar todas las vistas previas">
+              <AppTooltip content="Limpiar todas las vistas previas">
                 <span className="inline-flex">
                   <button
                     type="button"
@@ -271,7 +271,7 @@ export const StorageTab = memo(function StorageTab({
                       try {
                         const res: any = await storageActions.cleanThumbnails.mutateAsync('all');
                         if (res.cleaned > 0)
-                          toast.success(`Se borraron ${res.cleaned} imágenes (${formatBytes(res.freed)})`, {
+                          toast.success(`Se limpiaron ${res.cleaned} imágenes (${formatBytes(res.freed)})`, {
                             id: toastId,
                           });
                         else toast.success('No había vistas previas', { id: toastId });
@@ -293,7 +293,7 @@ export const StorageTab = memo(function StorageTab({
           </div>
         </div>
         <p className="text-xs text-muted-foreground mt-3 flex items-center gap-1.5">
-          <Shield className="w-3.5 h-3.5 text-emerald-500" /> No se borra nada de lo que estás descargando ahora.
+          <Shield className="w-3.5 h-3.5 text-emerald-500" /> No afecta a las descargas en curso.
         </p>
       </section>
     </>

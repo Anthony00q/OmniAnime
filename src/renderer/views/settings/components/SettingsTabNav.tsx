@@ -1,4 +1,6 @@
 import { memo, useEffect, useState } from 'react';
+import { useAtomValue } from 'jotai';
+import { settingsAtom } from '../../../store/atoms';
 import { HardDrive, Download, Database, Palette, Bell, Keyboard, Info, ScrollText } from 'lucide-react';
 
 interface TabDef {
@@ -19,7 +21,7 @@ const TABS: TabDef[] = [
     id: 'descargas',
     icon: <Download className="w-4 h-4" />,
     label: 'Descargas',
-    desc: 'Velocidad y opciones',
+    desc: 'Paralelismo y nombrado',
   },
   {
     id: 'almacenamiento',
@@ -37,15 +39,15 @@ const TABS: TabDef[] = [
     id: 'apariencia',
     icon: <Palette className="w-4 h-4" />,
     label: 'Apariencia y UI',
-    desc: 'Tema y color de acento',
+    desc: 'Tema, acento y vista',
   },
   {
     id: 'notificaciones',
     icon: <Bell className="w-4 h-4" />,
-    label: 'Notificaciones y Alertas',
+    label: 'Notificaciones y alertas',
     desc: 'Sonidos y avisos',
   },
-  { id: 'atajos', icon: <Keyboard className="w-4 h-4" />, label: 'Atajos de Teclado', desc: 'Productividad' },
+  { id: 'atajos', icon: <Keyboard className="w-4 h-4" />, label: 'Atajos de teclado', desc: 'Productividad' },
 ];
 
 interface SettingsTabNavProps {
@@ -55,6 +57,8 @@ interface SettingsTabNavProps {
 
 export const SettingsTabNav = memo(function SettingsTabNav({ activeTab, onTabChange }: SettingsTabNavProps) {
   const [appVersion, setAppVersion] = useState<string | null>(null);
+  const globalSettings = useAtomValue(settingsAtom) as { shortcuts?: { search?: string } } | null;
+  const searchKey = (globalSettings?.shortcuts?.search || 'F').toUpperCase();
 
   useEffect(() => {
     let cancelled = false;
@@ -105,7 +109,7 @@ export const SettingsTabNav = memo(function SettingsTabNav({ activeTab, onTabCha
         <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
           Usa{' '}
           <span className="font-mono text-foreground bg-background px-1 py-0.5 rounded border border-border">
-            CTRL+F
+            CTRL+{searchKey}
           </span>{' '}
           para buscar anime desde cualquier vista.
         </p>
