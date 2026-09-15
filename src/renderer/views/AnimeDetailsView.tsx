@@ -45,6 +45,7 @@ import {
   useConnectivityStatus,
   useJkEpisodeThumbs,
   useAniListBanner,
+  useAniListStudio,
   prefetchAnimeDetails,
 } from '../hooks/useQueries';
 import { shouldShowOfflineEmpty } from '../utils/offlineEmpty';
@@ -318,7 +319,7 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
   const showOfflineDetails = shouldShowOfflineEmpty(data ? 1 : 0, isOnline);
   const addToQueue = useAddToQueue();
   // Hero con solo banner de AniList o nada; sin provisional del proveedor.
-  const { data: anilistBanner, isFetching: isBannerFetching } = useAniListBanner(
+  const anilistInput =
     !isLoading && data
       ? {
           title: data.title,
@@ -328,12 +329,21 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
           providerSeason: data.season,
           malId: data.malId,
         }
-      : null,
-    !isLoading && !!data,
-  );
+      : null;
+  const anilistEnabled = !isLoading && !!data;
+  const {
+    data: anilistBanner,
+    isFetching: isBannerFetching,
+    isSuccess: isAnilistSuccess,
+    isError: isAnilistError,
+  } = useAniListBanner(anilistInput, anilistEnabled);
+  // Estudio con el mismo match que el banner; si no identifica, se oculta.
+  const { data: anilistStudio } = useAniListStudio(anilistInput, anilistEnabled);
+  const isAnilistSettled = isAnilistSuccess || isAnilistError;
   const [bannerFailed, setBannerFailed] = useState(false);
   const [bannerShown, setBannerShown] = useState(false);
   const [graceExpired, setGraceExpired] = useState(false);
+  const [anilistGraceExpired, setAnilistGraceExpired] = useState(false);
   const bannerUrl = !bannerFailed && anilistBanner ? anilistBanner : null;
   const awaitingBanner = !bannerShown && !bannerFailed && (isBannerFetching || !!anilistBanner);
   const showBanner = bannerShown && !!bannerUrl;
@@ -375,6 +385,7 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
     setBannerFailed(false);
     setBannerShown(false);
     setGraceExpired(false);
+    setAnilistGraceExpired(false);
     setRangeFrom('1');
     setRangeTo('');
     setShowFullSynopsis(false);
@@ -394,6 +405,13 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
     const timer = setTimeout(() => setGraceExpired(true), 2000);
     return () => clearTimeout(timer);
   }, [awaitingBanner, bannerShown, graceExpired, slug]);
+
+  // La ficha espera a AniList con tope de 2 s.
+  useEffect(() => {
+    if (!anilistEnabled || isAnilistSettled || anilistGraceExpired) return;
+    const timer = setTimeout(() => setAnilistGraceExpired(true), 2000);
+    return () => clearTimeout(timer);
+  }, [anilistEnabled, isAnilistSettled, anilistGraceExpired, slug]);
 
   const availableLanguages: AnimeLanguage[] = ['SUB']; // DUB desactivado: solo SUB
 
@@ -653,7 +671,7 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
     );
   }
 
-  if (isLoading) {
+  if (isLoading || (anilistEnabled && !isAnilistSettled && !anilistGraceExpired)) {
     return <LoadingState className="h-full bg-background" label="Cargando detalles" />;
   }
 
@@ -661,11 +679,11 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
     return (
       <div className="flex h-full flex-col items-center justify-center bg-background">
         <ErrorState
-          title={showOfflineDetails ? 'Sin conexión' : 'No se encontró el anime'}
+          title={showOfflineDetails ? 'Sin conexión a internet' : 'No se encontró el anime'}
           description={
             showOfflineDetails
-              ? 'No pudimos cargar los detalles sin conexión. Tus descargas y librería siguen disponibles.'
-              : 'No pudimos cargar sus detalles.'
+              ? 'No se pudieron cargar los detalles. Comprueba tu conexión e inténtalo de nuevo.'
+              : 'No se pudieron cargar sus detalles.'
           }
           onRetry={() => refetch()}
         />
@@ -1059,10 +1077,10 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
                   <span className="text-[13px] text-muted-foreground">Tipo</span>
                   <span className="text-sm font-medium text-foreground">{data.type || 'TV'}</span>
                 </li>
-                {data.studio && data.studio.toLowerCase() !== 'desconocido' && (
+                {anilistStudio && (
                   <li className="flex items-center justify-between gap-3 border-b border-border/40 py-2.5 last:border-0">
                     <span className="text-[13px] text-muted-foreground">Estudio</span>
-                    <span className="text-sm font-medium text-foreground">{data.studio}</span>
+                    <span className="text-sm font-medium text-foreground">{anilistStudio}</span>
                   </li>
                 )}
                 {normalizeSeasonLabel(data.season) && (

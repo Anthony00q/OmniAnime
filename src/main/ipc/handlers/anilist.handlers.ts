@@ -2,7 +2,7 @@ import { ipcMain } from 'electron';
 import { resolveAniListBannerResult } from '../../anilistBanner';
 import type { IpcRegistryDependencies } from '../../IpcRegistry';
 
-// Banner visual opcional: ante error o duda devuelve null y la ficha sigue igual.
+// Banner y estudio opcionales: ante error o duda devuelve null y la ficha sigue igual.
 export function registerAniListHandlers({ writeGlobalLog }: IpcRegistryDependencies): void {
   ipcMain.handle(
     'get-anilist-banner',
@@ -43,7 +43,7 @@ export function registerAniListHandlers({ writeGlobalLog }: IpcRegistryDependenc
           malId: hasMalId ? malId : null,
         });
         if (!resolved) return null;
-        return { anilistId: resolved.anilistId, banner: resolved.banner };
+        return { anilistId: resolved.anilistId, banner: resolved.banner, studio: resolved.studio ?? null };
       } catch (error) {
         writeGlobalLog(`AniList banner error: ${error instanceof Error ? error.message : String(error)}`);
         return null;

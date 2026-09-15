@@ -41,7 +41,7 @@ export function Titlebar() {
   const handleClose = () => window.api.invoke('window-close');
 
   return (
-    <div className="absolute inset-x-0 top-0 h-10 flex items-center justify-between select-none app-region-drag bg-transparent z-50">
+    <div className="absolute inset-x-0 top-0 h-10 flex items-center justify-between select-none app-region-drag bg-transparent z-50 pr-3">
       <div className="flex items-center px-4 gap-2.5">
         {iconUrl ? (
           <img
@@ -64,34 +64,35 @@ export function Titlebar() {
         </span>
       </div>
 
-      <div className="flex items-stretch h-full app-region-no-drag">
+      <div className="flex h-full items-center gap-1 app-region-no-drag">
+        {/* Pastillas separadas con aire al borde para no pisar el scroll */}
         <button
           type="button"
           onClick={handleMinimize}
           aria-label="Minimizar ventana"
-          className="w-12 h-full inline-flex items-center justify-center text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-inset"
+          className="h-8 w-10 inline-flex items-center justify-center rounded-full text-foreground/80 hover:bg-white/10 hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-inset"
         >
-          <Minus strokeWidth={1.5} className="w-4 h-4" />
+          <Minus strokeWidth={2} className="w-[14px] h-[14px] drop-shadow-[0_1px_2px_rgb(0_0_0/0.65)]" />
         </button>
         <button
           type="button"
           onClick={handleToggleMaximize}
           aria-label={isMaximized ? 'Restaurar ventana' : 'Maximizar ventana'}
-          className="w-12 h-full inline-flex items-center justify-center text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-inset"
+          className="h-8 w-10 inline-flex items-center justify-center rounded-full text-foreground/80 hover:bg-white/10 hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-inset"
         >
           {isMaximized ? (
-            <Copy strokeWidth={1.5} className="w-4 h-4" />
+            <Copy strokeWidth={2} className="w-[13px] h-[13px] drop-shadow-[0_1px_2px_rgb(0_0_0/0.65)]" />
           ) : (
-            <Square strokeWidth={1.5} className="w-[14px] h-[14px]" />
+            <Square strokeWidth={2} className="w-[12px] h-[12px] drop-shadow-[0_1px_2px_rgb(0_0_0/0.65)]" />
           )}
         </button>
         <button
           type="button"
           onClick={handleClose}
           aria-label="Cerrar ventana"
-          className="w-12 h-full inline-flex items-center justify-center text-muted-foreground hover:bg-destructive hover:text-destructive-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive/60 focus-visible:ring-inset"
+          className="h-8 w-11 inline-flex items-center justify-center rounded-full text-foreground/80 hover:bg-destructive hover:text-destructive-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive/60 focus-visible:ring-inset"
         >
-          <X strokeWidth={1.5} className="w-4 h-4" />
+          <X strokeWidth={2} className="w-[14px] h-[14px] drop-shadow-[0_1px_2px_rgb(0_0_0/0.65)]" />
         </button>
       </div>
     </div>

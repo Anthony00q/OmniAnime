@@ -500,7 +500,7 @@ export const LogsTab = memo(function LogsTab({ isActive = true, settings, onChan
                     onClick={() => setSelected(new Set())}
                     className="font-semibold text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 rounded"
                   >
-                    Limpiar
+                    Deseleccionar
                   </button>
                   <button
                     type="button"

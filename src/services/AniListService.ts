@@ -1,7 +1,7 @@
 import { computeTitleMatchScore } from '../utils/titleUtils';
 
-// Banner visual de AniList (ficha + carpeta), sin fallback al póster:
-// si no vincula bien, no hay banner. Sin cuentas, sin identidad entre proveedores.
+// Banner y estudio de AniList, sin fallback al proveedor:
+// si no vincula bien, no hay ni banner ni estudio.
 export const ANILIST_API_URL = 'https://graphql.anilist.co';
 export const ANILIST_IMAGE_HOST = 's4.anilist.co';
 
@@ -13,6 +13,7 @@ query ($search: String) {
       title { romaji english native }
       synonyms
       bannerImage
+      studios { edges { isMain node { name } } }
       startDate { year }
       season
       seasonYear
@@ -30,6 +31,7 @@ query ($malId: Int) {
     idMal
     title { romaji english native }
     bannerImage
+    studios { edges { isMain node { name } } }
   }
 }
 `;
@@ -49,6 +51,7 @@ export interface AniListCandidate {
   native?: string | null;
   synonyms?: Array<string | null> | null;
   bannerImage?: string | null;
+  studio?: string | null;
   idMal?: number | null;
   startYear?: number | null;
   season?: string | null;
@@ -60,6 +63,7 @@ export interface AniListCandidate {
 export interface AniListBannerResult {
   anilistId: number;
   banner: string;
+  studio: string | null;
 }
 
 export interface AniListBannerInput {
@@ -348,6 +352,7 @@ function toCandidate(raw: unknown): AniListCandidate | null {
     native: typeof title.native === 'string' ? title.native : null,
     synonyms,
     bannerImage: typeof node.bannerImage === 'string' ? node.bannerImage : null,
+    studio: extractAniListStudio(node.studios),
     idMal: asNumber(node.idMal),
     startYear: asNumber(startDate.year),
     season: asText(node.season),
@@ -355,6 +360,26 @@ function toCandidate(raw: unknown): AniListCandidate | null {
     format: asText(node.format),
     popularity: asNumber(node.popularity),
   };
+}
+
+// Principal primero; si no, el primer nombre válido.
+function extractAniListStudio(rawStudios: unknown): string | null {
+  try {
+    const container = (rawStudios || {}) as Record<string, unknown>;
+    const edges = Array.isArray(container.edges) ? (container.edges as Array<Record<string, unknown>>) : [];
+    let fallback: string | null = null;
+    for (const edge of edges) {
+      if (!edge || typeof edge !== 'object') continue;
+      const name = ((edge.node || {}) as Record<string, unknown>).name;
+      if (typeof name !== 'string' || !name.trim()) continue;
+      const clean = name.trim().slice(0, 120);
+      if (edge.isMain === true) return clean;
+      if (!fallback) fallback = clean;
+    }
+    return fallback;
+  } catch {
+    return null;
+  }
 }
 
 async function fetchAniListSearch(search: string, post: AniListPost): Promise<AniListCandidate[]> {
@@ -415,12 +440,12 @@ function bannerFrom(candidate: AniListCandidate | null): AniListBannerResult | n
   if (!candidate || !candidate.bannerImage) return null;
   const banner = String(candidate.bannerImage).trim();
   if (!isAniListBannerHost(banner)) return null;
-  return { anilistId: candidate.id, banner };
+  const studio = typeof candidate.studio === 'string' && candidate.studio.trim() ? candidate.studio : null;
+  return { anilistId: candidate.id, banner, studio };
 }
 
 // Orden: malId directo primero; fallback al matcher por título cuando no hay
-// malId, no se encuentra o viene sin banner. Solo { anilistId, banner } o
-// null; nunca lanza.
+// malId, no se encuentra o viene sin banner. Solo resultado o null; nunca lanza.
 export async function resolveAniListBanner(
   input: string | AniListBannerInput,
   post: AniListPost,

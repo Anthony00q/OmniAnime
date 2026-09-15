@@ -136,8 +136,14 @@ export function prefetchAnimeDetails(
   });
 }
 
-// Banner AniList opcional con caché larga (24h), sin reintentos ni refetch.
+// Banner y estudio de AniList con caché larga (24h), sin reintentos ni refetch.
 export const ANILIST_BANNER_STALE_MS = 24 * 60 * 60 * 1000;
+
+export interface AniListMeta {
+  anilistId: number;
+  banner: string;
+  studio: string | null;
+}
 
 export interface AniListBannerRequest {
   title?: string | null | undefined;
@@ -195,22 +201,31 @@ export function anilistBannerKey(input: string | AniListBannerRequest | null | u
   ];
 }
 
-export async function fetchAniListBanner(
+export async function fetchAniListMeta(
   input: string | AniListBannerRequest | null | undefined,
-): Promise<string | null> {
+): Promise<AniListMeta | null> {
   const req = normalizeAniListRequest(input);
   if (!req.title && req.malId === null) return null;
   const res = (await window.api.invoke('get-anilist-banner', req)) as {
     anilistId: number;
     banner: string;
+    studio?: string | null;
   } | null;
-  return res?.banner ?? null;
+  if (!res || typeof res.anilistId !== 'number' || typeof res.banner !== 'string') return null;
+  const studio = typeof res.studio === 'string' && res.studio.trim() ? res.studio.trim() : null;
+  return { anilistId: res.anilistId, banner: res.banner, studio };
 }
 
-// Constructor único de la query del banner: misma key/fn en todos los usos.
+export async function fetchAniListBanner(
+  input: string | AniListBannerRequest | null | undefined,
+): Promise<string | null> {
+  return (await fetchAniListMeta(input))?.banner ?? null;
+}
+
+// Constructor único de la query: misma key/fn en todos los usos.
 export function getAniListBannerQuery(input: string | AniListBannerRequest | null | undefined) {
   const queryKey = anilistBannerKey(input);
-  return { queryKey, queryFn: () => fetchAniListBanner(input) };
+  return { queryKey, queryFn: () => fetchAniListMeta(input) };
 }
 
 export function useAniListBanner(input: string | AniListBannerRequest | null | undefined, enabled = true) {
@@ -219,6 +234,23 @@ export function useAniListBanner(input: string | AniListBannerRequest | null | u
   return useQuery({
     queryKey,
     queryFn,
+    select: (meta) => meta?.banner ?? null,
+    enabled: enabled && (queryKey[1].length > 0 || req.malId !== null),
+    staleTime: ANILIST_BANNER_STALE_MS,
+    gcTime: 7 * 24 * 60 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    retry: false,
+  });
+}
+
+export function useAniListStudio(input: string | AniListBannerRequest | null | undefined, enabled = true) {
+  const { queryKey, queryFn } = getAniListBannerQuery(input);
+  const req = normalizeAniListRequest(input);
+  return useQuery({
+    queryKey,
+    queryFn,
+    select: (meta) => meta?.studio ?? null,
     enabled: enabled && (queryKey[1].length > 0 || req.malId !== null),
     staleTime: ANILIST_BANNER_STALE_MS,
     gcTime: 7 * 24 * 60 * 60 * 1000,

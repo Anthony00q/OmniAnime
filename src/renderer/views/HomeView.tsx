@@ -235,7 +235,7 @@ export function HomeView({ isActive }: { isActive?: boolean }) {
                 </div>
               ) : showOfflineSearch ? (
                 <div className="p-6 text-center text-sm text-muted-foreground">
-                  Sin conexión: no se pudo buscar &quot;{searchQuery}&quot;
+                  Sin conexión a internet. No se pudo buscar &quot;{searchQuery}&quot;
                 </div>
               ) : (
                 <div className="p-6 text-center text-sm text-muted-foreground">
@@ -253,15 +253,15 @@ export function HomeView({ isActive }: { isActive?: boolean }) {
         ) : isError ? (
           <ErrorState
             title="No se pudieron cargar los episodios"
-            description={`No pudimos actualizar el contenido de ${providerName}.`}
+            description={`No se pudo actualizar el contenido de ${providerName}.`}
             onRetry={() => refetch()}
           />
         ) : items.length === 0 ? (
           showOfflineEmpty ? (
             <EmptyState
               icon={<Clapperboard className="h-6 w-6" aria-hidden="true" />}
-              title="Sin conexión"
-              description={`No hay conexión para actualizar ${providerName}. Tus descargas y librería siguen disponibles.`}
+              title="Sin conexión a internet"
+              description={`No se pudo actualizar el contenido de ${providerName}. Comprueba tu conexión e inténtalo de nuevo. Tus descargas y librería siguen disponibles.`}
               actionLabel="Reintentar"
               onAction={() => refetch()}
               secondaryActionLabel="Explorar catálogo"
@@ -270,8 +270,8 @@ export function HomeView({ isActive }: { isActive?: boolean }) {
           ) : (
             <EmptyState
               icon={<Clapperboard className="h-6 w-6" aria-hidden="true" />}
-              title="La sala está en pausa"
-              description={`No hay novedades en ${providerName} por el momento. Vuelve tras el próximo pase.`}
+              title="No hay contenido disponible"
+              description={`Ahora mismo no hay novedades en ${providerName}. Vuelve a intentarlo más tarde.`}
               actionLabel="Explorar catálogo"
               onAction={() => navigateToCatalog()}
               secondaryActionLabel="Reintentar"

@@ -509,7 +509,7 @@ export function CatalogView() {
         ) : isError ? (
           <ErrorState
             title="No se pudo cargar el catálogo"
-            description={`No pudimos obtener resultados de ${providerName}.`}
+            description={`No se pudieron obtener resultados de ${providerName}.`}
             onRetry={() => refetch()}
           />
         ) : (
@@ -518,8 +518,8 @@ export function CatalogView() {
               showOfflineEmpty ? (
                 <EmptyState
                   icon={<SearchX className="h-6 w-6" aria-hidden="true" />}
-                  title="Sin conexión"
-                  description={`No hay conexión para cargar el catálogo de ${providerName}. Tus descargas y librería siguen disponibles.`}
+                  title="Sin conexión a internet"
+                  description={`No se pudo cargar el catálogo de ${providerName}. Comprueba tu conexión e inténtalo de nuevo. Tus descargas y librería siguen disponibles.`}
                   actionLabel="Reintentar"
                   onAction={() => refetch()}
                   secondaryActionLabel="Limpiar filtros"
@@ -528,8 +528,8 @@ export function CatalogView() {
               ) : (
                 <EmptyState
                   icon={<SearchX className="h-6 w-6" aria-hidden="true" />}
-                  title="Nada en este estante"
-                  description="Prueba ajustando los filtros o la búsqueda para encontrar lo que buscas."
+                  title="Sin resultados"
+                  description="No se encontraron resultados con los filtros actuales."
                   actionLabel="Limpiar filtros"
                   onAction={clearFilters}
                 />

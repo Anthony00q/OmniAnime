@@ -709,28 +709,8 @@ export class JkAnimeProvider implements AnimeProvider {
       const catEl = $('a[href*="/categoria/"]').first();
       if (catEl.length) category = catEl.text().trim() || 'Anime';
 
-      let studio = 'Desconocido';
-      const firstStudioEl = $('a[href*="/studio/"]').first();
-      if (firstStudioEl.length) {
-        const studioText = firstStudioEl.text().trim();
-        if (studioText) studio = studioText;
-      } else {
-        $('li').each((_: any, el: any) => {
-          const liText = $(el).text().replace(/\s+/g, ' ').trim();
-          if (/^Studios?:/i.test(liText)) {
-            const v = liText.replace(/^Studios?:\s*/i, '').trim();
-            if (v) {
-              studio = v.split(',')[0].trim() || v;
-              return false;
-            }
-            const anchorText = $(el).find('a').first().text().trim();
-            if (anchorText) {
-              studio = anchorText;
-              return false;
-            }
-          }
-        });
-      }
+      // Estudio solo desde AniList; el proveedor no aporta.
+      const studio = 'Desconocido';
 
       let type = 'TV';
       const tipoLi = $('li[rel="tipo"]').first();

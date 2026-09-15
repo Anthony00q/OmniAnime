@@ -361,7 +361,7 @@ export class WindowLifecycleService {
       let preloadedData: PreloadedData;
       if (startupResult.timedOut || !startupResult.value) {
         this.dependencies.writeLog('Splash: timeout en precarga, continuando degradado');
-        updateStatus('Sin conexión, continuando con datos locales...', 70);
+        updateStatus('Sin conexión. Cargando datos locales...', 70);
         preloadedData = {
           providerId: this.dependencies.getActiveProviderId(),
           home: null,
