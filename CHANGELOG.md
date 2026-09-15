@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.0.8] - 2026-09-15
+
+### Interfaz
+
+- la ficha muestra el estudio solo cuando se identifica bien; si no, la fila se oculta en vez de poner desconocido.
+- la ficha ya no se queda cargando si la imagen tarda: espera como mucho **2** segundos y luego muestra el contenido.
+- los botones de minimizar, maximizar y cerrar tienen acabado en pastilla y dejan aire al borde para no pisar la barra de scroll.
+- avisos con textos más claros en el inicio, el catálogo y la ficha cuando no hay conexión o no hay resultados.
+
+### Ajustes
+
+- en **Registros**, la vista abre por defecto en **Sesión actual** y puedes cambiar a **Todas las sesiones** cuando quieras ver más.
+- en **Registros**, lo más reciente sale primero y las entradas se agrupan por sesión con su fecha.
+- en **Registros**, ya se puede borrar cualquier entrada antigua sin esperar un día; la sesión actual sigue protegida.
+- en **Registros**, se conservan hasta **50** sesiones (unos 200 MB como máximo).
+- en **Descargas**, **Conexiones por archivo** ahora va por separado para **MediaFire** y **MP4Upload**.
+
 ## [1.0.7] - 2026-09-13
 
 ### Interfaz
