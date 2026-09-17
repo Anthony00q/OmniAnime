@@ -13,6 +13,8 @@ const FETCH_TIMEOUT_MS = 10_000;
 export interface Mp4UploadResolveResult {
   ok: boolean;
   directUrl?: string;
+  // Código diagnóstico sin URLs ni secretos: para logs y fallback.
+  reason?: 'embed-invalido' | 'fetch-fallo' | 'sin-directo';
 }
 
 export type Mp4UploadResolveFn = (embedUrl: string) => Promise<Mp4UploadResolveResult>;
@@ -73,16 +75,21 @@ export async function resolveMp4UploadDirect(
 ): Promise<Mp4UploadResolveResult> {
   try {
     const clean = String(embedUrl || '').trim();
-    if (!/^https?:\/\/(www\.)?mp4upload\.com\//i.test(clean)) return { ok: false };
+    if (!/^https?:\/\/(www\.)?mp4upload\.com\//i.test(clean)) return { ok: false, reason: 'embed-invalido' };
     const timeoutMs =
       typeof deps.timeoutMs === 'number' && Number.isFinite(deps.timeoutMs) && deps.timeoutMs > 0
         ? Math.min(30_000, deps.timeoutMs)
         : FETCH_TIMEOUT_MS;
-    const html = await (deps.fetchHtml ? deps.fetchHtml(clean) : defaultFetchHtml(clean, timeoutMs));
+    let html: string;
+    try {
+      html = await (deps.fetchHtml ? deps.fetchHtml(clean) : defaultFetchHtml(clean, timeoutMs));
+    } catch {
+      return { ok: false, reason: 'fetch-fallo' };
+    }
     const directUrl = extractMp4UploadDirectUrl(html);
-    if (!directUrl) return { ok: false };
+    if (!directUrl) return { ok: false, reason: 'sin-directo' };
     return { ok: true, directUrl };
   } catch {
-    return { ok: false };
+    return { ok: false, reason: 'fetch-fallo' };
   }
 }

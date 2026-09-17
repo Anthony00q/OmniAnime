@@ -83,7 +83,8 @@ export class PausedProgressStore {
       const current = this.load();
       current[queueId] = clean;
       const trimmed: PausedProgressFile = {};
-      for (const key of Object.keys(current).slice(0, MAX_ITEMS)) trimmed[key] = current[key];
+      // Conservar las más recientes: la nueva va al final y slice(-MAX) la retiene.
+      for (const key of Object.keys(current).slice(-MAX_ITEMS)) trimmed[key] = current[key];
       this.writeAtomic(trimmed);
     } catch {
       // Best-effort: la pausa nunca debe fallar por persistencia

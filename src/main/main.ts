@@ -850,6 +850,7 @@ const episodeDownloadAttemptService = new EpisodeDownloadAttemptService({
   log: sendLog,
   logError: writeGlobalLog,
   getDownloadSettings: getNormalizedDownloadSettings,
+  fileLog: appLogger.child('download'),
 });
 
 const SERVER_SPEED: Record<string, string> = {

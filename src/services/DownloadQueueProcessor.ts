@@ -79,7 +79,8 @@ export class DownloadQueueProcessor {
   private readonly activeEpisodeControllers = new Map<string, AbortController>();
   // Slots vivos por servidor (`itemId|server`): cuántos workers lo usan ahora
   private readonly activeServerCounts = new Map<string, number>();
-  // Puertas de aparcamiento: un worker pausado espera aquí sin liberar su slot
+  // Puertas de aparcamiento: el worker en pausa espera aquí tras liberar su
+  // slot en el finally del coordinador; la puerta solo retiene el flujo.
   private readonly episodeGates = new Map<string, EpisodeGate>();
   // Contexto vivo del run paralelo (para snapshottear % al pausar)
   private readonly parallelContexts = new Map<string, { progress: Map<number, number>; server: Map<number, string> }>();
@@ -101,6 +102,7 @@ export class DownloadQueueProcessor {
         // se propaga tal cual para conservar la rama condicional original.
         scheduleQueueUpdate: this.options.scheduleQueueUpdate ? () => this.options.scheduleQueueUpdate() : undefined,
         sendQueueUpdate: () => this.options.sendQueueUpdate(),
+        fileLog: this.options.logger,
         recordServerOutcome: (outcome) => this.options.recordServerOutcome?.(outcome),
         recordEpisodeOutcome: (summary) => this.options.recordEpisodeOutcome?.(summary),
         cleanEpisodeTemps: (dest) => this.options.attemptService.cleanEpisodeTemps(dest),
@@ -111,6 +113,17 @@ export class DownloadQueueProcessor {
 
   private get fileLog(): ScopedLogger {
     return this.options.logger ?? noopScopedLogger;
+  }
+
+  private queueFileContext(
+    item: QueueItem,
+    episode?: number,
+  ): { provider?: string; queueId: string; episode?: number } {
+    return {
+      ...(item.providerId ? { provider: String(item.providerId) } : {}),
+      queueId: item.id,
+      ...(episode !== undefined ? { episode } : {}),
+    };
   }
 
   get activeItemId(): string | null {
@@ -297,6 +310,12 @@ export class DownloadQueueProcessor {
     } catch {
       /* best-effort */
     }
+    try {
+      (this.options.attemptService as unknown as { forgetItem?: (itemId: string) => void }).forgetItem?.(id);
+    } catch {
+      /* limpieza best-effort */
+    }
+    this.fileLog.info(`Descarga cancelada por el usuario: ${item.animeTitle}`, this.queueFileContext(item));
     this.recordQueueCancellation(item);
     if (item.status === 'pending' || item.status === 'downloading' || item.status === 'paused') {
       item.status = 'cancelled';
@@ -314,6 +333,24 @@ export class DownloadQueueProcessor {
       }
       this.options.abortDownloadService();
     }
+    // Purga best-effort de parciales no finalizados (preserva vídeos completos).
+    void (async () => {
+      try {
+        const done = new Set<number>([...(item.completedEps || [])]);
+        for (const ep of item.episodes || []) {
+          if (done.has(ep)) continue;
+          try {
+            const dest = this.options.buildEpisodePath(item, ep);
+            await this.options.attemptService.cleanEpisodeTemps(dest);
+            await this.options.attemptService.cleanEpisodeCacheForEpisode(dest);
+          } catch {
+            /* un EP no bloquea al resto */
+          }
+        }
+      } catch {
+        /* purga best-effort */
+      }
+    })();
     return true;
   }
 
@@ -355,6 +392,7 @@ export class DownloadQueueProcessor {
     this.wakeItemGates(id, 'total');
     this.snapshotPausedProgress(item);
     this.syncPersistedPause(item);
+    this.fileLog.info(`Descarga pausada por el usuario: ${item.animeTitle}`, this.queueFileContext(item));
     this.options.updateTray();
     this.options.sendQueueUpdate();
     return true;
@@ -401,6 +439,7 @@ export class DownloadQueueProcessor {
     } catch {
       /* limpieza best-effort */
     }
+    this.fileLog.info(`EP ${episode} cancelado por el usuario`, this.queueFileContext(item, episode));
     this.syncPersistedPause(item);
     this.options.sendQueueUpdate();
     return true;
@@ -437,6 +476,7 @@ export class DownloadQueueProcessor {
       /* compat */
     }
     // Pausa conserva parciales en disco, no limpia
+    this.fileLog.info(`EP ${episode} pausado por el usuario`, this.queueFileContext(item, episode));
     this.options.sendQueueUpdate();
     return true;
   }
@@ -471,6 +511,7 @@ export class DownloadQueueProcessor {
     // que retoma sus parciales.
     this.settleGate(this.gateKey(id, episode), 'resume');
     this.syncPersistedPause(item);
+    this.fileLog.info(`EP ${episode} reanudado por el usuario`, this.queueFileContext(item, episode));
     this.options.sendQueueUpdate();
     return true;
   }
@@ -495,28 +536,46 @@ export class DownloadQueueProcessor {
       /* best-effort */
     }
     item.status = 'pending';
+    this.fileLog.info(`Descarga reanudada por el usuario: ${item.animeTitle}`, this.queueFileContext(item));
     this.options.sendQueueUpdate();
     return true;
   }
 
   skip(id: string, episode?: number): boolean {
+    const item = this.options.queueStore.items.find((queueItem) => queueItem.id === id);
     if (episode !== undefined) {
       if (!Number.isInteger(episode)) return false;
       if (id !== this.activeQueueItemId) return false;
+      // Alcance EP: nunca caer al skip global (abortaría todos los EPs/items).
       try {
-        const fn = (
-          this.options.attemptService as unknown as {
-            skipEpisode?: (itemId: string, ep: number) => boolean;
-            skip: (itemId?: string, ep?: number) => boolean;
-          }
-        ).skipEpisode;
-        if (typeof fn === 'function') return fn.call(this.options.attemptService, id, episode);
+        const svc = this.options.attemptService as unknown as {
+          skipEpisode?: (itemId: string, ep: number) => boolean;
+        };
+        const ok =
+          typeof svc.skipEpisode === 'function'
+            ? svc.skipEpisode.call(this.options.attemptService, id, episode)
+            : false;
+        if (ok && item)
+          this.fileLog.info(`EP ${episode} salto manual de servidor`, this.queueFileContext(item, episode));
+        return ok;
       } catch {
         return false;
       }
-      return (this.options.attemptService as unknown as { skip: () => boolean }).skip();
     }
-    return id === this.activeQueueItemId && this.options.attemptService.skip();
+    if (id !== this.activeQueueItemId) return false;
+    // Alcance item: solo EPs de este item, sin contaminar otros items en vuelo.
+    // Sin fallback al skip global: abortaría todos los EPs/items.
+    try {
+      const svc = this.options.attemptService as unknown as {
+        skipItem?: (itemId: string) => boolean;
+      };
+      if (typeof svc.skipItem !== 'function') return false;
+      const ok = svc.skipItem.call(this.options.attemptService, id);
+      if (ok && item) this.fileLog.info(`Salto manual de servidor: ${item.animeTitle}`, this.queueFileContext(item));
+      return ok;
+    } catch {
+      return false;
+    }
   }
 
   skipEpisode(id: string, episode: number): boolean {
@@ -540,30 +599,56 @@ export class DownloadQueueProcessor {
       item.failureReasons = Object.keys(nextReasons).length > 0 ? nextReasons : undefined;
     }
 
+    this.fileLog.info(
+      `Reintento manual de fallidos: ${item.animeTitle} (${item.failedEps.length} ep)`,
+      this.queueFileContext(item),
+    );
     return true;
   }
 
   /** Cleanup stale ids for items that no longer exist or are terminal */
   private cleanupStaleIds(): void {
+    const forget = (id: string): void => {
+      try {
+        (this.options.attemptService as unknown as { forgetItem?: (itemId: string) => void }).forgetItem?.(id);
+      } catch {
+        /* limpieza best-effort */
+      }
+    };
     for (const id of Array.from(this.cancelledIds)) {
       const exists = this.options.queueStore.items.some((i) => i.id === id);
-      if (!exists) this.cancelledIds.delete(id);
+      if (!exists) {
+        this.cancelledIds.delete(id);
+        forget(id);
+      }
     }
     for (const id of Array.from(this.retryOnlyIds)) {
       const exists = this.options.queueStore.items.some((i) => i.id === id);
-      if (!exists) this.retryOnlyIds.delete(id);
+      if (!exists) {
+        this.retryOnlyIds.delete(id);
+        forget(id);
+      }
     }
     for (const id of Array.from(this.pausedItemIds)) {
       const exists = this.options.queueStore.items.some((i) => i.id === id);
-      if (!exists) this.pausedItemIds.delete(id);
+      if (!exists) {
+        this.pausedItemIds.delete(id);
+        forget(id);
+      }
     }
     for (const id of Array.from(this.pausedEpisodesByItem.keys())) {
       const exists = this.options.queueStore.items.some((i) => i.id === id);
-      if (!exists) this.pausedEpisodesByItem.delete(id);
+      if (!exists) {
+        this.pausedEpisodesByItem.delete(id);
+        forget(id);
+      }
     }
     for (const id of Array.from(this.cancelledEpisodesByItem.keys())) {
       const exists = this.options.queueStore.items.some((i) => i.id === id);
-      if (!exists) this.cancelledEpisodesByItem.delete(id);
+      if (!exists) {
+        this.cancelledEpisodesByItem.delete(id);
+        forget(id);
+      }
     }
   }
 
@@ -578,8 +663,20 @@ export class DownloadQueueProcessor {
       // Sin esto, un worker aparcado cuelga processQueue para siempre
       this.wakeItemGates(id, 'total');
       this.parallelContexts.delete(id);
+      // Abort antes de soltar handles: evita workers huérfanos en AttemptService.
+      this.abortControllersForItem(id);
+      try {
+        this.options.attemptService.abortItem?.(id);
+      } catch {
+        /* compat */
+      }
       for (const key of Array.from(this.activeEpisodeControllers.keys())) {
         if (key === id || key.startsWith(`${id}:`)) this.activeEpisodeControllers.delete(key);
+      }
+      try {
+        (this.options.attemptService as unknown as { forgetItem?: (itemId: string) => void }).forgetItem?.(id);
+      } catch {
+        /* limpieza best-effort */
       }
       try {
         this.options.pausedProgress?.clear(id);
@@ -712,7 +809,7 @@ export class DownloadQueueProcessor {
                 this.activeEpisodeControllers.delete(epKey);
                 if (this.activeEpisodeControllers.size === 0) this.activeQueueItemId = null;
                 this.options.sendQueueUpdate();
-                this.options.sendLog(`EP ${episode}: aparcado, conserva su slot`, 'warn');
+                this.options.sendLog(`EP ${episode}: pausado (slot liberado, en espera de resume/cancel)`, 'warn');
                 const reason = await this.parkEpisode(item.id, episode);
                 if (this.runEpoch.get(item.id) !== runEpoch) break;
                 if (reason === 'resume') {
@@ -812,7 +909,7 @@ export class DownloadQueueProcessor {
               }
               if ((item.pausedEps || []).includes(episode)) {
                 this.options.sendQueueUpdate();
-                this.options.sendLog(`EP ${episode}: aparcado, conserva su slot`, 'warn');
+                this.options.sendLog(`EP ${episode}: pausado (slot liberado, en espera de resume/cancel)`, 'warn');
                 const reason = await this.parkEpisode(item.id, episode);
                 if (this.runEpoch.get(item.id) !== runEpoch) break;
                 if (reason === 'resume') {
@@ -919,6 +1016,13 @@ export class DownloadQueueProcessor {
           // Pausados individuales que quedaron sin procesar se conservan para resume;
           // cancelados se conservan como parcial.
         }
+        if (item.status === 'done' || item.status === 'failed' || item.status === 'cancelled') {
+          try {
+            (this.options.attemptService as unknown as { forgetItem?: (id: string) => void }).forgetItem?.(item.id);
+          } catch {
+            /* limpieza best-effort */
+          }
+        }
         this.options.sendQueueUpdate();
       }
     } catch (error) {
@@ -970,6 +1074,14 @@ export class DownloadQueueProcessor {
     reason?: string,
   ): void {
     this.ensureEpArrays(item);
+    try {
+      (this.options.attemptService as unknown as { forgetEpisode?: (id: string, ep: number) => void }).forgetEpisode?.(
+        item.id,
+        episode,
+      );
+    } catch {
+      /* limpieza best-effort */
+    }
     if (item.pausedEpSnapshot) {
       delete item.pausedEpSnapshot[String(episode)];
       if (Object.keys(item.pausedEpSnapshot).length === 0) delete item.pausedEpSnapshot;
@@ -1363,7 +1475,7 @@ export class DownloadQueueProcessor {
             }
             if ((item.pausedEps || []).includes(episode)) {
               this.options.sendQueueUpdate();
-              this.options.sendLog(`EP ${episode}: aparcado, conserva su slot`, 'warn');
+              this.options.sendLog(`EP ${episode}: pausado (slot liberado, en espera de resume/cancel)`, 'warn');
               const reason = await this.parkEpisode(item.id, episode);
               if (this.parallelContexts.get(item.id) !== runCtx) return;
               if (reason === 'resume') continue;

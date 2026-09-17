@@ -223,6 +223,7 @@ export class DownloadService {
       signal,
     });
     if (!probe.supported || !probe.totalBytes || signal?.aborted) {
+      if (!signal?.aborted) this.logger.debug(`direct ranged no aplicable (${probe.reason || 'sin-soporte'}).`);
       await fsp.rm(tempPath, { force: true }).catch(() => undefined);
       return false;
     }
@@ -233,6 +234,7 @@ export class DownloadService {
       onProgress,
     });
     if (!ok || signal?.aborted) {
+      if (!signal?.aborted) this.logger.debug('direct ranged falló, cae a descarga simple.');
       await fsp.rm(tempPath, { force: true }).catch(() => undefined);
       return false;
     }

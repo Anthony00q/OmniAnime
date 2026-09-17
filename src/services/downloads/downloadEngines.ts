@@ -77,7 +77,11 @@ export class Mp4UploadDownloadEngine implements DownloadEngine {
   async download(source: DownloadSource, ctx: DownloadContext): Promise<DownloadResult> {
     const embedUrl = normalizeMp4UploadUrl(source.url);
     const resolved = await this.resolveDirect(embedUrl).catch(() => ({ ok: false as const }));
-    if (!resolved.ok || !resolved.directUrl || ctx.signal.aborted) return { ok: false };
+    if (!resolved.ok || !resolved.directUrl || ctx.signal.aborted) {
+      const reason =
+        !resolved.ok && (resolved as { reason?: string }).reason ? ` (${(resolved as { reason: string }).reason})` : '';
+      return { ok: false, error: `MP4Upload sin directo útil${reason}.` };
+    }
     const ok = await this.downloadService.downloadDirectAxios(
       resolved.directUrl,
       ctx.dest,
@@ -88,6 +92,7 @@ export class Mp4UploadDownloadEngine implements DownloadEngine {
       MP4UPLOAD_REFERER,
       ctx.settings.mp4uploadConnections,
     );
+    if (!ok && !ctx.signal.aborted) return { ok: false, error: 'MP4Upload directo falló.' };
     return { ok };
   }
 }

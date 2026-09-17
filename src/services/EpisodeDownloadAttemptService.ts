@@ -9,6 +9,7 @@ import { normalizeDownloadSettings } from '../utils/downloadSettings';
 import type { DownloadEngine, EngineProgress } from './downloads/downloadContracts';
 import { createDefaultDownloadEngines, findDownloadEngine } from './downloads/downloadEngines';
 import type { Mp4UploadResolveFn } from './Mp4UploadResolver';
+import { noopScopedLogger, type ScopedLogger } from './AppLogger';
 
 export interface EpisodeAttemptProgress {
   progress: number;
@@ -44,6 +45,8 @@ export interface EpisodeDownloadAttemptOptions {
   logError: (error: unknown) => void;
   getDownloadSettings?: () => DownloadSettings | undefined;
   resolveMp4UploadDirect?: Mp4UploadResolveFn;
+  // Fichero de sesión con contexto (provider/queue/ep/server), sin URLs ni rutas.
+  fileLog?: ScopedLogger;
   // Opcional por compatibilidad: por defecto se construye desde estas opciones.
   engines?: DownloadEngine[];
 }
@@ -80,6 +83,23 @@ export class EpisodeDownloadAttemptService {
     return `${itemId}:${episode}`;
   }
 
+  private get fileLog(): ScopedLogger {
+    return this.options.fileLog ?? noopScopedLogger;
+  }
+
+  private attemptContext(
+    item: QueueItem,
+    episode: number,
+    server: string,
+  ): { provider?: string; queueId: string; episode: number; server: string } {
+    return {
+      ...(item.providerId ? { provider: String(item.providerId) } : {}),
+      queueId: item.id,
+      episode,
+      server: String(server || ''),
+    };
+  }
+
   skip(itemId?: string, episode?: number): boolean {
     if (itemId !== undefined && episode !== undefined) return this.skipEpisode(itemId, episode);
     if (this.activeAttempts.size === 0) return false;
@@ -111,6 +131,50 @@ export class EpisodeDownloadAttemptService {
       /* abort is idempotent */
     }
     return true;
+  }
+
+  // Salto acotado al item: solo aborta EPs de ese item, sin contaminar otros.
+  skipItem(itemId: string): boolean {
+    if (!itemId) return false;
+    const prefix = `${itemId}:`;
+    const targets = new Set<string>();
+    for (const key of Array.from(this.skipEpochs.keys())) {
+      if (key === itemId || key.startsWith(prefix)) targets.add(key);
+    }
+    for (const key of Array.from(this.activeAttempts.keys())) {
+      if (key === itemId || key.startsWith(prefix)) targets.add(key);
+    }
+    if (targets.size === 0) return false;
+    let aborted = false;
+    for (const key of targets) {
+      this.skipEpochs.set(key, (this.skipEpochs.get(key) || 0) + 1);
+      const controller = this.activeAttempts.get(key);
+      if (controller) {
+        try {
+          controller.abort();
+          aborted = true;
+        } catch {
+          aborted = true;
+        }
+      }
+    }
+    // Solo éxito real si se abortó un intento en vuelo (paridad con skipEpisode).
+    return aborted;
+  }
+
+  // Limpieza de épocas de un item terminal/eliminado: evita fuga por IDs únicos.
+  forgetItem(itemId: string): void {
+    if (!itemId) return;
+    const prefix = `${itemId}:`;
+    for (const key of Array.from(this.skipEpochs.keys())) {
+      if (key === itemId || key.startsWith(prefix)) this.skipEpochs.delete(key);
+    }
+  }
+
+  // Limpieza por EP finalizado (ok/fail/cancel): su época ya no se necesita.
+  forgetEpisode(itemId: string, episode: number): void {
+    if (!itemId || !Number.isInteger(episode)) return;
+    this.skipEpochs.delete(this.attemptKey(itemId, episode));
   }
 
   abortEpisode(itemId: string, episode: number): boolean {
@@ -265,6 +329,7 @@ export class EpisodeDownloadAttemptService {
         // Defensa en profundidad: la allowlist de main ya filtra servidores
         // no canónicos antes de llegar aquí.
         toolFailureMessage = `Servidor no soportado: ${link.server}`;
+        this.fileLog.warn(toolFailureMessage, this.attemptContext(item, episode, link.server));
       }
 
       if (success) {
@@ -273,6 +338,10 @@ export class EpisodeDownloadAttemptService {
           success = false;
           invalidMp4 = true;
           if (link.server === 'Mega') await this.purgeMegaResumeFiles(dest);
+          this.fileLog.warn(
+            `"${link.server}" reportó éxito sin archivo válido, se prueba el siguiente.`,
+            this.attemptContext(item, episode, link.server),
+          );
           this.options.log(
             `WARN "${link.server}" reporto exito, pero no quedo archivo .mp4 valido. Probando siguiente...`,
             'warn',

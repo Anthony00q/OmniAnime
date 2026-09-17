@@ -14,6 +14,8 @@ const RANGED_MAX_SEGMENTS = 128;
 export interface RangedProbeResult {
   supported: boolean;
   totalBytes: number | null;
+  // Código diagnóstico sin URLs: para logs debug y fallback.
+  reason?: 'sin-206' | 'sin-content-range' | 'fetch-fallo';
 }
 
 export interface RangedDownloadOptions {
@@ -60,12 +62,12 @@ export async function probeDirectRangeSupport(url: string, options: RangedDownlo
     } catch {
       /* best-effort */
     }
-    if (response.status !== 206) return { supported: false, totalBytes: null };
+    if (response.status !== 206) return { supported: false, totalBytes: null, reason: 'sin-206' };
     const total = parseContentRangeTotal(response.headers?.['content-range']);
-    if (total === null) return { supported: false, totalBytes: null };
+    if (total === null) return { supported: false, totalBytes: null, reason: 'sin-content-range' };
     return { supported: true, totalBytes: total };
   } catch {
-    return { supported: false, totalBytes: null };
+    return { supported: false, totalBytes: null, reason: 'fetch-fallo' };
   }
 }
 

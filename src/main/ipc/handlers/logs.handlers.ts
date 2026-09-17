@@ -105,7 +105,14 @@ export function registerLogsHandlers(dependencies: IpcRegistryDependencies): voi
         skipped += result.skipped;
         if (result.deleted > 0) {
           try {
-            rewriteLogFileSync(fullPath, result.kept);
+            if (!result.kept) {
+              // Borrado total: eliminar el fichero en vez de dejar un husk a 0 bytes.
+              // La sesión actual está protegida por isDeletableEntry; doble seguro aquí.
+              const current = dependencies.getLogPath();
+              if (path.resolve(fullPath) !== path.resolve(current)) fs.rmSync(fullPath, { force: true });
+            } else {
+              rewriteLogFileSync(fullPath, result.kept);
+            }
           } catch (rewriteError) {
             dependencies.writeGlobalLog(rewriteError);
             return { ok: false as const, deleted, skipped, error: 'No se pudo reescribir el registro' };

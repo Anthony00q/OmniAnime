@@ -6,6 +6,7 @@ import {
   type ServerAttemptOutcome,
   type ServerFailureCategory,
 } from '../ServerStatsStore';
+import { noopScopedLogger, type ScopedLogger } from '../AppLogger';
 
 // Alcance episodio: ordenar + fallback. Sin cola, workers, pausa, gates, slots,
 // historial, SQLite, tray, IPC ni persistencia; los efectos llegan inyectados.
@@ -34,6 +35,8 @@ export interface DownloadCoordinatorDeps {
   updateTray: (text?: string) => void;
   scheduleQueueUpdate?: () => void;
   sendQueueUpdate: () => void;
+  // Fichero de sesión con contexto (provider/queue/ep/server), sin URLs ni rutas.
+  fileLog?: ScopedLogger;
   // Observabilidad por servidor (opcional, best-effort, sin URLs).
   recordServerOutcome?: (outcome: ServerAttemptOutcome) => void;
   // Agregado por episodio (opcional, best-effort): se emite una vez por EP.
@@ -45,6 +48,24 @@ export interface DownloadCoordinatorDeps {
 
 export class DownloadCoordinator {
   constructor(private readonly deps: DownloadCoordinatorDeps) {}
+
+  private get fileLog(): ScopedLogger {
+    return this.deps.fileLog ?? noopScopedLogger;
+  }
+
+  private attemptFileContext(
+    item: QueueItem,
+    episode: number,
+    provider: string,
+    server: string,
+  ): { provider?: string; queueId: string; episode: number; server: string } {
+    return {
+      ...(provider ? { provider } : {}),
+      queueId: item.id,
+      episode,
+      server,
+    };
+  }
 
   sortLinksForEpisode(
     links: ProviderDownloadLink[],
@@ -92,6 +113,15 @@ export class DownloadCoordinator {
         this.deps.sendLog(
           `Intentando "${link.server}" desde ${link.provider}${resolvedLabel} (${speed})... (EP ${episode} · intento ${attemptIndex}/${totalAttempts})`,
           'info',
+        );
+        this.fileLog.info(
+          `Intentando "${link.server}" (${speed}) (intento ${attemptIndex}/${totalAttempts})`,
+          this.attemptFileContext(
+            item,
+            episode,
+            String(link.provider || ''),
+            String(link.canonicalServer || link.server || ''),
+          ),
         );
         item.currentServer = link.server;
         onServerChange?.(link.server);
@@ -152,10 +182,20 @@ export class DownloadCoordinator {
               ` (intento ${attemptIndex}/${totalAttempts})`,
             'success',
           );
+          this.fileLog.info(
+            `EP ${episode} descargado desde "${link.server}" en ${(elapsedMs / 1000).toFixed(1)}s (intento ${attemptIndex}/${totalAttempts})`,
+            this.attemptFileContext(item, episode, providerLabel, canonicalServer),
+          );
           this.deps.sendStatus(`EP ${episode} Completado`, item.episodes.length > 1);
           break;
         }
-        if (result.invalidMp4) continue;
+        if (result.invalidMp4) {
+          this.fileLog.warn(
+            `"${link.server}" sin archivo válido (intento ${attemptIndex}/${totalAttempts})`,
+            this.attemptFileContext(item, episode, providerLabel, canonicalServer),
+          );
+          continue;
+        }
         if (result.attemptTimedOut && !result.parentAborted) {
           failureReason = `El servidor "${link.server}" no inició la descarga a tiempo`;
           const timeoutSec = this.deps.getStartTimeoutSec();
@@ -163,12 +203,26 @@ export class DownloadCoordinator {
             `"${link.server}" no inició descarga en ${timeoutSec}s. Probando siguiente... (${outcomeTag})`,
             'warn',
           );
+          this.fileLog.warn(
+            `"${link.server}" sin inicio en ${timeoutSec}s (${outcomeTag})`,
+            this.attemptFileContext(item, episode, providerLabel, canonicalServer),
+          );
           await this.deps.cleanEpisodeTemps(dest);
           await this.deps.cleanEpisodeCache(dest);
         } else if (result.toolFailureMessage && !result.parentAborted) {
           failureReason = result.toolFailureMessage;
           // Intermedio con fallback: warn; el último servidor es error.
           this.deps.sendLog(`${result.toolFailureMessage} (${outcomeTag})`, isLast ? 'error' : 'warn');
+          if (isLast)
+            this.fileLog.error(
+              `${result.toolFailureMessage} (${outcomeTag})`,
+              this.attemptFileContext(item, episode, providerLabel, canonicalServer),
+            );
+          else
+            this.fileLog.warn(
+              `${result.toolFailureMessage} (${outcomeTag})`,
+              this.attemptFileContext(item, episode, providerLabel, canonicalServer),
+            );
           await this.deps.cleanEpisodeCache(dest);
         } else if (!result.parentAborted) {
           await this.deps.cleanEpisodeCache(dest);
@@ -177,12 +231,26 @@ export class DownloadCoordinator {
               `"${link.server}" cancelado, probando siguiente...${isLast ? ' (Último servidor)' : ''} (${outcomeTag})`,
               'warn',
             );
+            this.fileLog.warn(
+              `"${link.server}" salto manual (${outcomeTag})`,
+              this.attemptFileContext(item, episode, providerLabel, canonicalServer),
+            );
           } else {
             // Intermedio con fallback: warn; sin más servidores es error.
             this.deps.sendLog(
               `"${link.server}" falló.${isLast ? ' Sin más servidores.' : ' Probando siguiente...'} (${outcomeTag})`,
               isLast ? 'error' : 'warn',
             );
+            if (isLast)
+              this.fileLog.error(
+                `"${link.server}" falló sin más servidores (${outcomeTag})`,
+                this.attemptFileContext(item, episode, providerLabel, canonicalServer),
+              );
+            else
+              this.fileLog.warn(
+                `"${link.server}" falló (${outcomeTag})`,
+                this.attemptFileContext(item, episode, providerLabel, canonicalServer),
+              );
           }
         }
       }

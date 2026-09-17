@@ -5,6 +5,8 @@ import type { RuntimeDirectories } from './RuntimeDirectories';
 import { redactLogText as redactLogTextPure, type LogLevel } from '../utils/redactLog';
 import {
   MAX_SESSION_FILES,
+  SESSION_BACKUP_RE,
+  SESSION_FILE_RE,
   buildSessionFilename,
   buildSessionHeaderText,
   pruneSessionFiles,
@@ -133,6 +135,21 @@ export class AppLogger {
         try {
           fs.rmSync(path.join(this.directories.logDir, name), { force: true });
           removed += 1;
+        } catch {}
+      }
+      // Husks de borrados totales anteriores: ficheros de sesión a 0 bytes que
+      // el visor ya no muestra pero siguen en disco. Nunca la sesión actual.
+      const currentBackup = `${this.sessionFilename}.1.log`;
+      for (const name of names) {
+        if (name === this.sessionFilename || name === currentBackup) continue;
+        if (!SESSION_FILE_RE.test(name) && !SESSION_BACKUP_RE.test(name)) continue;
+        try {
+          const full = path.join(this.directories.logDir, name);
+          const st = fs.statSync(full, { throwIfNoEntry: false });
+          if (st && st.isFile() && st.size === 0) {
+            fs.rmSync(full, { force: true });
+            removed += 1;
+          }
         } catch {}
       }
       return { kept: keptNames.length, removed };
