@@ -25,8 +25,8 @@ export class MegaDownloadEngine implements DownloadEngine {
     const ok = await this.downloadService.downloadMega(
       source.url,
       ctx.dest,
-      (fraction01) => {
-        ctx.onProgress({ fraction01 });
+      (fraction01, loadedBytes) => {
+        ctx.onProgress({ fraction01, ...(loadedBytes !== undefined ? { loadedBytes } : {}) });
       },
       ctx.signal,
       undefined,
@@ -50,8 +50,8 @@ export class MediafireDownloadEngine implements DownloadEngine {
     const ok = await this.downloadService.downloadMediafire(
       source.url,
       ctx.dest,
-      (fraction01) => {
-        ctx.onProgress({ fraction01 });
+      (fraction01, loadedBytes) => {
+        ctx.onProgress({ fraction01, ...(loadedBytes !== undefined ? { loadedBytes } : {}) });
       },
       ctx.signal,
       providerDownloadReferer(ctx.item.providerId),
@@ -85,8 +85,8 @@ export class Mp4UploadDownloadEngine implements DownloadEngine {
     const ok = await this.downloadService.downloadDirectAxios(
       resolved.directUrl,
       ctx.dest,
-      (fraction01) => {
-        ctx.onProgress({ fraction01 });
+      (fraction01, loadedBytes) => {
+        ctx.onProgress({ fraction01, ...(loadedBytes !== undefined ? { loadedBytes } : {}) });
       },
       ctx.signal,
       MP4UPLOAD_REFERER,
@@ -126,7 +126,11 @@ export class HlsDownloadEngine implements DownloadEngine {
       ffmpegPath,
       signal: ctx.signal,
       onProgress: (hlsProgress) => {
-        ctx.onProgress({ fraction01: hlsProgress.fraction01, phase: hlsProgress.phase });
+        ctx.onProgress({
+          fraction01: hlsProgress.fraction01,
+          phase: hlsProgress.phase,
+          ...(hlsProgress.loadedBytes !== undefined ? { loadedBytes: hlsProgress.loadedBytes } : {}),
+        });
       },
     });
     if (result.ok) return { ok: true };

@@ -11,6 +11,7 @@ export type DownloadSource = ProviderDownloadLink;
 export interface EngineProgress {
   fraction01: number;
   phase?: 'downloading' | 'assembling';
+  loadedBytes?: number;
 }
 
 export interface DownloadContext {

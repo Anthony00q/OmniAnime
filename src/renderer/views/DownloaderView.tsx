@@ -1,6 +1,7 @@
 import {
   Trash2,
   SkipForward,
+  Loader2,
   XCircle,
   X,
   CheckCircle2,
@@ -39,6 +40,14 @@ import { QueueSkeleton } from '../components/anime/PosterGridSkeleton';
 import { EmptyState } from '../components/ui/EmptyState';
 import { navigateToCatalogAtom } from '../store/atoms';
 import { buildDetailRows, type DetailRow } from '../utils/downloaderRows';
+import { formatSpeedBps, totalSpeedBps } from '../utils/formatSpeed';
+import {
+  activeServersOf,
+  epProgressOf,
+  epServerOf,
+  shouldClearSwitch,
+  type SwitchSnapshot,
+} from '../utils/switchPending';
 import {
   DETAIL_DEFAULT_H,
   DETAIL_MIN_H,
@@ -137,6 +146,8 @@ interface QueueRowProps {
   onOpenFolder: (targetPath: string, title: string) => void;
   isRetryPending: boolean;
   pendingEpisodeKeys?: Set<string>;
+  pendingSkipEpKeys?: Set<string>;
+  isSwitchPending?: boolean;
   isPriority?: boolean;
 }
 
@@ -145,6 +156,7 @@ interface EpisodeDetailRowProps {
   itemId: string;
   animeTitle: string;
   isEpPending: boolean;
+  isEpSwitching?: boolean;
   onPauseEpisode: (id: string, episode: number) => void;
   onResumeEpisode: (id: string, episode: number) => void;
   onSkipEpisode: (id: string, episode: number) => void;
@@ -159,6 +171,7 @@ const EpisodeDetailRow = memo(
     itemId,
     animeTitle,
     isEpPending,
+    isEpSwitching = false,
     onPauseEpisode,
     onResumeEpisode,
     onSkipEpisode,
@@ -174,14 +187,26 @@ const EpisodeDetailRow = memo(
     const isAssembling = e.state === 'active' && e.phase === 'assembling';
     const showActions = !isEpCancelled && !isEpDone;
     const showSkip = e.state === 'active' && !!e.server;
+    const isSwitching = isEpSwitching && e.state === 'active';
     return (
       <div className="episode-list-item flex flex-col justify-center gap-1 py-1" data-ep-state={e.state}>
         <div className="flex items-center gap-1.5 text-[11px] tabular-nums text-muted-foreground">
           <span className="font-semibold text-foreground">EP {e.episode}</span>
-          {e.server && !isEpPaused && !isEpCancelled && !isEpDone && !isEpQueued && (
-            <span className="min-w-0 flex-1 truncate">
-              {isAssembling ? `Ensamblando${e.server ? ` · ${e.server}` : ''}` : e.server}
+          {isSwitching ? (
+            <span className="inline-flex min-w-0 flex-1 items-center gap-1" aria-live="polite">
+              <Loader2 className="h-3 w-3 shrink-0 animate-spin" aria-hidden="true" />
+              <span className="truncate">Cambiando servidor…</span>
             </span>
+          ) : (
+            e.server &&
+            !isEpPaused &&
+            !isEpCancelled &&
+            !isEpDone &&
+            !isEpQueued && (
+              <span className="min-w-0 flex-1 truncate">
+                {isAssembling ? `Ensamblando${e.server ? ` · ${e.server}` : ''}` : e.server}
+              </span>
+            )
           )}
           {isEpPaused && (
             <span className="inline-flex min-w-0 flex-1 items-center gap-1 text-muted-foreground">
@@ -243,15 +268,22 @@ const EpisodeDetailRow = memo(
                 </AppTooltip>
               )}
               {showSkip && (
-                <AppTooltip content={`Saltar servidor EP ${e.episode}`}>
+                <AppTooltip
+                  content={isSwitching ? `Cambiando servidor EP ${e.episode}…` : `Saltar servidor EP ${e.episode}`}
+                >
                   <button
                     type="button"
                     onClick={() => onSkipEpisode(itemId, e.episode)}
-                    disabled={isEpPending}
-                    aria-label={`Saltar servidor EP ${e.episode}`}
+                    disabled={isEpPending || isSwitching}
+                    aria-label={isSwitching ? `Cambiando servidor EP ${e.episode}` : `Saltar servidor EP ${e.episode}`}
+                    aria-busy={isSwitching || undefined}
                     className="relative flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors after:absolute after:-inset-2 after:content-[''] hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
                   >
-                    <SkipForward className="h-3 w-3" />
+                    {isSwitching ? (
+                      <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" />
+                    ) : (
+                      <SkipForward className="h-3 w-3" />
+                    )}
                   </button>
                 </AppTooltip>
               )}
@@ -272,10 +304,15 @@ const EpisodeDetailRow = memo(
         {!isEpCancelled && (
           <ProgressBar
             value={epPct}
+            indeterminate={isSwitching}
             variant={isEpCompleted ? 'success' : isEpFailed ? 'danger' : undefined}
-            label={`${animeTitle} — EP ${e.episode} ${epPct}%${isAssembling ? ' (ensamblando)' : ''}${isEpPaused ? ' (pausado)' : ''}${isEpQueued ? ' (en cola)' : ''}${isEpCompleted ? ' (completado)' : ''}${isEpFailed ? ' (fallido)' : ''}`}
+            label={`${animeTitle} — EP ${e.episode} ${epPct}%${isSwitching ? ' (cambiando servidor)' : ''}${isAssembling && !isSwitching ? ' (ensamblando)' : ''}${isEpPaused ? ' (pausado)' : ''}${isEpQueued ? ' (en cola)' : ''}${isEpCompleted ? ' (completado)' : ''}${isEpFailed ? ' (fallido)' : ''}`}
             showValue={false}
-            aria-valuetext={`EP ${e.episode} ${epPct}%${e.server ? ` desde ${e.server}` : ''}${isAssembling ? ', ensamblando' : ''}${isEpPaused ? ', pausado' : ''}${isEpQueued ? ', en cola' : ''}${isEpCompleted ? ', completado' : ''}${isEpFailed ? ', fallido' : ''}`}
+            aria-valuetext={
+              isSwitching
+                ? `EP ${e.episode} cambiando servidor`
+                : `EP ${e.episode} ${epPct}%${e.server ? ` desde ${e.server}` : ''}${isAssembling ? ', ensamblando' : ''}${isEpPaused ? ', pausado' : ''}${isEpQueued ? ', en cola' : ''}${isEpCompleted ? ', completado' : ''}${isEpFailed ? ', fallido' : ''}`
+            }
           />
         )}
       </div>
@@ -290,6 +327,7 @@ const EpisodeDetailRow = memo(
     prev.itemId === next.itemId &&
     prev.animeTitle === next.animeTitle &&
     prev.isEpPending === next.isEpPending &&
+    (prev.isEpSwitching ?? false) === (next.isEpSwitching ?? false) &&
     prev.onPauseEpisode === next.onPauseEpisode &&
     prev.onResumeEpisode === next.onResumeEpisode &&
     prev.onSkipEpisode === next.onSkipEpisode &&
@@ -314,6 +352,8 @@ const QueueItemRow = memo(
     onOpenFolder,
     isRetryPending,
     pendingEpisodeKeys,
+    pendingSkipEpKeys,
+    isSwitchPending = false,
     isPriority = false,
   }: QueueRowProps) {
     const { titleRef, isTruncated } = useIsTitleTruncated(item.animeTitle ?? '');
@@ -351,6 +391,10 @@ const QueueItemRow = memo(
     );
     const isParallel = isDownloading && activeEps.length > 1;
     const isCardActive = isDownloading || isPaused || item.status === 'pending';
+    const speedText = useMemo(
+      () => (isDownloading && !isSwitchPending ? formatSpeedBps(totalSpeedBps(item.activeEps)) : ''),
+      [isDownloading, isSwitchPending, item.activeEps],
+    );
     const detailRows = useMemo(() => {
       // Terminales nunca muestran detalle: evita el build en cada update.
       if (!isDownloading && !isPaused && item.status !== 'pending') return EMPTY_DETAIL_ROWS;
@@ -704,14 +748,20 @@ const QueueItemRow = memo(
                   </AppTooltip>
                 )}
                 {isDownloading && (
-                  <AppTooltip content="Saltar servidor">
+                  <AppTooltip content={isSwitchPending ? 'Cambiando servidor…' : 'Saltar servidor'}>
                     <button
                       type="button"
                       onClick={handleSkipClick}
-                      aria-label="Saltar servidor"
-                      className="flex h-9 w-9 items-center justify-center rounded-md bg-secondary text-foreground transition-colors hover:bg-secondary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                      disabled={isSwitchPending}
+                      aria-label={isSwitchPending ? 'Cambiando servidor' : 'Saltar servidor'}
+                      aria-busy={isSwitchPending || undefined}
+                      className="flex h-9 w-9 items-center justify-center rounded-md bg-secondary text-foreground transition-colors hover:bg-secondary/80 disabled:cursor-not-allowed disabled:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
                     >
-                      <SkipForward className="w-3.5 h-3.5" />
+                      {isSwitchPending ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
+                      ) : (
+                        <SkipForward className="w-3.5 h-3.5" />
+                      )}
                     </button>
                   </AppTooltip>
                 )}
@@ -843,6 +893,18 @@ const QueueItemRow = memo(
                 {isCardActive ? `${detailRows.length > 1 ? 'Total ' : ''}${pct}% · ` : ''}
                 {item.completedEps?.length || 0}/{item.episodes?.length || 0}{' '}
                 {(item.episodes?.length || 0) === 1 ? 'ep' : 'eps'}
+                {isDownloading && (
+                  <span className="ml-1 inline-block min-w-[10ch] tabular-nums">
+                    ·{' '}
+                    {speedText ? (
+                      speedText
+                    ) : (
+                      <span aria-hidden="true" className="text-muted-foreground/50">
+                        —
+                      </span>
+                    )}
+                  </span>
+                )}
                 {item.failedEps?.length > 0 && (
                   <span className="ml-1 text-destructive-fg">({item.failedEps.length} fallidos)</span>
                 )}
@@ -861,17 +923,28 @@ const QueueItemRow = memo(
                   <div className="flex flex-col justify-center gap-1">
                     <ProgressBar
                       value={pct}
-                      indeterminate={pct === 0}
+                      indeterminate={isSwitchPending || pct === 0}
                       label={
-                        isParallel
-                          ? `${item.animeTitle} — progreso total ${pct}%`
-                          : `${item.animeTitle} — progreso ${pct}%`
+                        isSwitchPending
+                          ? `${item.animeTitle} — cambiando servidor`
+                          : isParallel
+                            ? `${item.animeTitle} — progreso total ${pct}%`
+                            : `${item.animeTitle} — progreso ${pct}%`
                       }
                       showValue={false}
-                      aria-valuetext={`${pct}% • ${item.completedEps?.length || 0}/${item.episodes?.length || 0} episodios`}
+                      aria-valuetext={
+                        isSwitchPending
+                          ? `Cambiando servidor • ${item.completedEps?.length || 0}/${item.episodes?.length || 0} episodios`
+                          : `${pct}% • ${item.completedEps?.length || 0}/${item.episodes?.length || 0} episodios${speedText ? ` · ${speedText}` : ''}`
+                      }
                     />
                     <div className="flex min-h-[18px] items-center gap-1.5 text-[11px] text-muted-foreground">
-                      {pct === 0 ? (
+                      {isSwitchPending ? (
+                        <span className="inline-flex min-w-0 max-w-full items-center gap-1" aria-live="polite">
+                          <Loader2 className="h-3 w-3 shrink-0 animate-spin" aria-hidden="true" />
+                          <span className="truncate font-medium">Cambiando servidor…</span>
+                        </span>
+                      ) : pct === 0 ? (
                         <span className="font-medium">Conectando...</span>
                       ) : item.currentServer ? (
                         <span className="inline-flex min-w-0 max-w-full items-center gap-1">
@@ -983,6 +1056,7 @@ const QueueItemRow = memo(
                         itemId={item.id}
                         animeTitle={item.animeTitle}
                         isEpPending={pendingEpisodeKeys?.has(`${item.id}:${e.episode}`) ?? false}
+                        isEpSwitching={pendingSkipEpKeys?.has(`${item.id}:${e.episode}`) ?? false}
                         onPauseEpisode={onPauseEpisode}
                         onResumeEpisode={onResumeEpisode}
                         onSkipEpisode={onSkipEpisode}
@@ -1049,6 +1123,7 @@ const QueueItemRow = memo(
       prev.item !== next.item ||
       prev.activeProvider !== next.activeProvider ||
       prev.isRetryPending !== next.isRetryPending ||
+      (prev.isSwitchPending ?? false) !== (next.isSwitchPending ?? false) ||
       prev.isPriority !== next.isPriority
     ) {
       return false;
@@ -1057,10 +1132,13 @@ const QueueItemRow = memo(
     // propias del item para no re-renderizar toda la cola.
     const eps: number[] = Array.isArray(next.item?.episodes) ? next.item.episodes : [];
     const id: string = next.item?.id;
-    if (!eps.length || !id) return prev.pendingEpisodeKeys === next.pendingEpisodeKeys;
+    if (!eps.length || !id) {
+      return prev.pendingEpisodeKeys === next.pendingEpisodeKeys && prev.pendingSkipEpKeys === next.pendingSkipEpKeys;
+    }
     for (const ep of eps) {
       const key = `${id}:${ep}`;
       if (prev.pendingEpisodeKeys?.has(key) !== next.pendingEpisodeKeys?.has(key)) return false;
+      if (prev.pendingSkipEpKeys?.has(key) !== next.pendingSkipEpKeys?.has(key)) return false;
     }
     return true;
   },
@@ -1093,22 +1171,14 @@ export function DownloaderView({ onSelectAnime, activeProvider, isActive = true 
       }),
     [actions],
   );
-  const handleSkip = useCallback(
-    (id: string) =>
-      actions.skipServer.mutate(id, {
-        onError: () => toast.error('No se pudo saltar el servidor'),
-      }),
-    [actions],
-  );
-  const handleRemoveItem = useCallback((id: string) => actions.removeFromQueue.mutate(id), [actions]);
-  const handleResume = useCallback(
-    (id: string) =>
-      actions.resumeDownload.mutate(id, {
-        onError: () => toast.error('No se pudo reanudar la descarga'),
-      }),
-    [actions],
-  );
+  const [pendingSwitchIds, setPendingSwitchIds] = useState<Set<string>>(new Set());
+  const [pendingSkipEpKeys, setPendingSkipEpKeys] = useState<Set<string>>(new Set());
   const [pendingEpisodeKeys, setPendingEpisodeKeys] = useState<Set<string>>(new Set());
+  const switchFromRef = useRef(new Map<string, SwitchSnapshot>());
+  const skipEpFromRef = useRef(new Map<string, SwitchSnapshot>());
+  const switchTimeoutRef = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+  const skipEpTimeoutRef = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+
   const markEpisodePending = useCallback((id: string, episode: number, pending: boolean) => {
     const key = `${id}:${episode}`;
     setPendingEpisodeKeys((prev) => {
@@ -1118,6 +1188,126 @@ export function DownloaderView({ onSelectAnime, activeProvider, isActive = true 
       return next;
     });
   }, []);
+
+  const clearSwitchPending = useCallback((id: string) => {
+    setPendingSwitchIds((prev) => {
+      if (!prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+    switchFromRef.current.delete(id);
+    const t = switchTimeoutRef.current.get(id);
+    if (t) {
+      clearTimeout(t);
+      switchTimeoutRef.current.delete(id);
+    }
+  }, []);
+
+  const clearSkipEpPending = useCallback((key: string) => {
+    setPendingSkipEpKeys((prev) => {
+      if (!prev.has(key)) return prev;
+      const next = new Set(prev);
+      next.delete(key);
+      return next;
+    });
+    // Suelta también el pending genérico del EP.
+    setPendingEpisodeKeys((prev) => {
+      if (!prev.has(key)) return prev;
+      const next = new Set(prev);
+      next.delete(key);
+      return next;
+    });
+    skipEpFromRef.current.delete(key);
+    const t = skipEpTimeoutRef.current.get(key);
+    if (t) {
+      clearTimeout(t);
+      skipEpTimeoutRef.current.delete(key);
+    }
+  }, []);
+
+  // El pending del salto se apaga con progreso del servidor nuevo,
+  // al salir de vuelo o a los 10s. El anuncio solo aún trae el % viejo.
+  useEffect(() => {
+    if (pendingSwitchIds.size === 0 && pendingSkipEpKeys.size === 0) return;
+    const byId = new Map((queue as any[]).map((item: any) => [item.id, item]));
+    for (const id of Array.from(pendingSwitchIds)) {
+      const item = byId.get(id);
+      if (
+        shouldClearSwitch({
+          from: switchFromRef.current.get(id),
+          status: item?.status,
+          currentServer: item?.currentServer,
+          currentProgress: item?.progress,
+          activeServers: activeServersOf(item?.activeEps),
+        })
+      ) {
+        clearSwitchPending(id);
+      }
+    }
+    for (const key of Array.from(pendingSkipEpKeys)) {
+      const sep = key.lastIndexOf(':');
+      const id = key.slice(0, sep);
+      const ep = Number(key.slice(sep + 1));
+      const item = byId.get(id);
+      if (!Number.isInteger(ep)) {
+        clearSkipEpPending(key);
+        continue;
+      }
+      if (
+        shouldClearSwitch({
+          from: skipEpFromRef.current.get(key),
+          status: item?.status,
+          currentServer: epServerOf(item, ep),
+          currentProgress: epProgressOf(item, ep),
+          activeServers: activeServersOf(item?.activeEps),
+        })
+      ) {
+        clearSkipEpPending(key);
+      }
+    }
+  }, [queue, pendingSwitchIds, pendingSkipEpKeys, clearSwitchPending, clearSkipEpPending]);
+
+  useEffect(
+    () => () => {
+      for (const t of switchTimeoutRef.current.values()) clearTimeout(t);
+      for (const t of skipEpTimeoutRef.current.values()) clearTimeout(t);
+      switchTimeoutRef.current.clear();
+      skipEpTimeoutRef.current.clear();
+    },
+    [],
+  );
+
+  const handleSkip = useCallback(
+    (id: string) => {
+      const item = (queue as any[]).find((entry: any) => entry.id === id);
+      const server = item?.currentServer as string | undefined;
+      const progress = typeof item?.progress === 'number' ? (item.progress as number) : undefined;
+      switchFromRef.current.set(id, { server, progress });
+      setPendingSwitchIds((prev) => new Set(prev).add(id));
+      const prevTimeout = switchTimeoutRef.current.get(id);
+      if (prevTimeout) clearTimeout(prevTimeout);
+      switchTimeoutRef.current.set(
+        id,
+        setTimeout(() => clearSwitchPending(id), 10_000),
+      );
+      actions.skipServer.mutate(id, {
+        onError: () => {
+          clearSwitchPending(id);
+          toast.error('No se pudo saltar el servidor');
+        },
+      });
+    },
+    [actions, queue, clearSwitchPending],
+  );
+  const handleRemoveItem = useCallback((id: string) => actions.removeFromQueue.mutate(id), [actions]);
+  const handleResume = useCallback(
+    (id: string) =>
+      actions.resumeDownload.mutate(id, {
+        onError: () => toast.error('No se pudo reanudar la descarga'),
+      }),
+    [actions],
+  );
   const handleCancelEpisode = useCallback(
     (id: string, episode: number) => {
       markEpisodePending(id, episode, true);
@@ -1159,16 +1349,28 @@ export function DownloaderView({ onSelectAnime, activeProvider, isActive = true 
   );
   const handleSkipEpisode = useCallback(
     (id: string, episode: number) => {
+      const key = `${id}:${episode}`;
+      const item = (queue as any[]).find((entry: any) => entry.id === id);
+      skipEpFromRef.current.set(key, { server: epServerOf(item, episode), progress: epProgressOf(item, episode) });
       markEpisodePending(id, episode, true);
+      setPendingSkipEpKeys((prev) => new Set(prev).add(key));
+      const prevTimeout = skipEpTimeoutRef.current.get(key);
+      if (prevTimeout) clearTimeout(prevTimeout);
+      skipEpTimeoutRef.current.set(
+        key,
+        setTimeout(() => clearSkipEpPending(key), 10_000),
+      );
       actions.skipEpisode.mutate(
         { id, episode },
         {
-          onError: () => toast.error(`No se pudo saltar servidor de EP ${episode}`),
-          onSettled: () => markEpisodePending(id, episode, false),
+          onError: () => {
+            clearSkipEpPending(key);
+            toast.error(`No se pudo saltar servidor de EP ${episode}`);
+          },
         },
       );
     },
-    [actions, markEpisodePending],
+    [actions, queue, markEpisodePending, clearSkipEpPending],
   );
   const handleRetryFailed = useCallback(
     (id: string) => {
@@ -1270,6 +1472,8 @@ export function DownloaderView({ onSelectAnime, activeProvider, isActive = true 
                 onOpenFolder={handleOpenAnimeFolder}
                 isRetryPending={pendingRetryIds.has(item.id)}
                 pendingEpisodeKeys={pendingEpisodeKeys}
+                pendingSkipEpKeys={pendingSkipEpKeys}
+                isSwitchPending={pendingSwitchIds.has(item.id)}
                 isPriority={idx < 3}
               />
             ))}

@@ -7,6 +7,7 @@ import type { ProviderDownloadLink, QueueItem } from '../types/queue';
 import type { DownloadSettings } from '../types/settings';
 import { normalizeDownloadSettings } from '../utils/downloadSettings';
 import type { DownloadEngine, EngineProgress } from './downloads/downloadContracts';
+import { updateSpeedWindow, type SpeedWindow } from '../utils/speedMeter';
 import { createDefaultDownloadEngines, findDownloadEngine } from './downloads/downloadEngines';
 import type { Mp4UploadResolveFn } from './Mp4UploadResolver';
 import { noopScopedLogger, type ScopedLogger } from './AppLogger';
@@ -17,6 +18,8 @@ export interface EpisodeAttemptProgress {
   progressLog?: string;
   // Fase HLS: solo la emite el descargador nativo (resto: undefined).
   phase?: 'downloading' | 'assembling';
+  speedBps?: number;
+  at?: number;
 }
 
 export interface EpisodeAttemptCallbacks {
@@ -309,7 +312,7 @@ export class EpisodeDownloadAttemptService {
       if (!attemptAbort.signal.aborted && engine) {
         if (!dl.allowContinue) await this.purgeResumeForServer(link.server, dest);
         callbacks.updateTray(`Descargando ${item.animeTitle} - EP ${episode}...`);
-        const progressState = { lastPct: -1 };
+        const progressState = { lastPct: -1, speedWindow: undefined as SpeedWindow | undefined };
         const engineResult = await engine.download(link, {
           item,
           episode,
@@ -383,17 +386,25 @@ export class EpisodeDownloadAttemptService {
     item: QueueItem,
     episode: number,
     server: string,
-    state: { lastPct: number },
+    state: { lastPct: number; speedWindow: SpeedWindow | undefined },
     callbacks: EpisodeAttemptCallbacks,
     engineProgress: EngineProgress,
   ): void {
     const pct = Math.round(engineProgress.fraction01 * 100);
     const changed = pct !== state.lastPct;
+    let speedPart: { speedBps: number; at: number } | null = null;
+    if (engineProgress.phase !== 'assembling' && engineProgress.loadedBytes !== undefined) {
+      const now = Date.now();
+      const res = updateSpeedWindow(state.speedWindow, engineProgress.loadedBytes, now);
+      state.speedWindow = res.window;
+      if (res.speedBps !== undefined) speedPart = { speedBps: res.speedBps, at: now };
+    }
     if (changed || server !== 'Mega') {
       callbacks.onProgress({
         progress: engineProgress.fraction01,
         progressLog: changed ? `   -> EP ${episode} * ${server} * ${pct}%` : undefined,
         ...(engineProgress.phase ? { phase: engineProgress.phase } : {}),
+        ...(speedPart ? { speedBps: speedPart.speedBps, at: speedPart.at } : {}),
       });
     }
     if (changed) state.lastPct = pct;

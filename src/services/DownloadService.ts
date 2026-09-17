@@ -113,7 +113,7 @@ export class DownloadService {
   async downloadMediafire(
     url: string,
     dest: string,
-    onProgress: (p: number) => void,
+    onProgress: (p: number, loadedBytes?: number) => void,
     signal?: AbortSignal,
     referer?: string,
     connections?: number,
@@ -172,7 +172,7 @@ export class DownloadService {
   async downloadDirectAxios(
     url: string,
     dest: string,
-    onProgress: (p: number) => void,
+    onProgress: (p: number, loadedBytes?: number) => void,
     signal?: AbortSignal,
     referer?: string,
     connections?: number,
@@ -199,7 +199,7 @@ export class DownloadService {
   private async downloadDirectRangedOnce(
     url: string,
     dest: string,
-    onProgress: (p: number) => void,
+    onProgress: (p: number, loadedBytes?: number) => void,
     signal?: AbortSignal,
     referer?: string,
     connections?: number,
@@ -253,7 +253,7 @@ export class DownloadService {
   private async downloadDirectAxiosOnce(
     url: string,
     dest: string,
-    onProgress: (p: number) => void,
+    onProgress: (p: number, loadedBytes?: number) => void,
     signal?: AbortSignal,
     referer?: string,
   ): Promise<boolean> {
@@ -423,7 +423,7 @@ export class DownloadService {
           return;
         }
         downloadedLength += chunk.length;
-        if (totalLength > 0) onProgress((offset + downloadedLength) / totalLength);
+        if (totalLength > 0) onProgress((offset + downloadedLength) / totalLength, offset + downloadedLength);
       });
 
       return new Promise((resolve) => {
@@ -488,7 +488,7 @@ export class DownloadService {
   async downloadMega(
     url: string,
     dest: string,
-    onProgress?: (p: number) => void,
+    onProgress?: (p: number, loadedBytes?: number) => void,
     signal?: AbortSignal,
     probe?: AttemptProbe,
     megaFileFactory?: MegaFileFactory,
@@ -622,7 +622,7 @@ export class DownloadService {
     sidecarPath: string,
     startOffset: number,
     totalLength: number,
-    onProgress?: (p: number) => void,
+    onProgress?: (p: number, loadedBytes?: number) => void,
     signal?: AbortSignal,
     probe?: AttemptProbe,
     maxConnections = 6,
@@ -722,7 +722,7 @@ export class DownloadService {
             downloadedLength += chunk.length;
             probe?.onFirstByte?.();
             const fraction = Math.min(1, (startOffset + downloadedLength) / totalLength);
-            if (onProgress) onProgress(fraction);
+            if (onProgress) onProgress(fraction, startOffset + downloadedLength);
             probe?.onProgress?.(fraction, totalLength);
           });
           readable.pipe(activeWriter);

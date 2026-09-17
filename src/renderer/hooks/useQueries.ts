@@ -334,7 +334,14 @@ export function useQueue() {
       currentEp: number | null;
       currentServer?: string;
       status: string;
-      activeEps?: Array<{ episode: number; progress: number; server?: string; phase?: 'downloading' | 'assembling' }>;
+      activeEps?: Array<{
+        episode: number;
+        progress: number;
+        server?: string;
+        phase?: 'downloading' | 'assembling';
+        speedBps?: number;
+        at?: number;
+      }>;
     }) => {
       queryClient.setQueryData(['queue'], (old: any[] | undefined) => {
         if (!old || old.length === 0) return old;

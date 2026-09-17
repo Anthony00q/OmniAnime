@@ -22,7 +22,7 @@ export interface RangedDownloadOptions {
   userAgent: string;
   referer: string;
   signal?: AbortSignal;
-  onProgress?: (fraction01: number) => void;
+  onProgress?: (fraction01: number, loadedBytes?: number) => void;
 }
 
 export function clampDirectConnections(value: unknown): number {
@@ -90,7 +90,7 @@ export async function downloadDirectRanged(
   let confirmed = 0;
   const report = (): void => {
     try {
-      options.onProgress?.(Math.max(0, Math.min(1, confirmed / totalBytes)));
+      options.onProgress?.(Math.max(0, Math.min(1, confirmed / totalBytes)), confirmed);
     } catch {
       /* progress is best-effort */
     }

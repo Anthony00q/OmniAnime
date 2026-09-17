@@ -557,6 +557,14 @@ export class DownloadQueueProcessor {
             : false;
         if (ok && item)
           this.fileLog.info(`EP ${episode} salto manual de servidor`, this.queueFileContext(item, episode));
+        // Avisar ya para que la UI muestre el cambio sin esperar progreso.
+        if (ok) {
+          try {
+            this.options.sendQueueUpdate();
+          } catch {
+            /* aviso best-effort, nunca rompe el salto */
+          }
+        }
         return ok;
       } catch {
         return false;
@@ -572,6 +580,14 @@ export class DownloadQueueProcessor {
       if (typeof svc.skipItem !== 'function') return false;
       const ok = svc.skipItem.call(this.options.attemptService, id);
       if (ok && item) this.fileLog.info(`Salto manual de servidor: ${item.animeTitle}`, this.queueFileContext(item));
+      // Avisar ya para que la UI muestre el cambio sin esperar progreso.
+      if (ok) {
+        try {
+          this.options.sendQueueUpdate();
+        } catch {
+          /* aviso best-effort, nunca rompe el salto */
+        }
+      }
       return ok;
     } catch {
       return false;
@@ -1163,7 +1179,14 @@ export class DownloadQueueProcessor {
       // Secuencial también emite foto de 1 EP: sin ella el Detalle
       // degrada el EP en vuelo a 'queued 0%' aunque el Total avance.
       this.options.scheduleQueueProgress(item, [
-        { episode, progress: display, ...(server ? { server } : {}), ...(update.phase ? { phase: update.phase } : {}) },
+        {
+          episode,
+          progress: display,
+          ...(server ? { server } : {}),
+          ...(update.phase ? { phase: update.phase } : {}),
+          ...(update.speedBps !== undefined ? { speedBps: update.speedBps } : {}),
+          ...(update.at !== undefined ? { at: update.at } : {}),
+        },
       ]);
     } else {
       this.options.scheduleQueueUpdate();
@@ -1350,6 +1373,7 @@ export class DownloadQueueProcessor {
     episodeProgress: Map<number, number>,
     episodeServer: Map<number, string>,
     episodePhase: Map<number, 'downloading' | 'assembling'>,
+    episodeSpeed: Map<number, { speedBps: number; at: number }>,
     episode: number,
     logId: string,
     update: EpisodeAttemptProgress,
@@ -1359,6 +1383,9 @@ export class DownloadQueueProcessor {
     // Fase HLS transitoria para 'Ensamblando'; nunca se persiste.
     if (update.phase) episodePhase.set(episode, update.phase);
     else episodePhase.delete(episode);
+    if (update.speedBps !== undefined && update.at !== undefined) {
+      episodeSpeed.set(episode, { speedBps: update.speedBps, at: update.at });
+    }
     const total = Math.max(1, episodesToProcess.length);
     // Pausados no cuentan como finalizados: su % congelado suma en activeSum
     const isFinal = (ep: number): boolean =>
@@ -1380,6 +1407,8 @@ export class DownloadQueueProcessor {
           progress: Math.max(0, Math.min(1, episodeProgress.get(ep) ?? 0)),
           ...(episodeServer.get(ep) ? { server: episodeServer.get(ep) as string } : {}),
           ...(episodePhase.get(ep) ? { phase: episodePhase.get(ep) as 'downloading' | 'assembling' } : {}),
+          ...(episodeSpeed.get(ep) ? { speedBps: (episodeSpeed.get(ep) as { speedBps: number }).speedBps } : {}),
+          ...(episodeSpeed.get(ep) ? { at: (episodeSpeed.get(ep) as { at: number }).at } : {}),
         });
       }
     }
@@ -1406,6 +1435,7 @@ export class DownloadQueueProcessor {
     const episodeProgress = new Map<number, number>();
     const episodeServer = new Map<number, string>();
     const episodePhase = new Map<number, 'downloading' | 'assembling'>();
+    const episodeSpeed = new Map<number, { speedBps: number; at: number }>();
     // Siembra anti-flash: al reanudar, los mapas arrancan del % congelado
     // solo si retoman Mega (único resume real); el resto publica ceros
     // honestos hasta que llega el progreso vivo.
@@ -1536,6 +1566,7 @@ export class DownloadQueueProcessor {
                 episodeProgress,
                 episodeServer,
                 episodePhase,
+                episodeSpeed,
                 episode,
                 logId,
                 update,

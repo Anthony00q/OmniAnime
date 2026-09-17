@@ -22,6 +22,7 @@ export interface HlsDownloadProgress {
   doneSegments: number;
   totalSegments: number;
   phase: 'downloading' | 'assembling';
+  loadedBytes?: number;
 }
 
 export interface HlsDownloadDeps {
@@ -232,9 +233,11 @@ export async function downloadHlsToMp4(
       return { ok: false, error: (error as Error)?.message || 'segmento HLS no válido' };
     }
     let mapBytes: Buffer | null = null;
+    let downloadedBytes = 0;
     if (media.mapUri) {
       try {
         mapBytes = await fetchBytes(assertSameOriginUrl(media.mapUri, mediaBase));
+        downloadedBytes += mapBytes.length;
       } catch (error: unknown) {
         if (signal?.aborted || isAbortError(error)) return { ok: false, aborted: true, error: 'descarga abortada' };
         return { ok: false, error: `no se pudo leer el init HLS: ${(error as Error)?.message || error}` };
@@ -263,6 +266,7 @@ export async function downloadHlsToMp4(
           phase,
           doneSegments: done,
           totalSegments: total,
+          loadedBytes: downloadedBytes,
         });
       } catch {
         /* progreso best-effort */
@@ -300,6 +304,7 @@ export async function downloadHlsToMp4(
             segmentParts[i] = partPath;
             done += 1;
             resumedSegments += 1;
+            downloadedBytes += st.size;
           }
         } catch {
           /* hueco: se descarga */
@@ -321,6 +326,7 @@ export async function downloadHlsToMp4(
           await fsp.rename(`${partPath}.downloading`, partPath);
           segmentParts[index] = partPath;
           done += 1;
+          downloadedBytes += bytes.length;
           report();
           return partPath;
         } catch (error: unknown) {
