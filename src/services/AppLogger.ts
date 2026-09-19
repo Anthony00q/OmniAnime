@@ -19,6 +19,7 @@ export type LogScope =
   | 'queue'
   | 'download'
   | 'provider'
+  | 'anilist'
   | 'db'
   | 'settings'
   | 'window'

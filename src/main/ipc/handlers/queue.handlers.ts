@@ -80,7 +80,9 @@ export function registerQueueHandlers(dependencies: IpcRegistryDependencies): vo
         [localPosterUrl, localBannerUrl] = await Promise.all([
           ensureFolderPoster(targetPath, details.poster || null),
           (async () => {
-            const resolved = await resolveAniListBannerResult(anilistInput);
+            const resolved = await resolveAniListBannerResult(anilistInput, undefined, (kind) => {
+              if (kind !== 'nomatch') scopedLog('anilist').warn(`banner no resuelto (${kind})`);
+            });
             anilistBannerUrl = resolved?.banner ?? null;
             return anilistBannerUrl ? ensureFolderBanner(targetPath, anilistBannerUrl) : null;
           })(),

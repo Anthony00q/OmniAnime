@@ -3,7 +3,8 @@ import { resolveAniListBannerResult } from '../../anilistBanner';
 import type { IpcRegistryDependencies } from '../../IpcRegistry';
 
 // Banner y estudio opcionales: ante error o duda devuelve null y la ficha sigue igual.
-export function registerAniListHandlers({ writeGlobalLog }: IpcRegistryDependencies): void {
+export function registerAniListHandlers({ writeGlobalLog, scopedLog }: IpcRegistryDependencies): void {
+  const fileLog = scopedLog('anilist');
   ipcMain.handle(
     'get-anilist-banner',
     async (
@@ -34,14 +35,20 @@ export function registerAniListHandlers({ writeGlobalLog }: IpcRegistryDependenc
           typeof raw.providerYear === 'number' || typeof raw.providerYear === 'string' ? raw.providerYear : undefined;
         const providerFormat = typeof raw.providerFormat === 'string' ? raw.providerFormat : undefined;
         const providerSeason = typeof raw.providerSeason === 'string' ? raw.providerSeason : undefined;
-        const resolved = await resolveAniListBannerResult({
-          title,
-          alternativeTitles,
-          providerYear,
-          providerFormat,
-          providerSeason,
-          malId: hasMalId ? malId : null,
-        });
+        const resolved = await resolveAniListBannerResult(
+          {
+            title,
+            alternativeTitles,
+            providerYear,
+            providerFormat,
+            providerSeason,
+            malId: hasMalId ? malId : null,
+          },
+          undefined,
+          (kind) => {
+            if (kind !== 'nomatch') fileLog.warn(`banner no resuelto (${kind})`);
+          },
+        );
         if (!resolved) return null;
         return { anilistId: resolved.anilistId, banner: resolved.banner, studio: resolved.studio ?? null };
       } catch (error) {
