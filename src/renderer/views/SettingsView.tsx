@@ -487,7 +487,7 @@ export function SettingsView({ isActive = true }: { isActive?: boolean }) {
               />
             )}
 
-            {activeTab === 'registros' && <LogsTab isActive={isActive} settings={settings} onChange={handleChange} />}
+            {activeTab === 'registros' && <LogsTab isActive={isActive} />}
 
             {activeTab === 'apariencia' && (
               <AppearanceTab

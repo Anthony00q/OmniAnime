@@ -8,7 +8,9 @@ import {
   LOG_VIEW_MAX_TOTAL_BYTES,
   capEntryText,
   isKnownLogFile,
+  listLogFilenames,
   paginateLogEntries,
+  splitDeletableLogFiles,
   removeLogEntries,
   selectLogEntriesFromSources,
 } from '../../../utils/logPage';
@@ -26,6 +28,33 @@ function rewriteLogFileSync(file: string, kept: string): void {
 }
 
 export function registerLogsHandlers(dependencies: IpcRegistryDependencies): void {
+  ipcMain.handle('get-log-filenames', async () => {
+    try {
+      const logDir = path.dirname(dependencies.getLogPath());
+      const current = path.basename(dependencies.getLogPath());
+      let names: string[] = [];
+      try {
+        names = await fs.promises.readdir(logDir);
+      } catch {
+        return { ok: true as const, files: [], current, sessionStart: dependencies.getSessionStart() };
+      }
+      const files = listLogFilenames(names);
+      const detailed = await Promise.all(
+        files.slice(0, LOG_VIEW_MAX_FILES).map(async (name) => {
+          try {
+            const st = await fs.promises.stat(path.join(logDir, name));
+            return { name, size: st.size, mtimeMs: st.mtimeMs, isCurrent: name === current };
+          } catch {
+            return { name, size: 0, mtimeMs: 0, isCurrent: name === current };
+          }
+        }),
+      );
+      return { ok: true as const, files: detailed, current, sessionStart: dependencies.getSessionStart() };
+    } catch (error) {
+      dependencies.writeGlobalLog(error);
+      return { ok: false as const, files: [], current: '', sessionStart: '' };
+    }
+  });
   ipcMain.handle(
     'get-log-page',
     async (
@@ -37,6 +66,7 @@ export function registerLogsHandlers(dependencies: IpcRegistryDependencies): voi
         cursor?: number;
         limit?: number;
         sessionOnly?: boolean;
+        filename?: string;
       },
     ) => {
       try {
@@ -123,6 +153,39 @@ export function registerLogsHandlers(dependencies: IpcRegistryDependencies): voi
     } catch (error) {
       dependencies.writeGlobalLog(error);
       return { ok: false as const, deleted: 0, skipped: 0, error: 'No se pudieron eliminar las entradas' };
+    }
+  });
+
+  ipcMain.handle('delete-log-files', async (_, payload?: { files?: unknown }) => {
+    try {
+      const logDir = path.dirname(dependencies.getLogPath());
+      const current = path.basename(dependencies.getLogPath());
+      const { deletable, skipped: invalid } = splitDeletableLogFiles(payload?.files, current);
+      let deleted = 0;
+      let skipped = invalid;
+      for (const name of deletable) {
+        const fullPath = path.join(logDir, name);
+        if (path.resolve(fullPath) === path.resolve(dependencies.getLogPath())) {
+          skipped += 1;
+          continue;
+        }
+        if (!fs.existsSync(fullPath)) {
+          skipped += 1;
+          continue;
+        }
+        try {
+          fs.rmSync(fullPath, { force: true });
+          deleted += 1;
+        } catch (rewriteError) {
+          dependencies.writeGlobalLog(rewriteError);
+          skipped += 1;
+        }
+      }
+      if (deleted === 0) return { ok: false as const, deleted, skipped, error: 'Nada que liberar' };
+      return { ok: true as const, deleted, skipped };
+    } catch (error) {
+      dependencies.writeGlobalLog(error);
+      return { ok: false as const, deleted: 0, skipped: 0, error: 'No se pudo liberar espacio' };
     }
   });
 

@@ -86,6 +86,8 @@ var INVOKE_CHANNELS = new Set([
   'import-settings',
   'get-system-info',
   'get-log-page',
+  'get-log-filenames',
+  'delete-log-files',
   'export-diagnostics',
   'delete-log-entries',
   'renderer-ready',

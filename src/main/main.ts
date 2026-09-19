@@ -64,7 +64,8 @@ try {
 } catch {}
 
 const runtimeDirectories = createRuntimeDirectories(app.getPath('userData'));
-const appLogger = new AppLogger(runtimeDirectories, { appVersion: app.getVersion() });
+const bootDate = new Date();
+const appLogger = new AppLogger(runtimeDirectories, { appVersion: app.getVersion(), sessionDate: bootDate });
 const writeGlobalLog = (error: unknown, isRenderer = false): void => appLogger.write(error, isRenderer);
 const scopedLog = (scope: LogScope): ScopedLogger => appLogger.child(scope);
 function applyLoggingSettings(): void {
@@ -75,7 +76,7 @@ function applyLoggingSettings(): void {
     appLogger.setMinLevel('info');
   }
 }
-const sessionStartIso = new Date().toISOString();
+const sessionStartIso = bootDate.toISOString();
 // El nivel del usuario antes de podar/escribir cabecera: los primeros logs
 // ya respetan su ajuste en vez del 'info' por defecto.
 applyLoggingSettings();

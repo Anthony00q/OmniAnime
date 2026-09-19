@@ -42,6 +42,7 @@ export interface AppLoggerOptions {
   appVersion?: string;
   homeDir?: string;
   minLevel?: LogLevel;
+  sessionDate?: Date;
 }
 
 export interface LogTail {
@@ -107,8 +108,10 @@ export class AppLogger {
     this.appVersion = options?.appVersion;
     this.homeDir = options?.homeDir ?? os.homedir();
     this.minLevel = options?.minLevel ?? 'info';
-    this.sessionFilename = buildSessionFilename(new Date());
+    this.sessionFilename = buildSessionFilename(options?.sessionDate ?? new Date());
   }
+
+  flush(): void {}
 
   getLogFile(): string {
     return path.join(this.directories.logDir, this.sessionFilename);
@@ -152,6 +155,29 @@ export class AppLogger {
           }
         } catch {}
       }
+      try {
+        const cutoff = Date.now() - 14 * 24 * 60 * 60 * 1000;
+        const sessions = fs
+          .readdirSync(this.directories.logDir)
+          .filter((n) => SESSION_FILE_RE.test(n))
+          .sort();
+        if (sessions.length > 1) {
+          const newest = sessions[sessions.length - 1];
+          for (const name of sessions) {
+            if (name === newest || name === this.sessionFilename) continue;
+            try {
+              const st = fs.statSync(path.join(this.directories.logDir, name), { throwIfNoEntry: false });
+              if (st && st.isFile() && st.mtimeMs < cutoff) {
+                fs.rmSync(path.join(this.directories.logDir, name), { force: true });
+                removed += 1;
+                try {
+                  fs.rmSync(path.join(this.directories.logDir, `${name}.1.log`), { force: true });
+                } catch {}
+              }
+            } catch {}
+          }
+        }
+      } catch {}
       return { kept: keptNames.length, removed };
     } catch {
       return { kept: 0, removed: 0 };

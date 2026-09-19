@@ -1,64 +1,76 @@
-import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Check,
-  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  Copy,
   Download,
   FileText,
   FolderOpen,
-  Info,
   Loader2,
-  RefreshCw,
-  SlidersHorizontal,
+  RefreshCcw,
+  SquarePen,
   Trash2,
 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { CustomSelect } from '../../../components/CustomSelect';
-import { CustomSwitch } from '../../../components/CustomSwitch';
 import { Dialog } from '../../../components/Dialog';
 import { AppTooltip } from '../../../components/ui/AppTooltip';
 import { EmptyState } from '../../../components/ui/EmptyState';
-import { SearchField } from '../../../components/ui/SearchField';
-import { useLogPages } from '../../../hooks/useQueries';
+import { useLogFilePage, useLogFilenames } from '../../../hooks/useQueries';
 import { exportDiagnostics, revealLogFile } from '../../../utils/diagnosticsActions';
-import { groupLogEntriesByFile, isDeletableEntry } from '../../../../utils/logPage';
+import { filterLogFilenames } from '../../../../utils/logPage';
 
-const LEVEL_OPTIONS = [
-  { value: 'all', label: 'Todos los niveles' },
-  { value: 'debug', label: 'Debug' },
-  { value: 'info', label: 'Info' },
-  { value: 'warn', label: 'Avisos' },
-  { value: 'error', label: 'Errores' },
+const FILE_FILTER_OPTIONS = [
+  { value: 'all', label: 'Todas' },
+  { value: 'backup', label: 'Respaldos' },
 ];
 
-const SCOPE_OPTIONS = [
-  { value: 'all', label: 'Todos los módulos' },
-  { value: 'app', label: 'App' },
-  { value: 'queue', label: 'Cola' },
-  { value: 'download', label: 'Descarga' },
-  { value: 'provider', label: 'Proveedor' },
-  { value: 'db', label: 'Base de datos' },
-  { value: 'settings', label: 'Ajustes' },
-  { value: 'window', label: 'Ventana' },
-  { value: 'splash', label: 'Arranque' },
-  { value: 'protocol', label: 'Protocolo' },
-  { value: 'ui', label: 'Interfaz' },
-  { value: 'ipc', label: 'IPC' },
-  { value: 'updater', label: 'Actualizaciones' },
+const PAGE_SIZE_OPTIONS = [
+  { value: '5', label: '5 por página' },
+  { value: '10', label: '10 por página' },
+  { value: '20', label: '20 por página' },
 ];
 
-const LEVEL_STYLE: Record<string, string> = {
-  debug: 'bg-secondary text-muted-foreground border-border',
-  info: 'bg-primary/10 text-primary border-primary/20',
-  warn: 'bg-amber-500/10 text-amber-600 border-amber-500/20',
-  error: 'bg-destructive/10 text-destructive-fg border-destructive/20',
-  session: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20',
-};
+export function levelTone(level: string): string {
+  if (level === 'error') return 'text-destructive-fg';
+  if (level === 'warn') return 'text-warning';
+  if (level === 'info') return 'text-info';
+  return 'text-muted-foreground';
+}
 
-// Tope de páginas acumuladas: sin virtualizar, miles de filas degradan el scroll y la escritura.
-const MAX_LOADED_ENTRIES = 1000;
+export const MODAL_MAX_ENTRIES = 2000;
 
-function DeleteCheckbox({
+function formatSize(bytes: number): string {
+  if (!bytes || bytes <= 0) return '0 B';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
+}
+
+async function copyText(text: string, okMessage: string): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(text);
+    toast.success(okMessage);
+  } catch {
+    try {
+      const area = document.createElement('textarea');
+      area.value = text;
+      document.body.appendChild(area);
+      area.select();
+      document.execCommand('copy');
+      document.body.removeChild(area);
+      toast.success(okMessage);
+    } catch {
+      toast.error('No se pudo copiar');
+    }
+  }
+}
+
+function RowCheck({
   checked,
   disabled,
   label,
@@ -70,7 +82,7 @@ function DeleteCheckbox({
   onToggle: () => void;
 }) {
   return (
-    <AppTooltip content={disabled ? 'La sesión actual está protegida; el resto se puede eliminar.' : ''}>
+    <AppTooltip content={disabled ? 'La sesión en curso se conserva siempre.' : ''}>
       <span className="inline-flex shrink-0">
         <button
           type="button"
@@ -78,7 +90,10 @@ function DeleteCheckbox({
           aria-checked={checked}
           aria-label={label}
           disabled={disabled}
-          onClick={onToggle}
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggle();
+          }}
           className="inline-flex h-[18px] w-[18px] items-center justify-center rounded-[5px] border border-border bg-background transition-colors hover:border-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:cursor-not-allowed disabled:opacity-40 data-[checked=true]:border-primary data-[checked=true]:bg-primary data-[checked=true]:text-primary-foreground"
           data-checked={checked}
         >
@@ -89,476 +104,347 @@ function DeleteCheckbox({
   );
 }
 
-const entryKey = (e: any): string => `${e.file || ''}\n${e.text}`;
-
-const LogEntryRow = memo(function LogEntryRow({
-  entry,
-  index,
-  checked,
-  canDelete,
-  open,
-  collapsible,
-  onToggle,
-  onToggleOpen,
-}: {
-  entry: any;
-  index: number;
-  checked: boolean;
-  canDelete: boolean;
-  open: boolean;
-  collapsible: boolean;
-  onToggle: (entry: any) => void;
-  onToggleOpen: (entry: any) => void;
-}) {
-  const e = entry;
-  return (
-    <li key={`${e.file || ''}-${e.ts}-${index}`} className="px-3 py-2.5">
-      <div className="flex items-center gap-2 mb-1">
-        <DeleteCheckbox
-          checked={checked}
-          disabled={!canDelete}
-          label="Seleccionar entrada para eliminar"
-          onToggle={() => onToggle(e)}
-        />
-        <span
-          className={`shrink-0 text-[11px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded border ${LEVEL_STYLE[e.level] || LEVEL_STYLE.info}`}
-        >
-          {e.level}
-        </span>
-        <span className="text-[11px] font-mono text-muted-foreground">{e.scope}</span>
-        {e.ts ? (
-          <span className="text-[11px] font-mono text-muted-foreground tabular-nums ml-auto">
-            {new Date(e.ts).toLocaleString()}
-          </span>
-        ) : null}
-        {collapsible ? (
-          <button
-            type="button"
-            onClick={() => onToggleOpen(e)}
-            aria-expanded={open}
-            aria-label={open ? 'Contraer entrada' : 'Expandir entrada'}
-            className="inline-flex shrink-0 h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
-          >
-            <ChevronDown
-              className={`w-3.5 h-3.5 transition-transform duration-200 ease-out motion-reduce:transition-none ${open ? 'rotate-180' : ''}`}
-            />
-          </button>
-        ) : null}
-      </div>
-      {collapsible ? (
-        <div
-          className={`grid transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none ${open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}
-        >
-          <div className="overflow-hidden">
-            <pre className="text-xs font-mono leading-relaxed whitespace-pre-wrap break-all select-text text-foreground/90">
-              {e.text}
-            </pre>
-          </div>
-        </div>
-      ) : (
-        <pre className="text-xs font-mono leading-relaxed whitespace-pre-wrap break-all select-text text-foreground/90">
-          {e.text}
-        </pre>
-      )}
-    </li>
-  );
-});
-
 interface LogsTabProps {
   isActive?: boolean;
-  settings: any;
-  onChange: (key: string, value: any, category?: string) => void;
 }
 
-export const LogsTab = memo(function LogsTab({ isActive = true, settings, onChange }: LogsTabProps) {
-  const [level, setLevel] = useState('all');
-  const [scope, setScope] = useState('all');
-  const [query, setQuery] = useState('');
-  const [appliedQuery, setAppliedQuery] = useState('');
-  const [view, setView] = useState<'session' | 'all'>('session');
-  useEffect(() => {
-    const timer = setTimeout(() => setAppliedQuery(query.trim()), 400);
-    return () => clearTimeout(timer);
-  }, [query]);
-  const filters = useMemo(
-    () =>
-      view === 'session'
-        ? { level: 'all', scope: 'all', query: appliedQuery, sessionOnly: true as const }
-        : { level, scope, query: appliedQuery, sessionOnly: false as const },
-    [view, level, scope, appliedQuery],
-  );
-  const logQuery: any = useLogPages(filters, isActive);
-  const entries: any[] = useMemo(
-    () => (logQuery.data?.pages || []).flatMap((p: any) => p?.entries || []),
-    [logQuery.data],
-  );
-  // Agrupado por sesión/fichero: evita ver cabeceras SESSION y errores sueltos sin contexto.
-  const groups: Array<{ file: string; label: string; entries: any[] }> = useMemo(
-    () => groupLogEntriesByFile(entries),
-    [entries],
-  );
-  const total = logQuery.data?.pages?.[0]?.total ?? 0;
-  const sessionStart = (logQuery.data?.pages?.[0] as any)?.sessionStart || '';
-  const logging = (settings as any)?.logging || {};
-  const verbose = logging.verbose === true;
-  const minLevel = typeof logging.level === 'string' ? logging.level : 'info';
-  const queryClient = useQueryClient();
-  // Por contenido: los duplicados identicos comparten clave y se borran juntos
-  // (mismo contrato que removeLogEntries en main).
+export const LogsTab = memo(function LogsTab({ isActive = true }: LogsTabProps) {
+  const [fileFilter, setFileFilter] = useState('all');
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(5);
+  const [openFile, setOpenFile] = useState<string | null>(null);
+  const [copying, setCopying] = useState(false);
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
-  const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [spinning, setSpinning] = useState(false);
+  const spinTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const queryClient = useQueryClient();
+  const filesQuery: any = useLogFilenames(isActive);
+  const files: Array<{ name: string; size: number; mtimeMs: number; isCurrent: boolean }> = useMemo(
+    () => filesQuery.data?.files || [],
+    [filesQuery.data],
+  );
+  const currentName: string = filesQuery.data?.current || '';
+  const filtered = useMemo(
+    () =>
+      filterLogFilenames(
+        files.map((f) => f.name),
+        fileFilter as any,
+        currentName,
+      ),
+    [files, fileFilter, currentName],
+  );
+  const fileRows = useMemo(() => files.filter((f) => filtered.includes(f.name)), [files, filtered]);
+  const pageCount = Math.max(1, Math.ceil(fileRows.length / pageSize));
+  const safePage = Math.min(page, pageCount - 1);
+  const visible = fileRows.slice(safePage * pageSize, safePage * pageSize + pageSize);
+  const eligibleAll = useMemo(() => fileRows.filter((f) => !f.isCurrent), [fileRows]);
+  const allChecked = eligibleAll.length > 0 && eligibleAll.every((f) => selected.has(f.name));
+
+  useEffect(() => {
+    setPage(0);
+  }, [fileFilter, files.length, pageSize]);
 
   useEffect(() => {
     setSelected(new Set());
-    setExpanded(new Set());
-  }, [view, level, scope, appliedQuery]);
+  }, [fileFilter]);
 
-  const applySearch = () => setAppliedQuery(query.trim());
-  const entryDeletable = useCallback((ts: string): boolean => isDeletableEntry(ts, { sessionStart }), [sessionStart]);
-  const toggleEntry = useCallback((entry: any) => {
-    const key = entryKey(entry);
+  useEffect(() => {
+    return () => {
+      if (spinTimer.current) clearTimeout(spinTimer.current);
+    };
+  }, []);
+
+  const handleReload = async () => {
+    if (spinning) return;
+    setSpinning(true);
+    try {
+      await filesQuery.refetch();
+    } catch {
+    } finally {
+      spinTimer.current = setTimeout(() => setSpinning(false), 400);
+    }
+  };
+
+  const fileQuery: any = useLogFilePage(openFile, isActive && !!openFile);
+  const modalEntries: any[] = useMemo(
+    () => (fileQuery.data?.pages || []).flatMap((p: any) => p?.entries || []),
+    [fileQuery.data],
+  );
+
+  const toggleFile = (name: string) => {
     setSelected((prev) => {
       const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
       return next;
     });
-  }, []);
-  const toggleOpen = useCallback((entry: any) => {
-    const key = entryKey(entry);
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-  }, []);
-  const eligibleLoaded = useMemo(() => entries.filter((e: any) => entryDeletable(e.ts)), [entries, entryDeletable]);
-  const allEligibleChecked = eligibleLoaded.length > 0 && eligibleLoaded.every((e: any) => selected.has(entryKey(e)));
-  const toggleAllEligible = useCallback(() => {
+  };
+
+  const toggleAll = () => {
     setSelected((prev) => {
       const next = new Set(prev);
-      if (eligibleLoaded.every((e: any) => next.has(entryKey(e)))) {
-        for (const e of eligibleLoaded) next.delete(entryKey(e));
+      if (eligibleAll.every((f) => next.has(f.name))) {
+        for (const f of eligibleAll) next.delete(f.name);
       } else {
-        for (const e of eligibleLoaded) next.add(entryKey(e));
+        for (const f of eligibleAll) next.add(f.name);
       }
       return next;
     });
-  }, [eligibleLoaded]);
-  // Filas visibles afectadas (los duplicados identicos cuentan cada uno).
-  const affectedRows = useMemo(() => entries.filter((e: any) => selected.has(entryKey(e))).length, [entries, selected]);
+  };
 
   const handleDelete = async () => {
     if (selected.size === 0 || deleting) return;
     setDeleting(true);
     try {
-      const items = entries
-        .filter((e: any) => selected.has(entryKey(e)))
-        .map((e: any) => ({ file: e.file || '', text: e.text }));
-      const res: any = await window.api.invoke('delete-log-entries', { items });
+      const res: any = await window.api.invoke('delete-log-files', { files: [...selected] });
       if (res?.ok === true) {
         toast.success(
-          res.deleted === 1 ? '1 entrada eliminada' : `${res.deleted} entradas eliminadas`,
-          res.skipped > 0 ? { description: `${res.skipped} protegida(s) omitida(s)` } : undefined,
+          res.deleted === 1 ? 'Espacio liberado: 1 sesión anterior' : `Espacio liberado: ${res.deleted} sesiones`,
+          res.skipped > 0 ? { description: `${res.skipped} omitida(s)` } : undefined,
         );
+        if (openFile && selected.has(openFile)) setOpenFile(null);
         setSelected(new Set());
-        await queryClient.invalidateQueries({ queryKey: ['log-page'] });
+        await queryClient.invalidateQueries({ queryKey: ['log-filenames'] });
       } else {
-        toast.error('No se pudieron eliminar', { description: String(res?.error || 'Sin datos') });
+        toast.error('Nada que liberar', { description: String(res?.error || 'Sin datos') });
       }
     } catch (e: any) {
-      toast.error('No se pudieron eliminar', { description: String(e?.message || e) });
+      toast.error('No se pudo liberar espacio', { description: String(e?.message || e) });
     } finally {
       setDeleting(false);
       setConfirmOpen(false);
     }
   };
 
+  const handleCopyCurrent = async () => {
+    if (copying || !currentName) return;
+    setCopying(true);
+    try {
+      const res: any = await window.api.invoke('get-log-page', {
+        level: 'all',
+        scope: 'all',
+        query: '',
+        sessionOnly: false,
+        filename: currentName,
+        cursor: 0,
+        limit: 500,
+      });
+      const entries = res?.entries || [];
+      if (entries.length === 0) {
+        toast.error('Esta sesión aún está en blanco');
+        return;
+      }
+      const body = entries.map((e: any) => e.text).join('\n\n');
+      await copyText(res?.nextCursor != null ? `${body}\n\n…[recortado]` : body, 'Sesión actual copiada');
+    } catch {
+      toast.error('No se pudo copiar la sesión');
+    } finally {
+      setCopying(false);
+    }
+  };
+
+  const handleCopyModal = async () => {
+    if (modalEntries.length === 0) return;
+    await copyText(modalEntries.map((e: any) => e.text).join('\n\n'), 'Sesión copiada');
+  };
+
   return (
     <>
-      <section className="rounded-2xl border border-border/50 bg-card shadow-sm p-5 sm:p-6">
-        <div className="flex items-center gap-2 mb-4">
+      <section
+        className="rounded-2xl border border-border/50 bg-card shadow-sm p-5 sm:p-6"
+        aria-label="Registro de sesiones"
+      >
+        <div className="flex items-center gap-2 mb-1">
           <div className="p-1.5 bg-primary/10 rounded-lg">
-            <SlidersHorizontal className="w-4 h-4 text-primary" />
+            <SquarePen className="w-4 h-4 text-primary" />
           </div>
-          <h3 className="text-sm font-bold tracking-tight">Nivel de registro</h3>
-        </div>
-        <div className="rounded-xl border border-border/60 bg-background p-4 flex flex-col gap-1">
-          <div className="flex gap-3">
-            <div className="min-w-0 flex-1">
-              <span className="flex items-center gap-1.5 text-sm font-semibold select-none">
-                Registro detallado
-                <AppTooltip content="Guarda trazas de proveedores y reintentos. Cada sesión rota a 2 MB con una copia de respaldo y se conservan hasta 50 sesiones (unos 200 MB como máximo).">
-                  <span aria-hidden="true" className="inline-flex text-muted-foreground">
-                    <Info className="w-3.5 h-3.5" />
-                  </span>
-                </AppTooltip>
-              </span>
-              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                Úsalo solo para diagnosticar, ocupa más disco.
-              </p>
-            </div>
-            <CustomSwitch
-              checked={verbose}
-              onChange={(c) => onChange('verbose', c, 'logging')}
-              ariaLabel="Registro detallado"
-            />
+          <div>
+            <h3 className="text-base font-extrabold tracking-tight">Registro de sesiones</h3>
+            <p className="text-xs text-muted-foreground">Un fichero por cada arranque de la aplicación</p>
           </div>
-          <div className="flex items-center justify-between gap-3 pt-1">
-            <span className="flex items-center gap-1.5 text-sm font-medium text-foreground select-none">
-              Nivel mínimo
-              <AppTooltip content="De más a menos detalle: Debug, Info, Avisos y Errores. Con Errores solo se guarda lo importante.">
-                <span aria-hidden="true" className="inline-flex text-muted-foreground">
-                  <Info className="w-3.5 h-3.5" />
-                </span>
-              </AppTooltip>
-            </span>
-            <CustomSelect
-              value={minLevel}
-              options={LEVEL_OPTIONS.filter((o) => o.value !== 'all')}
-              onChange={(v) => onChange('level', v, 'logging')}
-              ariaLabel="Nivel mínimo de registro"
-            />
-          </div>
-          {verbose ? (
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              Con el registro detallado, el nivel efectivo es Debug.
-            </p>
-          ) : null}
-        </div>
-        <p className="text-xs text-muted-foreground mt-3 leading-relaxed">Se aplica al guardar los ajustes.</p>
-      </section>
-
-      <section className="rounded-2xl border border-border/50 bg-card shadow-sm p-5 sm:p-6">
-        <div className="flex items-center justify-between gap-2 mb-4">
-          <div className="flex items-center gap-2">
-            <div className="p-1.5 bg-primary/10 rounded-lg">
-              <FileText className="w-4 h-4 text-primary" />
-            </div>
-            <h3 className="text-sm font-bold tracking-tight">Visor del registro</h3>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <AppTooltip
-              content={
-                <span className="block space-y-1">
-                  <span className="block font-semibold">Módulos del registro</span>
-                  <span className="block">
-                    <span className="font-mono">app:</span> general
-                  </span>
-                  <span className="block">
-                    <span className="font-mono">queue:</span> descargas
-                  </span>
-                  <span className="block">
-                    <span className="font-mono">download:</span> motor y servidores
-                  </span>
-                  <span className="block">
-                    <span className="font-mono">provider:</span> AnimeAV1 / JkAnime
-                  </span>
-                  <span className="block">
-                    <span className="font-mono">db:</span> base de datos
-                  </span>
-                  <span className="block">
-                    <span className="font-mono">settings:</span> ajustes
-                  </span>
-                  <span className="block">
-                    <span className="font-mono">window:</span> ventana y bandeja
-                  </span>
-                  <span className="block">
-                    <span className="font-mono">protocol:</span> imágenes locales
-                  </span>
-                  <span className="block">
-                    <span className="font-mono">ui:</span> interfaz (llegan como app)
-                  </span>
-                  <span className="block">
-                    <span className="font-mono">splash/ipc/updater:</span> arranque, IPC y updates
-                  </span>
-                </span>
-              }
-            >
-              <span aria-hidden="true" className="inline-flex text-muted-foreground">
-                <Info className="w-4 h-4" />
-              </span>
-            </AppTooltip>
-            <button
-              type="button"
-              onClick={() => logQuery.refetch()}
-              disabled={logQuery.isFetching}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-secondary hover:bg-secondary/80 border border-border rounded-lg text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-50"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${logQuery.isFetching ? 'animate-spin' : ''}`} />
-              Recargar
-            </button>
-          </div>
-        </div>
-        <div
-          role="group"
-          aria-label="Alcance del registro"
-          className="inline-flex rounded-xl border border-border/60 bg-background p-1 gap-1 mb-3"
-        >
-          {(
-            [
-              { value: 'session', label: 'Sesión actual' },
-              { value: 'all', label: 'Todas las sesiones' },
-            ] as const
-          ).map((o) => (
-            <button
-              key={o.value}
-              type="button"
-              aria-pressed={view === o.value}
-              onClick={() => setView(o.value)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 ${
-                view === o.value ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              {o.label}
-            </button>
-          ))}
-        </div>
-        <div className={`grid grid-cols-1 gap-2 mb-3 ${view === 'all' ? 'sm:grid-cols-3' : ''}`}>
-          {view === 'all' ? (
-            <>
-              <CustomSelect value={level} options={LEVEL_OPTIONS} onChange={setLevel} ariaLabel="Filtrar por nivel" />
-              <CustomSelect value={scope} options={SCOPE_OPTIONS} onChange={setScope} ariaLabel="Filtrar por módulo" />
-            </>
-          ) : null}
-          <SearchField
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            onSubmit={applySearch}
-            onClear={() => {
-              setQuery('');
-              setAppliedQuery('');
-            }}
-            placeholder="Buscar en el registro..."
-            ariaLabel="Buscar en el registro"
-          />
-        </div>
-        {logQuery.isLoading ? (
-          <div className="flex items-center justify-center py-8" role="status" aria-label="Cargando registro">
-            <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-          </div>
-        ) : logQuery.isError ? (
-          <div className="rounded-xl bg-destructive/5 border border-destructive/20 p-4 text-sm text-muted-foreground flex items-center justify-between gap-3">
-            <span>No se pudo leer el registro.</span>
-            <button
-              type="button"
-              onClick={() => logQuery.refetch()}
-              className="px-3 py-1.5 bg-background border border-border rounded-lg text-xs font-semibold"
-            >
-              Reintentar
-            </button>
-          </div>
-        ) : entries.length === 0 ? (
-          <EmptyState
-            title="Sin entradas"
-            description={
-              view === 'session'
-                ? 'No hay registros en esta sesión con esa búsqueda. Prueba con otro texto o mira Todas las sesiones.'
-                : 'No hay registros con esos filtros. Prueba con Todos los niveles o activa el registro detallado.'
-            }
-            actionLabel="Limpiar filtros"
-            onAction={() => {
-              setLevel('all');
-              setScope('all');
-              setQuery('');
-              setAppliedQuery('');
-            }}
-          />
-        ) : (
-          <div className="rounded-xl border border-border/60 bg-background overflow-hidden">
-            <div className="px-3 py-2 border-b border-border/40 text-[11px] text-muted-foreground flex items-center gap-2">
-              {view === 'all' ? (
-                <DeleteCheckbox
-                  checked={allEligibleChecked}
-                  disabled={eligibleLoaded.length === 0}
-                  label="Seleccionar entradas visibles para eliminar"
-                  onToggle={toggleAllEligible}
-                />
-              ) : null}
-              <span>
-                {view === 'session' ? (
-                  <>
-                    {total} {total === 1 ? 'entrada' : 'entradas'} de esta sesión
-                  </>
-                ) : selected.size > 0 ? (
-                  <>
-                    {affectedRows} {affectedRows === 1 ? 'seleccionada' : 'seleccionadas'} de {total}
-                  </>
-                ) : (
-                  <>
-                    {total} {total === 1 ? 'entrada' : 'entradas'}
-                  </>
-                )}
-                {logQuery.isFetching ? ' · Actualizando...' : ''}
-              </span>
-              {view === 'session' ? <span className="ml-auto shrink-0">La sesión actual está protegida</span> : null}
-              {view === 'all' && selected.size > 0 ? (
-                <span className="ml-auto flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setSelected(new Set())}
-                    className="font-semibold text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 rounded"
-                  >
-                    Deseleccionar
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setConfirmOpen(true)}
-                    className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-destructive/10 border border-destructive/20 text-destructive-fg text-[11px] font-bold transition-colors hover:bg-destructive/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
-                  >
-                    <Trash2 className="w-3 h-3" /> Eliminar
-                  </button>
-                </span>
-              ) : null}
-            </div>
-            <div className="max-h-[420px] overflow-y-auto custom-scrollbar">
-              {groups.map((g, gi) => (
-                <section key={`${g.file || g.label}-${gi}`} aria-label={g.label}>
-                  <div
-                    className={`sticky top-0 z-10 px-3 py-1.5 bg-background/95 backdrop-blur border-border/40 text-[11px] font-semibold text-muted-foreground flex items-center gap-2 ${gi === 0 ? 'border-b' : 'border-y'}`}
-                  >
-                    <span className="truncate">{g.label}</span>
-                    <span className="ml-auto shrink-0 tabular-nums">
-                      {g.entries.length} {g.entries.length === 1 ? 'entrada' : 'entradas'}
-                    </span>
-                  </div>
-                  <ul className="divide-y divide-border/40">
-                    {g.entries.map((e: any, li: number) => (
-                      <LogEntryRow
-                        key={`${e.file || ''}-${e.ts}-${gi}-${li}`}
-                        entry={e}
-                        index={li}
-                        checked={selected.has(entryKey(e))}
-                        canDelete={entryDeletable(e.ts)}
-                        open={expanded.has(entryKey(e))}
-                        collapsible={typeof e.text === 'string' && e.text.includes('\n')}
-                        onToggle={toggleEntry}
-                        onToggleOpen={toggleOpen}
-                      />
-                    ))}
-                  </ul>
-                </section>
-              ))}
-            </div>
-            {entries.length >= MAX_LOADED_ENTRIES ? (
-              <p className="px-3 py-2.5 text-[11px] text-muted-foreground border-t border-border/40">
-                Mostrando las {MAX_LOADED_ENTRIES} últimas. Afina los filtros para ver el resto.
-              </p>
-            ) : logQuery.hasNextPage ? (
+          <AppTooltip content="Recargar">
+            <span className="ml-auto inline-flex">
               <button
                 type="button"
-                onClick={() => logQuery.fetchNextPage()}
-                disabled={logQuery.isFetchingNextPage}
-                className="w-full px-3 py-2.5 text-xs font-semibold text-primary hover:bg-primary/5 border-t border-border/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-50"
+                onClick={() => void handleReload()}
+                disabled={filesQuery.isFetching || spinning}
+                aria-label="Recargar registro"
+                className="rounded-lg border border-border/70 bg-secondary p-2 text-foreground transition-colors hover:bg-secondary/80 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
               >
-                {logQuery.isFetchingNextPage ? 'Cargando...' : 'Cargar más antiguas'}
+                <RefreshCcw className={`h-4 w-4 ${filesQuery.isFetching || spinning ? 'animate-spin' : ''}`} />
               </button>
-            ) : null}
-          </div>
-        )}
+            </span>
+          </AppTooltip>
+        </div>
+
+        <div className="mt-4 rounded-xl border border-border/60 bg-background p-3 flex flex-col sm:flex-row gap-2">
+          <button
+            type="button"
+            onClick={() => void handleCopyCurrent()}
+            disabled={copying || !currentName}
+            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-secondary hover:bg-secondary/80 border border-border rounded-lg text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-50"
+          >
+            {copying ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Copy className="w-3.5 h-3.5" />}
+            Copiar sesión actual
+          </button>
+          <button
+            type="button"
+            onClick={() => void revealLogFile()}
+            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-secondary hover:bg-secondary/80 border border-border rounded-lg text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+          >
+            <FolderOpen className="w-3.5 h-3.5" />
+            Abrir carpeta
+          </button>
+        </div>
+
+        <div className="mt-3">
+          <CustomSelect
+            value={fileFilter}
+            options={FILE_FILTER_OPTIONS}
+            onChange={setFileFilter}
+            ariaLabel="Filtrar registro"
+          />
+        </div>
+
+        <div className="mt-3 rounded-xl border border-border/60 bg-background overflow-hidden">
+          {filesQuery.isLoading ? (
+            <div className="flex items-center justify-center py-10" role="status" aria-label="Cargando registro">
+              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : filesQuery.isError ? (
+            <div className="p-4 text-sm text-muted-foreground flex items-center justify-between gap-3">
+              <span>No se pudo abrir el registro.</span>
+              <button
+                type="button"
+                onClick={() => filesQuery.refetch()}
+                className="px-3 py-1.5 bg-secondary border border-border rounded-lg text-xs font-semibold"
+              >
+                Reintentar
+              </button>
+            </div>
+          ) : fileRows.length === 0 ? (
+            <EmptyState title="Registro vacío" description="Todavía no hay sesiones guardadas en este equipo." />
+          ) : (
+            <>
+              <div className="px-4 py-2.5 border-b border-border/40 flex items-center gap-2.5">
+                <RowCheck
+                  checked={allChecked}
+                  disabled={eligibleAll.length === 0}
+                  label="Marcar todas las sesiones anteriores"
+                  onToggle={toggleAll}
+                />
+                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Sesión</span>
+                {selected.size > 0 ? (
+                  <span className="ml-auto flex items-center gap-2">
+                    <span className="text-[11px] text-muted-foreground tabular-nums">
+                      {selected.size} {selected.size === 1 ? 'marcada' : 'marcadas'}
+                    </span>
+                    <span aria-hidden="true" className="text-[11px] text-border-strong">
+                      /
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setSelected(new Set())}
+                      className="text-[11px] font-semibold text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 rounded"
+                    >
+                      Soltar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmOpen(true)}
+                      className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-destructive/10 border border-destructive/20 text-destructive-fg text-[11px] font-bold transition-colors hover:bg-destructive/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                    >
+                      <Trash2 className="w-3 h-3" /> Liberar espacio
+                    </button>
+                  </span>
+                ) : (
+                  <span className="ml-auto text-[11px] text-muted-foreground tabular-nums">
+                    {fileRows.length} {fileRows.length === 1 ? 'sesión' : 'sesiones'}
+                  </span>
+                )}
+              </div>
+              <ul className="divide-y divide-border/40">
+                {visible.map((f) => (
+                  <li key={f.name} className="[content-visibility:auto] [contain-intrinsic-size:auto_56px]">
+                    <div className="w-full flex items-center gap-3 px-4 py-3 transition-colors hover:bg-secondary/40">
+                      <RowCheck
+                        checked={selected.has(f.name)}
+                        disabled={f.isCurrent}
+                        label={f.isCurrent ? 'Sesión en curso, no se puede marcar' : `Marcar ${f.name}`}
+                        onToggle={() => toggleFile(f.name)}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setOpenFile(f.name)}
+                        className="min-w-0 flex-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/60 rounded"
+                      >
+                        <span className="flex items-center gap-2">
+                          <FileText className="w-4 h-4 shrink-0 text-muted-foreground" />
+                          <span className="block truncate font-mono text-[13px] tabular-nums text-foreground">
+                            {f.name}
+                          </span>
+                        </span>
+                        <span className="block pl-6 text-[11px] text-muted-foreground tabular-nums">
+                          {formatSize(f.size)}
+                          {f.isCurrent ? ' · en curso' : ''}
+                        </span>
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              <div className="flex items-center gap-1.5 px-3 py-2.5 border-t border-border/40">
+                <button
+                  type="button"
+                  onClick={() => setPage(0)}
+                  disabled={safePage === 0}
+                  aria-label="Primera página"
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border/60 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-40"
+                >
+                  <ChevronsLeft className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPage((p) => Math.max(0, p - 1))}
+                  disabled={safePage === 0}
+                  aria-label="Página anterior"
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border/60 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-40"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
+                  disabled={safePage >= pageCount - 1}
+                  aria-label="Página siguiente"
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border/60 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-40"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPage(pageCount - 1)}
+                  disabled={safePage >= pageCount - 1}
+                  aria-label="Última página"
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border/60 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-40"
+                >
+                  <ChevronsRight className="w-4 h-4" />
+                </button>
+                <span className="mx-auto text-xs text-muted-foreground tabular-nums">
+                  Página {safePage + 1} de {pageCount}
+                </span>
+                <CustomSelect
+                  value={String(pageSize)}
+                  options={PAGE_SIZE_OPTIONS}
+                  onChange={(v) => setPageSize(Number(v) || 5)}
+                  ariaLabel="Sesiones por página"
+                />
+              </div>
+            </>
+          )}
+        </div>
       </section>
 
       <section className="rounded-2xl border border-border/50 bg-card shadow-sm p-5 sm:p-6">
@@ -569,35 +455,92 @@ export const LogsTab = memo(function LogsTab({ isActive = true, settings, onChan
           <h3 className="text-sm font-bold tracking-tight">Archivo y exportación</h3>
         </div>
         <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
-          Muestra el archivo en el explorador o exporta lo que ves con los filtros actuales.
+          Exporta el diagnóstico actual para revisarlo o compartirlo.
         </p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <button
+          type="button"
+          onClick={() => void exportDiagnostics({ sessionOnly: false })}
+          className="w-full inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 bg-secondary hover:bg-secondary/80 border border-border rounded-xl text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+        >
+          <Download className="w-4 h-4" /> Exportar registro
+        </button>
+      </section>
+
+      <Dialog
+        open={!!openFile}
+        onOpenChange={(open) => {
+          if (!open) setOpenFile(null);
+        }}
+        title={openFile || 'Sesión'}
+        showFooter={false}
+        hideDefaultIcon={true}
+        className="max-w-3xl"
+      >
+        <div className="mb-3">
           <button
             type="button"
-            onClick={() => void revealLogFile()}
-            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 bg-secondary hover:bg-secondary/80 border border-border rounded-xl text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+            onClick={() => void handleCopyModal()}
+            disabled={modalEntries.length === 0}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-secondary hover:bg-secondary/80 border border-border rounded-lg text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-50"
           >
-            <FolderOpen className="w-4 h-4" /> Mostrar archivo
-          </button>
-          <button
-            type="button"
-            onClick={() => void exportDiagnostics(filters)}
-            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 bg-secondary hover:bg-secondary/80 border border-border rounded-xl text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
-          >
-            <Download className="w-4 h-4" /> Exportar registro
+            <Copy className="w-3.5 h-3.5" /> Copiar al portapapeles
           </button>
         </div>
-      </section>
+        <div className="rounded-xl border border-border/60 bg-background overflow-hidden">
+          <div className="max-h-[60vh] overflow-y-auto custom-scrollbar p-2">
+            {fileQuery.isLoading ? (
+              <div className="flex items-center justify-center py-10" role="status" aria-label="Cargando sesión">
+                <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : fileQuery.isError ? (
+              <p className="px-3 py-6 text-sm text-muted-foreground text-center">No se pudo leer esta página.</p>
+            ) : modalEntries.length === 0 ? (
+              <p className="px-3 py-6 text-sm text-muted-foreground text-center">Sesión vacía.</p>
+            ) : (
+              <ul>
+                {modalEntries.map((e: any, i: number) => (
+                  <li
+                    key={`${e.ts}-${i}`}
+                    className={`px-3 py-1.5 rounded-md font-mono text-xs leading-relaxed whitespace-pre-wrap break-all select-text tabular-nums ${i % 2 === 1 ? 'bg-secondary/30' : ''}`}
+                  >
+                    <span className="text-muted-foreground">{e.ts ? e.ts.replace('T', ' ').slice(0, 19) : ''}</span>
+                    <span className={`font-bold ${levelTone(String(e.level))}`}>
+                      {'  '}|{String(e.level).toUpperCase().slice(0, 3)}| {e.scope} &gt;{' '}
+                    </span>
+                    <span className="text-foreground/90">
+                      {String(e.text).split('\n').slice(1).join('\n') || String(e.text)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+        {modalEntries.length >= MODAL_MAX_ENTRIES ? (
+          <p className="mt-3 px-3 py-2 text-[11px] text-muted-foreground text-center">
+            Mostrando las {MODAL_MAX_ENTRIES} más recientes. Exporta el registro para ver el resto.
+          </p>
+        ) : fileQuery.hasNextPage ? (
+          <button
+            type="button"
+            onClick={() => fileQuery.fetchNextPage()}
+            disabled={fileQuery.isFetchingNextPage}
+            className="mt-3 w-full px-3 py-2 text-xs font-semibold text-primary hover:bg-primary/5 border border-border/40 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-50"
+          >
+            {fileQuery.isFetchingNextPage ? 'Cargando...' : 'Cargar más antiguas'}
+          </button>
+        ) : null}
+      </Dialog>
 
       <Dialog
         open={confirmOpen}
         onOpenChange={(open) => {
           if (!deleting) setConfirmOpen(open);
         }}
-        title="¿Eliminar entradas del registro?"
-        message={`Se eliminarán ${affectedRows} ${affectedRows === 1 ? 'entrada' : 'entradas'}. La sesión actual está protegida.`}
-        confirmLabel="Eliminar"
-        cancelLabel="Cancelar"
+        title="¿Liberar espacio?"
+        message={`Se quitarán ${selected.size} ${selected.size === 1 ? 'sesión anterior' : 'sesiones anteriores'} de este equipo. La que está en curso se conserva.`}
+        confirmLabel="Liberar"
+        cancelLabel="Conservar"
         danger={true}
         confirmLoading={deleting}
         onConfirm={() => void handleDelete()}

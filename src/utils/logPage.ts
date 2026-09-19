@@ -1,5 +1,11 @@
 import { redactLogText, type LogLevel } from './redactLog';
-import { APP_LOG_FILENAME, MAX_SESSION_FILES, SESSION_BACKUP_SUFFIX, SESSION_FILE_RE } from './sessionFiles';
+import {
+  APP_LOG_FILENAME,
+  MAX_SESSION_FILES,
+  SESSION_BACKUP_SUFFIX,
+  SESSION_FILE_RE,
+  isKnownLogFile,
+} from './sessionFiles';
 
 export {
   APP_LOG_FILENAME,
@@ -197,6 +203,33 @@ export interface LogSelection {
   scope?: unknown;
   query?: unknown;
   sessionOnly?: unknown;
+  filename?: unknown;
+}
+
+export type LogFilenameFilter = 'all' | 'current' | 'backup';
+
+export function listLogFilenames(names: string[]): string[] {
+  return names
+    .filter((n) => isKnownLogFile(n) && n !== APP_LOG_FILENAME)
+    .sort()
+    .reverse();
+}
+
+export function filterLogFilenames(files: string[], filter: LogFilenameFilter, current?: string): string[] {
+  if (filter === 'current') return current ? files.filter((f) => f === current) : [];
+  if (filter === 'backup') return files.filter((f) => f.endsWith(SESSION_BACKUP_SUFFIX));
+  return files;
+}
+
+export function splitDeletableLogFiles(files: unknown, current: string): { deletable: string[]; skipped: number } {
+  const raw = Array.isArray(files) ? files : [];
+  const deletable: string[] = [];
+  let skipped = 0;
+  for (const name of raw.slice(0, 50)) {
+    if (typeof name !== 'string' || !isKnownLogFile(name) || name === current) skipped += 1;
+    else deletable.push(name);
+  }
+  return { deletable, skipped };
 }
 
 const SELECT_LEVELS: ReadonlySet<string> = new Set(['all', 'debug', 'info', 'warn', 'error']);
@@ -227,8 +260,11 @@ export function selectLogEntriesFromSources(
   selection: LogSelection,
   sessionStart: string,
 ): LogPageEntry[] {
+  const wanted =
+    typeof selection.filename === 'string' && isKnownLogFile(selection.filename) ? selection.filename : null;
   const entries: LogPageEntry[] = [];
   for (const source of sources) {
+    if (wanted && source.name !== wanted) continue;
     for (const entry of parseLogEntries(source.raw, source.name)) entries.push(entry);
   }
   return sortLogEntriesNewestFirst(applyLogSelection(entries, selection, sessionStart));
