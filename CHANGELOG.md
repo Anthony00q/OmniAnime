@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.0.9] - 2026-09-20
+
+### Descargas
+
+- La cola muestra la velocidad actual de cada descarga en curso.
+- Al pulsar **Saltar servidor**, la tarjeta y el episodio muestran **Cambiando servidor…** hasta completar el cambio.
+- **Saltar servidor** solo afecta al elemento en curso, sin alterar el resto de la cola.
+- **Mega: conexiones por archivo** permite ajustar el paralelismo de cada archivo entre **1 y 8**.
+
+### Ajustes
+
+- Los textos de todos los apartados utilizan explicaciones más claras y directas.
+- En **Registros**, la vista muestra una tabla de sesiones de más reciente a más antigua con las opciones **Todas y Respaldos**.
+- En **Registros**, cada fichero se abre en un diálogo con lo más reciente primero y aviso cuando se alcanza el límite.
+- En **Registros**, los ficheros se seleccionan y se eliminan por fichero, manteniendo protegida la sesión en curso.
+- En **Registros**, el tamaño de página se elige entre **5 y 20** y la sesión actual se puede copiar con aviso cuando se recorta.
+- En **Registros**, la exportación incluye siempre todas las sesiones.
+
+### Interfaz
+
+- Los botones de minimizar, maximizar y cerrar utilizan esquinas suaves de estilo nativo con aire al borde.
+
 ## [1.0.8] - 2026-09-15
 
 ### Interfaz
