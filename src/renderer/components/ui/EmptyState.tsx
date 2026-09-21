@@ -37,7 +37,7 @@ export function EmptyState({
         </div>
       )}
       <div>
-        <p className="font-['Plus_Jakarta_Sans',system-ui,sans-serif] text-lg font-extrabold tracking-tight text-foreground">
+        <p className="font-['Bricolage_Grotesque','Instrument_Sans',system-ui,sans-serif] text-lg font-bold tracking-[-0.015em] text-foreground">
           {title}
         </p>
         {description && <p className="mx-auto mt-1 max-w-sm text-sm leading-relaxed">{description}</p>}
@@ -48,7 +48,7 @@ export function EmptyState({
             <button
               type="button"
               onClick={onAction}
-              className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+              className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-[color-mix(in_srgb,var(--color-primary)_88%,black)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
             >
               {actionLabel}
             </button>

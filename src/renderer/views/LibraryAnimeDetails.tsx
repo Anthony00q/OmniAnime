@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { HERO_DIM_MAX, HERO_DIM_DISTANCE } from '../utils/heroDim';
 import { ArrowLeft, FolderOpen, Settings, Wand2, ListOrdered, Info, FileText, Hash } from 'lucide-react';
 import { toast } from 'sonner';
 import { Dialog } from '../components/Dialog';
@@ -13,7 +14,7 @@ import { ErrorState } from '../components/ui/ErrorState';
 import { EmptyState } from '../components/ui/EmptyState';
 import { EpisodeListSkeleton } from '../components/anime/PosterGridSkeleton';
 import { EpisodeRow, type EpisodeDensity } from './libraryDetails/components/EpisodeRow';
-import { LibraryHero } from './libraryDetails/components/LibraryHero';
+import { LibraryHero, LibraryHeroBanner } from './libraryDetails/components/LibraryHero';
 import { RenameDialog } from './libraryDetails/components/RenameDialog';
 import { ReorderDialog } from './libraryDetails/components/ReorderDialog';
 
@@ -57,25 +58,31 @@ export function LibraryAnimeDetails({
     } catch {}
   }, []);
 
-  // Velo superior de la lista: aparece solo con scroll (centinela + observer,
-  // sin handlers de scroll). El margen superior negativo evita el corte seco.
-  const listScrollRef = useRef<HTMLDivElement | null>(null);
-  const listTopSentinelRef = useRef<HTMLDivElement | null>(null);
-  const [isListScrolled, setIsListScrolled] = useState(false);
+  // Dim continuo del banner: una escritura de opacidad por frame sobre el
+  // wrapper de la imagen (fade hacia el fondo), sin transición ni estado
+  // React, leyendo scrollTop.
+  const [listScrollNode, setListScrollNode] = useState<HTMLDivElement | null>(null);
+  const [bannerFadeNode, setBannerFadeNode] = useState<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    const root = listScrollRef.current;
-    const sentinel = listTopSentinelRef.current;
-    if (!root || !sentinel || typeof IntersectionObserver === 'undefined') return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        setIsListScrolled(!entries[0].isIntersecting);
-      },
-      { root, threshold: 0, rootMargin: '-8px 0px 0px 0px' },
-    );
-    observer.observe(sentinel);
-    return () => observer.disconnect();
-  }, [isLoading, isError, episodes.length]);
+    if (!listScrollNode || !bannerFadeNode) return;
+    let raf = 0;
+    const apply = () => {
+      raf = 0;
+      const { scrollTop } = listScrollNode;
+      const ratio = Math.min(1, Math.max(0, scrollTop / HERO_DIM_DISTANCE));
+      bannerFadeNode.style.opacity = String(1 - ratio * HERO_DIM_MAX);
+    };
+    const onScroll = () => {
+      if (raf === 0) raf = requestAnimationFrame(apply);
+    };
+    listScrollNode.addEventListener('scroll', onScroll, { passive: true });
+    apply();
+    return () => {
+      listScrollNode.removeEventListener('scroll', onScroll);
+      if (raf !== 0) cancelAnimationFrame(raf);
+    };
+  }, [listScrollNode, bannerFadeNode, folderData.path]);
   const [reorderStart, setReorderStart] = useState('1');
   const [debouncedReorderStart, setDebouncedReorderStart] = useState('1');
   // thumbEpoch: re-pide miniaturas tras renombrar/renumerar.
@@ -234,8 +241,13 @@ export function LibraryAnimeDetails({
 
   return (
     <div className="relative flex h-full min-w-0 flex-col overflow-hidden bg-background">
-      <div className="relative z-10 flex h-full min-w-0 flex-col">
-        <div className="relative z-20 flex shrink-0 flex-wrap items-center justify-between gap-3 px-4 pb-4 pt-12 sm:px-6 sm:pb-6 sm:pt-14">
+      <LibraryHeroBanner bannerSrc={bannerSrc} title={title} onDimNode={setBannerFadeNode} />
+
+      <div
+        ref={setListScrollNode}
+        className="library-scroll relative z-10 flex h-full min-w-0 flex-col overflow-y-auto"
+      >
+        <div className="sticky top-0 z-20 flex shrink-0 flex-wrap items-center justify-between gap-3 px-4 pb-4 pt-12 sm:px-6 sm:pb-6 sm:pt-14">
           <button
             type="button"
             onClick={onBack}
@@ -271,7 +283,7 @@ export function LibraryAnimeDetails({
                 <div className="fixed inset-0 z-40 disable-shortcuts" onClick={() => setShowMenu(false)}></div>
                 <div className="absolute right-0 top-full mt-2 w-[300px] bg-popover border border-border/70 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2">
                   <div className="px-4 py-3 border-b border-border/50 bg-secondary/20">
-                    <span className="text-[11px] font-extrabold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
+                    <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-[0.09em] flex items-center gap-1.5">
                       <Wand2 className="w-3.5 h-3.5" /> Gestión de Archivos
                     </span>
                     <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
@@ -294,7 +306,7 @@ export function LibraryAnimeDetails({
                         <span className="text-sm font-semibold text-foreground flex items-center gap-2">
                           Forzar renombrado de archivos
                           {autoRename && (
-                            <span className="text-[11px] font-bold tracking-widest uppercase bg-amber-500/10 text-amber-600 border border-amber-500/20 px-1.5 py-0.5 rounded-full">
+                            <span className="text-[11px] font-bold tracking-widest uppercase bg-warning/10 text-warning border border-warning/20 px-1.5 py-0.5 rounded-full">
                               Auto activo
                             </span>
                           )}
@@ -342,7 +354,6 @@ export function LibraryAnimeDetails({
 
         <LibraryHero
           title={title}
-          bannerSrc={bannerSrc}
           posterLocal={folderData.posterLocal}
           episodeCount={episodes.length}
           metaSlug={folderData.metaSlug}
@@ -351,10 +362,7 @@ export function LibraryAnimeDetails({
           onSelectAnime={onSelectAnime}
         />
 
-        <div
-          ref={listScrollRef}
-          className="min-w-0 flex-1 overflow-y-auto border-t border-border/50 bg-background/95 px-4 py-4 backdrop-blur-md sm:px-8 sm:py-6 md:px-10"
-        >
+        <div className="min-w-0 shrink-0 bg-background px-4 py-4 sm:px-8 sm:py-6 md:px-10">
           {isLoading ? (
             <EpisodeListSkeleton count={skeletonRows} />
           ) : isError ? (
@@ -372,13 +380,6 @@ export function LibraryAnimeDetails({
             />
           ) : (
             <div>
-              <div ref={listTopSentinelRef} aria-hidden="true" className="h-px w-full" />
-              <div
-                aria-hidden="true"
-                className={`pointer-events-none sticky -top-4 z-10 -mx-4 -mt-12 h-12 bg-gradient-to-b from-background via-background/60 to-transparent transition-opacity duration-200 sm:-top-6 sm:-mx-8 md:-mx-10 ${
-                  isListScrolled ? 'opacity-100' : 'opacity-0'
-                }`}
-              />
               <div className="mb-3 flex items-center justify-end">
                 <div
                   role="group"

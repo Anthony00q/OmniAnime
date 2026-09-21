@@ -39,7 +39,7 @@ export function PosterCard({
       type="button"
       onClick={onClick}
       aria-label={ariaLabel || `Abrir ${title}`}
-      className="anime-poster-card sala-frame poster-list-item group relative isolate flex aspect-[2/3] min-w-0 cursor-pointer flex-col overflow-hidden border border-transparent bg-transparent text-left shadow-none transition-[border-color,box-shadow,transform] duration-200 ease-out motion-safe:hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-[0_8px_24px_rgba(0,0,0,0.35)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+      className="anime-poster-card sala-frame poster-list-item group relative isolate flex aspect-[2/3] min-w-0 cursor-pointer flex-col overflow-hidden border border-transparent bg-transparent text-left shadow-none transition-[border-color,box-shadow] duration-200 ease-out hover:border-white/15 hover:shadow-[0_8px_24px_rgba(0,0,0,0.35)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
     >
       <PosterImage
         src={poster}

@@ -107,9 +107,17 @@ export function HistoryView({ isActive, activeProvider, onSelectAnime }: History
         description={
           <span className="inline-flex items-center gap-2">
             <span>
-              {totalGroups > 0
-                ? `${totalGroups} anime${totalGroups !== 1 ? 's' : ''} · ${totalEpisodes} episodio${totalEpisodes !== 1 ? 's' : ''} en total`
-                : 'Registro de los resultados de tus descargas'}
+              {totalGroups > 0 ? (
+                <>
+                  {`${totalGroups} anime${totalGroups !== 1 ? 's' : ''} `}
+                  <span aria-hidden="true" className="text-border-strong">
+                    |
+                  </span>
+                  {` ${totalEpisodes} episodio${totalEpisodes !== 1 ? 's' : ''} en total`}
+                </>
+              ) : (
+                'Registro de los resultados de tus descargas'
+              )}
             </span>
             {isFetching && !isLoading && totalGroups > 0 && (
               <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" aria-label="Actualizando historial" />

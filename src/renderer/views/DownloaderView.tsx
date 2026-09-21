@@ -890,12 +890,20 @@ const QueueItemRow = memo(
               </div>
 
               <div className="whitespace-nowrap text-[11px] tabular-nums text-muted-foreground">
-                {isCardActive ? `${detailRows.length > 1 ? 'Total ' : ''}${pct}% · ` : ''}
+                {isCardActive ? `${detailRows.length > 1 ? 'Total ' : ''}${pct}% ` : ''}
+                {isCardActive && (
+                  <span aria-hidden="true" className="text-border-strong">
+                    |
+                  </span>
+                )}
+                {isCardActive && ' '}
                 {item.completedEps?.length || 0}/{item.episodes?.length || 0}{' '}
                 {(item.episodes?.length || 0) === 1 ? 'ep' : 'eps'}
                 {isDownloading && (
                   <span className="ml-1 inline-block min-w-[10ch] tabular-nums">
-                    ·{' '}
+                    <span aria-hidden="true" className="text-border-strong">
+                      |
+                    </span>{' '}
                     {speedText ? (
                       speedText
                     ) : (
@@ -934,8 +942,8 @@ const QueueItemRow = memo(
                       showValue={false}
                       aria-valuetext={
                         isSwitchPending
-                          ? `Cambiando servidor • ${item.completedEps?.length || 0}/${item.episodes?.length || 0} episodios`
-                          : `${pct}% • ${item.completedEps?.length || 0}/${item.episodes?.length || 0} episodios${speedText ? ` · ${speedText}` : ''}`
+                          ? `Cambiando servidor · ${item.completedEps?.length || 0}/${item.episodes?.length || 0} episodios`
+                          : `${pct}% · ${item.completedEps?.length || 0}/${item.episodes?.length || 0} episodios${speedText ? ` · ${speedText}` : ''}`
                       }
                     />
                     <div className="flex min-h-[18px] items-center gap-1.5 text-[11px] text-muted-foreground">

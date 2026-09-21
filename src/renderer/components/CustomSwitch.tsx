@@ -25,7 +25,7 @@ export function CustomSwitch({ checked, onChange, label, ariaLabel }: CustomSwit
         aria-label={ariaLabel || label || 'Cambiar opción'}
         className="relative h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors bg-muted-foreground/20 data-[state=checked]:bg-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       >
-        <SwitchPrimitive.Thumb className="block h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-150 motion-reduce:transition-none translate-x-0.5 data-[state=checked]:translate-x-5" />
+        <SwitchPrimitive.Thumb className="block h-5 w-5 rounded-full bg-white shadow-sm transition-[transform,background-color] duration-150 motion-reduce:transition-none translate-x-0.5 data-[state=checked]:translate-x-5 data-[state=checked]:bg-primary-foreground" />
       </SwitchPrimitive.Root>
     </div>
   );

@@ -1,6 +1,6 @@
 import type { LogLevel } from '../services/AppLogger';
 
-export type ThemeId = 'dark' | 'quantum' | 'oled';
+export type ThemeId = 'dark' | 'quantum' | 'oled' | 'tinta';
 
 export interface LoggingSettingsInput {
   level?: LogLevel;

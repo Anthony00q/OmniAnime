@@ -28,7 +28,7 @@ export const SettingsFooter = memo(function SettingsFooter({
           Restablecer
         </button>
         <span className="hidden sm:inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-          <span className={`w-2 h-2 rounded-full ${isDirty ? 'bg-amber-500' : 'bg-emerald-500'}`} />
+          <span className={`w-2 h-2 rounded-full ${isDirty ? 'bg-warning' : 'bg-success'}`} />
           {isDirty ? 'Cambios pendientes' : 'Sin cambios'}
         </span>
       </div>
@@ -38,8 +38,8 @@ export const SettingsFooter = memo(function SettingsFooter({
         disabled={isSaving}
         className={`inline-flex items-center justify-center gap-2 rounded-xl px-7 py-2.5 text-sm font-bold shadow-md transition-[background-color,box-shadow,transform] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-50 disabled:cursor-not-allowed ${
           isSaved
-            ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/20'
-            : 'bg-primary hover:bg-primary/90 text-primary-foreground shadow-primary/20 hover:shadow-lg active:scale-[0.98]'
+            ? 'bg-success hover:bg-[color-mix(in_srgb,var(--color-success)_88%,black)] text-success-foreground shadow-success/20'
+            : 'bg-primary hover:bg-[color-mix(in_srgb,var(--color-primary)_88%,black)] text-primary-foreground shadow-primary/20 hover:shadow-lg active:scale-[0.98]'
         }`}
       >
         {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}

@@ -1,6 +1,6 @@
 import { memo, useRef, useCallback } from 'react';
 import { Palette, Eye, Check, AlertCircle, Copy, LayoutGrid, List } from 'lucide-react';
-import { THEME_META, THEME_IDS, ACCENT_PRESETS } from '../constants';
+import { THEME_META, THEME_IDS, ACCENT_PRESETS, THEME_SUGGESTED_ACCENT } from '../constants';
 import type { ThemeId } from '../../../../types/settings';
 import { isActiveTheme } from '../utils/settingsHelpers';
 import { AppTooltip } from '../../../components/ui/AppTooltip';
@@ -60,6 +60,7 @@ const EpisodeViewSetting = memo(function EpisodeViewSetting({
 
 interface AppearanceTabProps {
   theme: ThemeId;
+  savedTheme: ThemeId;
   accentHex: string;
   accentInput: string;
   accentInputValid: boolean;
@@ -116,6 +117,7 @@ const ThemeMiniPreview = memo(function ThemeMiniPreview({
 export const AppearanceTab = memo(
   function AppearanceTab({
     theme,
+    savedTheme,
     accentHex,
     accentInput,
     accentInputValid,
@@ -191,6 +193,8 @@ export const AppearanceTab = memo(
 
     const showError = !accentInputValid && accentInput.trim() !== '';
     const isEmpty = accentInput.trim() === '';
+    const suggestedHex = THEME_SUGGESTED_ACCENT[savedTheme];
+    const showSuggested = normalizedAccentLower !== suggestedHex.toLowerCase();
     const accentDescribedBy = showError ? 'accent-error' : isEmpty ? 'accent-hint-empty' : 'accent-hint';
 
     return (
@@ -203,8 +207,8 @@ export const AppearanceTab = memo(
                 <Palette className="w-5 h-5 text-primary" />
               </div>
               <div>
-                <h2 className="text-base font-bold tracking-tight">Apariencia y UI</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">Tema, acento y vista de episodios.</p>
+                <h2 className="text-base font-bold tracking-tight">Apariencia</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">Diseño, color y vista de episodios.</p>
               </div>
             </div>
 
@@ -260,8 +264,7 @@ export const AppearanceTab = memo(
                     })}
                   </div>
                   <p className="text-xs text-muted-foreground mt-2.5 leading-relaxed">
-                    Todos están pensados para poca luz. <span className="font-medium text-foreground/80">OLED</span>{' '}
-                    ahorra batería y <span className="font-medium text-foreground/80">Quantum</span> aporta profundidad.
+                    Todos están pensados para usar con poca luz.
                   </p>
                 </div>
 
@@ -306,12 +309,12 @@ export const AppearanceTab = memo(
                         type="text"
                         value={accentInput}
                         onChange={(e) => onAccentInputChange(e.target.value)}
-                        placeholder="#3b82f6"
+                        placeholder="#e8a33d"
                         spellCheck={false}
                         autoComplete="off"
                         aria-invalid={showError}
                         aria-describedby={accentDescribedBy}
-                        className={`w-full bg-background border rounded-xl px-3.5 py-2.5 pr-9 text-sm focus:outline-none focus:ring-2 font-mono text-foreground transition-colors ${showError ? 'border-amber-500/50 focus:border-amber-500 focus:ring-amber-500/20' : 'border-border focus:border-primary focus:ring-primary/20'}`}
+                        className={`w-full bg-background border rounded-xl px-3.5 py-2.5 pr-9 text-sm focus:outline-none focus:ring-2 font-mono text-foreground transition-colors ${showError ? 'border-warning/50 focus:border-warning focus:ring-warning/20' : 'border-border focus:border-primary focus:ring-primary/20'}`}
                       />
                       <AppTooltip content="Copiar HEX">
                         <button
@@ -332,17 +335,17 @@ export const AppearanceTab = memo(
                         id="accent-error"
                         role="alert"
                         aria-live="polite"
-                        className="text-xs text-amber-600 flex items-start gap-1.5 leading-relaxed"
+                        className="text-xs text-destructive-fg flex items-start gap-1.5 leading-relaxed"
                       >
                         <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" aria-hidden="true" />
                         <span>
-                          Formato no válido. Usa HEX como <span className="font-mono font-semibold">#3b82f6</span> o HSL
-                          como <span className="font-mono font-semibold">hsl(217 91% 60%)</span>.
+                          Formato no válido. Usa HEX como <span className="font-mono font-semibold">#e8a33d</span> o HSL
+                          como <span className="font-mono font-semibold">hsl(35 78% 57%)</span>.
                         </span>
                       </p>
                     ) : isEmpty ? (
                       <p id="accent-hint-empty" className="text-xs text-muted-foreground leading-relaxed">
-                        Vacío: se usará <span className="font-mono text-foreground/80">#3b82f6</span>. Escribe un
+                        Vacío: se usará <span className="font-mono text-foreground/80">#e8a33d</span>. Escribe un
                         HEX/HSL o elige uno abajo.
                       </p>
                     ) : (
@@ -353,7 +356,24 @@ export const AppearanceTab = memo(
                   </div>
 
                   <div className="mt-4">
-                    <div className="text-xs font-semibold text-muted-foreground mb-2.5">Paleta rápida</div>
+                    <div className="mb-2.5 flex items-center justify-between gap-2">
+                      <div className="text-xs font-semibold text-muted-foreground">Paleta rápida</div>
+                      {showSuggested && (
+                        <button
+                          type="button"
+                          onClick={() => onAccentPreset(suggestedHex)}
+                          aria-label={`Usar el acento sugerido para ${THEME_META[savedTheme].shortLabel}: ${suggestedHex}`}
+                          className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border/60 px-2.5 py-1 text-[11px] font-semibold text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                        >
+                          <span
+                            className="h-3 w-3 rounded-full border border-black/10"
+                            style={{ background: suggestedHex }}
+                            aria-hidden="true"
+                          />
+                          Sugerido: {THEME_META[savedTheme].shortLabel}
+                        </button>
+                      )}
+                    </div>
                     <div
                       role="radiogroup"
                       aria-label="Paleta de acentos"
@@ -386,7 +406,7 @@ export const AppearanceTab = memo(
                       })}
                     </div>
                     <p className="text-[11px] text-muted-foreground mt-2">
-                      8 tonos pensados para modo oscuro. Se aplicará a los destacados de la interfaz.
+                      5 tonos pensados para modo oscuro. Se aplicará a los destacados de la interfaz.
                     </p>
                   </div>
                 </div>
@@ -520,6 +540,7 @@ export const AppearanceTab = memo(
   },
   (prev, next) =>
     prev.theme === next.theme &&
+    prev.savedTheme === next.savedTheme &&
     prev.accentHex === next.accentHex &&
     prev.accentInput === next.accentInput &&
     prev.accentInputValid === next.accentInputValid &&

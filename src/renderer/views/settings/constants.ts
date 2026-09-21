@@ -1,23 +1,22 @@
 import type { ThemeId } from '../../../types/settings';
 import { DEFAULT_ACCENT_HEX } from '../../utils/color';
 
-export const ACCENT_PRESETS = [
-  '#3b82f6',
-  '#8b5cf6',
-  '#ec4899',
-  '#10b981',
-  '#f59e0b',
-  '#ef4444',
-  '#06b6d4',
-  '#a855f7',
-] as const;
+export const ACCENT_PRESETS = ['#e8a33d', '#c97b4a', '#b4552d', '#8a9a5b', '#d9c9a8'] as const;
+
+export const THEME_SUGGESTED_ACCENT: Record<ThemeId, string> = {
+  dark: '#e8a33d',
+  oled: '#f1b150',
+  quantum: '#dab681',
+  tinta: '#e45944',
+};
 
 export { DEFAULT_ACCENT_HEX };
 
 export const THEME_META: Record<ThemeId, { desc: string; hint: string; shortLabel: string }> = {
-  dark: { desc: 'Equilibrio entre contraste y descanso visual', hint: 'Recomendado', shortLabel: 'Oscuro' },
-  oled: { desc: 'Negro puro para OLED con menor consumo', hint: 'AMOLED', shortLabel: 'OLED' },
-  quantum: { desc: 'Azul profundo con acentos cian', hint: 'Futurista', shortLabel: 'Quantum' },
+  dark: { desc: 'Fondo marrón oscuro con acento ámbar', hint: 'Recomendado', shortLabel: 'Oscuro cálido' },
+  oled: { desc: 'Negro total, ideal para pantallas OLED', hint: 'AMOLED', shortLabel: 'Negro puro' },
+  quantum: { desc: 'Tonos tierra con acento cobre', hint: '', shortLabel: 'Marrón oscuro' },
+  tinta: { desc: 'Tonos fríos con acento rojo', hint: '', shortLabel: 'Gris azulado' },
 };
 
 export const THEME_IDS = Object.keys(THEME_META) as ThemeId[];

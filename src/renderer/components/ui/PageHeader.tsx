@@ -27,13 +27,13 @@ export function PageHeader({ title, description, actions, children, align = 'sta
         <div className={clsx('min-w-0', isCentered ? 'max-w-3xl' : 'flex-1')}>
           <h1
             className={clsx(
-              'break-words font-extrabold tracking-tight',
-              isCentered ? 'text-3xl sm:text-4xl' : 'text-3xl',
+              'break-words font-bold tracking-[-0.025em]',
+              isCentered ? 'text-[32px] sm:text-4xl' : 'text-[28px]',
             )}
           >
             {title}
           </h1>
-          {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
+          {description && <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{description}</p>}
         </div>
         {actions && <div className={clsx('shrink-0', isCentered && 'mt-5')}>{actions}</div>}
       </div>

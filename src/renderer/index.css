@@ -1,85 +1,120 @@
 @import 'tailwindcss';
 
 @theme {
-  --color-background: hsl(240 10% 3.9%);
-  --color-foreground: hsl(0 0% 98%);
+  --color-background: hsl(28 18% 4.5%);
+  --color-foreground: hsl(35 20% 90%);
 
-  --color-card: hsl(240 10% 5.2%);
-  --color-card-foreground: hsl(0 0% 98%);
+  --color-card: hsl(30 14% 6%);
+  --color-card-foreground: hsl(35 20% 90%);
 
-  --color-surface: hsl(240 8% 5.5%);
-  --color-surface-foreground: hsl(0 0% 98%);
-  --color-surface-elevated: hsl(240 8% 8%);
-  --color-surface-elevated-foreground: hsl(0 0% 98%);
+  --color-surface: hsl(30 12% 6.5%);
+  --color-surface-foreground: hsl(35 20% 90%);
+  --color-surface-elevated: hsl(30 12% 9.5%);
+  --color-surface-elevated-foreground: hsl(35 20% 90%);
 
-  --color-popover: hsl(240 10% 7%);
-  --color-popover-foreground: hsl(0 0% 98%);
+  --color-popover: hsl(30 14% 7.5%);
+  --color-popover-foreground: hsl(35 20% 90%);
 
-  --color-primary: hsl(217.2 91.2% 59.8%);
-  --color-primary-foreground: hsl(222.2 47.4% 11.2%);
-  --color-brand: hsl(267 84% 72%);
-  --color-brand-foreground: hsl(260 45% 12%);
+  --color-primary: hsl(35 78% 57%);
+  --color-primary-foreground: hsl(35 70% 7%);
+  --color-brand: hsl(36 55% 68%);
+  --color-brand-foreground: hsl(30 45% 10%);
 
-  --color-secondary: hsl(240 3.7% 15.9%);
-  --color-secondary-foreground: hsl(0 0% 98%);
+  --color-secondary: hsl(30 10% 14%);
+  --color-secondary-foreground: hsl(35 20% 90%);
 
-  --color-muted: hsl(240 3.7% 15.9%);
-  --color-muted-foreground: hsl(240 5% 64.9%);
+  --color-muted: hsl(30 10% 14%);
+  --color-muted-foreground: hsl(35 8% 62%);
 
-  --color-accent: hsl(240 3.7% 15.9%);
-  --color-accent-foreground: hsl(0 0% 98%);
+  --color-accent: hsl(30 10% 14%);
+  --color-accent-foreground: hsl(35 20% 90%);
 
-  --color-destructive: hsl(0 62.8% 30.6%);
-  --color-destructive-foreground: hsl(0 0% 98%);
-  --color-destructive-fg: hsl(0 84% 70%);
-  --color-success: hsl(142 71% 45%);
-  --color-success-foreground: hsl(144 61% 10%);
-  --color-warning: hsl(38 92% 50%);
-  --color-warning-foreground: hsl(32 80% 10%);
-  --color-info: hsl(199 89% 48%);
-  --color-info-foreground: hsl(204 80% 10%);
+  --color-destructive: hsl(8 55% 28%);
+  --color-destructive-foreground: hsl(35 20% 92%);
+  --color-destructive-fg: hsl(8 75% 74%);
+  --color-success: hsl(145 42% 46%);
+  --color-success-foreground: hsl(140 50% 10%);
+  --color-warning: hsl(35 85% 58%);
+  --color-warning-foreground: hsl(35 70% 8%);
+  --color-info: hsl(208 35% 58%);
+  --color-info-foreground: hsl(210 50% 10%);
 
-  --color-border: hsl(240 3.7% 15.9%);
-  --color-border-strong: hsl(240 5% 25%);
-  --color-input: hsl(240 3.7% 15.9%);
-  --color-text-tertiary: hsl(240 5% 45%);
-  --color-ring: hsl(240 4.9% 83.9%);
+  --color-border: hsl(30 10% 14%);
+  --color-border-strong: hsl(30 10% 24%);
+  --color-input: hsl(30 10% 14%);
+  --color-text-tertiary: hsl(30 7% 49%);
+  --color-ring: hsl(35 20% 80%);
 
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+
+  --font-display: 'Bricolage Grotesque', 'Instrument Sans', system-ui, sans-serif;
 }
 
 .theme-oled {
   --color-background: hsl(0 0% 0%);
   --color-card: hsl(0 0% 0%);
   --color-popover: hsl(0 0% 0%);
-  --color-surface: hsl(0 0% 3%);
-  --color-surface-elevated: hsl(0 0% 8%);
-  --color-secondary: hsl(0 0% 8%);
-  --color-muted: hsl(0 0% 8%);
-  --color-border: hsl(0 0% 12%);
-  --color-border-strong: hsl(0 0% 22%);
-  --color-input: hsl(0 0% 12%);
-  --color-text-tertiary: hsl(0 0% 42%);
-  --color-brand: hsl(267 90% 78%);
-  --color-brand-foreground: hsl(260 45% 8%);
+  --color-surface: hsl(30 8% 4%);
+  --color-surface-elevated: hsl(30 8% 8%);
+  --color-secondary: hsl(30 8% 8%);
+  --color-muted: hsl(30 8% 8%);
+  --color-border: hsl(30 8% 12%);
+  --color-border-strong: hsl(30 8% 22%);
+  --color-input: hsl(30 8% 12%);
+  --color-text-tertiary: hsl(30 6% 45%);
+  --color-brand: hsl(36 60% 72%);
+  --color-brand-foreground: hsl(30 45% 8%);
+  --font-display: 'Sora', 'Instrument Sans', system-ui, sans-serif;
 }
 
 .theme-quantum {
-  --color-background: hsl(230 40% 5%);
-  --color-card: hsl(230 40% 7%);
-  --color-popover: hsl(230 40% 9%);
-  --color-surface: hsl(230 35% 7%);
-  --color-surface-elevated: hsl(230 35% 12%);
-  --color-secondary: hsl(230 40% 12%);
-  --color-muted: hsl(230 40% 12%);
-  --color-border: hsl(230 40% 18%);
-  --color-border-strong: hsl(230 40% 28%);
-  --color-input: hsl(230 40% 18%);
-  --color-text-tertiary: hsl(230 15% 48%);
-  --color-brand: hsl(190 92% 68%);
-  --color-brand-foreground: hsl(215 45% 10%);
+  --color-background: hsl(28 25% 5%);
+  --color-card: hsl(28 22% 7%);
+  --color-popover: hsl(28 22% 9%);
+  --color-surface: hsl(28 20% 7%);
+  --color-surface-elevated: hsl(28 20% 12%);
+  --color-secondary: hsl(28 20% 12%);
+  --color-muted: hsl(28 20% 12%);
+  --color-border: hsl(30 18% 18%);
+  --color-border-strong: hsl(30 18% 28%);
+  --color-input: hsl(30 18% 18%);
+  --color-text-tertiary: hsl(30 12% 51%);
+  --color-brand: hsl(36 75% 68%);
+  --color-brand-foreground: hsl(30 45% 10%);
+  --font-display: 'Outfit', 'Instrument Sans', system-ui, sans-serif;
+}
+
+.theme-tinta {
+  --color-background: hsl(220 18% 5%);
+  --color-card: hsl(220 16% 6.5%);
+  --color-popover: hsl(220 16% 8%);
+  --color-surface: hsl(220 14% 7%);
+  --color-surface-elevated: hsl(220 14% 10%);
+  --color-foreground: hsl(210 15% 90%);
+  --color-card-foreground: hsl(210 15% 90%);
+  --color-surface-foreground: hsl(210 15% 90%);
+  --color-surface-elevated-foreground: hsl(210 15% 90%);
+  --color-popover-foreground: hsl(210 15% 90%);
+  --color-secondary: hsl(220 12% 15%);
+  --color-secondary-foreground: hsl(210 15% 90%);
+  --color-muted: hsl(220 12% 15%);
+  --color-muted-foreground: hsl(215 10% 62%);
+  --color-accent: hsl(220 12% 15%);
+  --color-accent-foreground: hsl(210 15% 90%);
+  --color-border: hsl(220 12% 15%);
+  --color-border-strong: hsl(220 12% 25%);
+  --color-input: hsl(220 12% 15%);
+  --color-text-tertiary: hsl(215 8% 50%);
+  --color-primary: hsl(8 72% 55%);
+  --color-primary-foreground: hsl(10 60% 8%);
+  --color-brand: hsl(215 25% 68%);
+  --color-brand-foreground: hsl(220 40% 10%);
+  --color-destructive: hsl(4 60% 30%);
+  --color-destructive-foreground: hsl(210 15% 92%);
+  --color-destructive-fg: hsl(6 80% 75%);
+  --font-display: 'Archivo Narrow', 'Instrument Sans', system-ui, sans-serif;
 }
 
 @layer base {
@@ -109,10 +144,11 @@
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family:
-      'Inter',
+      'Instrument Sans',
       system-ui,
       -apple-system,
       sans-serif;
+    letter-spacing: 0.005em;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     overflow: hidden;
@@ -137,8 +173,9 @@
   h4,
   h5,
   h6 {
-    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    font-family: var(--font-display);
     text-wrap: balance;
+    letter-spacing: -0.015em;
   }
 
   /* Custom Scrollbar for desktop app */
@@ -163,12 +200,14 @@
     scrollbar-width: thin;
   }
 
-  .details-scroll {
+  .details-scroll,
+  .library-scroll {
     scrollbar-gutter: auto;
     scrollbar-color: var(--color-border) var(--color-background);
     scrollbar-width: thin;
   }
-  .details-scroll::-webkit-scrollbar-track {
+  .details-scroll::-webkit-scrollbar-track,
+  .library-scroll::-webkit-scrollbar-track {
     background: var(--color-background);
   }
 }

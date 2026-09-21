@@ -246,7 +246,15 @@ export function LibraryView({ onSelectAnime, activeProvider, isActive }: Library
               role="status"
             >
               {filteredItems.length} {filteredItems.length === 1 ? 'anime' : 'animes'}
-              {selectedDirFilter === 'all' && dirs.length > 1 ? ` · ${dirs.length} carpetas` : ''}
+              {selectedDirFilter === 'all' && dirs.length > 1 && (
+                <>
+                  {' '}
+                  <span aria-hidden="true" className="text-border-strong">
+                    |
+                  </span>{' '}
+                  {dirs.length} carpetas
+                </>
+              )}
             </p>
             <PosterGrid>
               {filteredItems.map((item: any, idx: number) => (

@@ -159,7 +159,7 @@ export function Sidebar({ currentView, setCurrentView }: SidebarProps) {
               className={clsx(
                 'sidebar-nav-item relative w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium border transition-[background-color,border-color,color,box-shadow] duration-150 [transition-timing-function:var(--ease-out)] outline-none focus-visible:ring-2 focus-visible:ring-primary/60',
                 isActive
-                  ? 'bg-primary/10 text-primary border-primary/15 shadow-sm'
+                  ? 'bg-foreground/[0.06] text-foreground border-foreground/10 shadow-none'
                   : 'bg-transparent text-muted-foreground border-transparent hover:bg-secondary hover:text-foreground hover:border-border/50',
               )}
             >
@@ -185,7 +185,7 @@ export function Sidebar({ currentView, setCurrentView }: SidebarProps) {
               type="button"
               onClick={() => setUpdateModalOpen(true)}
               aria-label={`Ver actualización disponible ${updateAvailable.version}`}
-              className="sidebar-nav-item relative w-full flex items-center gap-3 px-4 py-2.5 mb-1 rounded-lg text-sm font-bold border border-transparent bg-primary text-primary-foreground transition-[background-color,border-color,color] duration-150 [transition-timing-function:var(--ease-out)] outline-none focus-visible:ring-2 focus-visible:ring-primary/60 cursor-pointer hover:bg-primary/90"
+              className="sidebar-nav-item relative w-full flex items-center gap-3 px-4 py-2.5 mb-1 rounded-lg text-sm font-bold border border-transparent bg-primary text-primary-foreground transition-[background-color,border-color,color] duration-150 [transition-timing-function:var(--ease-out)] outline-none focus-visible:ring-2 focus-visible:ring-primary/60 cursor-pointer hover:bg-[color-mix(in_srgb,var(--color-primary)_88%,black)]"
             >
               <CircleArrowUp strokeWidth={2} className="w-[18px] h-[18px] shrink-0" aria-hidden="true" />
               <span className="sidebar-label">Actualizar</span>
@@ -202,7 +202,7 @@ export function Sidebar({ currentView, setCurrentView }: SidebarProps) {
           className={clsx(
             'sidebar-nav-item relative w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium border transition-[background-color,border-color,color,box-shadow] duration-150 [transition-timing-function:var(--ease-out)] outline-none focus-visible:ring-2 focus-visible:ring-primary/60',
             currentView === 'settings'
-              ? 'bg-primary/10 text-primary border-primary/15 shadow-sm'
+              ? 'bg-foreground/[0.06] text-foreground border-foreground/10 shadow-none'
               : 'bg-transparent text-muted-foreground border-transparent hover:bg-secondary hover:text-foreground hover:border-border/50',
           )}
         >

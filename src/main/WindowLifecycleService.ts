@@ -266,7 +266,7 @@ export class WindowLifecycleService {
         width: 1300,
         height: 900,
         show: false,
-        backgroundColor: '#0b0e14',
+        backgroundColor: '#0d0b09',
         title: 'OmniAnime',
         icon: this.dependencies.getAppIconPath(),
         frame: false,

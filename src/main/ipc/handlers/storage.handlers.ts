@@ -161,7 +161,7 @@ export function registerStorageHandlers(dependencies: IpcRegistryDependencies): 
         return { success: false, error: 'Archivo no válido' };
       const defaults = SettingsManager.getDefaults();
       const isValidOutputDir = isValidOutputDirString;
-      const allowedThemes = new Set(['dark', 'quantum', 'oled']);
+      const allowedThemes = new Set(['dark', 'quantum', 'oled', 'tinta']);
       const allowedToastPositions = new Set([
         'top-left',
         'top-right',

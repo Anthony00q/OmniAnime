@@ -238,7 +238,7 @@ export function ScannerView({ isActive = true }: { isActive?: boolean }) {
           <button
             onClick={handleRefresh}
             disabled={isFetching || isRefreshing}
-            className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg font-medium transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground hover:bg-[color-mix(in_srgb,var(--color-primary)_88%,black)] disabled:opacity-50 disabled:cursor-not-allowed rounded-lg font-medium transition-colors"
           >
             <RefreshCcw className={`w-4 h-4 ${isFetching || isRefreshing ? 'animate-spin' : ''}`} />
             <span>Escanear Directorio</span>
@@ -341,7 +341,7 @@ export function ScannerView({ isActive = true }: { isActive?: boolean }) {
             onClick={executeSearch}
             disabled={isSearching}
             aria-busy={isSearching}
-            className="px-6 py-2.5 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 rounded-lg font-bold text-sm transition-colors flex items-center gap-2"
+            className="px-6 py-2.5 bg-primary text-primary-foreground hover:bg-[color-mix(in_srgb,var(--color-primary)_88%,black)] disabled:opacity-50 rounded-lg font-bold text-sm transition-colors flex items-center gap-2"
           >
             {isSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
             Buscar

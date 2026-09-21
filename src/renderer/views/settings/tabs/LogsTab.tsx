@@ -261,7 +261,7 @@ export const LogsTab = memo(function LogsTab({ isActive = true }: LogsTabProps) 
             <SquarePen className="w-4 h-4 text-primary" />
           </div>
           <div>
-            <h3 className="text-base font-extrabold tracking-tight">Registro de sesiones</h3>
+            <h3 className="text-base font-bold tracking-[-0.015em]">Registro de sesiones</h3>
             <p className="text-xs text-muted-foreground">Un fichero por cada arranque de la aplicación</p>
           </div>
           <AppTooltip content="Recargar">

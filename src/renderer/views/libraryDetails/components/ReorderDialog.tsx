@@ -89,7 +89,7 @@ export function ReorderDialog({
                 const next = isNaN(n) ? 1 : n + 1;
                 onReorderStartChange(String(next));
               }}
-              className="w-11 h-11 rounded-xl bg-primary text-primary-foreground border border-primary flex items-center justify-center hover:bg-primary/90 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 shrink-0 shadow-sm"
+              className="w-11 h-11 rounded-xl bg-primary text-primary-foreground border border-primary flex items-center justify-center hover:bg-[color-mix(in_srgb,var(--color-primary)_88%,black)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 shrink-0 shadow-sm"
               aria-label="Incrementar"
             >
               <Plus className="w-4 h-4" />
@@ -163,7 +163,7 @@ export function ReorderDialog({
             {reorderPreview?.success === false ? (
               <div className="flex flex-1 items-center justify-center px-4 py-10 text-center">
                 <div>
-                  <AlertTriangle className="w-6 h-6 text-amber-500 mx-auto mb-2" />
+                  <AlertTriangle className="w-6 h-6 text-warning mx-auto mb-2" />
                   <p className="text-sm text-muted-foreground">{reorderPreview?.error || 'No se pudo previsualizar'}</p>
                 </div>
               </div>

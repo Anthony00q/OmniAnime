@@ -103,7 +103,7 @@ export function UpdateModal() {
           <button
             type="button"
             onClick={() => void install()}
-            className="inline-flex items-center justify-center px-4 py-2 rounded-lg text-xs font-bold transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 bg-primary text-primary-foreground hover:bg-primary/90 min-w-[148px]"
+            className="inline-flex items-center justify-center px-4 py-2 rounded-lg text-xs font-bold transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 bg-primary text-primary-foreground hover:bg-[color-mix(in_srgb,var(--color-primary)_88%,black)] min-w-[148px]"
           >
             Reiniciar para instalar
           </button>
@@ -112,7 +112,7 @@ export function UpdateModal() {
             type="button"
             onClick={() => void startDownload()}
             disabled={phase === 'downloading'}
-            className="inline-flex items-center justify-center px-4 py-2 rounded-lg text-xs font-bold transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-50 disabled:cursor-not-allowed bg-primary text-primary-foreground hover:bg-primary/90 min-w-[148px]"
+            className="inline-flex items-center justify-center px-4 py-2 rounded-lg text-xs font-bold transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-50 disabled:cursor-not-allowed bg-primary text-primary-foreground hover:bg-[color-mix(in_srgb,var(--color-primary)_88%,black)] min-w-[148px]"
           >
             {phase === 'downloading' ? `Descargando… ${Math.round(percent)}%` : 'Descargar e instalar'}
           </button>

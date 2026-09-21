@@ -55,11 +55,11 @@ export function Titlebar() {
           />
         ) : (
           <span
-            className="w-[18px] h-[18px] rounded-[5px] bg-white/[0.06] border border-white/[0.08] block shrink-0"
+            className="w-[18px] h-[18px] rounded-[5px] bg-foreground/[0.06] border border-foreground/[0.08] block shrink-0"
             aria-hidden="true"
           />
         )}
-        <span className="font-semibold text-sm tracking-tight text-foreground/90 font-['Plus_Jakarta_Sans']">
+        <span className="font-['Bricolage_Grotesque','Instrument_Sans',system-ui,sans-serif] font-bold text-sm tracking-[-0.015em] text-foreground/90">
           OmniAnime
         </span>
       </div>
@@ -69,7 +69,7 @@ export function Titlebar() {
           type="button"
           onClick={handleMinimize}
           aria-label="Minimizar ventana"
-          className="h-8 w-10 inline-flex items-center justify-center rounded-md text-foreground/80 hover:bg-white/10 hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-inset"
+          className="h-8 w-10 inline-flex items-center justify-center rounded-md text-foreground/80 hover:bg-foreground/10 hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-inset"
         >
           <Minus strokeWidth={2} className="w-[14px] h-[14px] drop-shadow-[0_1px_2px_rgb(0_0_0/0.65)]" />
         </button>
@@ -77,7 +77,7 @@ export function Titlebar() {
           type="button"
           onClick={handleToggleMaximize}
           aria-label={isMaximized ? 'Restaurar ventana' : 'Maximizar ventana'}
-          className="h-8 w-10 inline-flex items-center justify-center rounded-md text-foreground/80 hover:bg-white/10 hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-inset"
+          className="h-8 w-10 inline-flex items-center justify-center rounded-md text-foreground/80 hover:bg-foreground/10 hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-inset"
         >
           {isMaximized ? (
             <Copy strokeWidth={2} className="w-[13px] h-[13px] drop-shadow-[0_1px_2px_rgb(0_0_0/0.65)]" />

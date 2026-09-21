@@ -57,8 +57,8 @@ export function hslStringToHex(input: string): string | null {
   return `#${toHex(r1)}${toHex(g1)}${toHex(b1)}`.toLowerCase();
 }
 
-export const DEFAULT_ACCENT_HEX = '#3b82f6';
-export const DEFAULT_ACCENT_HSL = 'hsl(217.2 91.2% 59.8%)';
+export const DEFAULT_ACCENT_HEX = '#e8a33d';
+export const DEFAULT_ACCENT_HSL = 'hsl(35 78% 57%)';
 
 export function normalizeAccentToHex(color: string, fallback = DEFAULT_ACCENT_HEX): string {
   const hex = hslStringToHex(color);
@@ -89,6 +89,6 @@ export function getAccentHex(color: string | undefined | null, fallback = DEFAUL
   return normalizeAccentToHex(String(color || '').trim() || fallback, fallback);
 }
 
-export function isThemeValue(value: unknown): value is 'dark' | 'oled' | 'quantum' {
-  return value === 'dark' || value === 'oled' || value === 'quantum';
+export function isThemeValue(value: unknown): value is 'dark' | 'oled' | 'quantum' | 'tinta' {
+  return value === 'dark' || value === 'oled' || value === 'quantum' || value === 'tinta';
 }

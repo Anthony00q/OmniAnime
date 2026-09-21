@@ -105,7 +105,7 @@ export const NotificationsTab = memo(function NotificationsTab({
                     });
                     if (settings.notificationsSound !== false) onTestSound();
                   }}
-                  className="mt-4 w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-semibold shadow-md hover:bg-primary/90 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                  className="mt-4 w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-semibold shadow-md hover:bg-[color-mix(in_srgb,var(--color-primary)_88%,black)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
                 >
                   <Bell className="w-4 h-4" /> Probar notificación
                 </button>
@@ -117,7 +117,7 @@ export const NotificationsTab = memo(function NotificationsTab({
 
             <div className="space-y-4">
               <div className="flex items-center gap-2">
-                <div className="w-1 h-4 rounded-full bg-emerald-500" />
+                <div className="w-1 h-4 rounded-full bg-success" />
                 <h3 className="text-sm font-bold">Alertas sonoras</h3>
               </div>
 

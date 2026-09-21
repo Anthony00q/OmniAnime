@@ -38,6 +38,7 @@ import { parseEpisodeFilter } from '../utils/episodeFilter';
 import { useEpisodeView } from '../utils/episodeView';
 import { EpisodeViewMenu } from './libraryDetails/components/EpisodeViewMenu';
 import { normalizeSeasonLabel } from '../utils/seasonLabel';
+import { HERO_DIM_MAX, HERO_DIM_DISTANCE } from '../utils/heroDim';
 import { buildExternalUrl } from '../../utils/externalUrl';
 import {
   useAnimeDetails,
@@ -67,26 +68,26 @@ const getStatusStyles = (status: string | undefined) => {
   const s = status?.toLowerCase() || '';
   if (s.includes('emisión') || s.includes('emision') || s.includes('emitiendo')) {
     return {
-      bgContainer: 'bg-emerald-500/20',
-      borderContainer: 'border-emerald-500/30',
-      dotBg: 'bg-emerald-500',
-      text: 'text-emerald-500',
+      bgContainer: 'bg-success/20',
+      borderContainer: 'border-success/30',
+      dotBg: 'bg-success',
+      text: 'text-success',
     };
   }
   if (s.includes('finalizado') || s.includes('terminado')) {
     return {
-      bgContainer: 'bg-red-500/20',
-      borderContainer: 'border-red-500/30',
-      dotBg: 'bg-red-500',
-      text: 'text-red-500',
+      bgContainer: 'bg-destructive/20',
+      borderContainer: 'border-destructive/30',
+      dotBg: 'bg-destructive-fg',
+      text: 'text-destructive-fg',
     };
   }
   if (s.includes('próximamente') || s.includes('proximamente') || s.includes('espera')) {
     return {
-      bgContainer: 'bg-amber-500/20',
-      borderContainer: 'border-amber-500/30',
-      dotBg: 'bg-amber-500',
-      text: 'text-amber-500',
+      bgContainer: 'bg-warning/20',
+      borderContainer: 'border-warning/30',
+      dotBg: 'bg-warning',
+      text: 'text-warning',
     };
   }
   return {
@@ -149,7 +150,7 @@ const EpisodeGridItem = memo(
                 Episodio
               </span>
               <span
-                className={`max-w-full truncate text-xl font-black tabular-nums sm:text-2xl ${isListView && isChecked ? 'text-primary' : 'text-foreground'}`}
+                className={`max-w-full truncate text-xl font-bold tabular-nums sm:text-2xl ${isListView && isChecked ? 'text-primary' : 'text-foreground'}`}
               >
                 {num}
               </span>
@@ -342,6 +343,18 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
   const isAnilistSettled = isAnilistSuccess || isAnilistError;
   const [bannerFailed, setBannerFailed] = useState(false);
   const [bannerShown, setBannerShown] = useState(false);
+  const [scrollNode, setScrollNode] = useState<HTMLDivElement | null>(null);
+  const [bannerFadeNode, setBannerFadeNode] = useState<HTMLDivElement | null>(null);
+  const [heroNode, setHeroNode] = useState<HTMLDivElement | null>(null);
+  const [heroBottom, setHeroBottom] = useState(0);
+  const innerDimRef = useRef(0);
+  const applyDimRef = useRef<() => void>(() => {});
+
+  const handleVListScroll = useCallback((offset: number) => {
+    const ratio = Math.min(1, Math.max(0, offset / HERO_DIM_DISTANCE));
+    innerDimRef.current = ratio * HERO_DIM_MAX;
+    applyDimRef.current();
+  }, []);
   const [graceExpired, setGraceExpired] = useState(false);
   const [anilistGraceExpired, setAnilistGraceExpired] = useState(false);
   const bannerUrl = !bannerFailed && anilistBanner ? anilistBanner : null;
@@ -384,6 +397,7 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
     setSelected(new Set());
     setBannerFailed(false);
     setBannerShown(false);
+    innerDimRef.current = 0;
     setGraceExpired(false);
     setAnilistGraceExpired(false);
     setRangeFrom('1');
@@ -398,6 +412,44 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
     setThumbWindow(null);
     lastThumbReqRef.current = '';
   }, [slug]);
+
+  // El póster del hero pasa de 46vh en ventanas bajas: el banner crece hasta
+  // cubrirlo para que su fundido cierre la ficha en vez de dejar banda plana.
+  useLayoutEffect(() => {
+    if (!heroNode) return;
+    const measure = () => setHeroBottom(heroNode.offsetTop + heroNode.offsetHeight);
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(heroNode);
+    return () => observer.disconnect();
+  }, [heroNode, slug]);
+
+  // Dim continuo del banner: una escritura de opacidad por frame sobre el
+  // wrapper de la imagen (fade hacia el fondo, fundido por debajo de los
+  // scrims), sin transición ni estado React, leyendo scrollTop y, en listas
+  // virtualizadas, el offset del VList.
+  useEffect(() => {
+    if (!scrollNode || !bannerFadeNode) return;
+    let raf = 0;
+    const apply = () => {
+      raf = 0;
+      const ratio = Math.min(1, Math.max(0, scrollNode.scrollTop / HERO_DIM_DISTANCE));
+      const dim = Math.max(ratio * HERO_DIM_MAX, innerDimRef.current);
+      bannerFadeNode.style.opacity = String(1 - dim);
+    };
+    applyDimRef.current = apply;
+    const onScroll = () => {
+      if (raf === 0) raf = requestAnimationFrame(apply);
+    };
+    scrollNode.addEventListener('scroll', onScroll, { passive: true });
+    apply();
+    return () => {
+      scrollNode.removeEventListener('scroll', onScroll);
+      if (raf !== 0) cancelAnimationFrame(raf);
+      applyDimRef.current = () => {};
+    };
+  }, [scrollNode, bannerFadeNode, slug]);
 
   // Pasados 2 s sin banner, el hero queda en plano; si llega, disuelve igual.
   useEffect(() => {
@@ -663,7 +715,7 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
         <button
           type="button"
           onClick={() => navigateToCatalog()}
-          className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+          className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-[color-mix(in_srgb,var(--color-primary)_88%,black)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
         >
           Ir al catálogo
         </button>
@@ -702,29 +754,35 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
 
   return (
     <div className="relative flex h-full min-w-0 flex-col overflow-hidden bg-background">
-      <div className="absolute left-0 top-0 z-0 h-[46vh] min-h-[240px] w-full overflow-hidden">
+      <div
+        style={heroBottom > 0 ? { height: `max(46vh, ${heroBottom}px)` } : undefined}
+        className="absolute left-0 top-0 z-0 h-[46vh] min-h-[240px] w-full overflow-hidden bg-background"
+      >
         {bannerUrl && (
-          <PosterImage
-            src={bannerUrl}
-            alt={`Banner de ${data.title}`}
-            priority={!!isActive}
-            onLoad={() => setBannerShown(true)}
-            onError={() => setBannerFailed(true)}
-            className={`h-full w-full object-cover object-[center_20%] brightness-[0.8] saturate-[0.82] transition-opacity duration-200 ${
-              showBanner ? 'opacity-100' : 'invisible opacity-0'
-            }`}
-          />
+          <div ref={setBannerFadeNode} className="absolute inset-0">
+            <PosterImage
+              src={bannerUrl}
+              alt={`Banner de ${data.title}`}
+              priority={!!isActive}
+              onLoad={() => setBannerShown(true)}
+              onError={() => setBannerFailed(true)}
+              className={`h-full w-full object-cover object-[center_20%] transition-opacity duration-200 ${
+                showBanner ? 'opacity-100' : 'invisible opacity-0'
+              }`}
+            />
+          </div>
         )}
         {showShimmer && <div aria-hidden="true" className="absolute inset-0 animate-pulse bg-secondary/40" />}
         {showBanner ? (
           <>
+            <div aria-hidden="true" className="absolute inset-0 bg-black/20" />
             <div
               aria-hidden="true"
               className="absolute inset-0 bg-gradient-to-r from-background/80 via-background/35 to-transparent"
             />
             <div
               aria-hidden="true"
-              className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-b from-transparent via-background/60 to-background"
+              className="absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-b from-transparent to-background"
             />
           </>
         ) : (
@@ -735,7 +793,7 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
         )}
       </div>
 
-      <div className="details-scroll z-10 flex h-full min-w-0 flex-col overflow-y-auto">
+      <div ref={setScrollNode} className="details-scroll z-10 flex h-full min-w-0 flex-col overflow-y-auto">
         <div className="sticky top-0 z-20 flex items-center justify-between px-4 pb-4 pt-12 sm:px-6 sm:pb-6 sm:pt-14">
           <button
             type="button"
@@ -746,7 +804,10 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
           </button>
         </div>
 
-        <div className="relative flex shrink-0 flex-col gap-5 px-4 pb-6 sm:flex-row sm:gap-8 sm:px-8 md:px-10 md:pb-8">
+        <div
+          ref={setHeroNode}
+          className="relative flex shrink-0 flex-col gap-5 px-4 pb-6 sm:flex-row sm:gap-8 sm:px-8 md:px-10 md:pb-8"
+        >
           <div className="sala-frame w-36 shrink-0 self-center overflow-hidden rounded-xl border border-border/60 bg-card shadow-[0_16px_48px_rgba(0,0,0,0.5)] sm:w-48 sm:self-start md:w-64">
             <PosterImage
               src={data.poster}
@@ -758,17 +819,17 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
           </div>
 
           <div className="flex min-w-0 flex-col items-center justify-center pb-2 text-center sm:items-start sm:pb-4 sm:pt-4 sm:text-left">
-            <h1 className="select-text cursor-text text-2xl font-black leading-[1.1] tracking-[-0.02em] text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.8)] sm:text-4xl md:text-5xl">
+            <h1 className="select-text cursor-text text-2xl font-bold leading-[1.05] tracking-[-0.025em] text-white sm:text-4xl md:text-5xl">
               {data.title}
             </h1>
 
             {(data.japaneseTitle || (data.alternativeTitles && data.alternativeTitles.length > 0)) && (
-              <h2 className="mb-4 select-text cursor-text text-base font-semibold text-white/60 drop-shadow-[0_2px_12px_rgba(0,0,0,0.8)] sm:mb-6 sm:text-xl">
+              <h2 className="mb-4 select-text cursor-text text-base font-medium text-white/65 sm:mb-6 sm:text-xl">
                 {data.japaneseTitle || data.alternativeTitles?.join(', ')}
               </h2>
             )}
 
-            <p className="mb-4 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[13px] font-medium text-muted-foreground drop-shadow-[0_2px_12px_rgba(0,0,0,0.8)] sm:mb-5 sm:justify-start">
+            <p className="mb-4 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[13px] font-medium text-muted-foreground sm:mb-5 sm:justify-start">
               <span className="inline-flex items-center gap-1.5">
                 <span
                   className={`inline-flex h-2 w-2 shrink-0 rounded-full ${statusStyles.dotBg}`}
@@ -810,7 +871,7 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
                     |
                   </span>
                   <span className="inline-flex items-center gap-1 font-semibold text-foreground">
-                    <Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" aria-hidden="true" />
+                    <Star className="h-3.5 w-3.5 fill-amber-300 text-amber-300" aria-hidden="true" />
                     <span className="tabular-nums">{data.score}</span>
                     {data.votes > 0 && (
                       <span className="font-medium tabular-nums text-muted-foreground">
@@ -823,7 +884,7 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
             </p>
 
             {data.genres && data.genres.length > 0 && (
-              <p className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 drop-shadow-[0_2px_12px_rgba(0,0,0,0.8)] sm:justify-start">
+              <p className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 sm:justify-start">
                 {data.genres.map((g: string, idx: number) => (
                   <span key={idx} className="inline-flex items-center">
                     <button
@@ -975,7 +1036,7 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
                     type="button"
                     onClick={handleDownloadSelected}
                     disabled={selected.size === 0 || addToQueue.isPending}
-                    className="flex flex-1 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-[0_8px_24px_rgba(0,0,0,0.35)] transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none sm:flex-none sm:px-4"
+                    className="flex flex-1 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-[0_8px_24px_rgba(0,0,0,0.35)] transition-colors hover:bg-[color-mix(in_srgb,var(--color-primary)_88%,black)] disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none sm:flex-none sm:px-4"
                   >
                     <Download className="w-3.5 h-3.5" />
                     {selected.size === 0
@@ -1006,6 +1067,7 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
                 <VList
                   data={rows}
                   ref={vlistRef}
+                  onScroll={handleVListScroll}
                   onScrollEnd={requestTailThumbs}
                   style={{ height: '55vh', maxHeight: '55vh' }}
                   className="custom-scrollbar pr-2"

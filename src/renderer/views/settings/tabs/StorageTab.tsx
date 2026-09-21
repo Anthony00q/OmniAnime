@@ -65,18 +65,30 @@ export const StorageTab = memo(function StorageTab({
                             <div className="text-sm font-semibold truncate">{d.label}</div>
                             <div className="text-xs text-muted-foreground truncate select-text">{d.path}</div>
                             {d.error ? (
-                              <div className="text-[11px] text-amber-600 mt-1">{d.error}</div>
+                              <div className="text-[11px] text-destructive-fg mt-1">{d.error}</div>
                             ) : (
                               <div className="text-[11px] text-muted-foreground mt-1">
-                                {usedText ? `${usedText} usados` : ''} {usedText && totalText ? '·' : ''} {totalText}{' '}
-                                total · {freeText} libres
+                                {usedText ? `${usedText} usados` : ''}
+                                {usedText && totalText && (
+                                  <>
+                                    {' '}
+                                    <span aria-hidden="true" className="text-border-strong">
+                                      |
+                                    </span>{' '}
+                                  </>
+                                )}
+                                {totalText} total{' '}
+                                <span aria-hidden="true" className="text-border-strong">
+                                  |
+                                </span>{' '}
+                                {freeText} libres
                               </div>
                             )}
                           </div>
                         </div>
                         {pct != null && (
                           <span
-                            className={`shrink-0 text-xs font-bold px-2 py-1 rounded-full border ${pct > 85 ? 'bg-destructive/10 text-destructive-fg border-destructive/20' : pct > 70 ? 'bg-amber-500/10 text-amber-600 border-amber-500/20' : 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'}`}
+                            className={`shrink-0 text-xs font-bold px-2 py-1 rounded-full border ${pct > 85 ? 'bg-destructive/10 text-destructive-fg border-destructive/20' : pct > 70 ? 'bg-warning/10 text-warning border-warning/20' : 'bg-success/10 text-success border-success/20'}`}
                           >
                             {pct}% usado
                           </span>
@@ -85,7 +97,7 @@ export const StorageTab = memo(function StorageTab({
                       {pct != null && (
                         <div className="mt-3 h-2 rounded-full bg-secondary overflow-hidden border border-border/40">
                           <div
-                            className={`h-full rounded-full origin-left transition-[transform,background-color] ${pct > 85 ? 'bg-destructive' : pct > 70 ? 'bg-amber-500' : 'bg-primary'}`}
+                            className={`h-full rounded-full origin-left transition-[transform,background-color] ${pct > 85 ? 'bg-destructive' : pct > 70 ? 'bg-warning' : 'bg-primary'}`}
                             style={{ width: '100%', transform: `scaleX(${pct / 100})` }}
                           />
                         </div>
@@ -293,7 +305,7 @@ export const StorageTab = memo(function StorageTab({
           </div>
         </div>
         <p className="text-xs text-muted-foreground mt-3 flex items-center gap-1.5">
-          <Shield className="w-3.5 h-3.5 text-emerald-500" /> No afecta a las descargas en curso.
+          <Shield className="w-3.5 h-3.5 text-success" /> No afecta a las descargas en curso.
         </p>
       </section>
     </>

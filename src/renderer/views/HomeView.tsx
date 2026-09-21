@@ -284,7 +284,11 @@ export function HomeView({ isActive }: { isActive?: boolean }) {
               className="px-0 pt-4 text-[13px] font-medium normal-case tracking-normal text-text-tertiary tabular-nums select-none"
               role="status"
             >
-              {items.length} {items.length === 1 ? 'anime reciente' : 'animes recientes'} · {providerName}
+              {items.length} {items.length === 1 ? 'anime reciente' : 'animes recientes'}{' '}
+              <span aria-hidden="true" className="text-border-strong">
+                |
+              </span>{' '}
+              {providerName}
             </p>
             <PosterGrid>
               {items.map((item: any, idx: number) => (

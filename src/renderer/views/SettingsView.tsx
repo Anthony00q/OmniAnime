@@ -111,7 +111,7 @@ export function SettingsView({ isActive = true }: { isActive?: boolean }) {
   }, [settings, initialSettings, initialSettingsJson, normalizedSettingsJson, pendingEpView, liveEpView]);
 
   const accentHex = useMemo(
-    () => getAccentHex((settings as AppSettings | null)?.accentColor || '#3b82f6'),
+    () => getAccentHex((settings as AppSettings | null)?.accentColor || '#e8a33d'),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [settings?.accentColor],
   );
@@ -178,7 +178,7 @@ export function SettingsView({ isActive = true }: { isActive?: boolean }) {
       } catch {
         setInitialSettingsJson('');
       }
-      setAccentInput(normalizedSettings.accentColor || '#3b82f6');
+      setAccentInput(normalizedSettings.accentColor || '#e8a33d');
       prevHwAccelRef.current = normalizedSettings.hardwareAcceleration !== false;
       prevProviderRef.current = normalizedSettings.defaultProvider || 'animeav1';
       // --color-primary is now owned solely by App.tsx (via settingsAtom), no direct setProperty here
@@ -211,7 +211,7 @@ export function SettingsView({ isActive = true }: { isActive?: boolean }) {
       const fallbackHex = getAccentHex((initialSettings as AppSettings | null)?.accentColor || DEFAULT_ACCENT_HEX);
       nextSettings.accentColor = fallbackHex;
       toast.error('Color de acento no válido', {
-        description: 'Usa formato HEX como #3b82f6 o HSL como hsl(217 91% 60%). Se recuperó el anterior.',
+        description: 'Usa formato HEX como #e8a33d o HSL como hsl(35 78% 57%). Se recuperó el anterior.',
       });
     }
     const hwChanged = (nextSettings?.hardwareAcceleration !== false) !== prevHwAccelRef.current;
@@ -492,6 +492,7 @@ export function SettingsView({ isActive = true }: { isActive?: boolean }) {
             {activeTab === 'apariencia' && (
               <AppearanceTab
                 theme={(settings as AppSettings).theme}
+                savedTheme={(initialSettings as AppSettings)?.theme ?? (settings as AppSettings).theme}
                 accentHex={accentHex}
                 accentInput={accentInput}
                 accentInputValid={accentInputValid}

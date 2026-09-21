@@ -12,7 +12,11 @@ export function useThemeSync(): void {
 
   useLayoutEffect(() => {
     if (prevThemeRef.current !== theme) {
-      document.documentElement.classList.remove('theme-oled', 'theme-quantum');
+      const classes = document.documentElement.classList;
+      for (let i = classes.length - 1; i >= 0; i--) {
+        const cls = classes[i];
+        if (cls.startsWith('theme-')) classes.remove(cls);
+      }
       if (theme && theme !== 'dark') {
         document.documentElement.classList.add(`theme-${theme}`);
       }

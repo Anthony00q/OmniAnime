@@ -66,7 +66,7 @@ export const EpisodeRow = memo(
               type="button"
               onClick={() => onPlay(ep.path)}
               aria-label={`Reproducir ${ep.name}`}
-              className="rounded-full bg-primary p-3 text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
+              className="rounded-full bg-primary p-3 text-primary-foreground transition-colors hover:bg-[color-mix(in_srgb,var(--color-primary)_88%,black)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
             >
               <Play className="h-5 w-5 fill-current" />
             </button>

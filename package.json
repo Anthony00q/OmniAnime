@@ -68,6 +68,11 @@
     "ws": "^8.21.3"
   },
   "dependencies": {
+    "@fontsource/archivo-narrow": "^5.3.0",
+    "@fontsource/bricolage-grotesque": "^5.3.0",
+    "@fontsource/instrument-sans": "^5.3.0",
+    "@fontsource/outfit": "^5.3.0",
+    "@fontsource/sora": "^5.3.0",
     "@radix-ui/react-dialog": "^1.1.23",
     "@radix-ui/react-select": "^2.3.7",
     "@radix-ui/react-switch": "^1.3.7",

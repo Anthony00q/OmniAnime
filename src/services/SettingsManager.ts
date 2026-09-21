@@ -18,7 +18,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   namingStyle: 'descriptive',
   autoRenameRetroactive: false,
   theme: 'dark',
-  accentColor: 'hsl(217.2 91.2% 59.8%)',
+  accentColor: 'hsl(35 78% 57%)',
   toastPosition: 'top-center',
   defaultProvider: 'animeav1',
   notificationsSound: true,

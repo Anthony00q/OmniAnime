@@ -371,7 +371,7 @@ export const SystemTab = memo(function SystemTab({
             />
             <div className="rounded-xl bg-secondary/30 border border-border/40 p-3 flex items-center gap-2.5">
               <div
-                className={`w-2 h-2 rounded-full shrink-0 ${settings.defaultProvider === 'animeav1' ? 'bg-emerald-500' : 'bg-violet-500'}`}
+                className={`w-2 h-2 rounded-full shrink-0 ${settings.defaultProvider === 'animeav1' ? 'bg-primary' : 'bg-brand'}`}
               />
               <span className="text-xs text-muted-foreground leading-relaxed">
                 {settings.defaultProvider === 'animeav1'
@@ -455,7 +455,7 @@ export const SystemTab = memo(function SystemTab({
                     </span>
                   </AppTooltip>
                   {settings.autoRenameRetroactive && (
-                    <span className="text-[11px] font-bold tracking-widest uppercase bg-amber-500/10 text-amber-600 border border-amber-500/20 px-1.5 py-0.5 rounded">
+                    <span className="text-[11px] font-bold tracking-widest uppercase bg-warning/10 text-warning border border-warning/20 px-1.5 py-0.5 rounded">
                       Pendiente
                     </span>
                   )}
