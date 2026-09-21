@@ -14,8 +14,12 @@
   <a href="https://github.com/Anthony00q/OmniAnime/releases">
     <img src="https://img.shields.io/github/v/release/Anthony00q/OmniAnime?style=flat-square&label=version" alt="Última versión" />
   </a>
-  <img src="https://img.shields.io/badge/Plataforma-Windows-blue?style=flat-square" alt="Windows" />
-  <img src="https://img.shields.io/badge/Licencia-GPLv3-blue?style=flat-square" alt="Licencia GPLv3" />
+  <a href="#instalación">
+    <img src="https://img.shields.io/badge/Plataforma-Windows-blue?style=flat-square" alt="Windows" />
+  </a>
+  <a href="#licencia">
+    <img src="https://img.shields.io/badge/Licencia-GPLv3-blue?style=flat-square" alt="Licencia GPLv3" />
+  </a>
 </div>
 
 <p align="center">
