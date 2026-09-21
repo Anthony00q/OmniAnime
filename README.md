@@ -4,7 +4,7 @@
   </a>
 </p>
 
-<h1 align="center">OmniAnime</h1>
+<h1 align="center"><b>OmniAnime</b></h1>
 
 <p align="center">
   Busca, descarga y organiza tu colección de anime en tu equipo — App de escritorio para Windows

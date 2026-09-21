@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.0.10] - 2026-09-21
+
+### Interfaz
+
+- Los temas renuevan su paleta con tonos cálidos y tipografías integradas que funcionan sin conexión, e incorporan el nuevo tema **Tinta** de tonos fríos con acento rojo; los titulares utilizan la tipografía de cada tema con un espaciado más compacto, y los estados activo y de paso utilizan tonos neutros del tema.
+- La imagen superior de la ficha y de la carpeta crece hasta cubrir el póster en ventanas bajas y se atenúa de forma continua al desplazarse, con separadores verticales en los resúmenes y sombras de texto simplificadas para una lectura más clara.
+- La pantalla inicial presenta un acabado mate en tonos cálidos, con el nombre en un solo tono marfil y la barra de progreso en ámbar, sin brillos ni animaciones de destello.
+
+### Ajustes
+
+- La pestaña **Apariencia** renueva sus opciones: cuatro temas con descripciones actualizadas, paleta rápida de cinco tonos cálidos y botón **Sugerido** que aplica el acento recomendado del tema guardado; cambiar de tema ya no modifica el color de acento elegido.
+- Los avisos de almacenamiento y de gestión de archivos utilizan los colores del tema activo, con separadores verticales en los resúmenes de espacio.
+
+### General
+
+- El icono de la aplicación renueva su imagen, visible en el acceso directo, la barra de tareas y el instalador.
+
 ## [1.0.9] - 2026-09-20
 
 ### Descargas
