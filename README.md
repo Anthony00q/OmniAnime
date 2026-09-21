@@ -1,6 +1,6 @@
 <p align="center">
   <a href="https://github.com/Anthony00q/OmniAnime">
-    <img src="assets/icon-128.png" alt="OmniAnime" width="96" />
+    <img src="assets/icon-readme.png" alt="OmniAnime" width="120" />
   </a>
 </p>
 

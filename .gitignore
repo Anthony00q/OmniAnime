@@ -38,6 +38,9 @@ plans/
 # Docs internos
 docs/Importante/
 
+# Privado
+Privado/
+
 # IDE / Editor
 .vscode/
 .idea/
