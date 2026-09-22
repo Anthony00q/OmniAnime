@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.1.0] - 2026-09-22
+
+### Ajustes
+
+- Los avisos incorporan los paquetes de sonido **Sala**, **Digital**, **Suave** y **Personalizado**.
+- La opción Personalizado permite asignar un sonido distinto a cada tipo de aviso, del catálogo o propio con recorte.
+
+### Interfaz
+
+- Las búsquedas muestran el resaltado ceñido al campo y conservan el cursor al limpiar.
+- El teclado ya no deja resaltados residuales: **Escape** solo cierra diálogos o suelta el campo de texto.
+- Los controles de ventana y el selector de fuente funcionan solo con ratón.
+
+### General
+
+- El icono de la aplicación presenta un redondeo más suave en Windows.
+
 ## [1.0.10] - 2026-09-21
 
 ### Interfaz
