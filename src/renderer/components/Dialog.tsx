@@ -20,6 +20,8 @@ interface DialogProps {
   icon?: React.ReactNode;
   hideDefaultIcon?: boolean;
   headerAlign?: 'start' | 'center';
+  onPointerDownOutside?: React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>['onPointerDownOutside'];
+  onEscapeKeyDown?: React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>['onEscapeKeyDown'];
 }
 
 export function Dialog({
@@ -40,6 +42,8 @@ export function Dialog({
   icon,
   hideDefaultIcon = false,
   headerAlign = 'start',
+  onPointerDownOutside,
+  onEscapeKeyDown,
 }: DialogProps) {
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
@@ -47,9 +51,11 @@ export function Dialog({
         <DialogPrimitive.Overlay className="fixed inset-0 bg-background/85 backdrop-blur-sm z-[9999] animate-in fade-in" />
         <DialogPrimitive.Content
           className={`fixed left-1/2 top-1/2 z-[9999] max-h-[calc(100vh-2rem)] w-[calc(100vw-2rem)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl border border-border/70 bg-popover shadow-2xl animate-in zoom-in-95 duration-200 select-none ${className || 'max-w-sm'}`}
+          onPointerDownOutside={onPointerDownOutside}
+          onEscapeKeyDown={onEscapeKeyDown}
         >
           <div className="p-6 disable-shortcuts">
-            <div className={`flex gap-4 mb-4 ${headerAlign === 'center' ? 'items-center' : 'items-start'}`}>
+            <div className={`flex gap-4 mb-4 ${headerAlign === 'center' || !message ? 'items-center' : 'items-start'}`}>
               {!hideDefaultIcon && (
                 <div
                   className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${

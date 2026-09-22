@@ -26,6 +26,7 @@ import { registerAppUpdaterHandlers } from './ipc/handlers/app-updater.handlers'
 import { registerStorageHandlers } from './ipc/handlers/storage.handlers';
 import { registerServerStatsHandlers } from './ipc/handlers/server-stats.handlers';
 import { registerLogsHandlers } from './ipc/handlers/logs.handlers';
+import { registerSoundHandlers } from './ipc/handlers/sounds.handlers';
 import type { LogScope, ScopedLogger } from '../services/AppLogger';
 
 export interface IpcRegistryDependencies {
@@ -78,6 +79,7 @@ export function registerIpcHandlers(dependencies: IpcRegistryDependencies): void
   registerLibraryHandlers(dependencies);
   registerAppUpdaterHandlers(dependencies);
   registerStorageHandlers(dependencies);
+  registerSoundHandlers(dependencies);
   registerServerStatsHandlers(dependencies);
   registerLogsHandlers(dependencies);
   // Señal del renderer tras el primer render con home listo; sin args.

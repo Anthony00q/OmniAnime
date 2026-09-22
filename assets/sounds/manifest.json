@@ -1,0 +1,296 @@
+{
+  "schemaVersion": 1,
+  "license": "CC0-1.0",
+  "source": "uisfx@0.4.0 (https://github.com/romainsimon/uisfx) — audio CC0-1.0",
+  "generated": "scripts/curate-sounds.mjs",
+  "sounds": [
+    {
+      "id": "minimal-queued",
+      "label": "Minimal · En cola",
+      "group": "inicio",
+      "gainTrim": 0.7,
+      "durationSec": 0.305,
+      "bytes": 1997,
+      "source": "uisfx@0.4.0 minimal/queued"
+    },
+    {
+      "id": "soft-start",
+      "label": "Soft · Inicio",
+      "group": "inicio",
+      "gainTrim": 0.95,
+      "durationSec": 0.615,
+      "bytes": 4909,
+      "source": "uisfx@0.4.0 soft/start"
+    },
+    {
+      "id": "glass-play",
+      "label": "Glass · Arranque",
+      "group": "inicio",
+      "gainTrim": 0.9,
+      "durationSec": 0.582,
+      "bytes": 5926,
+      "source": "uisfx@0.4.0 glass/play"
+    },
+    {
+      "id": "scifi-send",
+      "label": "Sci-fi · Envío",
+      "group": "inicio",
+      "gainTrim": 1,
+      "durationSec": 0.396,
+      "bytes": 3409,
+      "source": "uisfx@0.4.0 scifi/send"
+    },
+    {
+      "id": "zen-open",
+      "label": "Zen · Apertura",
+      "group": "inicio",
+      "gainTrim": 0.9,
+      "durationSec": 0.327,
+      "bytes": 1986,
+      "source": "uisfx@0.4.0 zen/open"
+    },
+    {
+      "id": "mechanical-connect",
+      "label": "Mechanical · Conexión",
+      "group": "inicio",
+      "gainTrim": 1,
+      "durationSec": 0.455,
+      "bytes": 4251,
+      "source": "uisfx@0.4.0 mechanical/connect"
+    },
+    {
+      "id": "studio-forward",
+      "label": "Studio · Avance",
+      "group": "inicio",
+      "gainTrim": 0.85,
+      "durationSec": 0.306,
+      "bytes": 3239,
+      "source": "uisfx@0.4.0 studio/forward"
+    },
+    {
+      "id": "dreamy-wake",
+      "label": "Dreamy · Despertar",
+      "group": "inicio",
+      "gainTrim": 0.85,
+      "durationSec": 0.809,
+      "bytes": 5226,
+      "source": "uisfx@0.4.0 dreamy/wake"
+    },
+    {
+      "id": "minimal-success",
+      "label": "Minimal · Éxito",
+      "group": "exito",
+      "gainTrim": 1.15,
+      "durationSec": 0.586,
+      "bytes": 4178,
+      "source": "uisfx@0.4.0 minimal/success"
+    },
+    {
+      "id": "soft-complete",
+      "label": "Soft · Completo",
+      "group": "exito",
+      "gainTrim": 1.2,
+      "durationSec": 0.977,
+      "bytes": 8994,
+      "source": "uisfx@0.4.0 soft/complete"
+    },
+    {
+      "id": "glass-check",
+      "label": "Glass · Verificado",
+      "group": "exito",
+      "gainTrim": 0.85,
+      "durationSec": 0.521,
+      "bytes": 3518,
+      "source": "uisfx@0.4.0 glass/check"
+    },
+    {
+      "id": "scifi-achievement",
+      "label": "Sci-fi · Logro",
+      "group": "exito",
+      "gainTrim": 1.3,
+      "durationSec": 0.983,
+      "bytes": 7491,
+      "source": "uisfx@0.4.0 scifi/achievement"
+    },
+    {
+      "id": "zen-reward",
+      "label": "Zen · Recompensa",
+      "group": "exito",
+      "gainTrim": 1.1,
+      "durationSec": 0.5,
+      "bytes": 3627,
+      "source": "uisfx@0.4.0 zen/reward"
+    },
+    {
+      "id": "mechanical-checkpoint",
+      "label": "Mechanical · Hito",
+      "group": "exito",
+      "gainTrim": 0.9,
+      "durationSec": 0.385,
+      "bytes": 3502,
+      "source": "uisfx@0.4.0 mechanical/checkpoint"
+    },
+    {
+      "id": "studio-badge",
+      "label": "Studio · Insignia",
+      "group": "exito",
+      "gainTrim": 1.1,
+      "durationSec": 0.608,
+      "bytes": 5707,
+      "source": "uisfx@0.4.0 studio/badge"
+    },
+    {
+      "id": "dreamy-level-up",
+      "label": "Dreamy · Subida de nivel",
+      "group": "exito",
+      "gainTrim": 1.25,
+      "durationSec": 1.348,
+      "bytes": 11389,
+      "source": "uisfx@0.4.0 dreamy/level-up"
+    },
+    {
+      "id": "minimal-error",
+      "label": "Minimal · Error",
+      "group": "error",
+      "gainTrim": 1.1,
+      "durationSec": 0.505,
+      "bytes": 2918,
+      "source": "uisfx@0.4.0 minimal/error"
+    },
+    {
+      "id": "soft-warning",
+      "label": "Soft · Aviso",
+      "group": "error",
+      "gainTrim": 1.1,
+      "durationSec": 0.822,
+      "bytes": 6423,
+      "source": "uisfx@0.4.0 soft/warning"
+    },
+    {
+      "id": "glass-blocked",
+      "label": "Glass · Bloqueo",
+      "group": "error",
+      "gainTrim": 1,
+      "durationSec": 0.643,
+      "bytes": 4043,
+      "source": "uisfx@0.4.0 glass/blocked"
+    },
+    {
+      "id": "scifi-invalid-drop",
+      "label": "Sci-fi · Rechazo",
+      "group": "error",
+      "gainTrim": 0.95,
+      "durationSec": 0.408,
+      "bytes": 2956,
+      "source": "uisfx@0.4.0 scifi/invalid-drop"
+    },
+    {
+      "id": "zen-cancel",
+      "label": "Zen · Cancelación",
+      "group": "error",
+      "gainTrim": 0.85,
+      "durationSec": 0.303,
+      "bytes": 2539,
+      "source": "uisfx@0.4.0 zen/cancel"
+    },
+    {
+      "id": "mechanical-disconnect",
+      "label": "Mechanical · Desconexión",
+      "group": "error",
+      "gainTrim": 0.95,
+      "durationSec": 0.433,
+      "bytes": 2806,
+      "source": "uisfx@0.4.0 mechanical/disconnect"
+    },
+    {
+      "id": "studio-delete",
+      "label": "Studio · Borrado",
+      "group": "error",
+      "gainTrim": 1.1,
+      "durationSec": 0.406,
+      "bytes": 2731,
+      "source": "uisfx@0.4.0 studio/delete"
+    },
+    {
+      "id": "dreamy-retry",
+      "label": "Dreamy · Reintento",
+      "group": "error",
+      "gainTrim": 0.9,
+      "durationSec": 0.748,
+      "bytes": 5564,
+      "source": "uisfx@0.4.0 dreamy/retry"
+    },
+    {
+      "id": "minimal-info",
+      "label": "Minimal · Info",
+      "group": "info",
+      "gainTrim": 0.8,
+      "durationSec": 0.38,
+      "bytes": 2628,
+      "source": "uisfx@0.4.0 minimal/info"
+    },
+    {
+      "id": "soft-notification",
+      "label": "Soft · Notificación",
+      "group": "info",
+      "gainTrim": 1,
+      "durationSec": 0.714,
+      "bytes": 4031,
+      "source": "uisfx@0.4.0 soft/notification"
+    },
+    {
+      "id": "glass-mention",
+      "label": "Glass · Mención",
+      "group": "info",
+      "gainTrim": 1.1,
+      "durationSec": 0.923,
+      "bytes": 7664,
+      "source": "uisfx@0.4.0 glass/mention"
+    },
+    {
+      "id": "scifi-reaction",
+      "label": "Sci-fi · Reacción",
+      "group": "info",
+      "gainTrim": 0.85,
+      "durationSec": 0.388,
+      "bytes": 2355,
+      "source": "uisfx@0.4.0 scifi/reaction"
+    },
+    {
+      "id": "zen-toggle-on",
+      "label": "Zen · Activado",
+      "group": "info",
+      "gainTrim": 1,
+      "durationSec": 0.268,
+      "bytes": 2331,
+      "source": "uisfx@0.4.0 zen/toggle-on"
+    },
+    {
+      "id": "mechanical-focus",
+      "label": "Mechanical · Foco",
+      "group": "info",
+      "gainTrim": 0.6,
+      "durationSec": 0.184,
+      "bytes": 1817,
+      "source": "uisfx@0.4.0 mechanical/focus"
+    },
+    {
+      "id": "studio-copy",
+      "label": "Studio · Copia",
+      "group": "info",
+      "gainTrim": 0.75,
+      "durationSec": 0.3,
+      "bytes": 3067,
+      "source": "uisfx@0.4.0 studio/copy"
+    },
+    {
+      "id": "dreamy-unlock",
+      "label": "Dreamy · Desbloqueo",
+      "group": "info",
+      "gainTrim": 1,
+      "durationSec": 0.805,
+      "bytes": 6532,
+      "source": "uisfx@0.4.0 dreamy/unlock"
+    }
+  ]
+}

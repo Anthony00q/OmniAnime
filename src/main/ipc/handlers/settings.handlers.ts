@@ -1,5 +1,7 @@
-import { ipcMain } from 'electron';
+import { app, ipcMain } from 'electron';
+import * as path from 'path';
 import { SettingsManager } from '../../../services/SettingsManager';
+import { CustomSoundService } from '../../../services/CustomSoundService';
 import { normalizeDownloadSettings } from '../../../utils/downloadSettings';
 import { normalizeLoggingSettings } from '../../../utils/loggingSettings';
 import { resolveDefaultOutputDir, sanitizeOutputDirs } from '../../../utils/outputDirs';
@@ -31,6 +33,15 @@ export function registerSettingsHandlers({
     if (!saved) return false;
     try {
       refreshLogging();
+    } catch {}
+    // Sin referencia en settings.
+    try {
+      const soundService = new CustomSoundService({
+        userDataDir: app.getPath('userData'),
+        soundsDir: path.join(app.getAppPath(), 'assets', 'sounds'),
+      });
+      const keepIds = (settings.customSoundFiles || []).map((f) => f.id);
+      void soundService.pruneUnreferenced(keepIds);
     } catch {}
     queueStore.invalidateDirLabelCache();
     if (settings.minimizeToTrayOnClose === true) createTray();

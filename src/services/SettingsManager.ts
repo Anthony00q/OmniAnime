@@ -4,6 +4,8 @@ import { app } from 'electron';
 import { AppSettings } from '../types/settings';
 import { DEFAULT_DOWNLOAD_SETTINGS, normalizeDownloadSettings } from '../utils/downloadSettings';
 import { normalizeLoggingSettings } from '../utils/loggingSettings';
+import { DEFAULT_SOUND_PACK, normalizeSoundPack } from '../utils/soundPacks';
+import { sanitizeSoundCustomMap, sanitizeCustomSoundFiles } from '../utils/soundCatalog';
 import type { ScopedLogger } from './AppLogger';
 import { DatabaseManager } from './DatabaseManager';
 
@@ -23,6 +25,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
   defaultProvider: 'animeav1',
   notificationsSound: true,
   soundVolume: 0.5,
+  soundPack: DEFAULT_SOUND_PACK,
+  soundCustom: {},
+  customSoundFiles: [],
   hardwareAcceleration: true,
   soundEnabled: {
     download: true,
@@ -153,6 +158,9 @@ export class SettingsManager {
   }
 
   private static mergeWithDefaults(settings: AppSettings): AppSettings {
+    settings.soundPack = normalizeSoundPack(settings.soundPack);
+    settings.soundCustom = sanitizeSoundCustomMap(settings.soundCustom);
+    settings.customSoundFiles = sanitizeCustomSoundFiles(settings.customSoundFiles);
     settings.soundEnabled = {
       ...DEFAULT_SETTINGS.soundEnabled,
       ...(settings as any).soundEnabled,

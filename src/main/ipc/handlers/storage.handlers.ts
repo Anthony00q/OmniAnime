@@ -5,6 +5,14 @@ import { SettingsManager } from '../../../services/SettingsManager';
 import { APP_LOG_FILENAME } from '../../../services/AppLogger';
 import { normalizeDownloadSettings } from '../../../utils/downloadSettings';
 import { normalizeLoggingSettings } from '../../../utils/loggingSettings';
+import { normalizeSoundPack, SOUND_PACK_CHOICES } from '../../../utils/soundPacks';
+import {
+  parseSoundRef,
+  sanitizeCustomSoundFiles,
+  sanitizeSoundCustomMap,
+  type CustomSoundFileMeta,
+} from '../../../utils/soundCatalog';
+import { SOUND_CATALOG } from '../../../utils/soundCatalogData';
 import { isValidOutputDirString } from '../../../utils/outputDirs';
 import { isPathWithinAnyDirectory } from '../../../utils/pathSecurity';
 import type { AppSettings } from '../../../types/settings';
@@ -235,6 +243,53 @@ export function registerStorageHandlers(dependencies: IpcRegistryDependencies): 
         (parsed as any).soundVolume <= 1
       )
         merged.soundVolume = (parsed as any).soundVolume;
+      if (
+        typeof (parsed as any).soundPack === 'string' &&
+        (SOUND_PACK_CHOICES as readonly string[]).includes((parsed as any).soundPack)
+      )
+        merged.soundPack = normalizeSoundPack((parsed as any).soundPack);
+      if ((parsed as any).soundEnabled && typeof (parsed as any).soundEnabled === 'object') {
+        const se = (parsed as any).soundEnabled as Record<string, unknown>;
+        const mergedSe = { ...(merged.soundEnabled || {}) } as Record<string, boolean>;
+        for (const key of ['download', 'success', 'error', 'info']) {
+          if (typeof se[key] === 'boolean') mergedSe[key] = se[key] as boolean;
+        }
+        merged.soundEnabled = mergedSe as AppSettings['soundEnabled'];
+      }
+      if ((parsed as any).soundProfiles && typeof (parsed as any).soundProfiles === 'object') {
+        const sp = (parsed as any).soundProfiles as Record<string, unknown>;
+        const mergedSp = { ...(merged.soundProfiles || {}) } as Record<string, number>;
+        for (const key of ['download', 'success', 'error', 'info']) {
+          const v = sp[key];
+          if (typeof v === 'number' && v >= 0 && v <= 1) mergedSp[key] = v;
+        }
+        merged.soundProfiles = mergedSp as AppSettings['soundProfiles'];
+      }
+      if ((parsed as any).notificationSettings && typeof (parsed as any).notificationSettings === 'object') {
+        const ns = (parsed as any).notificationSettings as Record<string, unknown>;
+        const mergedNs = { ...(merged.notificationSettings || {}) } as Record<string, boolean>;
+        for (const key of ['showDownloadStarted', 'showDownloadFinished', 'showDownloadError', 'showSystemMessages']) {
+          if (typeof ns[key] === 'boolean') mergedNs[key] = ns[key] as boolean;
+        }
+        merged.notificationSettings = mergedNs as AppSettings['notificationSettings'];
+      }
+
+      const importedFiles = sanitizeCustomSoundFiles((parsed as any).customSoundFiles);
+      merged.customSoundFiles = importedFiles;
+      const knownCustomIds = new Set(importedFiles.map((f: CustomSoundFileMeta) => f.id));
+      const rawCustom = sanitizeSoundCustomMap((parsed as any).soundCustom);
+      const soundCustom: Record<string, string> = {};
+      for (const [type, ref] of Object.entries(rawCustom)) {
+        if (typeof ref !== 'string') continue;
+        const parsedRef = parseSoundRef(ref);
+        if (!parsedRef) continue;
+        if (parsedRef.kind === 'sample') {
+          if ((SOUND_CATALOG as readonly { id: string }[]).some((s) => s.id === parsedRef.id)) soundCustom[type] = ref;
+        } else if (knownCustomIds.has(parsedRef.id)) {
+          soundCustom[type] = ref;
+        }
+      }
+      merged.soundCustom = soundCustom;
       if (typeof (parsed as any).accentColor === 'string' && (parsed as any).accentColor.trim())
         merged.accentColor = String((parsed as any).accentColor).trim();
       if ((parsed as any).download && typeof (parsed as any).download === 'object') {

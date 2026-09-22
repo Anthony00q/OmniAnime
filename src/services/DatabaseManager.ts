@@ -4,6 +4,8 @@ import * as cryptolib from 'crypto';
 import { app } from 'electron';
 import Database from 'better-sqlite3';
 import { AppSettings } from '../types/settings';
+import { normalizeSoundPack } from '../utils/soundPacks';
+import { sanitizeSoundCustomMap, sanitizeCustomSoundFiles } from '../utils/soundCatalog';
 import type { HistoryScope, HistoryStatus, HistoryWriteRecord } from '../types/history';
 import { noopScopedLogger, type ScopedLogger } from './AppLogger';
 
@@ -317,6 +319,9 @@ export class DatabaseManager {
                 toast_position TEXT NOT NULL DEFAULT 'top-center',
                 notifications_sound INTEGER NOT NULL DEFAULT 1,
                 sound_volume REAL NOT NULL DEFAULT 0.5,
+                sound_pack TEXT NOT NULL DEFAULT 'sala',
+                sound_custom TEXT NOT NULL DEFAULT '{}',
+                custom_sound_files TEXT NOT NULL DEFAULT '[]',
                 sound_enabled TEXT NOT NULL DEFAULT '{}',
                 sound_profiles TEXT NOT NULL DEFAULT '{}',
                 notification_settings TEXT NOT NULL DEFAULT '{}',
@@ -402,6 +407,24 @@ export class DatabaseManager {
     } catch {}
   }
 
+  private ensureSoundPackColumn(): void {
+    try {
+      if (!this.tableHasColumn('settings', 'sound_pack')) {
+        this.db!.exec(`ALTER TABLE settings ADD COLUMN sound_pack TEXT NOT NULL DEFAULT 'sala'`);
+      }
+    } catch {}
+    try {
+      if (!this.tableHasColumn('settings', 'sound_custom')) {
+        this.db!.exec(`ALTER TABLE settings ADD COLUMN sound_custom TEXT NOT NULL DEFAULT '{}'`);
+      }
+    } catch {}
+    try {
+      if (!this.tableHasColumn('settings', 'custom_sound_files')) {
+        this.db!.exec(`ALTER TABLE settings ADD COLUMN custom_sound_files TEXT NOT NULL DEFAULT '[]'`);
+      }
+    } catch {}
+  }
+
   private ensureQueueEpisodeColumns(): void {
     try {
       if (!this.tableHasColumn('download_queue', 'paused_eps')) {
@@ -417,6 +440,7 @@ export class DatabaseManager {
 
   private runSchemaMigrations(currentVersion: number): void {
     this.ensureDownloadSettingsColumn();
+    this.ensureSoundPackColumn();
     this.ensureQueueEpisodeColumns();
     if (currentVersion >= 4) return;
     if (currentVersion >= 2 && this.hasHistoryV2Columns()) return;
@@ -495,10 +519,10 @@ export class DatabaseManager {
             `INSERT OR REPLACE INTO settings
                    (id, default_output_dir, output_dirs, notify_on_complete, minimize_to_tray_on_close,
                     naming_style, auto_rename_retroactive, theme, accent_color, toast_position,
-                    notifications_sound, sound_volume, sound_enabled, sound_profiles,
+                    notifications_sound, sound_volume, sound_pack, sound_enabled, sound_profiles,
                     notification_settings, shortcuts, default_provider, hardware_acceleration,
                     download_settings)
-                   VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                   VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           ).run(
             settings.defaultOutputDir || '',
             JSON.stringify(settings.outputDirs || []),
@@ -511,6 +535,7 @@ export class DatabaseManager {
             settings.toastPosition || 'top-center',
             settings.notificationsSound ? 1 : 0,
             settings.soundVolume ?? 0.5,
+            normalizeSoundPack(settings.soundPack),
             JSON.stringify(settings.soundEnabled || {}),
             JSON.stringify(settings.soundProfiles || {}),
             JSON.stringify(settings.notificationSettings || {}),
@@ -524,9 +549,9 @@ export class DatabaseManager {
             `INSERT OR REPLACE INTO settings
                    (id, default_output_dir, output_dirs, notify_on_complete, minimize_to_tray_on_close,
                     naming_style, auto_rename_retroactive, theme, accent_color, toast_position,
-                    notifications_sound, sound_volume, sound_enabled, sound_profiles,
+                    notifications_sound, sound_volume, sound_pack, sound_enabled, sound_profiles,
                     notification_settings, shortcuts, default_provider, hardware_acceleration)
-                   VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                   VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           ).run(
             settings.defaultOutputDir || '',
             JSON.stringify(settings.outputDirs || []),
@@ -539,6 +564,7 @@ export class DatabaseManager {
             settings.toastPosition || 'top-center',
             settings.notificationsSound ? 1 : 0,
             settings.soundVolume ?? 0.5,
+            normalizeSoundPack(settings.soundPack),
             JSON.stringify(settings.soundEnabled || {}),
             JSON.stringify(settings.soundProfiles || {}),
             JSON.stringify(settings.notificationSettings || {}),
@@ -771,14 +797,16 @@ export class DatabaseManager {
 
     measure('INSERT settings', () => {
       this.ensureDownloadSettingsColumn();
+      this.ensureSoundPackColumn();
       this.db!.prepare(
         `INSERT OR REPLACE INTO settings
                (id, default_output_dir, output_dirs, notify_on_complete, minimize_to_tray_on_close,
                 naming_style, auto_rename_retroactive, theme, accent_color, toast_position,
-                notifications_sound, sound_volume, sound_enabled, sound_profiles,
+                notifications_sound, sound_volume, sound_pack, sound_custom, custom_sound_files,
+                sound_enabled, sound_profiles,
                 notification_settings, shortcuts, default_provider, hardware_acceleration,
                 download_settings)
-               VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+               VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       ).run(
         settings.defaultOutputDir,
         JSON.stringify(settings.outputDirs || []),
@@ -791,6 +819,9 @@ export class DatabaseManager {
         settings.toastPosition || 'top-center',
         settings.notificationsSound ? 1 : 0,
         settings.soundVolume ?? 0.5,
+        normalizeSoundPack(settings.soundPack),
+        JSON.stringify(sanitizeSoundCustomMap(settings.soundCustom)),
+        JSON.stringify(sanitizeCustomSoundFiles(settings.customSoundFiles)),
         JSON.stringify(settings.soundEnabled || {}),
         JSON.stringify(settings.soundProfiles || {}),
         JSON.stringify(settings.notificationSettings || {}),
@@ -838,6 +869,11 @@ export class DatabaseManager {
       toastPosition: String(row.toast_position || 'top-center') as AppSettings['toastPosition'],
       notificationsSound: Boolean(row.notifications_sound),
       soundVolume: Number(row.sound_volume ?? 0.5),
+      soundPack: normalizeSoundPack((row as Record<string, unknown>).sound_pack),
+      soundCustom: sanitizeSoundCustomMap(
+        parseJson((row as Record<string, unknown>).sound_custom, {}),
+      ) as AppSettings['soundCustom'],
+      customSoundFiles: sanitizeCustomSoundFiles(parseJson((row as Record<string, unknown>).custom_sound_files, [])),
       soundEnabled: parseJson(row.sound_enabled, {
         download: true,
         success: true,

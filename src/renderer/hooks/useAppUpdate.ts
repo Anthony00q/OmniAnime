@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import type { AppUpdateCheckResult, AppUpdateState } from '../../types/appUpdate';
+import { shouldPlaySystemSound } from '../../utils/soundPacks';
 import {
   appUpdateAvailableAtom,
   appUpdateDismissedAtom,
@@ -8,15 +9,27 @@ import {
   appUpdateModalOpenAtom,
   appUpdatePercentAtom,
   appUpdatePhaseAtom,
+  settingsAtom,
 } from '../store/atoms';
+import { playNotificationSound } from '../utils/sound';
 
 // Check único tras el handoff del splash: no bloquea el arranque,
-// el modal solo se abre si hay versión nueva y no se descartó en la sesión.
+// el modal solo abre si hay versión nueva y no se descartó en la sesión.
 const POST_SPLASH_CHECK_DELAY_MS = 2500;
+const INFO_SOUND_COOLDOWN_MS = 500;
+let lastInfoSoundAt = 0;
 
 function readCheckResult(result: unknown): AppUpdateCheckResult | null {
   if (!result || typeof result !== 'object') return null;
   return result as AppUpdateCheckResult;
+}
+
+function playInfoSoundOnce(settings: unknown) {
+  const now = Date.now();
+  if (now - lastInfoSoundAt < INFO_SOUND_COOLDOWN_MS) return;
+  if (!shouldPlaySystemSound(settings)) return;
+  lastInfoSoundAt = now;
+  playNotificationSound(settings, 'info');
 }
 
 export function useAppUpdate() {
@@ -27,6 +40,9 @@ export function useAppUpdate() {
   const setPercent = useSetAtom(appUpdatePercentAtom);
   const setError = useSetAtom(appUpdateErrorAtom);
   const modalOpen = useAtomValue(appUpdateModalOpenAtom);
+  const settings = useAtomValue(settingsAtom);
+  const settingsRef = useRef(settings);
+  settingsRef.current = settings;
   const dismissedRef = useRef(dismissed);
   dismissedRef.current = dismissed;
   const checkedRef = useRef(false);
@@ -35,6 +51,7 @@ export function useAppUpdate() {
     (version: string, notes?: string) => {
       setAvailable({ version, notes });
       setError(null);
+      playInfoSoundOnce(settingsRef.current);
       if (!dismissedRef.current) setModalOpen(true);
     },
     [setAvailable, setError, setModalOpen],
@@ -54,6 +71,7 @@ export function useAppUpdate() {
         case 'downloaded':
           setPhase('downloaded');
           setPercent(100);
+          playInfoSoundOnce(settingsRef.current);
           break;
         case 'error':
           setError(state.message || 'Error de actualización.');

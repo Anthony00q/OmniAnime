@@ -1,0 +1,198 @@
+// Generado por scripts/curate-sounds.mjs — no editar a mano.
+// Audio CC0-1.0 (uisfx@0.4.0); ver assets/sounds/LICENSE-sounds.md.
+import type { SoundCatalogEntry } from './soundCatalog';
+
+export const SOUND_CATALOG: readonly SoundCatalogEntry[] = [
+  {
+    id: 'minimal-queued',
+    label: 'Minimal · En cola',
+    group: 'inicio',
+    gainTrim: 0.7,
+  },
+  {
+    id: 'soft-start',
+    label: 'Soft · Inicio',
+    group: 'inicio',
+    gainTrim: 0.95,
+  },
+  {
+    id: 'glass-play',
+    label: 'Glass · Arranque',
+    group: 'inicio',
+    gainTrim: 0.9,
+  },
+  {
+    id: 'scifi-send',
+    label: 'Sci-fi · Envío',
+    group: 'inicio',
+    gainTrim: 1,
+  },
+  {
+    id: 'zen-open',
+    label: 'Zen · Apertura',
+    group: 'inicio',
+    gainTrim: 0.9,
+  },
+  {
+    id: 'mechanical-connect',
+    label: 'Mechanical · Conexión',
+    group: 'inicio',
+    gainTrim: 1,
+  },
+  {
+    id: 'studio-forward',
+    label: 'Studio · Avance',
+    group: 'inicio',
+    gainTrim: 0.85,
+  },
+  {
+    id: 'dreamy-wake',
+    label: 'Dreamy · Despertar',
+    group: 'inicio',
+    gainTrim: 0.85,
+  },
+  {
+    id: 'minimal-success',
+    label: 'Minimal · Éxito',
+    group: 'exito',
+    gainTrim: 1.15,
+  },
+  {
+    id: 'soft-complete',
+    label: 'Soft · Completo',
+    group: 'exito',
+    gainTrim: 1.2,
+  },
+  {
+    id: 'glass-check',
+    label: 'Glass · Verificado',
+    group: 'exito',
+    gainTrim: 0.85,
+  },
+  {
+    id: 'scifi-achievement',
+    label: 'Sci-fi · Logro',
+    group: 'exito',
+    gainTrim: 1.3,
+  },
+  {
+    id: 'zen-reward',
+    label: 'Zen · Recompensa',
+    group: 'exito',
+    gainTrim: 1.1,
+  },
+  {
+    id: 'mechanical-checkpoint',
+    label: 'Mechanical · Hito',
+    group: 'exito',
+    gainTrim: 0.9,
+  },
+  {
+    id: 'studio-badge',
+    label: 'Studio · Insignia',
+    group: 'exito',
+    gainTrim: 1.1,
+  },
+  {
+    id: 'dreamy-level-up',
+    label: 'Dreamy · Subida de nivel',
+    group: 'exito',
+    gainTrim: 1.25,
+  },
+  {
+    id: 'minimal-error',
+    label: 'Minimal · Error',
+    group: 'error',
+    gainTrim: 1.1,
+  },
+  {
+    id: 'soft-warning',
+    label: 'Soft · Aviso',
+    group: 'error',
+    gainTrim: 1.1,
+  },
+  {
+    id: 'glass-blocked',
+    label: 'Glass · Bloqueo',
+    group: 'error',
+    gainTrim: 1,
+  },
+  {
+    id: 'scifi-invalid-drop',
+    label: 'Sci-fi · Rechazo',
+    group: 'error',
+    gainTrim: 0.95,
+  },
+  {
+    id: 'zen-cancel',
+    label: 'Zen · Cancelación',
+    group: 'error',
+    gainTrim: 0.85,
+  },
+  {
+    id: 'mechanical-disconnect',
+    label: 'Mechanical · Desconexión',
+    group: 'error',
+    gainTrim: 0.95,
+  },
+  {
+    id: 'studio-delete',
+    label: 'Studio · Borrado',
+    group: 'error',
+    gainTrim: 1.1,
+  },
+  {
+    id: 'dreamy-retry',
+    label: 'Dreamy · Reintento',
+    group: 'error',
+    gainTrim: 0.9,
+  },
+  {
+    id: 'minimal-info',
+    label: 'Minimal · Info',
+    group: 'info',
+    gainTrim: 0.8,
+  },
+  {
+    id: 'soft-notification',
+    label: 'Soft · Notificación',
+    group: 'info',
+    gainTrim: 1,
+  },
+  {
+    id: 'glass-mention',
+    label: 'Glass · Mención',
+    group: 'info',
+    gainTrim: 1.1,
+  },
+  {
+    id: 'scifi-reaction',
+    label: 'Sci-fi · Reacción',
+    group: 'info',
+    gainTrim: 0.85,
+  },
+  {
+    id: 'zen-toggle-on',
+    label: 'Zen · Activado',
+    group: 'info',
+    gainTrim: 1,
+  },
+  {
+    id: 'mechanical-focus',
+    label: 'Mechanical · Foco',
+    group: 'info',
+    gainTrim: 0.6,
+  },
+  {
+    id: 'studio-copy',
+    label: 'Studio · Copia',
+    group: 'info',
+    gainTrim: 0.75,
+  },
+  {
+    id: 'dreamy-unlock',
+    label: 'Dreamy · Desbloqueo',
+    group: 'info',
+    gainTrim: 1,
+  },
+];

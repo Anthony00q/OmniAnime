@@ -1,6 +1,8 @@
 import type { AppSettings, ThemeId } from '../../../../types/settings';
 import { normalizeDownloadSettings } from '../../../../utils/downloadSettings';
 import { normalizeLoggingSettings } from '../../../../utils/loggingSettings';
+import { normalizeSoundPack } from '../../../../utils/soundPacks';
+import { sanitizeCustomSoundFiles, sanitizeSoundCustomMap } from '../../../../utils/soundCatalog';
 import { resolveDefaultOutputDir, sanitizeOutputDirs } from '../../../../utils/outputDirs';
 import { isThemeValue } from '../../../utils/color';
 
@@ -12,6 +14,9 @@ export function normalizeSettings(settings: AppSettings | null | undefined): App
     ...(s as AppSettings),
     outputDirs,
     defaultOutputDir,
+    soundPack: normalizeSoundPack(s.soundPack),
+    soundCustom: sanitizeSoundCustomMap(s.soundCustom),
+    customSoundFiles: sanitizeCustomSoundFiles(s.customSoundFiles),
     download: normalizeDownloadSettings((s as Record<string, unknown>).download),
     logging: normalizeLoggingSettings((s as Record<string, unknown>).logging),
   } as AppSettings;

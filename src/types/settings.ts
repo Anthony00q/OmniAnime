@@ -1,4 +1,6 @@
 import type { LogLevel } from '../services/AppLogger';
+import type { SoundPackId, NotificationSoundType } from '../utils/soundPacks';
+import type { CustomSoundFileMeta } from '../utils/soundCatalog';
 
 export type ThemeId = 'dark' | 'quantum' | 'oled' | 'tinta';
 
@@ -35,6 +37,9 @@ export interface AppSettings {
   // UX
   notificationsSound: boolean;
   soundVolume: number;
+  soundPack: SoundPackId;
+  soundCustom?: Partial<Record<NotificationSoundType, string>>;
+  customSoundFiles?: CustomSoundFileMeta[];
   soundEnabled: {
     download: boolean;
     success: boolean;

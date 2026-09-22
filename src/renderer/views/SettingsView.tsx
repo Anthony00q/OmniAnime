@@ -6,7 +6,7 @@ import { Dialog } from '../components/Dialog';
 import { SettingsHeader } from './settings/components/SettingsHeader';
 import { SettingsTabNav } from './settings/components/SettingsTabNav';
 import { SettingsFooter } from './settings/components/SettingsFooter';
-import { playNotificationSound } from '../utils/sound';
+import { playNotificationSound, type NotificationSoundType, type SoundPackId } from '../utils/sound';
 import { DEFAULT_ACCENT_HEX, getAccentHex, isValidAccentColor } from '../utils/color';
 import { settingsAtom } from '../store/atoms';
 import type { AppSettings, ThemeId } from '../../types/settings';
@@ -358,8 +358,9 @@ export function SettingsView({ isActive = true }: { isActive?: boolean }) {
     [handleChange],
   );
 
-  const testSound = () => {
-    playNotificationSound(settings, 'success');
+  const testSound = (type?: NotificationSoundType, pack?: SoundPackId, ref?: string) => {
+    const withPack = pack ? { ...settings, soundPack: pack } : settings;
+    playNotificationSound(withPack, type ?? 'success', ref);
   };
 
   const handleSelectOutputDir = async (index: number) => {
