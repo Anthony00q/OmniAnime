@@ -506,18 +506,16 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
   useEffect(() => {
     const handleClose = (e: Event) => {
       if (!isActiveRef.current) return;
-      e.preventDefault(); // Stop App.tsx from processing this further
+      e.preventDefault();
       if (showRangeModal) {
         setShowRangeModal(false);
       } else if (showDirPicker) {
         setShowDirPicker(false);
-      } else {
-        onBack();
       }
     };
     window.addEventListener('close-modals', handleClose);
     return () => window.removeEventListener('close-modals', handleClose);
-  }, [onBack, showRangeModal, showDirPicker]);
+  }, [showRangeModal, showDirPicker]);
 
   const cols = useGridCols();
 
@@ -962,7 +960,7 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
                       placeholder="7, 5-7…"
                       aria-label="Buscar episodios por número"
                       autoComplete="off"
-                      className="h-8 w-28 rounded-lg border border-border/60 bg-secondary/50 pl-8 pr-7 text-xs text-foreground transition-[border-color,box-shadow] placeholder:text-muted-foreground/60 hover:border-border-strong focus:border-primary/60 focus:outline-none focus:ring-2 focus:ring-primary/20 [&::-webkit-search-cancel-button]:hidden"
+                      className="search-input h-8 w-28 rounded-lg border border-border/60 bg-secondary/50 pl-8 pr-7 text-xs text-foreground transition-[border-color,box-shadow] placeholder:text-muted-foreground/60 hover:border-border-strong focus:outline-none [&::-webkit-search-cancel-button]:hidden"
                     />
                     {epQuery && (
                       <button
@@ -1222,7 +1220,7 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
               min="1"
               value={rangeFrom}
               onChange={(e) => setRangeFrom(e.target.value)}
-              className="w-full bg-secondary/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              className="w-full bg-secondary/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none"
             />
           </div>
           <span className="text-muted-foreground mt-5">—</span>
@@ -1233,7 +1231,7 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
               min="1"
               value={rangeTo}
               onChange={(e) => setRangeTo(e.target.value)}
-              className="w-full bg-secondary/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              className="w-full bg-secondary/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none"
             />
           </div>
         </div>

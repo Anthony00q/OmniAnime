@@ -67,7 +67,7 @@ export function CustomSelect({
         aria-label={ariaLabel}
         className={clsx(
           'inline-flex items-center justify-between gap-2 rounded-lg border border-border/70 bg-surface px-3 py-2 text-sm text-foreground h-10',
-          'hover:bg-secondary/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 data-[state=open]:ring-2 data-[state=open]:ring-primary/50',
+          'hover:bg-secondary/50 focus:outline-none data-[state=open]:ring-2 data-[state=open]:ring-primary/50',
           'data-[placeholder]:text-muted-foreground/60',
           className,
         )}

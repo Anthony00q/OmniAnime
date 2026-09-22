@@ -293,7 +293,6 @@ export const AppearanceTab = memo(
                         aria-hidden="true"
                       />
                     </button>
-                    {/* hidden native color input */}
                     <input
                       ref={colorInputRef}
                       type="color"
@@ -314,7 +313,7 @@ export const AppearanceTab = memo(
                         autoComplete="off"
                         aria-invalid={showError}
                         aria-describedby={accentDescribedBy}
-                        className={`w-full bg-background border rounded-xl px-3.5 py-2.5 pr-9 text-sm focus:outline-none focus:ring-2 font-mono text-foreground transition-colors ${showError ? 'border-warning/50 focus:border-warning focus:ring-warning/20' : 'border-border focus:border-primary focus:ring-primary/20'}`}
+                        className={`w-full bg-background border rounded-xl px-3.5 py-2.5 pr-9 text-sm focus:outline-none font-mono text-foreground transition-colors ${showError ? 'border-warning/50' : 'border-border'}`}
                       />
                       <AppTooltip content="Copiar HEX">
                         <button

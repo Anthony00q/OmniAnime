@@ -70,7 +70,7 @@ export function SearchField({
         aria-autocomplete={ariaAutoComplete}
         autoComplete="off"
         className={clsx(
-          'h-11 w-full rounded-full border border-border/70 bg-surface pl-11 pr-11 text-sm text-foreground shadow-sm transition-[border-color,box-shadow] placeholder:text-muted-foreground/60 placeholder:select-none hover:border-border-strong focus:border-primary/60 focus:outline-none focus:ring-2 focus:ring-primary/20',
+          'search-input h-11 w-full rounded-full border border-border/70 bg-surface pl-11 pr-11 text-sm text-foreground shadow-sm transition-[border-color,box-shadow] placeholder:text-muted-foreground/60 placeholder:select-none focus:outline-none',
           '[&::-webkit-search-cancel-button]:hidden',
           inputClassName,
         )}
@@ -78,7 +78,11 @@ export function SearchField({
       {value && onClear && (
         <button
           type="button"
-          onClick={onClear}
+          onClick={(e) => {
+            onClear();
+            // El foco vuelve al input al vaciar.
+            if (e.detail > 0) inputRef?.current?.focus();
+          }}
           aria-label="Limpiar búsqueda"
           className="absolute right-3 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground transition-colors after:absolute after:-inset-2 after:content-[''] hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
         >

@@ -65,19 +65,24 @@ export function Titlebar() {
       </div>
 
       <div className="flex h-full items-center gap-1 pr-3 app-region-no-drag">
+        {/* Controles de ventana: solo ratón, sin foco. */}
         <button
           type="button"
+          tabIndex={-1}
+          onMouseDown={(e) => e.preventDefault()}
           onClick={handleMinimize}
           aria-label="Minimizar ventana"
-          className="h-8 w-10 inline-flex items-center justify-center rounded-md text-foreground/80 hover:bg-foreground/10 hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-inset"
+          className="h-8 w-10 inline-flex items-center justify-center rounded-md text-foreground/80 hover:bg-foreground/10 hover:text-foreground transition-colors outline-none focus:outline-none focus-visible:outline-none"
         >
           <Minus strokeWidth={2} className="w-[14px] h-[14px] drop-shadow-[0_1px_2px_rgb(0_0_0/0.65)]" />
         </button>
         <button
           type="button"
+          tabIndex={-1}
+          onMouseDown={(e) => e.preventDefault()}
           onClick={handleToggleMaximize}
           aria-label={isMaximized ? 'Restaurar ventana' : 'Maximizar ventana'}
-          className="h-8 w-10 inline-flex items-center justify-center rounded-md text-foreground/80 hover:bg-foreground/10 hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-inset"
+          className="h-8 w-10 inline-flex items-center justify-center rounded-md text-foreground/80 hover:bg-foreground/10 hover:text-foreground transition-colors outline-none focus:outline-none focus-visible:outline-none"
         >
           {isMaximized ? (
             <Copy strokeWidth={2} className="w-[13px] h-[13px] drop-shadow-[0_1px_2px_rgb(0_0_0/0.65)]" />
@@ -87,9 +92,11 @@ export function Titlebar() {
         </button>
         <button
           type="button"
+          tabIndex={-1}
+          onMouseDown={(e) => e.preventDefault()}
           onClick={handleClose}
           aria-label="Cerrar ventana"
-          className="h-8 w-10 inline-flex items-center justify-center rounded-md text-foreground/80 hover:bg-destructive hover:text-destructive-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive/60 focus-visible:ring-inset"
+          className="h-8 w-10 inline-flex items-center justify-center rounded-md text-foreground/80 hover:bg-destructive hover:text-destructive-foreground transition-colors outline-none focus:outline-none focus-visible:outline-none"
         >
           <X strokeWidth={2} className="w-[14px] h-[14px] drop-shadow-[0_1px_2px_rgb(0_0_0/0.65)]" />
         </button>

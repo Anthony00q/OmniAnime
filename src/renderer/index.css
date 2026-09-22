@@ -212,6 +212,59 @@
   }
 }
 
+/* Sin anillo fuera de contextos con teclado: el foco DOM se conserva,
+   solo se apaga lo visual. Dialogos, menus, inputs y widgets lo recuperan abajo. */
+body :focus-visible:not(input):not(textarea):not(select):not([contenteditable='true']) {
+  outline: none;
+  box-shadow: none;
+}
+
+input:not(.search-input):not([type='range']):not([type='color']):not([type='checkbox']):not([type='radio']):not(
+    [type='hidden']
+  ):focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+[role='dialog'] :focus-visible,
+[role='menu'] :focus-visible,
+[role='listbox']:focus-visible,
+[role='dialog']:focus-visible,
+[role='menu']:focus-visible,
+[role='radio']:focus-visible,
+[role='slider']:focus-visible,
+[role='separator']:focus-visible,
+[role='switch']:focus-visible,
+[role='combobox']:focus-visible,
+[data-theme-id]:focus-visible,
+[data-preset-hex]:focus-visible,
+[data-drag-handle]:focus-visible,
+[data-keep-focus]:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* Búsquedas: foco in-place (borde + anillo plano); el outline global con offset
+   se despegaba en píldoras. */
+input.search-input {
+  box-shadow: 0 0 0 0 transparent;
+}
+
+input.search-input:focus,
+input.search-input:focus-visible {
+  outline: none;
+  outline-offset: 0;
+  border-color: color-mix(in srgb, var(--color-primary) 60%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 18%, transparent);
+}
+
+@media (forced-colors: active) {
+  input.search-input:focus,
+  input.search-input:focus-visible {
+    box-shadow: none;
+    outline: 2px solid CanvasText;
+    outline-offset: 1px;
+  }
+}
+
 [data-sonner-toaster] [data-sonner-toast],
 [data-sonner-toaster] [data-sonner-toast] * {
   user-select: none;

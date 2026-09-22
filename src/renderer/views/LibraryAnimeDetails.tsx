@@ -142,11 +142,10 @@ export function LibraryAnimeDetails({
       if (showRenameModal) setShowRenameModal(false);
       else if (showReorderModal) setShowReorderModal(false);
       else if (showMenu) setShowMenu(false);
-      else onBack();
     };
     window.addEventListener('close-modals', handleClose);
     return () => window.removeEventListener('close-modals', handleClose);
-  }, [onBack, showRenameModal, showReorderModal, showMenu]);
+  }, [showRenameModal, showReorderModal, showMenu]);
 
   const handlePlay = useCallback(
     (videoPath: string) => {

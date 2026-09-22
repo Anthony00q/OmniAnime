@@ -65,7 +65,7 @@ export const ShortcutsTab = memo(function ShortcutsTab({ settings, onChange }: S
                       onChange('search', next, 'shortcuts');
                     }}
                     onFocus={(e) => e.target.select()}
-                    className="w-10 h-9 text-center bg-background border-2 border-primary/30 rounded-xl text-sm font-mono font-bold focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 uppercase shadow-sm"
+                    className="w-10 h-9 text-center bg-background border-2 border-border rounded-xl text-sm font-mono font-bold focus:outline-none uppercase shadow-sm"
                   />
                 </label>
                 <span className="text-xs text-muted-foreground ml-1">Una letra o número</span>
@@ -80,7 +80,7 @@ export const ShortcutsTab = memo(function ShortcutsTab({ settings, onChange }: S
                 <div className="min-w-0 flex-1">
                   <div className="text-sm font-bold leading-tight">Cerrar modales / Salir</div>
                   <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                    Cierra diálogos o vuelve a la vista anterior.
+                    Cierra diálogos o suelta el campo de texto.
                   </p>
                 </div>
                 <kbd className="shrink-0 px-2.5 py-1.5 bg-secondary border border-border rounded-lg text-xs font-mono font-bold shadow-sm">

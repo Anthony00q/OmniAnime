@@ -124,11 +124,13 @@ export function Sidebar({ currentView, setCurrentView }: SidebarProps) {
               <button
                 key={provider.id}
                 type="button"
+                tabIndex={-1}
+                onMouseDown={(e) => e.preventDefault()}
                 onClick={() => handleProviderChange(provider.id)}
                 aria-label={`Cambiar fuente a ${provider.name}`}
                 aria-pressed={activeProvider === provider.id}
                 className={clsx(
-                  'sidebar-provider-button relative z-10 min-h-7 cursor-pointer select-none rounded-lg border border-transparent bg-transparent text-center text-xs font-bold shadow-none',
+                  'sidebar-provider-button relative z-10 min-h-7 cursor-pointer select-none rounded-lg border border-transparent bg-transparent text-center text-xs font-bold shadow-none outline-none focus:outline-none focus-visible:outline-none',
                   activeProvider === provider.id ? 'text-foreground' : 'text-muted-foreground hover:text-foreground/80',
                 )}
               >

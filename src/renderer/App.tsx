@@ -132,6 +132,11 @@ export default function App() {
     };
   }, []);
 
+  useEffect(() => {
+    const active = document.activeElement as HTMLElement | null;
+    if (active?.closest?.('.omnianime-sidebar')) active.blur();
+  }, [currentView]);
+
   const handleSetView = (view: string) => {
     if (currentView !== 'details' && currentView !== 'settings') {
       setPreviousView(currentView);

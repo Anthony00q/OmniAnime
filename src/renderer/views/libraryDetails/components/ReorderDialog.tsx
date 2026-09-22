@@ -78,7 +78,7 @@ export function ReorderDialog({
                 min={0}
                 value={reorderStart}
                 onChange={(e) => onReorderStartChange(e.target.value)}
-                className="w-full bg-background border border-border rounded-xl pl-9 pr-4 py-3 text-base font-mono font-semibold text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-center"
+                className="w-full bg-background border border-border rounded-xl pl-9 pr-4 py-3 text-base font-mono font-semibold text-foreground placeholder-muted-foreground focus:outline-none text-center"
               />
             </div>
 

@@ -102,7 +102,7 @@ export function ToastPositionSelector({ value, onChange }: ToastPositionSelector
                 />
                 {value === pos.id && (
                   <span className="absolute inset-0 flex items-center justify-center">
-                    <span className="w-2 h-2 rounded-full bg-primary shadow-[0_0_8px_rgba(59,130,246,0.5)] animate-pulse" />
+                    <span className="w-2 h-2 rounded-full bg-primary shadow-[0_0_8px_var(--color-primary)] animate-pulse" />
                   </span>
                 )}
               </button>
