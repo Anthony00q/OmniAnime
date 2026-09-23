@@ -33,13 +33,15 @@ import animeav1Icon from '../../../assets/provider-icons/animeav1-32.png';
 import animeav1Icon2x from '../../../assets/provider-icons/animeav1-64.png';
 import jkanimeIcon from '../../../assets/provider-icons/jkanime-32.png';
 import jkanimeIcon2x from '../../../assets/provider-icons/jkanime-64.png';
+import anilistIcon from '../../../assets/provider-icons/anilist-32.png';
+import anilistIcon2x from '../../../assets/provider-icons/anilist-64.png';
 import { outputDirsAtom, navigateToCatalogAtom, pendingCatalogGenreAtom, activeProviderAtom } from '../store/atoms';
 import { parseEpisodeFilter } from '../utils/episodeFilter';
 import { useEpisodeView } from '../utils/episodeView';
 import { EpisodeViewMenu } from './libraryDetails/components/EpisodeViewMenu';
 import { normalizeSeasonLabel } from '../utils/seasonLabel';
 import { HERO_DIM_MAX, HERO_DIM_DISTANCE } from '../utils/heroDim';
-import { buildExternalUrl } from '../../utils/externalUrl';
+import { buildExternalUrl, buildAniListUrl } from '../../utils/externalUrl';
 import {
   useAnimeDetails,
   useAddToQueue,
@@ -47,6 +49,7 @@ import {
   useJkEpisodeThumbs,
   useAniListBanner,
   useAniListStudio,
+  useAniListId,
   prefetchAnimeDetails,
 } from '../hooks/useQueries';
 import { shouldShowOfflineEmpty } from '../utils/offlineEmpty';
@@ -340,6 +343,7 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
   } = useAniListBanner(anilistInput, anilistEnabled);
   // Estudio con el mismo match que el banner; si no identifica, se oculta.
   const { data: anilistStudio } = useAniListStudio(anilistInput, anilistEnabled);
+  const { data: anilistId, isSuccess: isAnilistIdSuccess } = useAniListId(anilistInput, anilistEnabled);
   const isAnilistSettled = isAnilistSuccess || isAnilistError;
   const [bannerFailed, setBannerFailed] = useState(false);
   const [bannerShown, setBannerShown] = useState(false);
@@ -480,6 +484,14 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
 
   const providerName = activeProviderId === 'jkanime' ? 'JkAnime' : 'AnimeAV1';
 
+  const linkedAnilistId = isAnilistIdSuccess && typeof anilistId === 'number' ? anilistId : null;
+  const anilistUrl = useMemo(() => buildAniListUrl(linkedAnilistId), [linkedAnilistId]);
+  const [anilistIconFailed, setAnilistIconFailed] = useState(false);
+
+  useEffect(() => {
+    setAnilistIconFailed(false);
+  }, [slug]);
+
   const handleOpenExternal = useCallback(async () => {
     if (!externalUrl) return;
     try {
@@ -489,6 +501,16 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
       toast.error('No se pudo abrir el enlace externo');
     }
   }, [externalUrl]);
+
+  const handleOpenAniList = useCallback(async () => {
+    if (!anilistUrl) return;
+    try {
+      const ok = await window.api.invoke('open-external-url', anilistUrl);
+      if (!ok) toast.error('No se pudo abrir el enlace externo');
+    } catch {
+      toast.error('No se pudo abrir el enlace externo');
+    }
+  }, [anilistUrl]);
 
   useEffect(() => {
     if (data?.episodes?.length) {
@@ -1157,35 +1179,89 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
                     <span className="text-sm font-medium text-foreground">{data.availableLanguages.join(' · ')}</span>
                   </li>
                 )}
-                {externalUrl && (
-                  <li className="flex items-center justify-between gap-3 border-b border-border/40 py-2.5 last:border-0">
-                    <span className="text-[13px] text-muted-foreground">Fuente</span>
-                    <AppTooltip content={`Ver en ${providerName}`}>
-                      <button
-                        type="button"
-                        onClick={handleOpenExternal}
-                        aria-label={`Abrir ${data.title} en ${providerName} en el navegador`}
-                        className="inline-flex items-center gap-2 rounded-md border border-transparent bg-secondary/50 px-2 py-1 text-xs font-medium text-foreground transition-colors hover:bg-secondary hover:border-border/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
-                      >
-                        <img
-                          src={activeProviderId === 'jkanime' ? jkanimeIcon : animeav1Icon}
-                          srcSet={`${activeProviderId === 'jkanime' ? jkanimeIcon2x : animeav1Icon2x} 2x`}
-                          width={20}
-                          height={20}
-                          alt=""
-                          aria-hidden="true"
-                          draggable={false}
-                          decoding="async"
-                          className="h-5 w-5 rounded-[3px] object-contain"
-                          onError={(e) => {
-                            (e.currentTarget as HTMLImageElement).style.display = 'none';
-                          }}
-                        />
-                        <span>{providerName}</span>
-                      </button>
-                    </AppTooltip>
-                  </li>
-                )}
+                {externalUrl &&
+                  (anilistUrl && !anilistIconFailed ? (
+                    <li className="flex items-center justify-between gap-3 border-b border-border/40 py-2.5 last:border-0">
+                      <span className="text-[13px] text-muted-foreground">Fuente</span>
+                      <span className="inline-flex items-center gap-1.5">
+                        <AppTooltip content={`Ver en ${providerName}`}>
+                          <button
+                            type="button"
+                            onClick={handleOpenExternal}
+                            aria-label={`Abrir ${data.title} en ${providerName} en el navegador`}
+                            className="inline-flex items-center justify-center rounded-md border border-transparent bg-secondary/50 p-1 text-foreground transition-colors hover:bg-secondary hover:border-border/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                          >
+                            <img
+                              src={activeProviderId === 'jkanime' ? jkanimeIcon : animeav1Icon}
+                              srcSet={`${activeProviderId === 'jkanime' ? jkanimeIcon2x : animeav1Icon2x} 2x`}
+                              width={20}
+                              height={20}
+                              alt=""
+                              aria-hidden="true"
+                              draggable={false}
+                              decoding="async"
+                              className="h-5 w-5 rounded-[3px] object-contain"
+                              onError={(e) => {
+                                (e.currentTarget as HTMLImageElement).style.display = 'none';
+                              }}
+                            />
+                          </button>
+                        </AppTooltip>
+                        <span aria-hidden="true" className="text-xs text-muted-foreground">
+                          /
+                        </span>
+                        <AppTooltip content="Ver en AniList">
+                          <button
+                            type="button"
+                            onClick={handleOpenAniList}
+                            aria-label={`Abrir ${data.title} en AniList en el navegador`}
+                            className="inline-flex items-center justify-center rounded-md border border-transparent bg-secondary/50 p-1 text-foreground transition-colors hover:bg-secondary hover:border-border/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                          >
+                            <img
+                              src={anilistIcon}
+                              srcSet={`${anilistIcon2x} 2x`}
+                              width={20}
+                              height={20}
+                              alt=""
+                              aria-hidden="true"
+                              draggable={false}
+                              decoding="async"
+                              className="h-5 w-5 rounded-[3px] object-contain"
+                              onError={() => setAnilistIconFailed(true)}
+                            />
+                          </button>
+                        </AppTooltip>
+                      </span>
+                    </li>
+                  ) : (
+                    <li className="flex items-center justify-between gap-3 border-b border-border/40 py-2.5 last:border-0">
+                      <span className="text-[13px] text-muted-foreground">Fuente</span>
+                      <AppTooltip content={`Ver en ${providerName}`}>
+                        <button
+                          type="button"
+                          onClick={handleOpenExternal}
+                          aria-label={`Abrir ${data.title} en ${providerName} en el navegador`}
+                          className="inline-flex items-center gap-2 rounded-md border border-transparent bg-secondary/50 px-2 py-1 text-xs font-medium text-foreground transition-colors hover:bg-secondary hover:border-border/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                        >
+                          <img
+                            src={activeProviderId === 'jkanime' ? jkanimeIcon : animeav1Icon}
+                            srcSet={`${activeProviderId === 'jkanime' ? jkanimeIcon2x : animeav1Icon2x} 2x`}
+                            width={20}
+                            height={20}
+                            alt=""
+                            aria-hidden="true"
+                            draggable={false}
+                            decoding="async"
+                            className="h-5 w-5 rounded-[3px] object-contain"
+                            onError={(e) => {
+                              (e.currentTarget as HTMLImageElement).style.display = 'none';
+                            }}
+                          />
+                          <span>{providerName}</span>
+                        </button>
+                      </AppTooltip>
+                    </li>
+                  ))}
               </ul>
             </div>
 

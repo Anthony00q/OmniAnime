@@ -8,6 +8,12 @@ export function buildExternalUrl(rawSlug: string | null | undefined, providerId:
   return providerId === 'jkanime' ? `https://jkanime.net/${encoded}/` : `https://animeav1.com/media/${encoded}`;
 }
 
+export function buildAniListUrl(rawId: number | string | null | undefined): string | null {
+  const id = Number(rawId);
+  if (!Number.isInteger(id) || id <= 0) return null;
+  return `https://anilist.co/anime/${id}`;
+}
+
 export function isAllowedExternalUrl(rawUrl: string | null | undefined): boolean {
   const raw = String(rawUrl || '').trim();
   if (!raw) return false;
@@ -27,7 +33,7 @@ export function isAllowedExternalUrl(rawUrl: string | null | undefined): boolean
     if (u.username !== '' || u.password !== '') return false;
     const host = u.hostname.toLowerCase();
     // Strict hostname match, no subdomains
-    if (host !== 'animeav1.com' && host !== 'jkanime.net') return false;
+    if (host !== 'animeav1.com' && host !== 'jkanime.net' && host !== 'anilist.co') return false;
     // Ensure pathname starts with / to avoid https://animeav1.com (without slash) bypass? Allow root /
     // URL pathname is always at least '/', so check it exists
     if (!u.pathname.startsWith('/')) return false;

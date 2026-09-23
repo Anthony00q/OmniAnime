@@ -136,12 +136,14 @@ export function prefetchAnimeDetails(
   });
 }
 
-// Banner y estudio de AniList con caché larga (24h), sin reintentos ni refetch.
+// Banner y estudio de AniList: éxitos con caché larga (24h); fallos de
+// red/límite con caché corta (2 min) para reintentar pronto sin golpear la API.
 export const ANILIST_BANNER_STALE_MS = 24 * 60 * 60 * 1000;
+export const ANILIST_FAILURE_STALE_MS = 2 * 60 * 1000;
 
 export interface AniListMeta {
   anilistId: number;
-  banner: string;
+  banner: string | null;
   studio: string | null;
 }
 
@@ -208,12 +210,16 @@ export async function fetchAniListMeta(
   if (!req.title && req.malId === null) return null;
   const res = (await window.api.invoke('get-anilist-banner', req)) as {
     anilistId: number;
-    banner: string;
+    banner?: string | null;
     studio?: string | null;
+    transientFailure?: boolean;
   } | null;
-  if (!res || typeof res.anilistId !== 'number' || typeof res.banner !== 'string') return null;
+  if (!res || typeof res.anilistId !== 'number') return null;
+  if (res.transientFailure) throw new Error('anilist-transient');
+  const banner = typeof res.banner === 'string' && res.banner.trim() ? res.banner : null;
   const studio = typeof res.studio === 'string' && res.studio.trim() ? res.studio.trim() : null;
-  return { anilistId: res.anilistId, banner: res.banner, studio };
+  if (!banner && !studio) return null;
+  return { anilistId: res.anilistId, banner, studio };
 }
 
 export async function fetchAniListBanner(
@@ -240,7 +246,8 @@ export function useAniListBanner(input: string | AniListBannerRequest | null | u
     gcTime: 7 * 24 * 60 * 60 * 1000,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
-    retry: false,
+    retry: 1,
+    retryDelay: ANILIST_FAILURE_STALE_MS,
   });
 }
 
@@ -256,7 +263,25 @@ export function useAniListStudio(input: string | AniListBannerRequest | null | u
     gcTime: 7 * 24 * 60 * 60 * 1000,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
-    retry: false,
+    retry: 1,
+    retryDelay: ANILIST_FAILURE_STALE_MS,
+  });
+}
+
+export function useAniListId(input: string | AniListBannerRequest | null | undefined, enabled = true) {
+  const { queryKey, queryFn } = getAniListBannerQuery(input);
+  const req = normalizeAniListRequest(input);
+  return useQuery({
+    queryKey,
+    queryFn,
+    select: (meta) => meta?.anilistId ?? null,
+    enabled: enabled && (queryKey[1].length > 0 || req.malId !== null),
+    staleTime: ANILIST_BANNER_STALE_MS,
+    gcTime: 7 * 24 * 60 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    retry: 1,
+    retryDelay: ANILIST_FAILURE_STALE_MS,
   });
 }
 

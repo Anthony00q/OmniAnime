@@ -67,12 +67,12 @@ export async function resolveAniListBannerResult(
       report();
       return null;
     }
-    const banner = normalizeAllowedImageUrl(resolved.banner);
-    if (!banner) {
-      report();
-      return null;
+    if (resolved.banner) {
+      const banner = normalizeAllowedImageUrl(resolved.banner);
+      if (!banner) return { anilistId: resolved.anilistId, banner: null, studio: resolved.studio ?? null };
+      return { anilistId: resolved.anilistId, banner, studio: resolved.studio ?? null };
     }
-    return { anilistId: resolved.anilistId, banner, studio: resolved.studio ?? null };
+    return { anilistId: resolved.anilistId, banner: null, studio: resolved.studio ?? null };
   } catch {
     if (sawRateLimit || sawNetwork) report();
     return null;

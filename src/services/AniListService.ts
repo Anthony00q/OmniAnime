@@ -7,8 +7,8 @@ export const ANILIST_IMAGE_HOST = 's4.anilist.co';
 
 const ANILIST_SEARCH_QUERY = `
 query ($search: String) {
-  Page(perPage: 10) {
-    media(search: $search, type: ANIME, isAdult: false) {
+  Page(perPage: 5) {
+    media(search: $search, type: ANIME, isAdult: false, sort: SEARCH_MATCH) {
       id
       title { romaji english native }
       synonyms
@@ -18,6 +18,7 @@ query ($search: String) {
       season
       seasonYear
       format
+      episodes
       popularity
     }
   }
@@ -57,12 +58,13 @@ export interface AniListCandidate {
   season?: string | null;
   seasonYear?: number | null;
   format?: string | null;
+  episodes?: number | null;
   popularity?: number | null;
 }
 
 export interface AniListBannerResult {
   anilistId: number;
-  banner: string;
+  banner: string | null;
   studio: string | null;
 }
 
@@ -208,7 +210,7 @@ export function buildAniListSearchVariants(
   const base = String(title || '').trim();
   push(base);
   if (base) push(stripTrailingSeasonSuffix(base));
-  for (const alt of (alternativeTitles || []).slice(0, 2)) push(alt);
+  for (const alt of (alternativeTitles || []).slice(0, 3)) push(alt);
   return out.slice(0, MAX_SEARCH_VARIANTS);
 }
 
@@ -271,7 +273,7 @@ function yearDistance(candidate: AniListCandidate, providerYear: number): number
 
 type ScoredCandidate = { candidate: AniListCandidate; score: number };
 
-// Desempata 100-100 en orden formato -> año -> temporada; sin ganador único, null.
+// Desempata 100-100 en orden formato -> año -> episodios -> temporada; sin ganador único, null.
 function breakExactTie(
   tied: ScoredCandidate[],
   input: AniListBannerInput,
@@ -292,6 +294,22 @@ function breakExactTie(
     contenders = ranked.filter((x) => x.dist === closest).map((x) => x.entry);
   }
   if (contenders.length > 1) {
+    const withEpisodes = contenders.filter((s) => Number.isFinite(Number(s.candidate.episodes)));
+    if (withEpisodes.length === contenders.length) {
+      const counts = new Set(withEpisodes.map((s) => Number(s.candidate.episodes)));
+      if (counts.size > 1) {
+        const season = mapProviderSeason(input.providerSeason ?? null);
+        const movieLike = format === 'MOVIE' || contenders.some((s) => Number(s.candidate.episodes) === 1);
+        if (season || movieLike) {
+          const tvish = contenders.filter((s) => Number(s.candidate.episodes) > 1);
+          const movie = contenders.filter((s) => Number(s.candidate.episodes) === 1);
+          if (movieLike && movie.length === 1 && format !== 'TV') contenders = movie;
+          else if (tvish.length === 1 && movie.length >= 1) contenders = tvish;
+        }
+      }
+    }
+  }
+  if (contenders.length > 1) {
     const season = mapProviderSeason(input.providerSeason ?? null);
     if (!season) return null;
     const matching = contenders.filter(
@@ -305,7 +323,8 @@ function breakExactTie(
   return contenders.length === 1 ? contenders[0] : null;
 }
 
-// Gana el claramente mejor; en empate o duda, nada. El ganador debe traer banner.
+// Gana el claramente mejor; en empate o duda, nada. Sin banner hay match
+// para el estudio pero no para la panorámica.
 export function selectAniListMatch(
   rawQuery: string | AniListBannerInput,
   candidates: AniListCandidate[],
@@ -331,7 +350,6 @@ export function selectAniListMatch(
   } else if (runnerUp && best.score - runnerUp.score < MIN_SCORE_GAP) {
     return null;
   }
-  if (!winner.candidate.bannerImage || !String(winner.candidate.bannerImage).trim()) return null;
   return winner.candidate;
 }
 
@@ -358,6 +376,7 @@ function toCandidate(raw: unknown): AniListCandidate | null {
     season: asText(node.season),
     seasonYear: asNumber(node.seasonYear),
     format: asText(node.format),
+    episodes: asNumber(node.episodes),
     popularity: asNumber(node.popularity),
   };
 }
@@ -437,15 +456,16 @@ export async function fetchAniListByMalId(malId: number, post: AniListPost): Pro
 }
 
 function bannerFrom(candidate: AniListCandidate | null): AniListBannerResult | null {
-  if (!candidate || !candidate.bannerImage) return null;
-  const banner = String(candidate.bannerImage).trim();
-  if (!isAniListBannerHost(banner)) return null;
+  if (!candidate || Number(candidate.id) <= 0) return null;
+  const rawBanner = String(candidate.bannerImage || '').trim();
+  const banner = rawBanner && isAniListBannerHost(rawBanner) ? rawBanner : null;
   const studio = typeof candidate.studio === 'string' && candidate.studio.trim() ? candidate.studio : null;
+  if (!banner && !studio) return null;
   return { anilistId: candidate.id, banner, studio };
 }
 
 // Orden: malId directo primero; fallback al matcher por título cuando no hay
-// malId, no se encuentra o viene sin banner. Solo resultado o null; nunca lanza.
+// malId, no se encuentra o viene sin banner ni estudio. Solo resultado o null; nunca lanza.
 export async function resolveAniListBanner(
   input: string | AniListBannerInput,
   post: AniListPost,
@@ -463,7 +483,11 @@ export async function resolveAniListBanner(
     if (!String(query.title || '').trim()) return null;
     const variants = buildAniListSearchVariants(query.title, query.alternativeTitles);
     const match = selectAniListMatch(query, await fetchAniListCandidates(variants, post));
-    return bannerFrom(match);
+    if (!match) return null;
+    const hasBanner =
+      !!match.bannerImage && String(match.bannerImage).trim() && isAniListBannerHost(String(match.bannerImage));
+    const withBanner = hasBanner ? match : { ...match, bannerImage: null };
+    return bannerFrom(withBanner);
   } catch {
     return null;
   }
