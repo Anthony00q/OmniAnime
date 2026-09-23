@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import type { AppSettings } from '../types/settings';
 import { noopScopedLogger, type ScopedLogger } from '../services/AppLogger';
 import { applyYouTubeEmbedIdentityHeaders, resolveWindowCloseAction } from '../utils/windowUtils';
+import { buildTrayMenuTemplate } from './trayMenu';
 import {
   buildToolsStatusText,
   clampSplashProgress,
@@ -34,6 +35,7 @@ export {
 export interface WindowLifecycleDependencies {
   getAppHtmlPath: () => string;
   getAppIconPath: () => string;
+  getTrayIconPath?: () => string;
   getSplashHtmlPath: () => string;
   getSplashPreloadPath: () => string;
   getPreloadPath: () => string;
@@ -82,32 +84,61 @@ export class WindowLifecycleService {
     this.tray.setToolTip(text || 'OmniAnime');
   }
 
+  // Solo en show/hide: con el menú abierto lo cerraría.
+  refreshTrayMenu(): void {
+    if (!this.tray) return;
+    try {
+      this.tray.setContextMenu(
+        Menu.buildFromTemplate(
+          buildTrayMenuTemplate(
+            {
+              isWindowVisible: this.mainWindow?.isVisible() ?? false,
+              appVersion: app.getVersion(),
+            },
+            {
+              onToggleVisibility: () => this.toggleMainWindowVisibility(),
+              onQuit: () => {
+                this.dependencies.setIsQuitting(true);
+                app.quit();
+              },
+            },
+          ),
+        ),
+      );
+    } catch (error) {
+      (this.dependencies.logger ?? noopScopedLogger).error(`tray: ${error}`);
+    }
+  }
+
+  private toggleMainWindowVisibility(): void {
+    if (!this.mainWindow) return;
+    if (this.mainWindow.isVisible()) this.mainWindow.hide();
+    else this.showMainWindow();
+  }
+
+  private showMainWindow(): void {
+    if (!this.mainWindow) return;
+    if (!this.mainWindow.isVisible()) this.mainWindow.show();
+    this.mainWindow.focus();
+  }
+
   createTray(): void {
     if (this.tray) return;
 
     try {
-      const iconPath = this.dependencies.getAppIconPath();
+      const iconPath = this.dependencies.getTrayIconPath?.() ?? this.dependencies.getAppIconPath();
       if (!fs.existsSync(iconPath)) {
         (this.dependencies.logger ?? noopScopedLogger).warn(`tray: icono no encontrado en ${iconPath}`);
         return;
       }
 
       this.tray = new Tray(iconPath);
-      const contextMenu = Menu.buildFromTemplate([
-        { label: 'Abrir OmniAnime', click: () => this.mainWindow?.show() },
-        { type: 'separator' },
-        {
-          label: 'Salir',
-          click: () => {
-            this.dependencies.setIsQuitting(true);
-            app.quit();
-          },
-        },
-      ]);
 
       this.updateTrayTooltip();
-      this.tray.setContextMenu(contextMenu);
-      this.tray.on('double-click', () => this.mainWindow?.show());
+      this.refreshTrayMenu();
+      // Clic izquierdo restaura; el derecho abre el menú.
+      this.tray.on('click', () => this.showMainWindow());
+      this.tray.on('double-click', () => this.showMainWindow());
     } catch (error) {
       (this.dependencies.logger ?? noopScopedLogger).error(`tray: ${error}`);
     }
@@ -333,7 +364,11 @@ export class WindowLifecycleService {
         emitWindowState();
         this.dependencies.sendQueueUpdateImmediate();
       });
-      this.mainWindow.on('show', () => this.dependencies.sendQueueUpdateImmediate());
+      this.mainWindow.on('show', () => {
+        this.refreshTrayMenu();
+        this.dependencies.sendQueueUpdateImmediate();
+      });
+      this.mainWindow.on('hide', () => this.refreshTrayMenu());
 
       if (this.dependencies.isPackaged()) {
         await this.mainWindow.loadFile(this.dependencies.getAppHtmlPath());

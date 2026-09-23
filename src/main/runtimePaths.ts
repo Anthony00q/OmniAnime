@@ -2,6 +2,7 @@ import { app } from 'electron';
 import * as fs from 'fs';
 import * as path from 'path';
 import type { FfmpegRuntimeTools } from '../services/DownloadService';
+import { resolveTrayIconPath } from './trayMenu';
 
 export function getSplashHtmlPath(): string {
   if (app.isPackaged) {
@@ -19,6 +20,11 @@ export function getAppHtmlPath(): string {
 
 export function getAppIconPath(): string {
   return path.join(app.getAppPath(), 'assets', 'icon.ico');
+}
+
+// PNG dedicado de la bandeja; fallback al ICO.
+export function getTrayIconPath(): string {
+  return resolveTrayIconPath(app.getAppPath(), (p) => fs.existsSync(p));
 }
 
 export function getToolsDir(): string {

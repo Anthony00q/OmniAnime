@@ -7,7 +7,14 @@ import { setupHardwareAcceleration } from './bootstrap/hardwareAcceleration';
 import { checkConnectivity, getConnectivityStatus as getConnectivityStatusImpl } from './bootstrap/connectivity';
 import { registerOmniMediaProtocol } from './bootstrap/protocol';
 import { setupContextMenu } from './bootstrap/contextMenu';
-import { getAppHtmlPath, getAppIconPath, getSplashHtmlPath, getToolsDir, getFfmpegTools } from './runtimePaths';
+import {
+  getAppHtmlPath,
+  getAppIconPath,
+  getTrayIconPath,
+  getSplashHtmlPath,
+  getToolsDir,
+  getFfmpegTools,
+} from './runtimePaths';
 import { ProviderManager } from '../services/ProviderManager';
 import { DownloadService } from '../services/DownloadService';
 import { EpisodeDownloadAttemptService } from '../services/EpisodeDownloadAttemptService';
@@ -1035,6 +1042,7 @@ const queueProcessor = new DownloadQueueProcessor({
 windowLifecycleService = new WindowLifecycleService({
   getAppHtmlPath,
   getAppIconPath,
+  getTrayIconPath,
   getSplashHtmlPath,
   getSplashPreloadPath: () => path.join(__dirname, 'splashPreload.js'),
   getPreloadPath: () => path.join(__dirname, 'preload.js'),
