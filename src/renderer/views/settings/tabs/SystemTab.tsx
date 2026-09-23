@@ -165,8 +165,7 @@ export const SystemTab = memo(function SystemTab({
 
   return (
     <>
-      <section className="relative overflow-hidden rounded-2xl border border-border/50 bg-card/90 shadow-sm">
-        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
+      <section className="rounded-2xl border border-border/50 bg-card shadow-sm">
         <div className="p-5 sm:p-6">
           <div className="flex items-start justify-between gap-4 mb-5">
             <div className="flex items-center gap-3">
