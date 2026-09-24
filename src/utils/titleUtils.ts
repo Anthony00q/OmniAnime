@@ -8,6 +8,27 @@ export function normalizeTitleForMatch(title: string): string {
     .trim();
 }
 
+export const MAX_FOLDER_ALTERNATIVE_TITLES = 4;
+
+export function normalizeFolderAlternativeTitles(
+  raw: unknown,
+  mainTitle?: unknown,
+  max: number = MAX_FOLDER_ALTERNATIVE_TITLES,
+): string[] {
+  const list = Array.isArray(raw) ? raw : [];
+  const main = String(mainTitle ?? '').trim();
+  const out: string[] = [];
+  for (const entry of list) {
+    const title = String(entry ?? '').trim();
+    if (!title) continue;
+    if (main && title === main) continue;
+    if (out.includes(title)) continue;
+    out.push(title);
+    if (out.length >= max) break;
+  }
+  return out;
+}
+
 export function normalizeDisplayAnimeTitle(title: string): string {
   const raw = String(title || '').trim();
   if (!raw) return raw;

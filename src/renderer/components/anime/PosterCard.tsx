@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { MouseEvent as ReactMouseEvent, ReactNode } from 'react';
 import clsx from 'clsx';
 import { PosterImage } from './PosterImage';
 
@@ -15,6 +15,7 @@ interface PosterCardProps {
   ariaLabel?: string;
   progress?: number;
   onClick: () => void;
+  onContextMenu?: (event: ReactMouseEvent) => void;
 }
 
 export function PosterCard({
@@ -30,6 +31,7 @@ export function PosterCard({
   ariaLabel,
   progress,
   onClick,
+  onContextMenu,
 }: PosterCardProps) {
   const clampedProgress =
     typeof progress === 'number' && Number.isFinite(progress) ? Math.min(1, Math.max(0, progress)) : undefined;
@@ -38,7 +40,12 @@ export function PosterCard({
     <button
       type="button"
       onClick={onClick}
-      aria-label={ariaLabel || `Abrir ${title}`}
+      onContextMenu={onContextMenu}
+      aria-label={
+        onContextMenu
+          ? `${ariaLabel || `Abrir ${title}`}. Clic derecho para más opciones.`
+          : ariaLabel || `Abrir ${title}`
+      }
       className="anime-poster-card sala-frame poster-list-item group relative isolate flex aspect-[2/3] min-w-0 cursor-pointer flex-col overflow-hidden border border-transparent bg-transparent text-left shadow-none transition-[border-color,box-shadow] duration-200 ease-out hover:border-white/15 hover:shadow-[0_8px_24px_rgba(0,0,0,0.35)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
     >
       <PosterImage

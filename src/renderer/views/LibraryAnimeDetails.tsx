@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback, type MouseEvent as ReactMouseEvent } from 'react';
 import { HERO_DIM_MAX, HERO_DIM_DISTANCE } from '../utils/heroDim';
 import { ArrowLeft, FolderOpen, Settings, Wand2, ListOrdered, Info, FileText, Hash } from 'lucide-react';
 import { toast } from 'sonner';
@@ -15,6 +15,8 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { EpisodeListSkeleton } from '../components/anime/PosterGridSkeleton';
 import { EpisodeRow, type EpisodeDensity } from './libraryDetails/components/EpisodeRow';
 import { LibraryHero, LibraryHeroBanner } from './libraryDetails/components/LibraryHero';
+import { LibraryFolderMenu } from './libraryDetails/components/LibraryFolderMenu';
+import { LibraryFolderDetailsDialog } from './libraryDetails/components/LibraryFolderDetailsDialog';
 import { RenameDialog } from './libraryDetails/components/RenameDialog';
 import { ReorderDialog } from './libraryDetails/components/ReorderDialog';
 
@@ -40,6 +42,15 @@ export function LibraryAnimeDetails({
   const [showMenu, setShowMenu] = useState(false);
   const [showReorderModal, setShowReorderModal] = useState(false);
   const [showRenameModal, setShowRenameModal] = useState(false);
+  const [heroMenu, setHeroMenu] = useState<{ x: number; y: number } | null>(null);
+  const [showFolderDetails, setShowFolderDetails] = useState(false);
+
+  const handleHeroContextMenu = useCallback((event: ReactMouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setHeroMenu({ x: event.clientX, y: event.clientY });
+  }, []);
+  const closeHeroMenu = useCallback(() => setHeroMenu(null), []);
   const [renameStyle, setRenameStyle] = useState<'minimal' | 'descriptive'>('descriptive');
   const [deleteConfirmPath, setDeleteConfirmPath] = useState<string | null>(null);
   // Preferencia solo-renderer: no toca settings/DB ni validación de esquema.
@@ -99,6 +110,8 @@ export function LibraryAnimeDetails({
       setShowRenameModal(false);
       setShowReorderModal(false);
       setDeleteConfirmPath(null);
+      setHeroMenu(null);
+      setShowFolderDetails(false);
     }
   }, [isActive]);
 
@@ -357,8 +370,23 @@ export function LibraryAnimeDetails({
           episodeCount={episodes.length}
           metaSlug={folderData.metaSlug}
           providerId={folderData.providerId}
+          secondaryTitle={folderData.secondaryTitle}
+          alternativeTitles={folderData.alternativeTitles}
           activeProvider={activeProvider}
           onSelectAnime={onSelectAnime}
+          onPosterContextMenu={handleHeroContextMenu}
+        />
+        {heroMenu && (
+          <LibraryFolderMenu
+            x={heroMenu.x}
+            y={heroMenu.y}
+            onDetails={() => setShowFolderDetails(true)}
+            onClose={closeHeroMenu}
+          />
+        )}
+        <LibraryFolderDetailsDialog
+          item={showFolderDetails ? folderData : null}
+          onOpenChange={(open) => !open && setShowFolderDetails(false)}
         />
 
         <div className="min-w-0 shrink-0 bg-background px-4 py-4 sm:px-8 sm:py-6 md:px-10">

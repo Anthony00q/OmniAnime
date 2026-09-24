@@ -9,6 +9,8 @@ export interface LibraryPreloadRow {
   episodeCount?: unknown;
   slug?: unknown;
   title?: unknown;
+  secondaryTitle?: unknown;
+  alternativeTitles?: unknown;
   poster?: unknown;
   banner?: unknown;
   providerId?: unknown;
@@ -23,6 +25,8 @@ export interface LibrarySeedFolder {
   bannerLocal: string | null;
   metaSlug: string | null;
   metaTitle: string | null;
+  secondaryTitle: string | null;
+  alternativeTitles: string[];
   providerId: string | null;
   sourceDir: string;
   sourceDirIndex: number;
@@ -63,6 +67,10 @@ export function adaptLibraryPreloadToFolders(rows: unknown): LibrarySeedFolder[]
       bannerLocal: asNullableString(row.banner),
       metaSlug: asNullableString(row.slug),
       metaTitle: asString(row.title) || name,
+      secondaryTitle: asNullableString(row.secondaryTitle),
+      alternativeTitles: Array.isArray(row.alternativeTitles)
+        ? (row.alternativeTitles as unknown[]).filter((v): v is string => typeof v === 'string' && !!v.trim())
+        : [],
       providerId: asNullableString(row.providerId),
       sourceDir,
       sourceDirIndex: Math.max(0, Math.floor(asNumber(row.sourceDirIndex, 0))),

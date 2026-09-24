@@ -48,6 +48,21 @@ interface HistoryRow {
   episode_list: string;
 }
 
+function parseAlternativeTitlesColumn(value: unknown): string[] {
+  if (typeof value !== 'string' || !value) return [];
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (!Array.isArray(parsed)) return [];
+    return (parsed as unknown[]).filter((v): v is string => typeof v === 'string' && !!v.trim());
+  } catch {
+    return [];
+  }
+}
+
+function serializeAlternativeTitlesColumn(value: unknown): string {
+  return JSON.stringify(parseAlternativeTitlesColumn(typeof value === 'string' ? value : JSON.stringify(value ?? [])));
+}
+
 let writeCount = 0;
 let totalPersistMs = 0;
 function measure<T>(label: string, fn: () => T): T {
@@ -386,6 +401,8 @@ export class DatabaseManager {
                 folder_path TEXT NOT NULL,
                 slug TEXT,
                 title TEXT,
+                secondary_title TEXT,
+                alternative_titles TEXT NOT NULL DEFAULT '[]',
                 category TEXT,
                 year TEXT,
                 status TEXT,
@@ -396,6 +413,7 @@ export class DatabaseManager {
                 updated_at INTEGER NOT NULL
             )
         `);
+      this.ensureFolderMetaColumns();
     });
   }
 
@@ -438,10 +456,24 @@ export class DatabaseManager {
     } catch {}
   }
 
+  private ensureFolderMetaColumns(): void {
+    try {
+      if (!this.tableHasColumn('folder_meta', 'alternative_titles')) {
+        this.db!.exec(`ALTER TABLE folder_meta ADD COLUMN alternative_titles TEXT NOT NULL DEFAULT '[]'`);
+      }
+    } catch {}
+    try {
+      if (!this.tableHasColumn('folder_meta', 'secondary_title')) {
+        this.db!.exec(`ALTER TABLE folder_meta ADD COLUMN secondary_title TEXT`);
+      }
+    } catch {}
+  }
+
   private runSchemaMigrations(currentVersion: number): void {
     this.ensureDownloadSettingsColumn();
     this.ensureSoundPackColumn();
     this.ensureQueueEpisodeColumns();
+    this.ensureFolderMetaColumns();
     if (currentVersion >= 4) return;
     if (currentVersion >= 2 && this.hasHistoryV2Columns()) return;
 
@@ -740,6 +772,8 @@ export class DatabaseManager {
               ...assetMeta,
               slug: assetMeta.slug || marker.slug,
               title: assetMeta.title || marker.title,
+              secondaryTitle: assetMeta.secondaryTitle || marker.secondaryTitle,
+              alternativeTitles: assetMeta.alternativeTitles || marker.alternativeTitles,
               providerId: assetMeta.providerId || marker.providerId,
               updatedAt: assetMeta.updatedAt || marker.updatedAt,
             };
@@ -747,17 +781,25 @@ export class DatabaseManager {
             const hash = cryptolib.createHash('sha1').update(folderPath.toLowerCase()).digest('hex');
             const asText = (value: unknown): string | null => (typeof value === 'string' ? value : null);
             const asTimestamp = (value: unknown): number => (typeof value === 'number' ? value : Date.now());
+            const asJsonArray = (value: unknown): string => {
+              const list = Array.isArray(value)
+                ? (value as unknown[]).filter((v): v is string => typeof v === 'string' && !!v.trim())
+                : [];
+              return JSON.stringify(list);
+            };
 
             this.db!.prepare(
               `INSERT OR REPLACE INTO folder_meta
-                             (folder_path_hash, folder_path, slug, title, category, year,
+                             (folder_path_hash, folder_path, slug, title, secondary_title, alternative_titles, category, year,
                               status, season, poster_url, banner_url, provider_id, updated_at)
-                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             ).run(
               hash,
               folderPath,
               asText(meta.slug),
               asText(meta.title),
+              asText(meta.secondaryTitle),
+              asJsonArray(meta.alternativeTitles),
               asText(meta.category),
               asText(meta.year),
               asText(meta.status),
@@ -1082,6 +1124,8 @@ export class DatabaseManager {
       return {
         slug: row.slug || null,
         title: row.title || undefined,
+        secondaryTitle: row.secondary_title || undefined,
+        alternativeTitles: parseAlternativeTitlesColumn(row.alternative_titles),
         category: row.category || undefined,
         year: row.year || undefined,
         status: row.status || undefined,
@@ -1102,14 +1146,16 @@ export class DatabaseManager {
       const hash = cryptolib.createHash('sha1').update(folderPath.toLowerCase()).digest('hex');
       this.db!.prepare(
         `INSERT OR REPLACE INTO folder_meta
-               (folder_path_hash, folder_path, slug, title, category, year,
+               (folder_path_hash, folder_path, slug, title, secondary_title, alternative_titles, category, year,
                 status, season, poster_url, banner_url, provider_id, updated_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       ).run(
         hash,
         folderPath,
         (data.slug as string) || null,
         (data.title as string) || null,
+        (data.secondaryTitle as string) || null,
+        serializeAlternativeTitlesColumn(data.alternativeTitles),
         (data.category as string) || null,
         (data.year as string) || null,
         (data.status as string) || null,

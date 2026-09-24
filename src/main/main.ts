@@ -39,7 +39,7 @@ import type { DownloadAnimeDetails, AnimeSearchResult } from '../types/anime';
 import type { HistoryWriteRecord } from '../types/history';
 import type { FolderLibraryMeta } from '../types/library';
 import type { DownloadProvider, ProviderDownloadLink, QueueItem } from '../types/queue';
-import { computeTitleMatchScore } from '../utils/titleUtils';
+import { computeTitleMatchScore, normalizeFolderAlternativeTitles } from '../utils/titleUtils';
 import {
   getServerPriorityOrder as getServerPriorityOrderUtil,
   isBlockedServer as isBlockedServerUtil,
@@ -252,6 +252,8 @@ export interface LibraryMetaPreloadRow {
   episodeCount: number;
   slug: string | null;
   title: string;
+  secondaryTitle?: string;
+  alternativeTitles?: string[];
   poster: string | null;
   banner: string | null;
   category?: string;
@@ -402,6 +404,8 @@ async function buildLibraryMetaPreload(
           episodeCount: folder.episodeCount,
           slug: folder.localMeta.slug || null,
           title: folder.localMeta.title || folder.name,
+          secondaryTitle: folder.localMeta.secondaryTitle || '',
+          alternativeTitles: folder.localMeta.alternativeTitles || [],
           poster: folder.localPoster,
           banner: folder.localBanner,
           category: folder.localMeta.category || '',
@@ -429,6 +433,8 @@ async function buildLibraryMetaPreload(
           episodeCount: folder.episodeCount,
           slug: null,
           title: folder.localMeta.title || folder.name,
+          secondaryTitle: folder.localMeta.secondaryTitle || '',
+          alternativeTitles: folder.localMeta.alternativeTitles || [],
           poster: folder.localPoster,
           banner: folder.localBanner,
           category: folder.localMeta.category || '',
@@ -451,6 +457,8 @@ async function buildLibraryMetaPreload(
         episodeCount: folder.episodeCount,
         slug: folder.localMeta?.slug || null,
         title: folder.localMeta?.title || folder.name,
+        secondaryTitle: folder.localMeta?.secondaryTitle || '',
+        alternativeTitles: folder.localMeta?.alternativeTitles || [],
         poster: folder.localPoster,
         banner: folder.localBanner,
         category: folder.localMeta?.category || '',
@@ -525,9 +533,12 @@ async function buildLibraryMetaPreload(
         : null;
       const localBanner = anilistBannerUrl ? await ensureFolderBanner(folder.folderPath, anilistBannerUrl) : null;
 
+      const preloadTitle = String(details?.title || best.title || folder.name);
       writeFolderLibraryMeta(folder.folderPath, {
         slug: String(best.slug || ''),
-        title: String(details?.title || best.title || folder.name),
+        title: preloadTitle,
+        secondaryTitle: String(details?.japaneseTitle || '').trim(),
+        alternativeTitles: normalizeFolderAlternativeTitles(details?.alternativeTitles, preloadTitle),
         category: details?.category || '',
         year: details?.year || '',
         status: details?.status || '',
@@ -548,7 +559,9 @@ async function buildLibraryMetaPreload(
         birthtime: folder.birthtime,
         episodeCount: folder.episodeCount,
         slug: String(best.slug || ''),
-        title: String(details?.title || best.title || folder.name),
+        title: preloadTitle,
+        secondaryTitle: String(details?.japaneseTitle || '').trim(),
+        alternativeTitles: normalizeFolderAlternativeTitles(details?.alternativeTitles, preloadTitle),
         poster: localPoster || best.poster || null,
         banner: localBanner || null,
         category: details?.category || '',

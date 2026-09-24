@@ -5,6 +5,7 @@ import * as fsp from 'fs/promises';
 import * as path from 'path';
 import { pathToFileURL } from 'url';
 import { safeWriteFileSync } from '../utils/fsUtils';
+import { normalizeFolderAlternativeTitles } from '../utils/titleUtils';
 import type { FolderLibraryMeta } from '../types/library';
 import { assertAllowedImageRedirect, isAllowedImageUrl } from '../utils/networkSecurity';
 import { isPathWithinAnyDirectory } from '../utils/pathSecurity';
@@ -232,16 +233,28 @@ export class LibraryAssetService {
 
   writeFolderLibraryMeta(folderPath: string, data: FolderLibraryMeta): void {
     try {
+      const secondary = String(data.secondaryTitle || '').trim();
+      const normalized: FolderLibraryMeta = {
+        ...data,
+        secondaryTitle: secondary,
+        alternativeTitles: normalizeFolderAlternativeTitles(data.alternativeTitles, data.title),
+      };
       if (this.options.database.isReady()) {
-        this.options.database.setFolderMeta(folderPath, data as Record<string, unknown>);
+        this.options.database.setFolderMeta(folderPath, normalized as Record<string, unknown>);
       }
 
-      const minimalMarker = JSON.stringify({
-        slug: data.slug || null,
-        title: data.title || '',
-        providerId: data.providerId || null,
-        updatedAt: Date.now(),
-      });
+      const minimalMarker = JSON.stringify(
+        {
+          slug: normalized.slug || null,
+          title: normalized.title || '',
+          secondaryTitle: normalized.secondaryTitle,
+          alternativeTitles: normalized.alternativeTitles,
+          providerId: normalized.providerId || null,
+          updatedAt: Date.now(),
+        },
+        null,
+        2,
+      );
 
       const rootPath = path.join(folderPath, '.omnianime');
       try {
@@ -252,7 +265,7 @@ export class LibraryAssetService {
       }
 
       const assetMetaPath = path.join(this.getFolderAssetDir(folderPath), 'library-meta.json');
-      safeWriteFileSync(assetMetaPath, JSON.stringify({ ...data, folderPath, updatedAt: Date.now() }, null, 2));
+      safeWriteFileSync(assetMetaPath, JSON.stringify({ ...normalized, folderPath, updatedAt: Date.now() }, null, 2));
     } catch (error) {
       this.options.log(`Error guardando metadata de biblioteca en ${folderPath}: ${error}`);
     }

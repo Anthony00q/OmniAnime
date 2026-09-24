@@ -54,7 +54,7 @@ export const EpisodeRow = memo(
             {displayName}
           </h4>
           {!isCompact && (
-            <span className="select-text mt-1 block truncate font-mono text-[12px] text-muted-foreground/60">
+            <span className="mt-1 block truncate font-mono text-[12px] text-muted-foreground/60 select-none">
               {ep.name}
             </span>
           )}

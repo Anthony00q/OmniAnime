@@ -1,6 +1,8 @@
 export interface FolderLibraryMeta {
   slug?: string | null;
   title?: string;
+  secondaryTitle?: string;
+  alternativeTitles?: string[];
   category?: string;
   year?: string;
   status?: string;

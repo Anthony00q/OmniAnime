@@ -1,4 +1,14 @@
-import { memo, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type Dispatch,
+  type MouseEvent as ReactMouseEvent,
+  type SetStateAction,
+} from 'react';
 import { RefreshCcw, FolderOpen, Library, Search } from 'lucide-react';
 import { useAtomValue, useSetAtom } from 'jotai';
 import { toast } from 'sonner';
@@ -10,8 +20,18 @@ import { PosterGrid } from '../components/anime/PosterGrid';
 import { PosterGridSkeleton } from '../components/anime/PosterGridSkeleton';
 import { AppTooltip } from '../components/ui/AppTooltip';
 import { PageHeader } from '../components/ui/PageHeader';
+import { SearchField } from '../components/ui/SearchField';
+import { CustomSelect } from '../components/CustomSelect';
 import { ErrorState } from '../components/ui/ErrorState';
 import { EmptyState } from '../components/ui/EmptyState';
+import {
+  filterLibraryItems,
+  normalizeLibrarySort,
+  sortLibraryItems,
+  type LibrarySortKey,
+} from '../utils/libraryFilter';
+import { LibraryFolderMenu } from './libraryDetails/components/LibraryFolderMenu';
+import { LibraryFolderDetailsDialog } from './libraryDetails/components/LibraryFolderDetailsDialog';
 
 interface LibraryViewProps {
   onSelectAnime?: (slug: string) => void;
@@ -19,13 +39,17 @@ interface LibraryViewProps {
   isActive?: boolean;
 }
 
+const LIBRARY_SORT_STORAGE_KEY = 'omnianime:library-sort';
+
 const LibraryPosterItem = memo(
   function LibraryPosterItem({
     item,
     setSelectedFolder,
+    onContextMenu,
   }: {
     item: any;
     setSelectedFolder: Dispatch<SetStateAction<any>>;
+    onContextMenu: (event: ReactMouseEvent, item: any) => void;
   }) {
     const title = item.metaTitle || item.name;
     const episodeCount = typeof item.episodeCount === 'number' ? item.episodeCount : undefined;
@@ -49,6 +73,7 @@ const LibraryPosterItem = memo(
           ) : undefined
         }
         onClick={() => setSelectedFolder(item)}
+        onContextMenu={(event) => onContextMenu(event, item)}
       />
     );
   },
@@ -59,14 +84,41 @@ const LibraryPosterItem = memo(
     prev.item.name === next.item.name &&
     prev.item.hasNew === next.item.hasNew &&
     prev.item.episodeCount === next.item.episodeCount &&
-    prev.setSelectedFolder === next.setSelectedFolder,
+    prev.item.alternativeTitles === next.item.alternativeTitles &&
+    prev.setSelectedFolder === next.setSelectedFolder &&
+    prev.onContextMenu === next.onContextMenu,
 );
 
 export function LibraryView({ onSelectAnime, activeProvider, isActive }: LibraryViewProps = {}) {
   const [selectedFolder, setSelectedFolder] = useState<any>(null);
   const [selectedDirFilter, setSelectedDirFilter] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortKey, setSortKey] = useState<LibrarySortKey>(() => {
+    try {
+      return normalizeLibrarySort(window.localStorage.getItem(LIBRARY_SORT_STORAGE_KEY));
+    } catch {
+      return 'recientes';
+    }
+  });
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
   const setCurrentView = useSetAtom(currentViewAtom);
   const navigateToCatalog = useSetAtom(navigateToCatalogAtom);
+  const [folderMenu, setFolderMenu] = useState<{ x: number; y: number; item: any } | null>(null);
+  const [detailsItem, setDetailsItem] = useState<any>(null);
+
+  const handleFolderContextMenu = useCallback((event: ReactMouseEvent, item: any) => {
+    event.preventDefault();
+    setFolderMenu({ x: event.clientX, y: event.clientY, item });
+  }, []);
+  const closeFolderMenu = useCallback(() => setFolderMenu(null), []);
+
+  const handleSortChange = (value: string) => {
+    const next = normalizeLibrarySort(value);
+    setSortKey(next);
+    try {
+      window.localStorage.setItem(LIBRARY_SORT_STORAGE_KEY, next);
+    } catch {}
+  };
 
   const globalSettings = useAtomValue(settingsAtom);
   const dirs = useMemo(() => {
@@ -81,11 +133,12 @@ export function LibraryView({ onSelectAnime, activeProvider, isActive }: Library
 
   const { data: items = [], isLoading, isError, isFetching, refetch } = useLibrary(dirs);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const trimmedQuery = searchQuery.trim();
 
-  const filteredItems = useMemo(() => {
-    if (selectedDirFilter === 'all') return items;
-    return items.filter((item: any) => item.sourceDir === selectedDirFilter);
-  }, [items, selectedDirFilter]);
+  const visibleItems = useMemo(
+    () => sortLibraryItems(filterLibraryItems(items, selectedDirFilter, searchQuery), sortKey),
+    [items, selectedDirFilter, searchQuery, sortKey],
+  );
 
   useEffect(() => {
     if (selectedDirFilter !== 'all' && !dirs.includes(selectedDirFilter)) {
@@ -98,6 +151,13 @@ export function LibraryView({ onSelectAnime, activeProvider, isActive }: Library
       setSelectedFolder(null);
     }
   }, [dirs, selectedFolder]);
+
+  useEffect(() => {
+    if (isActive === false) {
+      setFolderMenu(null);
+      setDetailsItem(null);
+    }
+  }, [isActive]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -172,7 +232,30 @@ export function LibraryView({ onSelectAnime, activeProvider, isActive }: Library
             </button>
           </div>
         }
-      />
+      >
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <SearchField
+            value={searchQuery}
+            inputRef={searchInputRef}
+            placeholder="Buscar en tu librería…"
+            ariaLabel="Buscar en la librería"
+            onChange={(event) => setSearchQuery(event.target.value)}
+            onClear={() => setSearchQuery('')}
+          />
+          <CustomSelect
+            value={sortKey}
+            options={[
+              { value: 'recientes', label: 'Recientes' },
+              { value: 'az', label: 'A–Z' },
+              { value: 'za', label: 'Z–A' },
+              { value: 'mas-eps', label: 'Más EPs' },
+            ]}
+            onChange={handleSortChange}
+            ariaLabel="Ordenar librería"
+            className="w-full sm:w-48"
+          />
+        </div>
+      </PageHeader>
 
       {dirs.length > 1 && (
         <div className="flex flex-wrap items-center gap-2 px-4 py-2 sm:px-6">
@@ -231,7 +314,17 @@ export function LibraryView({ onSelectAnime, activeProvider, isActive }: Library
             actionLabel="Explorar catálogo"
             onAction={() => navigateToCatalog()}
           />
-        ) : filteredItems.length === 0 ? (
+        ) : visibleItems.length === 0 && trimmedQuery ? (
+          <EmptyState
+            icon={<Search className="h-6 w-6" aria-hidden="true" />}
+            title="Sin resultados"
+            description={`No hay animes que coincidan con «${trimmedQuery}». Prueba con otro título o limpia la búsqueda.`}
+            actionLabel="Limpiar búsqueda"
+            onAction={() => setSearchQuery('')}
+            secondaryActionLabel={selectedDirFilter !== 'all' ? 'Ver todas' : undefined}
+            onSecondaryAction={selectedDirFilter !== 'all' ? () => setSelectedDirFilter('all') : undefined}
+          />
+        ) : visibleItems.length === 0 ? (
           <EmptyState
             icon={<Search className="h-6 w-6" aria-hidden="true" />}
             title="Nada en esta balda"
@@ -245,7 +338,9 @@ export function LibraryView({ onSelectAnime, activeProvider, isActive }: Library
               className="px-0 pt-2 text-[13px] font-medium normal-case tracking-normal text-text-tertiary tabular-nums select-none"
               role="status"
             >
-              {filteredItems.length} {filteredItems.length === 1 ? 'anime' : 'animes'}
+              {trimmedQuery
+                ? `${visibleItems.length} de ${items.length} ${items.length === 1 ? 'anime' : 'animes'}`
+                : `${visibleItems.length} ${visibleItems.length === 1 ? 'anime' : 'animes'}`}
               {selectedDirFilter === 'all' && dirs.length > 1 && (
                 <>
                   {' '}
@@ -257,13 +352,27 @@ export function LibraryView({ onSelectAnime, activeProvider, isActive }: Library
               )}
             </p>
             <PosterGrid>
-              {filteredItems.map((item: any, idx: number) => (
-                <LibraryPosterItem key={item.path || idx} item={item} setSelectedFolder={setSelectedFolder} />
+              {visibleItems.map((item: any, idx: number) => (
+                <LibraryPosterItem
+                  key={item.path || idx}
+                  item={item}
+                  setSelectedFolder={setSelectedFolder}
+                  onContextMenu={handleFolderContextMenu}
+                />
               ))}
             </PosterGrid>
           </>
         )}
       </div>
+      {folderMenu && (
+        <LibraryFolderMenu
+          x={folderMenu.x}
+          y={folderMenu.y}
+          onDetails={() => setDetailsItem(folderMenu.item)}
+          onClose={closeFolderMenu}
+        />
+      )}
+      <LibraryFolderDetailsDialog item={detailsItem} onOpenChange={(open) => !open && setDetailsItem(null)} />
     </div>
   );
 }

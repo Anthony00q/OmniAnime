@@ -3,7 +3,11 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { SettingsManager } from '../../../services/SettingsManager';
 import { LibraryAssetService } from '../../../services/LibraryAssetService';
-import { formatEpisodeCountLabel, normalizeDisplayAnimeTitle } from '../../../utils/titleUtils';
+import {
+  formatEpisodeCountLabel,
+  normalizeDisplayAnimeTitle,
+  normalizeFolderAlternativeTitles,
+} from '../../../utils/titleUtils';
 import { isPathSafeForDestructiveOperation } from '../../../utils/pathSecurity';
 import type { DownloadProvider, QueueItem } from '../../../types/queue';
 import type { IpcRegistryDependencies } from '../../IpcRegistry';
@@ -100,9 +104,12 @@ export function registerQueueHandlers(dependencies: IpcRegistryDependencies): vo
         }
       }
 
+      const folderTitle = normalizeDisplayAnimeTitle(details.title || folderName);
       writeFolderLibraryMeta(targetPath, {
         slug: details.slug || slug,
-        title: normalizeDisplayAnimeTitle(details.title || folderName),
+        title: folderTitle,
+        secondaryTitle: String(details.japaneseTitle || '').trim(),
+        alternativeTitles: normalizeFolderAlternativeTitles(details.alternativeTitles, folderTitle),
         category: details.category || '',
         year: details.year || '',
         status: details.status || '',

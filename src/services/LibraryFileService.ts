@@ -4,7 +4,7 @@ import * as fsp from 'fs/promises';
 import * as path from 'path';
 import type { LibraryAssetService } from './LibraryAssetService';
 import { anilistBannerInputFromDetails, type AniListBannerInput } from './AniListService';
-import { normalizeDisplayAnimeTitle } from '../utils/titleUtils';
+import { normalizeDisplayAnimeTitle, normalizeFolderAlternativeTitles } from '../utils/titleUtils';
 import { isPathWithinAnyDirectory, isPathSafeForDestructiveOperation, isSafeChildName } from '../utils/pathSecurity';
 
 export interface LibraryFolder {
@@ -16,12 +16,15 @@ export interface LibraryFolder {
   bannerLocal: string | null;
   metaSlug?: string | null;
   metaTitle?: string | null;
+  secondaryTitle?: string | null;
+  alternativeTitles?: string[];
   providerId?: string | null;
   sourceDir: string;
 }
 
 export interface LibraryAnimeDetails {
   title?: string;
+  japaneseTitle?: string;
   poster?: string | null;
   banner?: string | null;
   alternativeTitles?: string[];
@@ -173,6 +176,11 @@ export class LibraryFileService {
                   : Promise.resolve(assetServiceAny.getFolderBannerFileUrl(folderPath)),
               ]);
 
+              const metaAlts = Array.isArray((meta as any)?.alternativeTitles)
+                ? (((meta as any).alternativeTitles as unknown[]).filter(
+                    (v): v is string => typeof v === 'string' && !!v.trim(),
+                  ) as string[])
+                : [];
               return {
                 name: dirent.name,
                 path: folderPath,
@@ -188,6 +196,8 @@ export class LibraryFileService {
                     : null),
                 metaSlug: (meta as any)?.slug || null,
                 metaTitle: (meta as any)?.title || null,
+                secondaryTitle: typeof (meta as any)?.secondaryTitle === 'string' ? (meta as any).secondaryTitle : null,
+                alternativeTitles: metaAlts,
                 providerId: (meta as any)?.providerId || 'animeav1',
                 sourceDir: baseDir,
               };
@@ -312,9 +322,12 @@ export class LibraryFileService {
         anilistBannerUrl = null;
       }
 
+      const relinkTitle = normalizeDisplayAnimeTitle(details.title || '') || targetSlug;
       this.options.assetService.writeFolderLibraryMeta(folderPath, {
         slug: targetSlug,
-        title: normalizeDisplayAnimeTitle(details.title || '') || targetSlug,
+        title: relinkTitle,
+        secondaryTitle: String(details.japaneseTitle || '').trim(),
+        alternativeTitles: normalizeFolderAlternativeTitles(details.alternativeTitles, relinkTitle),
         posterUrl: details.poster,
         bannerUrl: anilistBannerUrl,
         providerId: this.options.getActiveProviderId(),
