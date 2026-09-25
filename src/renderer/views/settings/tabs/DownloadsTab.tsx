@@ -2,6 +2,8 @@ import { memo, useState } from 'react';
 import { Gauge, Server, Layers, Eye, SlidersHorizontal, Info, ChevronDown, FolderDown } from 'lucide-react';
 import { CustomSelect } from '../../../components/CustomSelect';
 import { CustomSwitch } from '../../../components/CustomSwitch';
+import { ServerOrderCard } from '../components/ServerOrderCard';
+import { applyServerMove, applyServerToggle, splitServerOrder } from '../utils/serverOrder';
 import { AppTooltip } from '../../../components/ui/AppTooltip';
 import { DEFAULT_DOWNLOAD_SETTINGS } from '../../../../utils/downloadSettings';
 import { snapToClosestOption } from '../utils/settingsHelpers';
@@ -120,6 +122,29 @@ export const DownloadsTab = memo(function DownloadsTab({ settings, namingPreview
           <div className="rounded-xl border border-border/60 bg-background p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 mt-3">
             <div className="min-w-0">
               <span className="flex items-center gap-1.5 text-sm font-semibold select-none">
+                Voe: conexiones por archivo
+                <AppTooltip content="Divide cada descarga en segmentos en paralelo. Si el servidor no lo permite, usa 1 conexión.">
+                  <span aria-hidden="true" className="inline-flex text-muted-foreground">
+                    <Info className="w-3.5 h-3.5" />
+                  </span>
+                </AppTooltip>
+              </span>
+            </div>
+            <CustomSelect
+              value={snapToClosestOption(
+                dl.voeConnections ?? 4,
+                DOWNLOAD_DIRECT_CONNECTIONS_OPTIONS.map((o) => o.value),
+              )}
+              onChange={(v) => onDlChange('voeConnections', Number(v))}
+              ariaLabel="Conexiones por archivo en Voe"
+              className="w-full sm:w-60 shrink-0"
+              options={DOWNLOAD_DIRECT_CONNECTIONS_OPTIONS.map((o) => ({ ...o }))}
+            />
+          </div>
+
+          <div className="rounded-xl border border-border/60 bg-background p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 mt-3">
+            <div className="min-w-0">
+              <span className="flex items-center gap-1.5 text-sm font-semibold select-none">
                 Mega: conexiones por archivo
                 <AppTooltip content="Divide cada descarga de Mega en partes en paralelo. Más conexiones no siempre es más rápido.">
                   <span aria-hidden="true" className="inline-flex text-muted-foreground">
@@ -178,54 +203,44 @@ export const DownloadsTab = memo(function DownloadsTab({ settings, namingPreview
       </section>
 
       <section className="rounded-2xl border border-border/50 bg-card shadow-sm p-5 sm:p-6">
-        <div className="flex items-center gap-2 mb-4">
+        <div className="flex items-center gap-2 mb-1">
           <div className="p-1.5 bg-primary/10 rounded-lg">
             <Server className="w-4 h-4 text-primary" />
           </div>
           <h3 className="text-sm font-bold tracking-tight">Servidores disponibles</h3>
         </div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {PROVIDER_SERVERS.map((provider) => (
-            <div key={provider.id} className="rounded-xl border border-border/60 bg-background p-4">
-              <div className="flex items-center gap-2.5 mb-3">
-                <img
-                  src={PROVIDER_ICONS[provider.id]}
-                  alt=""
-                  aria-hidden="true"
-                  className="w-[18px] h-[18px] rounded shrink-0"
-                  draggable={false}
-                />
-                <span className="text-sm font-semibold">{provider.label}</span>
-                <span className="text-[11px] font-bold tracking-widest uppercase bg-secondary text-muted-foreground border border-border/60 px-1.5 py-0.5 rounded">
-                  {provider.hint}
-                </span>
-                <AppTooltip content="Orden en el que se prueban los servidores.">
-                  <span
-                    aria-hidden="true"
-                    className="ml-auto inline-flex items-center justify-center w-6 h-6 rounded-lg text-muted-foreground"
-                  >
-                    <Info className="w-3.5 h-3.5" />
-                  </span>
-                </AppTooltip>
-              </div>
-              <div className="flex flex-wrap gap-1.5" role="list" aria-label={`Servidores de ${provider.label}`}>
-                {provider.servers.map((name) => (
-                  <span
-                    key={name}
-                    role="listitem"
-                    className="inline-flex items-center rounded-full bg-secondary border border-border px-2.5 py-1 text-xs font-semibold"
-                  >
-                    {name}
-                  </span>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-        <p className="text-xs text-muted-foreground mt-3 leading-relaxed">
-          Los servidores varían por episodio y se prueban en este orden. Si uno no está o falla, se intenta
-          automáticamente con el siguiente.
+        <p className="mb-4 text-xs leading-relaxed text-muted-foreground">
+          Los servidores se prueban en este orden en cada episodio. Si uno falla o no está, sigue el siguiente.
         </p>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {PROVIDER_SERVERS.map((provider) => {
+            const orderKey = provider.id === 'jkanime' ? 'serverOrderJkanime' : 'serverOrderAnimeav1';
+            const candidates = provider.servers;
+            const stored = (dl as Record<string, unknown>)[orderKey];
+            const { active } = splitServerOrder(candidates, stored, provider.defaultOrder);
+            return (
+              <ServerOrderCard
+                key={provider.id}
+                providerLabel={provider.label}
+                hint={provider.hint}
+                iconSrc={PROVIDER_ICONS[provider.id]}
+                candidates={candidates}
+                active={active}
+                onReorder={(from, to) => onDlChange(orderKey, applyServerMove(active, from, to))}
+                onToggle={(name) => onDlChange(orderKey, applyServerToggle(candidates, active, name))}
+                onReset={() => onDlChange(orderKey, [...provider.defaultOrder])}
+              />
+            );
+          })}
+        </div>
+        <div className="mt-4 rounded-xl bg-background border border-border/60 px-3 py-2.5 flex items-center gap-2 text-xs text-muted-foreground">
+          <AppTooltip content="Si cambias algo durante una descarga, se aplicará a las siguientes, no a la que está en marcha.">
+            <span aria-hidden="true" className="inline-flex shrink-0">
+              <Info className="w-3.5 h-3.5" />
+            </span>
+          </AppTooltip>
+          <span>Los cambios se aplican a las siguientes descargas.</span>
+        </div>
       </section>
 
       <section className="rounded-2xl border border-border/50 bg-card shadow-sm p-5 sm:p-6">

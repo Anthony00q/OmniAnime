@@ -584,6 +584,21 @@ html[dir='ltr'] {
   --tw-enter-translate-x: 1rem;
 }
 
+/* Confirmación tras cambiar el estado de una fila: tinte del acento que se apaga.
+   Solo informa de que el cambio se ha guardado; no mueve nada del layout. */
+@keyframes settings-row-flash {
+  from {
+    opacity: 0.6;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.settings-row-flash {
+  animation: settings-row-flash 800ms var(--ease-out) forwards;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

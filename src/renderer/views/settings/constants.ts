@@ -1,5 +1,11 @@
 import type { ThemeId } from '../../../types/settings';
 import { DEFAULT_ACCENT_HEX } from '../../utils/color';
+import {
+  SERVER_CANDIDATES_ANIMEAV1,
+  SERVER_CANDIDATES_JKANIME,
+  SERVER_ORDER_ANIMEAV1_DEFAULT,
+  SERVER_ORDER_JKANIME_DEFAULT,
+} from '../../../utils/serverUtils';
 
 export const ACCENT_PRESETS = ['#e8a33d', '#c97b4a', '#b4552d', '#8a9a5b', '#d9c9a8'] as const;
 
@@ -58,17 +64,31 @@ export const DOWNLOAD_START_TIMEOUT_OPTIONS = [
   { value: '120', label: '120 s' },
 ] as const;
 
-export const PROVIDER_SERVERS = [
+export interface ProviderServersEntry {
+  id: 'animeav1' | 'jkanime';
+  label: string;
+  hint: string;
+  /** Candidatos del proveedor. */
+  servers: readonly string[];
+  /** Orden por defecto de ese proveedor. */
+  defaultOrder: readonly string[];
+}
+
+// Candidatos y orden por defecto salen del dominio para que AnimeAV1 y JkAnime no puedan
+// desincronizarse (pasó con Mediafire, que AnimeAV1 nunca da).
+export const PROVIDER_SERVERS: readonly ProviderServersEntry[] = [
   {
     id: 'animeav1',
     label: 'AnimeAV1',
     hint: 'Principal',
-    servers: ['HLS', 'Mega', 'Mediafire', 'MP4Upload'],
+    servers: SERVER_CANDIDATES_ANIMEAV1,
+    defaultOrder: SERVER_ORDER_ANIMEAV1_DEFAULT,
   },
   {
     id: 'jkanime',
     label: 'JkAnime',
     hint: 'Secundario',
-    servers: ['Mediafire', 'Mega', 'MP4Upload'],
+    servers: SERVER_CANDIDATES_JKANIME,
+    defaultOrder: SERVER_ORDER_JKANIME_DEFAULT,
   },
-] as const;
+];
