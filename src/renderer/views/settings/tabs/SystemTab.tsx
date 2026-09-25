@@ -211,25 +211,23 @@ export const SystemTab = memo(function SystemTab({
                             : 'border-border/70 group-hover:border-border'
                       }`}
                     >
-                      <AppTooltip content={canReorder ? 'Arrastra para reordenar' : ''}>
-                        <button
-                          type="button"
-                          data-drag-handle
-                          data-dragging={isDragging ? 'true' : 'false'}
-                          tabIndex={-1}
-                          onPointerDown={(e) => handlePointerDown(e, idx)}
-                          disabled={!canReorder}
-                          aria-label={`Carpeta ${idx + 1}`}
-                          style={{ touchAction: 'none' }}
-                          className={`app-region-no-drag shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-lg border transition-[background-color,border-color,color,transform] duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 select-none touch-none ${
-                            canReorder
-                              ? 'bg-secondary/60 border-border/50 text-muted-foreground hover:text-foreground hover:bg-secondary hover:border-border cursor-grab active:cursor-grabbing active:scale-95'
-                              : 'bg-secondary/30 border-transparent text-muted-foreground/40 cursor-not-allowed'
-                          } ${isDragging ? 'cursor-grabbing bg-secondary border-border' : ''}`}
-                        >
-                          <GripVertical className="w-3.5 h-3.5 pointer-events-none" />
-                        </button>
-                      </AppTooltip>
+                      <button
+                        type="button"
+                        data-drag-handle
+                        data-dragging={isDragging ? 'true' : 'false'}
+                        tabIndex={-1}
+                        onPointerDown={(e) => handlePointerDown(e, idx)}
+                        disabled={!canReorder}
+                        aria-label={`Carpeta ${idx + 1}`}
+                        style={{ touchAction: 'none' }}
+                        className={`app-region-no-drag shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-lg border transition-[background-color,border-color,color,transform] duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 select-none touch-none ${
+                          canReorder
+                            ? 'bg-secondary/60 border-border/50 text-muted-foreground hover:text-foreground hover:bg-secondary hover:border-border cursor-grab active:cursor-grabbing active:scale-95'
+                            : 'bg-secondary/30 border-transparent text-muted-foreground/40 cursor-not-allowed'
+                        } ${isDragging ? 'cursor-grabbing bg-secondary border-border' : ''}`}
+                      >
+                        <GripVertical className="w-3.5 h-3.5 pointer-events-none" />
+                      </button>
                       <div className="p-1.5 rounded-lg bg-secondary border border-border/50 shrink-0">
                         <HardDrive className="w-4 h-4 text-muted-foreground" />
                       </div>
@@ -288,28 +286,24 @@ export const SystemTab = memo(function SystemTab({
                           role="group"
                           aria-label={`Reordenar carpeta ${idx + 1}`}
                         >
-                          <AppTooltip content="Subir carpeta">
-                            <button
-                              type="button"
-                              onClick={() => onReorderOutputDirs?.(idx, idx - 1)}
-                              disabled={idx === 0}
-                              aria-label={`Subir carpeta ${idx + 1}`}
-                              className="inline-flex items-center justify-center bg-background hover:bg-secondary border border-border px-2 py-2 rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
-                            >
-                              <ArrowUp className="w-4 h-4" />
-                            </button>
-                          </AppTooltip>
-                          <AppTooltip content="Bajar carpeta">
-                            <button
-                              type="button"
-                              onClick={() => onReorderOutputDirs?.(idx, idx + 1)}
-                              disabled={idx === outputDirs.length - 1}
-                              aria-label={`Bajar carpeta ${idx + 1}`}
-                              className="inline-flex items-center justify-center bg-background hover:bg-secondary border border-border px-2 py-2 rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
-                            >
-                              <ArrowDown className="w-4 h-4" />
-                            </button>
-                          </AppTooltip>
+                          <button
+                            type="button"
+                            onClick={() => onReorderOutputDirs?.(idx, idx - 1)}
+                            disabled={idx === 0}
+                            aria-label={`Subir carpeta ${idx + 1}`}
+                            className="inline-flex items-center justify-center bg-background hover:bg-secondary border border-border px-2 py-2 rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                          >
+                            <ArrowUp className="w-4 h-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onReorderOutputDirs?.(idx, idx + 1)}
+                            disabled={idx === outputDirs.length - 1}
+                            aria-label={`Bajar carpeta ${idx + 1}`}
+                            className="inline-flex items-center justify-center bg-background hover:bg-secondary border border-border px-2 py-2 rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                          >
+                            <ArrowDown className="w-4 h-4" />
+                          </button>
                         </span>
                       )}
                     </div>
@@ -374,7 +368,7 @@ export const SystemTab = memo(function SystemTab({
               />
               <span className="text-xs text-muted-foreground leading-relaxed">
                 {settings.defaultProvider === 'animeav1'
-                  ? 'AnimeAV1 ofrece mayor catálogo y servidores HLS estables. Se aplicará al reiniciar.'
+                  ? 'AnimeAV1 ofrece mayor catálogo. Se aplicará al reiniciar.'
                   : 'JkAnime como alternativa. Se aplicará al reiniciar.'}
               </span>
             </div>
