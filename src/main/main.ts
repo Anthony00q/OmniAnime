@@ -41,6 +41,7 @@ import type { FolderLibraryMeta } from '../types/library';
 import type { DownloadProvider, ProviderDownloadLink, QueueItem } from '../types/queue';
 import { computeTitleMatchScore, normalizeFolderAlternativeTitles } from '../utils/titleUtils';
 import {
+  effectiveServerOrder as effectiveServerOrderUtil,
   getServerPriorityOrder as getServerPriorityOrderUtil,
   isBlockedServer as isBlockedServerUtil,
   normalizeServerName as normalizeServerNameUtil,
@@ -888,7 +889,15 @@ function isBlockedServer(canonicalServer: string): boolean {
 }
 
 function getServerPriorityOrder(providerId?: string): string[] {
-  return getServerPriorityOrderUtil(providerId);
+  try {
+    const stored = SettingsManager.get().download;
+    return effectiveServerOrderUtil(providerId, {
+      animeav1: stored?.serverOrderAnimeav1,
+      jkanime: stored?.serverOrderJkanime,
+    });
+  } catch {
+    return getServerPriorityOrderUtil(providerId);
+  }
 }
 
 function getAllowedServersForProvider(_provider: DownloadProvider, order: string[]): string[] {

@@ -372,7 +372,7 @@ export class EpisodeDownloadAttemptService {
   }
 
   // Purga de resume por tipo de fuente cuando allowContinue=false.
-  // Mapeo histórico: Mega → mega, HLS → hls, resto (Mediafire/MP4Upload) → directo.
+  // Mapeo: Mega → mega, HLS → hls, resto directo (Mediafire/MP4Upload/Voe).
   private purgeResumeForServer(server: string, destPath: string): Promise<void> {
     if (server === 'HLS') return this.purgeHlsResumeFiles(destPath);
     if (server === 'Mega') return this.purgeMegaResumeFiles(destPath);

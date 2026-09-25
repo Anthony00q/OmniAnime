@@ -3,6 +3,8 @@ import type { DownloadService, FfmpegRuntimeTools } from '../DownloadService';
 import { downloadHlsToMp4 } from '../hls/HlsNativeDownloader';
 import { MP4UPLOAD_REFERER, resolveMp4UploadDirect } from '../Mp4UploadResolver';
 import type { Mp4UploadResolveFn } from '../Mp4UploadResolver';
+import { resolveVoeDirect } from '../VoeResolver';
+import type { VoeResolveFn } from '../VoeResolver';
 import { normalizeMp4UploadUrl, providerDownloadReferer, resolveHlsPlaybackUrl } from '../../utils/serverUtils';
 import type { DownloadContext, DownloadEngine, DownloadResult, DownloadSource } from './downloadContracts';
 
@@ -97,6 +99,41 @@ export class Mp4UploadDownloadEngine implements DownloadEngine {
   }
 }
 
+export class VoeDownloadEngine implements DownloadEngine {
+  readonly id = 'Voe';
+
+  constructor(
+    private readonly downloadService: DownloadService,
+    private readonly resolveDirect: VoeResolveFn = resolveVoeDirect,
+  ) {}
+
+  canHandle(source: DownloadSource): boolean {
+    return handles('Voe', source);
+  }
+
+  async download(source: DownloadSource, ctx: DownloadContext): Promise<DownloadResult> {
+    const resolved = await this.resolveDirect(String(source.url || '').trim()).catch(() => ({ ok: false as const }));
+    if (!resolved.ok || !resolved.directUrl || ctx.signal.aborted) {
+      const reason =
+        !resolved.ok && (resolved as { reason?: string }).reason ? ` (${(resolved as { reason: string }).reason})` : '';
+      return { ok: false, error: `Voe sin directo útil${reason}.` };
+    }
+    if (resolved.kind === 'hls') return { ok: false, error: 'Voe solo expone HLS.' };
+    const ok = await this.downloadService.downloadDirectAxios(
+      resolved.directUrl,
+      ctx.dest,
+      (fraction01, loadedBytes) => {
+        ctx.onProgress({ fraction01, ...(loadedBytes !== undefined ? { loadedBytes } : {}) });
+      },
+      ctx.signal,
+      providerDownloadReferer(ctx.item.providerId),
+      ctx.settings.voeConnections,
+    );
+    if (!ok && !ctx.signal.aborted) return { ok: false, error: 'Voe directo falló.' };
+    return { ok };
+  }
+}
+
 export interface HlsEngineDeps {
   getFfmpegTools: () => FfmpegRuntimeTools;
   userAgent: string;
@@ -144,6 +181,7 @@ export interface DefaultDownloadEnginesDeps {
   userAgent: string;
   hlsPlayerReferer: string;
   resolveMp4UploadDirect?: Mp4UploadResolveFn;
+  resolveVoeDirect?: VoeResolveFn;
   hlsDownloader?: typeof downloadHlsToMp4;
 }
 
@@ -159,6 +197,7 @@ export function createDefaultDownloadEngines(deps: DefaultDownloadEnginesDeps): 
     new MegaDownloadEngine(deps.downloadService),
     new MediafireDownloadEngine(deps.downloadService),
     new Mp4UploadDownloadEngine(deps.downloadService, deps.resolveMp4UploadDirect ?? resolveMp4UploadDirect),
+    new VoeDownloadEngine(deps.downloadService, deps.resolveVoeDirect ?? resolveVoeDirect),
   ];
 }
 

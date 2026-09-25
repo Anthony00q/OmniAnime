@@ -35,6 +35,7 @@ body:
         - Mega
         - Mediafire
         - MP4Upload
+        - Voe
     validations:
       required: true
   - type: input

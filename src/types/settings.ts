@@ -17,8 +17,11 @@ export interface DownloadSettings {
   cleanCacheOnComplete: boolean;
   mediafireConnections: number;
   mp4uploadConnections: number;
+  voeConnections: number;
   megaConnections: number;
   hlsConnections: number;
+  serverOrderAnimeav1: string[];
+  serverOrderJkanime: string[];
 }
 
 export interface AppSettings {

@@ -1,4 +1,11 @@
 import type { DownloadSettings } from '../types/settings';
+import {
+  SERVER_CANDIDATES_ANIMEAV1,
+  SERVER_CANDIDATES_JKANIME,
+  SERVER_ORDER_ANIMEAV1_DEFAULT,
+  SERVER_ORDER_JKANIME_DEFAULT,
+  resolveServerOrderList,
+} from './serverUtils';
 
 export const DEFAULT_DOWNLOAD_SETTINGS: DownloadSettings = {
   maxParallelEpisodes: 1,
@@ -8,8 +15,11 @@ export const DEFAULT_DOWNLOAD_SETTINGS: DownloadSettings = {
   cleanCacheOnComplete: false,
   mediafireConnections: 1,
   mp4uploadConnections: 1,
+  voeConnections: 4,
   megaConnections: 6,
   hlsConnections: 10,
+  serverOrderAnimeav1: [...SERVER_ORDER_ANIMEAV1_DEFAULT],
+  serverOrderJkanime: [...SERVER_ORDER_JKANIME_DEFAULT],
 };
 
 function clampInt(value: unknown, min: number, max: number, fallback: number): number {
@@ -33,7 +43,18 @@ export function normalizeDownloadSettings(input: unknown): DownloadSettings {
     cleanCacheOnComplete: toBoolean(raw.cleanCacheOnComplete, DEFAULT_DOWNLOAD_SETTINGS.cleanCacheOnComplete),
     mediafireConnections: clampInt(raw.mediafireConnections, 1, 8, DEFAULT_DOWNLOAD_SETTINGS.mediafireConnections),
     mp4uploadConnections: clampInt(raw.mp4uploadConnections, 1, 8, DEFAULT_DOWNLOAD_SETTINGS.mp4uploadConnections),
+    voeConnections: clampInt(raw.voeConnections, 1, 8, DEFAULT_DOWNLOAD_SETTINGS.voeConnections),
     megaConnections: clampInt(raw.megaConnections, 1, 8, DEFAULT_DOWNLOAD_SETTINGS.megaConnections),
     hlsConnections: clampInt(raw.hlsConnections, 1, 16, DEFAULT_DOWNLOAD_SETTINGS.hlsConnections),
+    serverOrderAnimeav1: resolveServerOrderList(
+      raw.serverOrderAnimeav1,
+      DEFAULT_DOWNLOAD_SETTINGS.serverOrderAnimeav1,
+      SERVER_CANDIDATES_ANIMEAV1,
+    ),
+    serverOrderJkanime: resolveServerOrderList(
+      raw.serverOrderJkanime,
+      DEFAULT_DOWNLOAD_SETTINGS.serverOrderJkanime,
+      SERVER_CANDIDATES_JKANIME,
+    ),
   };
 }
