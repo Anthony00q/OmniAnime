@@ -1,4 +1,4 @@
-import { memo, useState, useCallback, useEffect, useRef } from 'react';
+import { memo, useCallback } from 'react';
 import {
   Folder,
   FolderOpen,
@@ -11,13 +11,14 @@ import {
   Monitor,
   Cpu,
   Wand2,
-  GripVertical,
   ArrowUp,
   ArrowDown,
 } from 'lucide-react';
 import { CustomSelect } from '../../../components/CustomSelect';
 import { CustomSwitch } from '../../../components/CustomSwitch';
 import { AppTooltip } from '../../../components/ui/AppTooltip';
+import { SortableHandle } from '../components/SortableHandle';
+import { useSortableList } from '../utils/useSortableList';
 
 interface SystemTabProps {
   settings: any;
@@ -40,128 +41,27 @@ export const SystemTab = memo(function SystemTab({
   onReorderOutputDirs,
   onChange,
 }: SystemTabProps) {
-  const canReorder = outputDirs.length > 1 && !!onReorderOutputDirs;
-  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
-  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
-  const listRef = useRef<HTMLDivElement>(null);
-  const draggedIndexRef = useRef<number | null>(null);
-  const dragOverIndexRef = useRef<number | null>(null);
-  const pointerIdRef = useRef<number | null>(null);
+  const { canReorder, listRef, draggingIndex, dropIndex, handlePointerDown, registerRow, getDropLine } =
+    useSortableList({
+      count: outputDirs.length,
+      disabled: !onReorderOutputDirs,
+      onReorder: (from, to) => onReorderOutputDirs?.(from, to),
+    });
 
-  const clearDrag = useCallback(() => {
-    draggedIndexRef.current = null;
-    dragOverIndexRef.current = null;
-    pointerIdRef.current = null;
-    setDraggedIndex(null);
-    setDragOverIndex(null);
-    document.body.style.cursor = '';
-    document.body.style.userSelect = '';
-  }, []);
-
-  const updateDragOver = useCallback((clientY: number) => {
-    const dragIdx = draggedIndexRef.current;
-    if (dragIdx === null || !listRef.current) return;
-    const rows = Array.from(listRef.current.querySelectorAll<HTMLElement>('[data-row]'));
-    if (rows.length === 0) return;
-    let target: number | null = null;
-    for (let i = 0; i < rows.length; i++) {
-      const rect = rows[i].getBoundingClientRect();
-      const mid = rect.top + rect.height / 2;
-      if (clientY < mid) {
-        target = i;
-        break;
-      }
-      if (i === rows.length - 1) target = i;
-    }
-    if (target === null) return;
-    if (target === dragIdx) {
-      dragOverIndexRef.current = null;
-      setDragOverIndex(null);
-    } else {
-      dragOverIndexRef.current = target;
-      setDragOverIndex(target);
-    }
-  }, []);
-
-  const handlePointerDown = useCallback(
-    (e: React.PointerEvent, idx: number) => {
-      if (!canReorder) return;
-      if (e.button !== 0) return;
-      e.preventDefault();
-      draggedIndexRef.current = idx;
-      dragOverIndexRef.current = null;
-      pointerIdRef.current = e.pointerId;
-      setDraggedIndex(idx);
-      setDragOverIndex(null);
-      try {
-        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-      } catch {}
-      document.body.style.cursor = 'grabbing';
-      document.body.style.userSelect = 'none';
+  const getRowKey = useCallback(
+    (dir: string, idx: number) => {
+      // Solo duplicadas exactas llevan sufijo (carpeta recién elegida).
+      const iguales = outputDirs.filter((d) => d === dir).length;
+      if (!dir) return `empty-${idx}`;
+      return iguales > 1 ? `${dir}__${idx}` : dir;
     },
-    [canReorder],
+    [outputDirs],
   );
 
-  const handlePointerMove = useCallback(
-    (e: PointerEvent) => {
-      if (draggedIndexRef.current === null) return;
-      updateDragOver(e.clientY);
-    },
-    [updateDragOver],
-  );
-
-  const handlePointerUp = useCallback(
-    (e: PointerEvent) => {
-      const from = draggedIndexRef.current;
-      const to = dragOverIndexRef.current;
-      if (pointerIdRef.current !== null && e.pointerId !== undefined && e.pointerId !== pointerIdRef.current) {
-        if (e.type === 'pointerup') return;
-      }
-      if (from !== null && to !== null && from !== to && from >= 0 && to >= 0) {
-        onReorderOutputDirs?.(from, to);
-      }
-      try {
-        if (pointerIdRef.current !== null) {
-          const el = document.querySelector('[data-drag-handle][data-dragging="true"]') as HTMLElement | null;
-          el?.releasePointerCapture?.(pointerIdRef.current);
-        }
-      } catch {}
-      clearDrag();
-    },
-    [clearDrag, onReorderOutputDirs],
-  );
-
-  useEffect(() => {
-    if (draggedIndex === null) return;
-    document.addEventListener('pointermove', handlePointerMove);
-    document.addEventListener('pointerup', handlePointerUp);
-    document.addEventListener('pointercancel', handlePointerUp);
-    const onKey = (ev: KeyboardEvent) => {
-      if (ev.key === 'Escape') clearDrag();
-    };
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('pointermove', handlePointerMove);
-      document.removeEventListener('pointerup', handlePointerUp);
-      document.removeEventListener('pointercancel', handlePointerUp);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [draggedIndex, handlePointerMove, handlePointerUp, clearDrag]);
-
-  useEffect(() => {
-    return () => {
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-    };
-  }, []);
-
-  const seenForKey = new Map<string, number>();
-  const getRowKey = (dir: string, idx: number) => {
-    if (!dir) return `empty-${idx}`;
-    const count = (seenForKey.get(dir) ?? 0) + 1;
-    seenForKey.set(dir, count);
-    return count === 1 ? dir : `${dir}__${count}`;
-  };
+  const dropLabel =
+    draggingIndex !== null && dropIndex !== null && draggingIndex !== dropIndex
+      ? `Soltar carpeta ${draggingIndex + 1} en la posición ${dropIndex + 1} de ${outputDirs.length}`
+      : null;
 
   return (
     <>
@@ -187,47 +87,53 @@ export const SystemTab = memo(function SystemTab({
           <div ref={listRef} role="list" aria-label="Carpetas de descarga" className="space-y-2.5">
             {outputDirs.map((dir: string, idx: number) => {
               const rowKey = getRowKey(dir, idx);
-              const isDragging = draggedIndex === idx;
-              const isDragOver = dragOverIndex === idx && draggedIndex !== null && draggedIndex !== idx;
+              const isDragging = draggingIndex === idx;
+              const line = getDropLine(idx);
               return (
-                <div key={rowKey} className="space-y-1">
-                  {isDragOver && draggedIndex !== null && draggedIndex > idx && (
-                    <div
+                <div
+                  key={rowKey}
+                  ref={(el) => registerRow(rowKey, el)}
+                  data-row
+                  data-dragging={isDragging || undefined}
+                  role="listitem"
+                  aria-posinset={idx + 1}
+                  aria-setsize={outputDirs.length}
+                  className={`group relative transition-[background-color,opacity] duration-150 ease-out ${
+                    isDragging ? 'opacity-60' : 'opacity-100'
+                  }`}
+                >
+                  {line === 'above' && (
+                    <span
                       aria-hidden="true"
-                      className="pointer-events-none h-0.5 mx-2 rounded-full bg-primary/70 shadow-[0_0_8px_var(--color-primary)] animate-in fade-in duration-150"
-                    />
+                      className="pointer-events-none absolute inset-x-2 -top-[7px] z-10 h-0.5 rounded-full bg-primary/70"
+                    >
+                      <span className="absolute -left-1 -top-[3px] h-2 w-2 rounded-full bg-primary" />
+                    </span>
+                  )}
+                  {line === 'below' && (
+                    <span
+                      aria-hidden="true"
+                      className="pointer-events-none absolute inset-x-2 -bottom-[7px] z-10 h-0.5 rounded-full bg-primary/70"
+                    >
+                      <span className="absolute -left-1 -top-[3px] h-2 w-2 rounded-full bg-primary" />
+                    </span>
                   )}
                   <div
-                    data-row
-                    role="listitem"
-                    className={`output-dirs-row group flex flex-col gap-2 sm:flex-row ${isDragging ? 'opacity-60' : 'opacity-100'} ${isDragOver ? 'scale-[1.01]' : 'scale-100'}`}
+                    className={`output-dirs-row group flex flex-col gap-2 transition-[border-color,background-color] sm:flex-row duration-150 ease-out`}
                   >
                     <div
-                      className={`flex-1 flex items-center gap-2.5 bg-background border rounded-xl px-2.5 py-2.5 shadow-sm transition-[border-color,background-color,box-shadow,transform] duration-160 ease-out ${
-                        isDragging
-                          ? 'border-primary/30 ring-1 ring-primary/20 shadow-md scale-[1.01]'
-                          : isDragOver
-                            ? 'border-primary/30 bg-primary/[0.04] ring-1 ring-primary/15'
-                            : 'border-border/70 group-hover:border-border'
+                      className={`flex-1 flex items-center gap-2.5 bg-background border rounded-xl px-2.5 py-2.5 shadow-sm transition-[border-color,background-color,box-shadow] duration-150 ease-out ${
+                        line ? 'border-primary/30 bg-primary/[0.04]' : 'border-border/70 group-hover:border-border'
                       }`}
                     >
-                      <button
-                        type="button"
-                        data-drag-handle
-                        data-dragging={isDragging ? 'true' : 'false'}
-                        tabIndex={-1}
-                        onPointerDown={(e) => handlePointerDown(e, idx)}
-                        disabled={!canReorder}
-                        aria-label={`Carpeta ${idx + 1}`}
-                        style={{ touchAction: 'none' }}
-                        className={`app-region-no-drag shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-lg border transition-[background-color,border-color,color,transform] duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 select-none touch-none ${
-                          canReorder
-                            ? 'bg-secondary/60 border-border/50 text-muted-foreground hover:text-foreground hover:bg-secondary hover:border-border cursor-grab active:cursor-grabbing active:scale-95'
-                            : 'bg-secondary/30 border-transparent text-muted-foreground/40 cursor-not-allowed'
-                        } ${isDragging ? 'cursor-grabbing bg-secondary border-border' : ''}`}
-                      >
-                        <GripVertical className="w-3.5 h-3.5 pointer-events-none" />
-                      </button>
+                      <SortableHandle
+                        index={idx}
+                        position={idx + 1}
+                        name={`Carpeta ${idx + 1}`}
+                        canReorder={canReorder}
+                        dragging={isDragging}
+                        onPointerDown={handlePointerDown}
+                      />
                       <div className="p-1.5 rounded-lg bg-secondary border border-border/50 shrink-0">
                         <HardDrive className="w-4 h-4 text-muted-foreground" />
                       </div>
@@ -291,7 +197,7 @@ export const SystemTab = memo(function SystemTab({
                             onClick={() => onReorderOutputDirs?.(idx, idx - 1)}
                             disabled={idx === 0}
                             aria-label={`Subir carpeta ${idx + 1}`}
-                            className="inline-flex items-center justify-center bg-background hover:bg-secondary border border-border px-2 py-2 rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                            className="relative inline-flex items-center justify-center bg-background hover:bg-secondary border border-border px-2 py-2 rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 after:absolute after:-inset-2 after:content-['']"
                           >
                             <ArrowUp className="w-4 h-4" />
                           </button>
@@ -300,7 +206,7 @@ export const SystemTab = memo(function SystemTab({
                             onClick={() => onReorderOutputDirs?.(idx, idx + 1)}
                             disabled={idx === outputDirs.length - 1}
                             aria-label={`Bajar carpeta ${idx + 1}`}
-                            className="inline-flex items-center justify-center bg-background hover:bg-secondary border border-border px-2 py-2 rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                            className="relative inline-flex items-center justify-center bg-background hover:bg-secondary border border-border px-2 py-2 rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 after:absolute after:-inset-2 after:content-['']"
                           >
                             <ArrowDown className="w-4 h-4" />
                           </button>
@@ -308,16 +214,14 @@ export const SystemTab = memo(function SystemTab({
                       )}
                     </div>
                   </div>
-                  {isDragOver && draggedIndex !== null && draggedIndex < idx && (
-                    <div
-                      aria-hidden="true"
-                      className="pointer-events-none h-0.5 mx-2 rounded-full bg-primary/70 shadow-[0_0_8px_var(--color-primary)] animate-in fade-in duration-150"
-                    />
-                  )}
                 </div>
               );
             })}
           </div>
+
+          <span aria-live="polite" className="sr-only">
+            {dropLabel ?? ''}
+          </span>
 
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
             <p className="text-xs text-muted-foreground flex items-center gap-1.5">

@@ -1,7 +1,9 @@
-import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { AlertTriangle, ArrowDown, ArrowUp, Info, RotateCcw } from 'lucide-react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
+import { ArrowDown, ArrowUp, Info, RotateCcw } from 'lucide-react';
 import { AppTooltip } from '../../../components/ui/AppTooltip';
 import { CustomSwitch } from '../../../components/CustomSwitch';
+import { SortableHandle } from './SortableHandle';
+import { useSortableList } from '../utils/useSortableList';
 
 interface ServerOrderCardProps {
   providerLabel: string;
@@ -14,12 +16,6 @@ interface ServerOrderCardProps {
   onReset: () => void;
 }
 
-const prefersReducedMotion = () =>
-  typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-// Sin umbral, un clic sobre el número movía la fila: el arrastre arranca de verdad al superarlo.
-const DRAG_THRESHOLD_PX = 4;
-
 export const ServerOrderCard = memo(function ServerOrderCard({
   providerLabel,
   hint,
@@ -31,176 +27,23 @@ export const ServerOrderCard = memo(function ServerOrderCard({
   onReset,
 }: ServerOrderCardProps) {
   const inactive = candidates.filter((name) => !active.includes(name));
-  const canReorder = active.length > 1;
 
-  const [session, setSession] = useState(false);
-  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
-  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
-  const listRef = useRef<HTMLDivElement>(null);
-  const draggedIndexRef = useRef<number | null>(null);
-  const dragOverIndexRef = useRef<number | null>(null);
-  const pointerIdRef = useRef<number | null>(null);
-  const pendingIndexRef = useRef<number | null>(null);
-  const armedRef = useRef(false);
-  const startRef = useRef({ x: 0, y: 0 });
+  const { canReorder, listRef, draggingIndex, dropIndex, handlePointerDown, registerRow, getDropLine, prepareFlip } =
+    useSortableList({ count: active.length, disabled: active.length < 2, onReorder });
 
-  const clearDrag = useCallback(() => {
-    draggedIndexRef.current = null;
-    dragOverIndexRef.current = null;
-    pointerIdRef.current = null;
-    pendingIndexRef.current = null;
-    armedRef.current = false;
-    setDraggedIndex(null);
-    setDragOverIndex(null);
-    setSession(false);
-    document.body.style.cursor = '';
-    document.body.style.userSelect = '';
-  }, []);
-
-  const updateDragOver = useCallback((clientY: number) => {
-    const dragIdx = draggedIndexRef.current;
-    if (dragIdx === null || !listRef.current) return;
-    const rows = Array.from(listRef.current.querySelectorAll<HTMLElement>('[data-row]'));
-    if (rows.length === 0) return;
-    let target: number | null = null;
-    for (let i = 0; i < rows.length; i++) {
-      const rect = rows[i].getBoundingClientRect();
-      const mid = rect.top + rect.height / 2;
-      if (clientY < mid) {
-        target = i;
-        break;
-      }
-      if (i === rows.length - 1) target = i;
-    }
-    if (target === null) return;
-    if (target === dragIdx) {
-      dragOverIndexRef.current = null;
-      setDragOverIndex(null);
-    } else {
-      dragOverIndexRef.current = target;
-      setDragOverIndex(target);
-    }
-  }, []);
-
-  // El reordenado se desliza con transform (nunca width/margin): mide antes, anima después.
-  const rowEls = useRef(new Map<string, HTMLElement>());
-  const pendingFlip = useRef<Map<string, number> | null>(null);
-
-  const runWithFlip = useCallback((action: () => void) => {
-    const before = new Map<string, number>();
-    rowEls.current.forEach((el, key) => before.set(key, el.getBoundingClientRect().top));
-    pendingFlip.current = before;
-    action();
-  }, []);
-
-  const handleReorder = useCallback(
-    (from: number, to: number) => runWithFlip(() => onReorder(from, to)),
-    [runWithFlip, onReorder],
-  );
-
-  const handleReset = useCallback(() => runWithFlip(onReset), [runWithFlip, onReset]);
-
-  const handlePointerDown = useCallback(
-    (e: React.PointerEvent, idx: number) => {
-      if (!canReorder) return;
-      if (e.button !== 0) return;
-      e.preventDefault();
-      pendingIndexRef.current = idx;
-      dragOverIndexRef.current = null;
-      pointerIdRef.current = e.pointerId;
-      startRef.current = { x: e.clientX, y: e.clientY };
-      armedRef.current = false;
-      setSession(true);
-      try {
-        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-      } catch {}
+  const handleStep = useCallback(
+    (from: number, to: number) => {
+      prepareFlip();
+      onReorder(from, to);
     },
-    [canReorder],
+    [prepareFlip, onReorder],
   );
 
-  const handlePointerMove = useCallback(
-    (e: PointerEvent) => {
-      const idx = pendingIndexRef.current;
-      if (idx === null) return;
-      if (!armedRef.current) {
-        const dx = e.clientX - startRef.current.x;
-        const dy = e.clientY - startRef.current.y;
-        if (Math.abs(dx) < DRAG_THRESHOLD_PX && Math.abs(dy) < DRAG_THRESHOLD_PX) return;
-        armedRef.current = true;
-        draggedIndexRef.current = idx;
-        setDraggedIndex(idx);
-        document.body.style.cursor = 'grabbing';
-        document.body.style.userSelect = 'none';
-      }
-      updateDragOver(e.clientY);
-    },
-    [updateDragOver],
-  );
+  const handleResetClick = useCallback(() => {
+    prepareFlip();
+    onReset();
+  }, [prepareFlip, onReset]);
 
-  const handlePointerUp = useCallback(
-    (e: PointerEvent) => {
-      const from = draggedIndexRef.current;
-      const to = dragOverIndexRef.current;
-      if (pointerIdRef.current !== null && e.pointerId !== undefined && e.pointerId !== pointerIdRef.current) {
-        if (e.type === 'pointerup') return;
-      }
-      if (from !== null && to !== null && from !== to && from >= 0 && to >= 0) {
-        handleReorder(from, to);
-      }
-      try {
-        if (pointerIdRef.current !== null) {
-          const el = document.querySelector('[data-drag-handle][data-dragging="true"]') as HTMLElement | null;
-          el?.releasePointerCapture?.(pointerIdRef.current);
-        }
-      } catch {}
-      clearDrag();
-    },
-    [clearDrag, handleReorder],
-  );
-
-  useEffect(() => {
-    if (!session) return;
-    document.addEventListener('pointermove', handlePointerMove);
-    document.addEventListener('pointerup', handlePointerUp);
-    document.addEventListener('pointercancel', handlePointerUp);
-    const onKey = (ev: KeyboardEvent) => {
-      if (ev.key === 'Escape') clearDrag();
-    };
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('pointermove', handlePointerMove);
-      document.removeEventListener('pointerup', handlePointerUp);
-      document.removeEventListener('pointercancel', handlePointerUp);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [session, handlePointerMove, handlePointerUp, clearDrag]);
-
-  useEffect(() => {
-    return () => {
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-    };
-  }, []);
-
-  useLayoutEffect(() => {
-    const before = pendingFlip.current;
-    pendingFlip.current = null;
-    if (!before || before.size === 0 || prefersReducedMotion()) return;
-    before.forEach((top, key) => {
-      const el = rowEls.current.get(key);
-      if (!el) return;
-      const delta = top - el.getBoundingClientRect().top;
-      if (Math.abs(delta) < 1) return;
-      el.style.transition = 'none';
-      el.style.transform = `translateY(${delta}px)`;
-      requestAnimationFrame(() => {
-        el.style.transition = 'transform 180ms var(--ease-out)';
-        el.style.transform = '';
-      });
-    });
-  });
-
-  // Cambiar un switch ya se ve en el propio switch; el flash confirma además que se guardó.
   const [flashName, setFlashName] = useState<string | null>(null);
   const flashTimer = useRef<number | null>(null);
   const handleToggle = useCallback(
@@ -218,6 +61,12 @@ export const ServerOrderCard = memo(function ServerOrderCard({
       if (flashTimer.current) window.clearTimeout(flashTimer.current);
     };
   }, []);
+
+  const draggingName = draggingIndex !== null ? active[draggingIndex] : null;
+  const dropLabel =
+    draggingName && dropIndex !== null && dropIndex !== draggingIndex
+      ? `Soltar ${draggingName} en la posición ${dropIndex + 1} de ${active.length}`
+      : null;
 
   return (
     <div className="rounded-xl border border-border/60 bg-background p-4">
@@ -242,100 +91,88 @@ export const ServerOrderCard = memo(function ServerOrderCard({
 
       <div ref={listRef} role="list" aria-label={`Servidores de ${providerLabel}`}>
         {active.map((name, idx) => {
-          const isDragging = draggedIndex === idx;
-          const isDragOver = dragOverIndex === idx && draggedIndex !== null && draggedIndex !== idx;
+          const isDragging = draggingIndex === idx;
+          const line = getDropLine(idx);
           return (
             <div
               key={name}
-              ref={(el) => {
-                if (el) rowEls.current.set(name, el);
-                else rowEls.current.delete(name);
-              }}
+              ref={(el) => registerRow(name, el)}
               data-row
+              data-dragging={isDragging || undefined}
               role="listitem"
-              className={`group/server-row relative border-b border-border/40 last:border-b-0 transition-[background-color,opacity] duration-150 ease-out ${
+              aria-posinset={idx + 1}
+              aria-setsize={active.length}
+              className={`group/server-row relative border-b border-border/40 transition-[background-color,opacity] last:border-b-0 duration-150 ease-out ${
                 isDragging ? 'opacity-60' : 'opacity-100'
-              } ${isDragOver ? 'bg-primary/[0.04]' : 'hover:bg-secondary/40'}`}
+              } ${line ? 'bg-primary/[0.04]' : 'hover:bg-secondary/40'}`}
             >
-              {isDragOver && draggedIndex !== null && draggedIndex > idx && (
+              {line === 'above' && (
                 <span
                   aria-hidden="true"
-                  className="animate-in fade-in pointer-events-none absolute inset-x-2 top-0 h-0.5 rounded-full bg-primary/70"
-                />
+                  className="pointer-events-none absolute inset-x-2 top-0 z-10 h-0.5 rounded-full bg-primary/70"
+                >
+                  <span className="absolute -left-1 -top-[3px] h-2 w-2 rounded-full bg-primary" />
+                </span>
               )}
-              {isDragOver && draggedIndex !== null && draggedIndex < idx && (
+              {line === 'below' && (
                 <span
                   aria-hidden="true"
-                  className="animate-in fade-in pointer-events-none absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-primary/70"
-                />
+                  className="pointer-events-none absolute inset-x-2 bottom-0 z-10 h-0.5 rounded-full bg-primary/70"
+                >
+                  <span className="absolute -left-1 -top-[3px] h-2 w-2 rounded-full bg-primary" />
+                </span>
               )}
 
-              <div className="flex items-stretch gap-2.5 px-2">
-                <div className="relative flex w-6 shrink-0 items-center justify-center">
-                  {idx > 0 && (
-                    <span
-                      aria-hidden="true"
-                      className="absolute bottom-1/2 left-1/2 top-0 mb-3 w-px -translate-x-1/2 bg-border"
-                    />
-                  )}
-                  {idx < active.length - 1 && (
-                    <span
-                      aria-hidden="true"
-                      className="absolute bottom-0 left-1/2 top-1/2 mt-3 w-px -translate-x-1/2 bg-border"
-                    />
-                  )}
+              <div className="flex items-center gap-2.5 px-2 py-3">
+                <SortableHandle
+                  index={idx}
+                  position={idx + 1}
+                  name={`${name} en ${providerLabel}`}
+                  canReorder={canReorder}
+                  dragging={isDragging}
+                  onPointerDown={handlePointerDown}
+                />
+                <span
+                  aria-hidden="true"
+                  className={`flex h-6 w-6 shrink-0 select-none items-center justify-center rounded-full text-[11px] font-semibold tabular-nums ${
+                    idx === 0
+                      ? 'bg-primary text-primary-foreground'
+                      : 'border border-border bg-background text-text-tertiary'
+                  }`}
+                >
+                  {idx + 1}
+                </span>
+
+                <span className="min-w-0 flex-1 truncate text-sm font-semibold">{name}</span>
+                <span
+                  role="group"
+                  aria-label={`Ordenar ${name} en ${providerLabel}`}
+                  className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity duration-150 group-focus-within/server-row:opacity-100 group-hover/server-row:opacity-100"
+                >
                   <button
                     type="button"
-                    data-drag-handle
-                    data-dragging={isDragging ? 'true' : 'false'}
-                    tabIndex={-1}
-                    onPointerDown={(e) => handlePointerDown(e, idx)}
-                    aria-label={`Posición ${idx + 1}: ${name}`}
-                    style={{ touchAction: 'none' }}
-                    className={`app-region-no-drag relative flex h-6 w-6 shrink-0 select-none items-center justify-center rounded-full text-[11px] font-semibold tabular-nums transition-[background-color,border-color,color,transform] duration-150 ease-out after:absolute after:-inset-2.5 after:rounded-full after:content-[''] active:scale-95 ${
-                      canReorder ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'
-                    } ${
-                      idx === 0
-                        ? 'bg-primary text-primary-foreground'
-                        : 'border border-border bg-background text-text-tertiary'
-                    }`}
+                    onClick={() => handleStep(idx, idx - 1)}
+                    disabled={idx === 0}
+                    aria-label={`Subir ${name} en ${providerLabel}`}
+                    className="relative inline-flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground transition-colors after:absolute after:-inset-2 after:content-[''] hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:cursor-not-allowed disabled:opacity-30"
                   >
-                    {idx + 1}
+                    <ArrowUp className="h-3.5 w-3.5" />
                   </button>
-                </div>
-
-                <div className="flex min-w-0 flex-1 items-center gap-2 py-3">
-                  <span className="min-w-0 flex-1 truncate text-sm font-semibold">{name}</span>
-                  <span
-                    role="group"
-                    aria-label={`Ordenar ${name} en ${providerLabel}`}
-                    className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity duration-150 group-focus-within/server-row:opacity-100 group-hover/server-row:opacity-100"
+                  <button
+                    type="button"
+                    onClick={() => handleStep(idx, idx + 1)}
+                    disabled={idx === active.length - 1}
+                    aria-label={`Bajar ${name} en ${providerLabel}`}
+                    className="relative inline-flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground transition-colors after:absolute after:-inset-2 after:content-[''] hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:cursor-not-allowed disabled:opacity-30"
                   >
-                    <button
-                      type="button"
-                      onClick={() => handleReorder(idx, idx - 1)}
-                      disabled={idx === 0}
-                      aria-label={`Subir ${name} en ${providerLabel}`}
-                      className="relative inline-flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground transition-colors after:absolute after:-inset-2 after:content-[''] hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:cursor-not-allowed disabled:opacity-30"
-                    >
-                      <ArrowUp className="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleReorder(idx, idx + 1)}
-                      disabled={idx === active.length - 1}
-                      aria-label={`Bajar ${name} en ${providerLabel}`}
-                      className="relative inline-flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground transition-colors after:absolute after:-inset-2 after:content-[''] hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:cursor-not-allowed disabled:opacity-30"
-                    >
-                      <ArrowDown className="h-3.5 w-3.5" />
-                    </button>
-                  </span>
-                  <CustomSwitch
-                    checked
-                    onChange={() => handleToggle(name)}
-                    ariaLabel={`Desactivar ${name} en ${providerLabel}`}
-                  />
-                </div>
+                    <ArrowDown className="h-3.5 w-3.5" />
+                  </button>
+                </span>
+                <CustomSwitch
+                  checked
+                  onChange={() => handleToggle(name)}
+                  ariaLabel={`Desactivar ${name} en ${providerLabel}`}
+                />
               </div>
 
               {flashName === name && (
@@ -354,7 +191,7 @@ export const ServerOrderCard = memo(function ServerOrderCard({
           role="note"
           className="mt-2 flex gap-1.5 rounded-lg border border-warning/10 bg-warning/5 px-3 py-2 text-xs text-warning"
         >
-          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
           <span>Sin servidores activos, {providerLabel} no descargará nada.</span>
         </div>
       )}
@@ -373,7 +210,10 @@ export const ServerOrderCard = memo(function ServerOrderCard({
                 role="listitem"
                 className="group/server-row flex items-center gap-2.5 border-b border-border/40 px-2 last:border-b-0"
               >
-                <span className="flex w-6 shrink-0 items-center justify-center select-none text-xs tabular-nums text-text-tertiary">
+                <span
+                  aria-hidden="true"
+                  className="flex h-8 w-8 shrink-0 select-none items-center justify-center text-xs tabular-nums text-text-tertiary"
+                >
                   –
                 </span>
                 <span className="min-w-0 flex-1 truncate py-3 text-sm font-medium text-muted-foreground">{name}</span>
@@ -392,7 +232,7 @@ export const ServerOrderCard = memo(function ServerOrderCard({
         <AppTooltip content="Vuelve al orden por defecto.">
           <button
             type="button"
-            onClick={handleReset}
+            onClick={handleResetClick}
             aria-label={`Restablecer servidores de ${providerLabel}`}
             className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
           >
@@ -400,6 +240,10 @@ export const ServerOrderCard = memo(function ServerOrderCard({
           </button>
         </AppTooltip>
       </div>
+
+      <span aria-live="polite" className="sr-only">
+        {dropLabel ?? ''}
+      </span>
     </div>
   );
 });
