@@ -3,6 +3,34 @@ import type { ProviderGatewayPort } from './ProviderGateway';
 
 export type HomeMediaFilter = 'anime' | 'manga';
 
+// Orden de secciones del home; lo desconocido va al final.
+const HOME_SECTION_ORDER = ['anime', 'donghua', 'ova'];
+
+// El límite es por sección (no global); las filas sin kind cuentan como anime.
+function limitPerKind(rows: HomeEpisode[], perTypeLimit: number): HomeEpisode[] {
+  const limit = Number.isFinite(perTypeLimit) ? Math.max(0, Math.floor(perTypeLimit)) : 0;
+  const buckets = new Map<string, HomeEpisode[]>();
+  for (const row of rows) {
+    const kind = typeof row.kind === 'string' && row.kind ? row.kind : 'anime';
+    let bucket = buckets.get(kind);
+    if (!bucket) {
+      bucket = [];
+      buckets.set(kind, bucket);
+    }
+    if (bucket.length < limit) bucket.push(row);
+  }
+  const out: HomeEpisode[] = [];
+  const order = [
+    ...HOME_SECTION_ORDER,
+    ...Array.from(buckets.keys()).filter((kind) => !HOME_SECTION_ORDER.includes(kind)),
+  ];
+  for (const kind of order) {
+    const bucket = buckets.get(kind);
+    if (bucket) out.push(...bucket);
+  }
+  return out;
+}
+
 interface FreshCacheEntry {
   data: HomeEpisode[];
   expiresAt: number;
@@ -75,7 +103,7 @@ export class HomeFeedService {
     const pending = (async () => {
       try {
         const rows = await target.getHome(force);
-        return saveFresh(rows.slice(0, perTypeLimit), 4 * 60 * 1000);
+        return saveFresh(limitPerKind(rows, perTypeLimit), 4 * 60 * 1000);
       } catch (error) {
         const stale = readStale();
         if (stale) {

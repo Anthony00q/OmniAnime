@@ -1,11 +1,12 @@
 import { RefreshCcw, Clock, Loader2, Clapperboard } from 'lucide-react';
-import { memo, useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAtomValue, useSetAtom } from 'jotai';
 import type { KeyboardEvent } from 'react';
 import { activeProviderAtom, openAnimeAtom, navigateToCatalogAtom } from '../store/atoms';
 import { useConnectivityStatus, useHomeData, useSearchAnime, prefetchAnimeDetails } from '../hooks/useQueries';
 import { shouldShowOfflineEmpty } from '../utils/offlineEmpty';
+import { filterHomeBySection, homeSectionLabel, listHomeSections } from '../utils/homeSections';
 import { PosterCard } from '../components/anime/PosterCard';
 import { PosterImage } from '../components/anime/PosterImage';
 import { PosterGrid } from '../components/anime/PosterGrid';
@@ -62,6 +63,13 @@ export function HomeView({ isActive }: { isActive?: boolean }) {
 
   const { data: items = [], isLoading, isError, refetch, refresh, isRefreshing } = useHomeData();
 
+  // Sección elegida del home (Jkanime trae varias); se resetea al cambiar de proveedor.
+  const [homeSection, setHomeSection] = useState('anime');
+  const sections = useMemo(() => listHomeSections(items), [items]);
+  // Si la sección elegida ya no existe, cae a la primera.
+  const activeSection = sections.includes(homeSection) ? homeSection : (sections[0] ?? 'anime');
+  const visibleItems = useMemo(() => filterHomeBySection(items, activeSection), [items, activeSection]);
+
   const isProviderChanging = previousProviderRef.current !== providerId;
 
   const { data: searchResults = [], isFetching: isSearching } = useSearchAnime(
@@ -72,6 +80,7 @@ export function HomeView({ isActive }: { isActive?: boolean }) {
   useEffect(() => {
     const providerChanged = previousProviderRef.current !== providerId;
     previousProviderRef.current = providerId;
+    if (providerChanged) setHomeSection('anime');
 
     if (isActive === false || providerChanged) {
       setSearchQuery('');
@@ -280,18 +289,36 @@ export function HomeView({ isActive }: { isActive?: boolean }) {
           )
         ) : (
           <>
-            <p
-              className="px-0 pt-4 text-[13px] font-medium normal-case tracking-normal text-text-tertiary tabular-nums select-none"
-              role="status"
-            >
-              {items.length} {items.length === 1 ? 'anime reciente' : 'animes recientes'}{' '}
-              <span aria-hidden="true" className="text-border-strong">
-                |
-              </span>{' '}
-              {providerName}
-            </p>
+            <div className="sticky top-0 z-20 -mx-4 flex min-h-[64px] flex-wrap items-center gap-2 bg-background px-4 pb-4 pt-4 sm:-mx-8 sm:px-8">
+              {sections.length > 1 &&
+                sections.map((section) => (
+                  <button
+                    key={section}
+                    type="button"
+                    onClick={() => setHomeSection(section)}
+                    aria-pressed={activeSection === section}
+                    className={`h-8 shrink-0 rounded-full border px-3 text-[13px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 ${
+                      activeSection === section
+                        ? 'border-primary/30 bg-primary/15 text-primary'
+                        : 'border-border/70 bg-transparent text-muted-foreground hover:border-border/50 hover:bg-secondary hover:text-foreground'
+                    }`}
+                  >
+                    {homeSectionLabel(section)}
+                  </button>
+                ))}
+              <p
+                className="ml-auto text-[13px] font-medium normal-case tracking-normal text-text-tertiary tabular-nums select-none"
+                role="status"
+              >
+                {visibleItems.length} {visibleItems.length === 1 ? 'anime reciente' : 'animes recientes'}{' '}
+                <span aria-hidden="true" className="text-border-strong">
+                  |
+                </span>{' '}
+                {providerName}
+              </p>
+            </div>
             <PosterGrid>
-              {items.map((item: any, idx: number) => (
+              {visibleItems.map((item: any, idx: number) => (
                 <HomePosterItem key={`${item.slug}-${item.episode || idx}`} item={item} priority={idx < 6} />
               ))}
             </PosterGrid>

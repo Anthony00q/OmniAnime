@@ -65,7 +65,11 @@ export interface HomeEpisode {
   episode: string;
   poster: string;
   timeAgo: string;
+  // Sección del home (Jkanime). Sin setear se trata como 'anime'.
+  kind?: HomeEpisodeKind;
 }
+
+export type HomeEpisodeKind = 'anime' | 'donghua' | 'ova';
 
 export interface AnimeSearchFilters {
   genre?: string[];

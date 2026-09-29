@@ -7,6 +7,7 @@ import {
   AnimeDetails,
   DownloadLink,
   HomeEpisode,
+  HomeEpisodeKind,
   CatalogFiltersData,
   AnimeLanguage,
 } from '../../types/anime';
@@ -17,6 +18,8 @@ import { normalizeMegaUrl, normalizeMp4UploadUrl } from '../../utils/serverUtils
 import { extractBalancedBlock, extractBalancedObjects, decodeBase64Text, isHttpUrl } from '../../utils/scrapeParse';
 
 const MAX_HTML_BYTES = 5 * 1024 * 1024;
+
+const JK_BASE_URL = 'https://jkanime.net';
 
 // `select[name]` del formulario de /directorio/ → cubo de filtros.
 // No usar la posición: el orden puede cambiar sin aviso.
@@ -199,6 +202,49 @@ export function resolveJkSeasonFromTexts(temporadaValue: unknown, emitidoText: u
   return yearMatch ? `${found.season} ${yearMatch[1]}` : found.season;
 }
 
+// Secciones "Programacion" de la portada por id → kind; el orden es fijo, no el del documento.
+const JK_HOME_SECTIONS: Array<{ id: string; kind: HomeEpisodeKind }> = [
+  { id: 'animes', kind: 'anime' },
+  { id: 'donghuas', kind: 'donghua' },
+  { id: 'ovas', kind: 'ova' },
+];
+
+// Tarjeta de la portada: el episodio sale de la URL aunque el badge diga ONA/OVA.
+function readJkHomeCard($: ReturnType<typeof cheerio.load>, el: any): Omit<HomeEpisode, 'kind'> | null {
+  const url = $(el).find('a').first().attr('href') || '';
+  if (!url) return null;
+  const parts = url.split('/').filter(Boolean);
+  const episode = parts.pop() || '1';
+  const slug = parts.pop() || '';
+  const img = $(el).find('img').first();
+  const poster = normalizeAllowedImageUrl(img.attr('data-animepic') || img.attr('src') || '', `${JK_BASE_URL}/`);
+  const title = $(el).find('.card-title').text().trim() || slug.replace(/-/g, ' ');
+  const timeAgo = $(el).find('.badge-secondary').text().trim() || 'Reciente';
+  return { title, slug, episode, poster, timeAgo };
+}
+
+// Paneles de la portada con su seccion. Sin paneles reconocibles, todo cuenta como anime.
+export function collectJkHomeEpisodes($: ReturnType<typeof cheerio.load>): HomeEpisode[] {
+  const out: HomeEpisode[] = [];
+  const cardSelector = '.mb-4.d-flex.align-items-stretch .card';
+  const panels = JK_HOME_SECTIONS.map((section) => ({ kind: section.kind, el: $(`#${section.id}`).first() })).filter(
+    (panel) => panel.el.length > 0,
+  );
+  for (const panel of panels) {
+    panel.el.find(cardSelector).each((_: any, el: any) => {
+      const card = readJkHomeCard($, el);
+      if (card) out.push({ ...card, kind: panel.kind });
+    });
+  }
+  // Fuera de los paneles (o sin paneles): cuentan como anime.
+  $(cardSelector).each((_: any, el: any) => {
+    if ($(el).closest('#animes, #donghuas, #ovas').length > 0) return;
+    const card = readJkHomeCard($, el);
+    if (card) out.push({ ...card, kind: 'anime' });
+  });
+  return out;
+}
+
 export class JkAnimeProvider implements AnimeProvider {
   private readonly logger: ScopedLogger;
   constructor(options?: { logger?: ScopedLogger }) {
@@ -211,7 +257,7 @@ export class JkAnimeProvider implements AnimeProvider {
     return 'JkAnime';
   }
 
-  private readonly BASE_URL = 'https://jkanime.net';
+  private readonly BASE_URL = JK_BASE_URL;
   private readonly REQUEST_TIMEOUT_MS = 10_000;
   private readonly MAX_REDIRECTS = 3;
   // abort previous search on fast typing
@@ -240,34 +286,7 @@ export class JkAnimeProvider implements AnimeProvider {
   async getHome(): Promise<HomeEpisode[]> {
     try {
       const { data } = await axios.get(this.BASE_URL, this.requestConfig());
-      const $ = cheerio.load(data);
-      const episodes: HomeEpisode[] = [];
-
-      $('.mb-4.d-flex.align-items-stretch .card').each((i: any, el: any) => {
-        const a = $(el).find('a').first();
-        const url = a.attr('href') || '';
-        if (!url) return;
-
-        const parts = url.split('/').filter(Boolean);
-        const episodeNum = parts.pop() || '1';
-        const slug = parts.pop() || '';
-
-        const img = this.normalizeImageUrl(
-          $(el).find('img').attr('data-animepic') || $(el).find('img').attr('src') || '',
-        );
-        const title = $(el).find('.card-title').text().trim() || slug.replace(/-/g, ' ');
-        const timeStr = $(el).find('.badge-secondary').text().trim() || 'Reciente';
-
-        episodes.push({
-          title: title,
-          slug: slug,
-          episode: episodeNum,
-          poster: img,
-          timeAgo: timeStr,
-        });
-      });
-
-      return episodes;
+      return collectJkHomeEpisodes(cheerio.load(data));
     } catch (error) {
       this.logger.error(`jkanime home: ${error}`);
       return [];
