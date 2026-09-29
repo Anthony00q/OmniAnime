@@ -252,7 +252,7 @@ export const SystemTab = memo(function SystemTab({
           <div className="space-y-2">
             <span className="flex items-center gap-1.5 text-sm font-semibold">
               Proveedor por defecto al iniciar
-              <span className="text-[11px] font-bold tracking-widest uppercase bg-secondary text-muted-foreground border border-border/60 px-1.5 py-0.5 rounded">
+              <span className="text-[10px] font-semibold tracking-wider uppercase leading-none bg-secondary text-muted-foreground border border-border/60 px-1 py-px rounded">
                 Reinicio
               </span>
             </span>
@@ -315,7 +315,7 @@ export const SystemTab = memo(function SystemTab({
               <div className="min-w-0">
                 <div className="text-sm font-semibold leading-tight flex items-center gap-1.5">
                   Aceleración por hardware
-                  <span className="text-[11px] font-bold tracking-widest uppercase bg-secondary text-muted-foreground border border-border/60 px-1.5 py-0.5 rounded">
+                  <span className="text-[10px] font-semibold tracking-wider uppercase leading-none bg-secondary text-muted-foreground border border-border/60 px-1 py-px rounded">
                     Reinicio
                   </span>
                 </div>
@@ -343,7 +343,7 @@ export const SystemTab = memo(function SystemTab({
               <div className="min-w-0">
                 <div className="text-sm font-semibold leading-tight flex items-center gap-1.5">
                   Renombrado retroactivo
-                  <span className="text-[11px] font-bold tracking-widest uppercase bg-secondary text-muted-foreground border border-border/60 px-1.5 py-0.5 rounded">
+                  <span className="text-[10px] font-semibold tracking-wider uppercase leading-none bg-secondary text-muted-foreground border border-border/60 px-1 py-px rounded">
                     Reinicio
                   </span>
                   <AppTooltip content="Se aplica una vez en el próximo inicio y luego se desactiva sola. Ordena los vídeos de tus carpetas según el estilo elegido. Puedes volver a activarla cuando quieras.">
@@ -352,7 +352,7 @@ export const SystemTab = memo(function SystemTab({
                     </span>
                   </AppTooltip>
                   {settings.autoRenameRetroactive && (
-                    <span className="text-[11px] font-bold tracking-widest uppercase bg-warning/10 text-warning border border-warning/20 px-1.5 py-0.5 rounded">
+                    <span className="text-[10px] font-semibold tracking-wider uppercase leading-none bg-warning/10 text-warning border border-warning/20 px-1 py-px rounded">
                       Pendiente
                     </span>
                   )}
