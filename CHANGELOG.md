@@ -1,5 +1,32 @@
 # Changelog
 
+## [1.1.1] - 2026-09-29
+
+### Descargas
+
+- El servidor **Voe** se suma a los servidores disponibles para descargar.
+- Las descargas incorporan las **Conexiones adaptativas** (Ajustes → Descargas) para ajustar las conexiones de cada episodio según su rendimiento.
+- El orden de prioridad de los servidores se elige por proveedor arrastrándolos en Ajustes → Descargas y solo se aplica a los intentos siguientes.
+
+### Librería
+
+- La librería permite ordenar el listado por recientes, orden alfabético o número de episodios junto a la búsqueda.
+- El clic derecho sobre una carpeta abre un menú con acceso directo a sus **Detalles**.
+
+### Catálogo
+
+- El inicio de Jkanime se organiza en secciones **Anime**, **Donghua** y **OVAs**, con sus filtros y una barra fija.
+
+### Ajustes
+
+- El arrastre de carpetas y servidores comparte un único gesto en toda la configuración.
+- Las tarjetas de las pestañas de ajustes se muestran sin brillo superior y con etiquetas más compactas.
+
+### Interfaz
+
+- La fila **Fuente** de la ficha enlaza con **AniList** mediante un icono dedicado que abre la página en el navegador.
+- La bandeja del sistema utiliza un icono propio e incluye un menú para mostrar u ocultar la ventana, con la versión de la aplicación.
+
 ## [1.1.0] - 2026-09-22
 
 ### Ajustes
