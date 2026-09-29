@@ -16,6 +16,9 @@ function handles(serverId: string, source: DownloadSource): boolean {
 
 export class MegaDownloadEngine implements DownloadEngine {
   readonly id = 'Mega';
+  // megajs fija maxConnections al crear el stream: el cambio se aplica en el
+  // siguiente slice.
+  readonly concurrencyApplication = 'deferred' as const;
 
   constructor(private readonly downloadService: DownloadService) {}
 
@@ -24,6 +27,8 @@ export class MegaDownloadEngine implements DownloadEngine {
   }
 
   async download(source: DownloadSource, ctx: DownloadContext): Promise<DownloadResult> {
+    // Mega aplica el cambio en el siguiente slice: megajs fija maxConnections al
+    // crear el stream.
     const ok = await this.downloadService.downloadMega(
       source.url,
       ctx.dest,
@@ -33,7 +38,7 @@ export class MegaDownloadEngine implements DownloadEngine {
       ctx.signal,
       undefined,
       undefined,
-      ctx.settings.megaConnections,
+      ctx.concurrency,
     );
     return { ok };
   }
@@ -57,7 +62,7 @@ export class MediafireDownloadEngine implements DownloadEngine {
       },
       ctx.signal,
       providerDownloadReferer(ctx.item.providerId),
-      ctx.settings.mediafireConnections,
+      ctx.concurrency,
     );
     return { ok };
   }
@@ -92,7 +97,7 @@ export class Mp4UploadDownloadEngine implements DownloadEngine {
       },
       ctx.signal,
       MP4UPLOAD_REFERER,
-      ctx.settings.mp4uploadConnections,
+      ctx.concurrency,
     );
     if (!ok && !ctx.signal.aborted) return { ok: false, error: 'MP4Upload directo falló.' };
     return { ok };
@@ -127,7 +132,7 @@ export class VoeDownloadEngine implements DownloadEngine {
       },
       ctx.signal,
       providerDownloadReferer(ctx.item.providerId),
-      ctx.settings.voeConnections,
+      ctx.concurrency,
     );
     if (!ok && !ctx.signal.aborted) return { ok: false, error: 'Voe directo falló.' };
     return { ok };

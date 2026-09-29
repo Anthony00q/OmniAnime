@@ -1,3 +1,5 @@
+import * as fs from 'fs';
+import * as path from 'path';
 import type { DownloadSettings } from '../types/settings';
 import {
   SERVER_CANDIDATES_ANIMEAV1,
@@ -13,6 +15,8 @@ export const DEFAULT_DOWNLOAD_SETTINGS: DownloadSettings = {
   startTimeoutSec: 90,
   allowContinue: true,
   cleanCacheOnComplete: false,
+  // Instalaciones nuevas se siembran con ON desde main; sin clave, OFF.
+  adaptiveConnections: false,
   mediafireConnections: 1,
   mp4uploadConnections: 1,
   voeConnections: 4,
@@ -29,6 +33,25 @@ function clampInt(value: unknown, min: number, max: number, fallback: number): n
   return Math.max(min, Math.min(max, rounded));
 }
 
+// ¿Instalación nueva? Solo si no hay rastro de ejecuciones previas. Llamar antes
+// de que los servicios creen sus ficheros; ante la duda, instalación existente.
+export function detectFreshInstall(userDataDir: string): boolean {
+  try {
+    if (fs.existsSync(path.join(userDataDir, 'omnianime.db'))) return false;
+    if (fs.existsSync(path.join(userDataDir, 'settings.json'))) return false;
+    if (fs.existsSync(path.join(userDataDir, 'omnianime_boot.json'))) return false;
+    const logDir = path.join(userDataDir, 'logs');
+    if (fs.existsSync(logDir)) {
+      for (const name of fs.readdirSync(logDir)) {
+        if (name.startsWith('sesion-')) return false;
+      }
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function toBoolean(value: unknown, fallback: boolean): boolean {
   return typeof value === 'boolean' ? value : fallback;
 }
@@ -41,6 +64,7 @@ export function normalizeDownloadSettings(input: unknown): DownloadSettings {
     startTimeoutSec: clampInt(raw.startTimeoutSec, 30, 120, DEFAULT_DOWNLOAD_SETTINGS.startTimeoutSec),
     allowContinue: toBoolean(raw.allowContinue, DEFAULT_DOWNLOAD_SETTINGS.allowContinue),
     cleanCacheOnComplete: toBoolean(raw.cleanCacheOnComplete, DEFAULT_DOWNLOAD_SETTINGS.cleanCacheOnComplete),
+    adaptiveConnections: toBoolean(raw.adaptiveConnections, DEFAULT_DOWNLOAD_SETTINGS.adaptiveConnections),
     mediafireConnections: clampInt(raw.mediafireConnections, 1, 8, DEFAULT_DOWNLOAD_SETTINGS.mediafireConnections),
     mp4uploadConnections: clampInt(raw.mp4uploadConnections, 1, 8, DEFAULT_DOWNLOAD_SETTINGS.mp4uploadConnections),
     voeConnections: clampInt(raw.voeConnections, 1, 8, DEFAULT_DOWNLOAD_SETTINGS.voeConnections),

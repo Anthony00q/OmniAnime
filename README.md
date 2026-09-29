@@ -64,6 +64,7 @@ Solo maneja anime con subtítulos (SUB). No hay doblaje.
 
 - **Descargas que insisten**: cada episodio prueba varios servidores en orden hasta completarse. Si uno falla, pasa al siguiente sin que hagas nada.
 - **Cola con control total**: pausa, cancela, reintenta solo lo que falló o salta de servidor sin perder el progreso.
+- **Conexiones adaptativas** (Ajustes → Descargas): con **ON**, la app ajusta automáticamente las conexiones internas de cada episodio según el rendimiento que observa, y con **OF** se usa el número de conexiones tal cual lo dejaste (comportamiento de siempre). Las instalaciones nuevas arrancan con él activado; las existentes conservan su valor (y si nunca lo tocaron, se queda desactivado). La app aprende qué nivel le va bien a cada servidor y arranca desde ahí; con enlaces compartidos entre varios episodios simultáneos no aprende (solo se usa tu conexión, no la de los demás). Los detalles internos del ajuste automático están calibrados y no se exponen.
 
 ### Organizar
 
@@ -171,6 +172,12 @@ npm run setup:tools   # descarga ffmpeg verificado a tools/win/
 npm run dev:vite      # terminal 1: servidor de interfaz
 npm start             # terminal 2: motor Electron
 ```
+
+### Modo experimental (concurrencia)
+
+Solo para experimentación: `OMNIANIME_CONCURRENCY_EXPERIMENT=learned|cold` registra las decisiones
+del modo adaptativo en `concurrency-experiments.json` sin tocar el aprendizaje real. En uso normal no
+hace falta ninguna variable de entorno.
 
 ### Build
 

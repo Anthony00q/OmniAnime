@@ -59,8 +59,10 @@ export interface DownloadQueueProcessorOptions {
 
 export type EpisodeGateReason = 'resume' | 'cancel' | 'total';
 
-// Tope de EPs simultáneos contra el mismo servidor: con 3 en paralelo,
-// el tercero espera o va por otro servidor en vez de saturar el host.
+// Tope de EPs-INTENTO simultáneos contra el mismo servidor (NO de conexiones):
+// con 3 EPs en paralelo, como mucho 2 descargan del mismo host a la vez y el
+// tercero espera un hueco en vez de saturarlo. La concurrencia de streams por
+// intento es otro nivel (AttemptConcurrencyHandle) y aquí no se contabiliza.
 const MAX_CONCURRENT_PER_SERVER = 2;
 const SERVER_SLOT_POLL_MS = 200;
 
@@ -77,7 +79,7 @@ export class DownloadQueueProcessor {
   private readonly pausedEpisodesByItem = new Map<string, Set<number>>();
   private readonly cancelledEpisodesByItem = new Map<string, Set<number>>();
   private readonly activeEpisodeControllers = new Map<string, AbortController>();
-  // Slots vivos por servidor (`itemId|server`): cuántos workers lo usan ahora
+  // Slots vivos por servidor (itemId|server). Cuenta EPs, no conexiones.
   private readonly activeServerCounts = new Map<string, number>();
   // Puertas de aparcamiento: el worker en pausa espera aquí tras liberar su
   // slot en el finally del coordinador; la puerta solo retiene el flujo.
@@ -1629,6 +1631,7 @@ export class DownloadQueueProcessor {
     };
 
     const workers = Array.from({ length: workerCount }, async () => {
+      // Worker de episodio: procesa EPs de este item.
       while (true) {
         if (this.cancelledIds.has(item.id) || item.status === 'cancelled') return;
         if (this.pausedItemIds.has(item.id) || item.status === 'paused') return;

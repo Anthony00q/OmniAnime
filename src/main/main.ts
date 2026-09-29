@@ -29,6 +29,7 @@ import { QueueStore } from '../services/QueueStore';
 import { PausedProgressStore, applyStoredSnapshot } from '../services/PausedProgressStore';
 import { AppUpdateService } from '../services/AppUpdateService';
 import { ServerStatsStore } from '../services/ServerStatsStore';
+import { ConcurrencyExperimentStore, resolveCadenceProfile } from '../services/downloads/attemptExperiments';
 import { ThumbnailService } from '../services/ThumbnailService';
 import { createRuntimeDirectories } from '../services/RuntimeDirectories';
 import { SettingsManager } from '../services/SettingsManager';
@@ -47,7 +48,7 @@ import {
   normalizeServerName as normalizeServerNameUtil,
 } from '../utils/serverUtils';
 import { buildCanonicalEpisodeFileName as buildCanonicalEpisodeFileNameUtil } from '../utils/episodeUtils';
-import { normalizeDownloadSettings } from '../utils/downloadSettings';
+import { detectFreshInstall, normalizeDownloadSettings } from '../utils/downloadSettings';
 import { USER_AGENT } from '../utils/windowUtils';
 import { WindowLifecycleService, type PreloadedData } from './WindowLifecycleService';
 import { registerIpcHandlers } from './IpcRegistry';
@@ -71,6 +72,9 @@ try {
   ]);
 } catch {}
 
+// Antes de que los servicios creen sus ficheros: si no hay rastro de ejecuciones
+// previas, es una instalación nueva.
+const isFreshInstall = detectFreshInstall(app.getPath('userData'));
 const runtimeDirectories = createRuntimeDirectories(app.getPath('userData'));
 const bootDate = new Date();
 const appLogger = new AppLogger(runtimeDirectories, { appVersion: app.getVersion(), sessionDate: bootDate });
@@ -88,6 +92,14 @@ const sessionStartIso = bootDate.toISOString();
 // El nivel del usuario antes de podar/escribir cabecera: los primeros logs
 // ya respetan su ajuste en vez del 'info' por defecto.
 applyLoggingSettings();
+// Instalaciones nuevas arrancan con el interruptor en ON; las existentes no se tocan.
+if (isFreshInstall) {
+  try {
+    const seeded = SettingsManager.get();
+    seeded.download = { ...normalizeDownloadSettings(seeded.download), adaptiveConnections: true };
+    SettingsManager.save(seeded);
+  } catch {}
+}
 try {
   appLogger.pruneOldSessions();
 } catch {}
@@ -107,7 +119,13 @@ SettingsManager.setLogger(appLogger.child('settings'));
 setupHardwareAcceleration({ logger: appLogger.child('app') });
 
 const providerManager = new ProviderManager({ logger: appLogger.child('provider') });
-const downloadService = new DownloadService({ logger: appLogger.child('download') });
+// Solo con OMNIANIME_DIRECT_RANGED_FROM_ONE=1 el pool ranged corre con 1 worker
+// (para medirlo contra el camino simple).
+const directRangedFromOne = process.env.OMNIANIME_DIRECT_RANGED_FROM_ONE === '1';
+const downloadService = new DownloadService({
+  logger: appLogger.child('download'),
+  rangedFromOne: directRangedFromOne,
+});
 const activeChildProcesses = new Set<import('child_process').ChildProcess>();
 
 app.on('before-quit', () => {
@@ -786,6 +804,17 @@ const pausedProgressStore = new PausedProgressStore(path.join(app.getPath('userD
 const serverStatsStore = new ServerStatsStore(path.join(app.getPath('userData'), 'server-stats.json'));
 serverStatsStore.load();
 
+// Modo experimental de concurrencia (OMNIANIME_CONCURRENCY_EXPERIMENT=learned|cold):
+// escribe en su propio fichero y no toca el aprendizaje de server-stats.json.
+const concurrencyExperimentMode = process.env.OMNIANIME_CONCURRENCY_EXPERIMENT;
+const concurrencyExperimentStore = concurrencyExperimentMode
+  ? new ConcurrencyExperimentStore(path.join(app.getPath('userData'), 'concurrency-experiments.json'))
+  : null;
+concurrencyExperimentStore?.load();
+// Cadencia del modo adaptativo: fast por defecto. Con
+// OMNIANIME_CONCURRENCY_CADENCE=baseline se vuelve al comparador histórico.
+const concurrencyCadenceProfile = resolveCadenceProfile(process.env.OMNIANIME_CONCURRENCY_CADENCE);
+
 const storageService = new StorageService({
   database,
   userDataDir: app.getPath('userData'),
@@ -873,6 +902,26 @@ const episodeDownloadAttemptService = new EpisodeDownloadAttemptService({
   logError: writeGlobalLog,
   getDownloadSettings: getNormalizedDownloadSettings,
   fileLog: appLogger.child('download'),
+  // En modo experimental el aprendizaje se lee del shadow; en producción, de
+  // server-stats.json.
+  getConcurrencyLearning: (provider, server) =>
+    concurrencyExperimentStore
+      ? concurrencyExperimentStore.getShadowLearning(provider, server)
+      : serverStatsStore.getConcurrencyLearning(provider, server),
+  recordConcurrencyObservation: (observation) => serverStatsStore.recordConcurrencyObservation(observation),
+  // Cadencia del modo adaptativo: fast por defecto (baseline con la variable).
+  cadenceProfile: concurrencyCadenceProfile,
+  // El modo experimental registra el controller aparte y no escribe aprendizaje.
+  // No activa adaptive por sí mismo: sin la setting, queda inerte.
+  ...(concurrencyExperimentStore
+    ? {
+        experiment: {
+          record: (record: Parameters<ConcurrencyExperimentStore['recordAttempt']>[0]) =>
+            concurrencyExperimentStore.recordAttempt(record),
+          coldStart: concurrencyExperimentMode === 'cold',
+        },
+      }
+    : {}),
 });
 
 const SERVER_SPEED: Record<string, string> = {
@@ -925,7 +974,7 @@ async function getEpisodeLinksFromProviders(
   const lang = item.lang === 'DUB' ? 'SUB' : item.lang || 'SUB';
   if (!slug || signal?.aborted) return [];
 
-  // Usa providerId del QueueItem, no el activo global (§2 persistente)
+  // Usa providerId del QueueItem, no el activo global.
   const targetProviderId = (item.providerId || providerManager.activeProviderIdName) as DownloadProvider;
   const order = getServerPriorityOrder(targetProviderId);
   const provider = providerManager.getProvider(targetProviderId) || providerManager.activeProvider;

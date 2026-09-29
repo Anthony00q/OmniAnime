@@ -182,8 +182,16 @@ export class DownloadCoordinator {
               ` (intento ${attemptIndex}/${totalAttempts})`,
             'success',
           );
+          // Campos cerrados: `na` en manual, `null` cuando no hay valor.
+          const conc = result.concurrencyInfo;
+          const concLabel = conc
+            ? ` · concurrencia ${conc.mode} seed=${conc.seed} final=${conc.finalLevel} probes=${conc.probes}` +
+              ` preferred=${conc.mode === 'manual' ? 'na' : (conc.preferred ?? 'null')}` +
+              ` safeMax=${conc.mode === 'manual' ? 'na' : (conc.safeMax ?? 'null')}`
+            : ' · concurrencia na';
           this.fileLog.info(
-            `EP ${episode} descargado desde "${link.server}" en ${(elapsedMs / 1000).toFixed(1)}s (intento ${attemptIndex}/${totalAttempts})`,
+            `EP ${episode} descargado desde "${link.server}" en ${(elapsedMs / 1000).toFixed(1)}s ` +
+              `(intento ${attemptIndex}/${totalAttempts})${concLabel}`,
             this.attemptFileContext(item, episode, providerLabel, canonicalServer),
           );
           this.deps.sendStatus(`EP ${episode} Completado`, item.episodes.length > 1);

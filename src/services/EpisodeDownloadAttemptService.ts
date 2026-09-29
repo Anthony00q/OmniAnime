@@ -7,6 +7,33 @@ import type { ProviderDownloadLink, QueueItem } from '../types/queue';
 import type { DownloadSettings } from '../types/settings';
 import { normalizeDownloadSettings } from '../utils/downloadSettings';
 import type { DownloadEngine, EngineProgress } from './downloads/downloadContracts';
+import {
+  connectionLevelForServer,
+  createAttemptConcurrencyHandle,
+  readApplicationMode,
+  reportApplicationMode,
+  type ConcurrencyApplicationMode,
+} from './downloads/attemptConcurrency';
+import { createAttemptTelemetry, type AttemptTelemetry } from './downloads/attemptTelemetry';
+import {
+  createAdaptiveConcurrencyController,
+  concurrencyObservationsFromDecisions,
+  type AdaptiveConcurrencyController,
+} from './downloads/adaptiveConcurrency';
+import {
+  buildAttemptExperimentRecord,
+  CONCURRENCY_CADENCE_PROFILES,
+  DEFAULT_CADENCE_PROFILE,
+  type AttemptExperimentRecord,
+  type ExperimentCadenceProfile,
+} from './downloads/attemptExperiments';
+import {
+  categorizeAttemptFailure,
+  resolveConcurrencySeed,
+  type ConcurrencyLearning,
+  type ConcurrencyObservation,
+  type ServerFailureCategory,
+} from './ServerStatsStore';
 import { updateSpeedWindow, type SpeedWindow } from '../utils/speedMeter';
 import { createDefaultDownloadEngines, findDownloadEngine } from './downloads/downloadEngines';
 import type { Mp4UploadResolveFn } from './Mp4UploadResolver';
@@ -37,6 +64,18 @@ export interface EpisodeAttemptResult {
   toolFailureMessage: string | null;
   // Hubo progreso o archivo inicial en disco: la URL resolvió a algo real.
   started: boolean;
+  // Datos cerrados para el log de sesión (sin URLs ni rutas).
+  concurrencyInfo?: AttemptConcurrencyInfo;
+}
+
+// Cómo corrió la concurrencia del intento. 'na' = no aplica; null = sin valor.
+export interface AttemptConcurrencyInfo {
+  mode: 'adaptive' | 'manual';
+  seed: number;
+  finalLevel: number;
+  probes: number;
+  preferred: number | null;
+  safeMax: number | null;
 }
 
 export interface EpisodeDownloadAttemptOptions {
@@ -50,11 +89,28 @@ export interface EpisodeDownloadAttemptOptions {
   resolveMp4UploadDirect?: Mp4UploadResolveFn;
   // Fichero de sesión con contexto (provider/queue/ep/server), sin URLs ni rutas.
   fileLog?: ScopedLogger;
+  // Override para tests; sin él manda la setting `download.adaptiveConnections`.
+  adaptiveConcurrency?: boolean;
+  // Ventana y ventanas de evidencia/cooldown del controller; por defecto fast.
+  cadenceProfile?: ExperimentCadenceProfile;
+  // Lectura/escritura del aprendizaje por servidor (best-effort: no rompe descargas).
+  getConcurrencyLearning?: (provider: string, server: string) => ConcurrencyLearning | null;
+  recordConcurrencyObservation?: (observation: ConcurrencyObservation) => void;
+  // Modo experimental: registra el controller en su fichero y no escribe
+  // aprendizaje de producción. `coldStart` ignora el aprendizaje como semilla.
+  experiment?: {
+    record: (record: AttemptExperimentRecord) => void;
+    coldStart?: boolean;
+  };
+  // Reloj inyectable para tests deterministas (telemetría por ventanas).
+  now?: () => number;
   // Opcional por compatibilidad: por defecto se construye desde estas opciones.
   engines?: DownloadEngine[];
 }
 
 const START_TIMEOUT_MS = 90_000;
+// Telemetría retenida por intento hasta forgetItem/forgetEpisode.
+const MAX_RETAINED_ATTEMPT_TELEMETRIES = 64;
 
 export function isSameStemCandidate(destFileName: string, candidateName: string): boolean {
   if (!destFileName || !candidateName) return false;
@@ -68,6 +124,8 @@ export function isSameStemCandidate(destFileName: string, candidateName: string)
 export class EpisodeDownloadAttemptService {
   private readonly activeAttempts = new Map<string, AbortController>();
   private readonly skipEpochs = new Map<string, number>();
+  private readonly attemptTelemetries: AttemptTelemetry[] = [];
+  private readonly attemptControllers: AdaptiveConcurrencyController[] = [];
   private readonly engines: DownloadEngine[];
 
   constructor(private readonly options: EpisodeDownloadAttemptOptions) {
@@ -172,12 +230,46 @@ export class EpisodeDownloadAttemptService {
     for (const key of Array.from(this.skipEpochs.keys())) {
       if (key === itemId || key.startsWith(prefix)) this.skipEpochs.delete(key);
     }
+    this.pruneTelemetries((telemetry) => telemetry.itemId === itemId);
+    this.pruneControllers((controller) => controller.itemId === itemId);
   }
 
   // Limpieza por EP finalizado (ok/fail/cancel): su época ya no se necesita.
   forgetEpisode(itemId: string, episode: number): void {
     if (!itemId || !Number.isInteger(episode)) return;
     this.skipEpochs.delete(this.attemptKey(itemId, episode));
+    this.pruneTelemetries((telemetry) => telemetry.itemId === itemId && telemetry.episode === episode);
+    this.pruneControllers((controller) => controller.itemId === itemId && controller.episode === episode);
+  }
+
+  // Telemetrías retenidas, por intento.
+  getAttemptTelemetries(itemId?: string, episode?: number): AttemptTelemetry[] {
+    return this.attemptTelemetries.filter(
+      (telemetry) =>
+        (itemId === undefined || telemetry.itemId === itemId) &&
+        (episode === undefined || telemetry.episode === episode),
+    );
+  }
+
+  private pruneTelemetries(shouldRemove: (telemetry: AttemptTelemetry) => boolean): void {
+    for (let i = this.attemptTelemetries.length - 1; i >= 0; i -= 1) {
+      if (shouldRemove(this.attemptTelemetries[i])) this.attemptTelemetries.splice(i, 1);
+    }
+  }
+
+  private pruneControllers(shouldRemove: (controller: AdaptiveConcurrencyController) => boolean): void {
+    for (let i = this.attemptControllers.length - 1; i >= 0; i -= 1) {
+      if (shouldRemove(this.attemptControllers[i])) this.attemptControllers.splice(i, 1);
+    }
+  }
+
+  // Controllers retenidos por intento (quedan inertes al terminar).
+  getAttemptAdaptiveControllers(itemId?: string, episode?: number): AdaptiveConcurrencyController[] {
+    return this.attemptControllers.filter(
+      (controller) =>
+        (itemId === undefined || controller.itemId === itemId) &&
+        (episode === undefined || controller.episode === episode),
+    );
   }
 
   abortEpisode(itemId: string, episode: number): boolean {
@@ -262,6 +354,61 @@ export class EpisodeDownloadAttemptService {
     this.activeAttempts.set(key, attemptAbort);
     const startSkipEpoch = this.skipEpochs.get(key) || 0;
     const dl = normalizeDownloadSettings(this.options.getDownloadSettings?.());
+    // Handle por intento (EP+servidor): el fallback y los EPs nunca lo comparten.
+    const manualLevel = connectionLevelForServer(link.server, dl) ?? dl.hlsConnections;
+    // La setting decide por intento (admite cambio en caliente);
+    // `options.adaptiveConcurrency` es solo un override para tests.
+    const adaptiveOn = this.options.adaptiveConcurrency ?? dl.adaptiveConnections === true;
+    // Semilla: la manual siempre vale; con aprendizaje, preferred recortado al
+    // safeMax. Solo en modo adaptativo.
+    const learning = adaptiveOn
+      ? (this.options.getConcurrencyLearning?.(String(item.providerId ?? ''), link.server) ?? null)
+      : null;
+    const experiment = this.options.experiment;
+    // coldStart ignora el aprendizaje como semilla.
+    const seed = experiment?.coldStart ? manualLevel : resolveConcurrencySeed(manualLevel, learning);
+    // El engine se resuelve antes: la política necesita su capacidad de aplicación.
+    const engine = findDownloadEngine(this.engines, link);
+    const concurrency = createAttemptConcurrencyHandle(seed);
+    // Quien descarga refina esta capacidad según el camino real.
+    reportApplicationMode(concurrency, engine?.concurrencyApplication ?? 'hot');
+    // Cadencia del perfil activo; solo se aplica con el controller en marcha.
+    const cadenceProfile = this.options.cadenceProfile ?? DEFAULT_CADENCE_PROFILE;
+    const cadence = adaptiveOn ? CONCURRENCY_CADENCE_PROFILES[cadenceProfile] : null;
+    // Observación por intento: describe el estado sin decidir nada.
+    const telemetry = createAttemptTelemetry({
+      itemId: item.id,
+      episode,
+      server: link.server,
+      handle: concurrency,
+      ...(cadence ? { windowMs: cadence.windowMs } : {}),
+      ...(this.options.now ? { now: this.options.now } : {}),
+    });
+    this.attemptTelemetries.push(telemetry);
+    if (this.attemptTelemetries.length > MAX_RETAINED_ATTEMPT_TELEMETRIES) this.attemptTelemetries.shift();
+    // Controlador por intento: lee su telemetría y escribe handle.setTarget().
+    const adaptive = adaptiveOn
+      ? createAdaptiveConcurrencyController({
+          itemId: item.id,
+          episode,
+          server: link.server,
+          handle: concurrency,
+          telemetry,
+          // El safeMax aprendido solo guía el techo inicial de exploración.
+          ...(learning?.safeMax ? { initialProbeCeiling: learning.safeMax } : {}),
+          // Mismo reloj que la telemetría: los timestamps quedan comparables.
+          ...(this.options.now ? { now: this.options.now } : {}),
+          applicationMode: engine?.concurrencyApplication ?? 'hot',
+          // La cadencia del perfil no toca los umbrales de mejora/degradación.
+          ...(cadence
+            ? { policy: { evidenceWindows: cadence.evidenceWindows, cooldownWindows: cadence.cooldownWindows } }
+            : {}),
+        })
+      : null;
+    if (adaptive) {
+      this.attemptControllers.push(adaptive);
+      if (this.attemptControllers.length > MAX_RETAINED_ATTEMPT_TELEMETRIES) this.attemptControllers.shift();
+    }
 
     const onParentAbort = () => {
       try {
@@ -294,6 +441,7 @@ export class EpisodeDownloadAttemptService {
         }
       } catch {}
       attemptTimedOut = true;
+      telemetry.recordFailure('timeout-start');
       try {
         attemptAbort.abort();
       } catch {
@@ -308,7 +456,6 @@ export class EpisodeDownloadAttemptService {
     try {
       // Un intento = un engine. Sin dispatch por servidor: el registry resuelve
       // el engine por la fuente y el engine delega en la implementación existente.
-      const engine = findDownloadEngine(this.engines, link);
       if (!attemptAbort.signal.aborted && engine) {
         if (!dl.allowContinue) await this.purgeResumeForServer(link.server, dest);
         callbacks.updateTray(`Descargando ${item.animeTitle} - EP ${episode}...`);
@@ -319,8 +466,11 @@ export class EpisodeDownloadAttemptService {
           dest,
           signal: attemptAbort.signal,
           settings: dl,
+          concurrency,
           onProgress: (engineProgress) => {
             markStarted();
+            // Medición cruda, antes del gate de % y de cualquier throttle.
+            telemetry.recordBytes(engineProgress.loadedBytes, engineProgress.fraction01);
             this.reportEngineProgress(item, episode, link.server, progressState, callbacks, engineProgress);
           },
         });
@@ -357,6 +507,39 @@ export class EpisodeDownloadAttemptService {
       clearTimeout(startTimeout);
       parentSignal.removeEventListener('abort', onParentAbort);
       if (this.activeAttempts.get(key) === attemptAbort) this.activeAttempts.delete(key);
+      // Una interrupción (pausa/cancel/skip) se cierra como tal, no como degradación.
+      const failureCategory = categorizeAttemptFailure({
+        success,
+        parentAborted: parentSignal.aborted,
+        skipRequested: (this.skipEpochs.get(key) || 0) > startSkipEpoch,
+        attemptTimedOut,
+        invalidMp4,
+        toolFailureMessage,
+      });
+      telemetry.finish(
+        success ? 'ok' : attemptAbort.signal.aborted && !attemptTimedOut ? 'interrupted' : 'failed',
+        failureCategory,
+      );
+      if (adaptive) {
+        // Dispose primero: cierra los probes pendientes y deja el controller inerte.
+        adaptive.dispose();
+        if (experiment) {
+          // En modo experimental se registra todo (también fallos y cancelaciones).
+          const interrupted = attemptAbort.signal.aborted && !attemptTimedOut;
+          this.recordAttemptExperiment(item, episode, link.server, seed, learning, adaptive, telemetry, {
+            success,
+            interrupted,
+            failureCategory,
+            // Capacidad final del downloader: distingue simple de pool ranged.
+            applicationMode: readApplicationMode(concurrency, engine?.concurrencyApplication ?? 'hot'),
+          });
+        } else if (success) {
+          // Solo un intento que terminó bien enseña.
+          this.emitConcurrencyLearning(item, link.server, adaptive, telemetry);
+        }
+      }
+      concurrency.dispose();
+      telemetry.dispose();
     }
 
     return {
@@ -368,7 +551,101 @@ export class EpisodeDownloadAttemptService {
       invalidMp4,
       toolFailureMessage,
       started,
+      // Qué corrió y hasta dónde llegó (para el log).
+      concurrencyInfo: {
+        mode: adaptive ? 'adaptive' : 'manual',
+        seed,
+        finalLevel: adaptive ? adaptive.snapshot().level : seed,
+        probes: adaptive ? adaptive.snapshot().decisions.filter((decision) => decision.kind === 'probe-up').length : 0,
+        preferred: adaptive ? (learning?.preferredConcurrency ?? null) : null,
+        safeMax: adaptive ? (learning?.safeMax ?? null) : null,
+      },
     };
+  }
+
+  // Traduce las decisiones del controller en observaciones de aprendizaje.
+  private emitConcurrencyLearning(
+    item: QueueItem,
+    server: string,
+    controller: AdaptiveConcurrencyController,
+    telemetry: AttemptTelemetry,
+  ): void {
+    const record = this.options.recordConcurrencyObservation;
+    if (!record) return;
+    try {
+      // Con el enlace compartido la observación no enseña.
+      const learningEligible = this.isLearningEligible(telemetry);
+      for (const observation of concurrencyObservationsFromDecisions(controller.snapshot().decisions)) {
+        record({ provider: String(item.providerId ?? ''), server, ...observation, learningEligible });
+      }
+    } catch {
+      // El aprendizaje nunca debe romper una descarga.
+    }
+  }
+
+  // ¿Compartió el enlace con otros EPs durante su ventana? Como se decide al
+  // emitir (con la ventana ya cerrada), el resultado es definitivo.
+  private isLearningEligible(own: AttemptTelemetry): boolean {
+    const me = own.snapshot();
+    const end = me.startedAt + me.elapsedMs;
+    for (const other of this.attemptTelemetries) {
+      if (other === own) continue;
+      const o = other.snapshot();
+      if (o.startedAt < end && me.startedAt < o.startedAt + o.elapsedMs) return false;
+    }
+    // Un intento en vuelo (aún sin telemetría registrada) también es solape.
+    return this.activeAttempts.size === 0;
+  }
+
+  // Monta el registro experimental del intento para análisis.
+  private recordAttemptExperiment(
+    item: QueueItem,
+    episode: number,
+    server: string,
+    seed: number,
+    learning: ConcurrencyLearning | null,
+    controller: AdaptiveConcurrencyController,
+    telemetry: AttemptTelemetry,
+    outcome: {
+      success: boolean;
+      interrupted: boolean;
+      failureCategory: ServerFailureCategory | null;
+      applicationMode: ConcurrencyApplicationMode;
+    },
+  ): void {
+    const experiment = this.options.experiment;
+    if (!experiment) return;
+    try {
+      const snapshot = telemetry.snapshot();
+      const usedLearning = !experiment.coldStart && (learning?.preferredConcurrency ?? null) !== null;
+      experiment.record(
+        buildAttemptExperimentRecord({
+          itemId: item.id,
+          episode,
+          provider: String(item.providerId ?? ''),
+          server,
+          startedAt: snapshot.startedAt,
+          durationMs: snapshot.elapsedMs,
+          seed,
+          seedSource: usedLearning ? 'learned' : 'manual',
+          coldStart: experiment.coldStart === true,
+          learnedPreferred: learning?.preferredConcurrency ?? null,
+          learnedSafeMax: learning?.safeMax ?? null,
+          success: outcome.success,
+          interrupted: outcome.interrupted,
+          failureCategory: outcome.failureCategory,
+          loadedBytes: snapshot.loadedBytes,
+          progress01: snapshot.progress01,
+          decisions: controller.snapshot().decisions,
+          samples: telemetry.samples(),
+          windows: telemetry.windows(),
+          cadenceProfile: this.options.cadenceProfile ?? DEFAULT_CADENCE_PROFILE,
+          applicationMode: outcome.applicationMode,
+        }),
+      );
+    } catch {
+      // El modo experimental nunca debe romper una descarga.
+    }
   }
 
   // Purga de resume por tipo de fuente cuando allowContinue=false.

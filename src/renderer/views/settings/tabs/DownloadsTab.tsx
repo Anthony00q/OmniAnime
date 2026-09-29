@@ -4,6 +4,7 @@ import { CustomSelect } from '../../../components/CustomSelect';
 import { CustomSwitch } from '../../../components/CustomSwitch';
 import { ServerOrderCard } from '../components/ServerOrderCard';
 import { applyServerMove, applyServerToggle, splitServerOrder } from '../utils/serverOrder';
+import { ADAPTIVE_MANAGED_HINT, isConnectionControlLocked, managedHintId } from '../utils/adaptiveConnections';
 import { AppTooltip } from '../../../components/ui/AppTooltip';
 import { DEFAULT_DOWNLOAD_SETTINGS } from '../../../../utils/downloadSettings';
 import { snapToClosestOption } from '../utils/settingsHelpers';
@@ -33,6 +34,14 @@ export const DownloadsTab = memo(function DownloadsTab({ settings, namingPreview
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const dl = { ...DEFAULT_DOWNLOAD_SETTINGS, ...(settings.download || {}) };
   const onDlChange = (key: string, value: any) => onChange(key, value, 'download');
+  // Con Adaptive activo, los controles que él gobierna quedan visibles pero
+  // bloqueados: muestran el valor guardado y no se pueden tocar. HLS no entra.
+  const locked = {
+    mediafireConnections: isConnectionControlLocked('mediafireConnections', dl.adaptiveConnections),
+    mp4uploadConnections: isConnectionControlLocked('mp4uploadConnections', dl.adaptiveConnections),
+    voeConnections: isConnectionControlLocked('voeConnections', dl.adaptiveConnections),
+    megaConnections: isConnectionControlLocked('megaConnections', dl.adaptiveConnections),
+  };
 
   return (
     <>
@@ -83,6 +92,14 @@ export const DownloadsTab = memo(function DownloadsTab({ settings, namingPreview
                   </span>
                 </AppTooltip>
               </span>
+              {locked.mediafireConnections && (
+                <p
+                  id={managedHintId('mediafireConnections')}
+                  className="text-xs text-muted-foreground mt-1 leading-relaxed"
+                >
+                  {ADAPTIVE_MANAGED_HINT}
+                </p>
+              )}
             </div>
             <CustomSelect
               value={snapToClosestOption(
@@ -93,6 +110,8 @@ export const DownloadsTab = memo(function DownloadsTab({ settings, namingPreview
               ariaLabel="Conexiones por archivo en MediaFire"
               className="w-full sm:w-60 shrink-0"
               options={DOWNLOAD_DIRECT_CONNECTIONS_OPTIONS.map((o) => ({ ...o }))}
+              disabled={locked.mediafireConnections}
+              describedBy={locked.mediafireConnections ? managedHintId('mediafireConnections') : undefined}
             />
           </div>
 
@@ -106,6 +125,14 @@ export const DownloadsTab = memo(function DownloadsTab({ settings, namingPreview
                   </span>
                 </AppTooltip>
               </span>
+              {locked.mp4uploadConnections && (
+                <p
+                  id={managedHintId('mp4uploadConnections')}
+                  className="text-xs text-muted-foreground mt-1 leading-relaxed"
+                >
+                  {ADAPTIVE_MANAGED_HINT}
+                </p>
+              )}
             </div>
             <CustomSelect
               value={snapToClosestOption(
@@ -116,6 +143,8 @@ export const DownloadsTab = memo(function DownloadsTab({ settings, namingPreview
               ariaLabel="Conexiones por archivo en MP4Upload"
               className="w-full sm:w-60 shrink-0"
               options={DOWNLOAD_DIRECT_CONNECTIONS_OPTIONS.map((o) => ({ ...o }))}
+              disabled={locked.mp4uploadConnections}
+              describedBy={locked.mp4uploadConnections ? managedHintId('mp4uploadConnections') : undefined}
             />
           </div>
 
@@ -129,6 +158,11 @@ export const DownloadsTab = memo(function DownloadsTab({ settings, namingPreview
                   </span>
                 </AppTooltip>
               </span>
+              {locked.voeConnections && (
+                <p id={managedHintId('voeConnections')} className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                  {ADAPTIVE_MANAGED_HINT}
+                </p>
+              )}
             </div>
             <CustomSelect
               value={snapToClosestOption(
@@ -139,6 +173,8 @@ export const DownloadsTab = memo(function DownloadsTab({ settings, namingPreview
               ariaLabel="Conexiones por archivo en Voe"
               className="w-full sm:w-60 shrink-0"
               options={DOWNLOAD_DIRECT_CONNECTIONS_OPTIONS.map((o) => ({ ...o }))}
+              disabled={locked.voeConnections}
+              describedBy={locked.voeConnections ? managedHintId('voeConnections') : undefined}
             />
           </div>
 
@@ -152,6 +188,11 @@ export const DownloadsTab = memo(function DownloadsTab({ settings, namingPreview
                   </span>
                 </AppTooltip>
               </span>
+              {locked.megaConnections && (
+                <p id={managedHintId('megaConnections')} className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                  {ADAPTIVE_MANAGED_HINT}
+                </p>
+              )}
             </div>
             <CustomSelect
               value={snapToClosestOption(
@@ -162,6 +203,8 @@ export const DownloadsTab = memo(function DownloadsTab({ settings, namingPreview
               ariaLabel="Conexiones por archivo en Mega"
               className="w-full sm:w-60 shrink-0"
               options={DOWNLOAD_DIRECT_CONNECTIONS_OPTIONS.map((o) => ({ ...o }))}
+              disabled={locked.megaConnections}
+              describedBy={locked.megaConnections ? managedHintId('megaConnections') : undefined}
             />
           </div>
 
@@ -375,6 +418,29 @@ export const DownloadsTab = memo(function DownloadsTab({ settings, namingPreview
                   checked={dl.cleanCacheOnComplete}
                   onChange={(c) => onDlChange('cleanCacheOnComplete', c)}
                   ariaLabel="Limpiar temporales al terminar"
+                />
+              </div>
+              <div className="rounded-xl border border-border/60 bg-background p-4 flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-sm font-semibold leading-tight">
+                    Conexiones adaptativas{' '}
+                    <span className="inline-flex items-center rounded border border-primary/30 bg-primary/10 px-1 py-px align-middle text-[10px] font-semibold uppercase leading-none tracking-wider text-primary">
+                      Experimental
+                    </span>{' '}
+                    <AppTooltip content="Ajusta automáticamente las conexiones internas del episodio según el rendimiento de tu conexión. El número de conexiones sigue siendo el punto de partida; el resto lo gestiona la app. Función experimental: puede cambiar o desactivarse en próximas versiones.">
+                      <span aria-hidden="true" className="inline-flex align-middle text-muted-foreground">
+                        <Info className="w-3.5 h-3.5" />
+                      </span>
+                    </AppTooltip>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                    Ajusta las conexiones internas del episodio según rendimiento.
+                  </p>
+                </div>
+                <CustomSwitch
+                  checked={dl.adaptiveConnections}
+                  onChange={(c) => onDlChange('adaptiveConnections', c)}
+                  ariaLabel="Conexiones adaptativas (experimental)"
                 />
               </div>
             </div>

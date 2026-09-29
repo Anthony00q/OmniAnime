@@ -15,6 +15,8 @@ export interface DownloadSettings {
   startTimeoutSec: number;
   allowContinue: boolean;
   cleanCacheOnComplete: boolean;
+  // Ajusta las conexiones internas del episodio según rendimiento.
+  adaptiveConnections: boolean;
   mediafireConnections: number;
   mp4uploadConnections: number;
   voeConnections: number;

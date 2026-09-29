@@ -19,6 +19,9 @@ interface CustomSelectProps {
   selectedValues?: string[];
   toggle?: boolean;
   ariaLabel?: string;
+  // Disabled real (Radix): bloquea interacción y se expone a accesibilidad.
+  disabled?: boolean;
+  describedBy?: string;
 }
 
 export function CustomSelect({
@@ -31,6 +34,8 @@ export function CustomSelect({
   toggle = false,
   selectedValues,
   ariaLabel,
+  disabled = false,
+  describedBy,
 }: CustomSelectProps) {
   const selectedValue = String(value);
   const selectedOption = options.find((o) => o.value === selectedValue);
@@ -62,12 +67,19 @@ export function CustomSelect({
   };
 
   return (
-    <SelectPrimitive.Root value={internalValue} onValueChange={handleValueChange} onOpenChange={handleOpenChange}>
+    <SelectPrimitive.Root
+      value={internalValue}
+      onValueChange={handleValueChange}
+      onOpenChange={handleOpenChange}
+      disabled={disabled}
+    >
       <SelectPrimitive.Trigger
         aria-label={ariaLabel}
+        aria-describedby={describedBy}
         className={clsx(
           'inline-flex items-center justify-between gap-2 rounded-lg border border-border/70 bg-surface px-3 py-2 text-sm text-foreground h-10',
-          'hover:bg-secondary/50 focus:outline-none data-[state=open]:ring-2 data-[state=open]:ring-primary/50',
+          disabled ? 'cursor-not-allowed opacity-60' : 'hover:bg-secondary/50',
+          'focus:outline-none data-[state=open]:ring-2 data-[state=open]:ring-primary/50',
           'data-[placeholder]:text-muted-foreground/60',
           className,
         )}

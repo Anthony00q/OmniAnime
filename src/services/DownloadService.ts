@@ -9,6 +9,12 @@ import * as megajs from 'megajs';
 import { normalizeMegaUrl } from '../utils/serverUtils';
 import { noopScopedLogger, type ScopedLogger } from './AppLogger';
 import { clampDirectConnections, downloadDirectRanged, probeDirectRangeSupport } from './DirectRangedDownloader';
+import {
+  readConcurrency,
+  reportActualConcurrency,
+  reportApplicationMode,
+  type ConcurrencySource,
+} from './downloads/attemptConcurrency';
 
 const httpAgent = new http.Agent({ keepAlive: true, maxSockets: 32 });
 const httpsAgent = new https.Agent({ keepAlive: true, maxSockets: 32 });
@@ -89,8 +95,11 @@ export type FfmpegRuntimeTools = {
 export class DownloadService {
   private activeControllers = new Set<AbortController>();
   private readonly logger: ScopedLogger;
-  constructor(options?: { logger?: ScopedLogger }) {
+  // Permite el pool ranged con 1 worker (medición simple-1 vs ranged-1).
+  private readonly rangedFromOne: boolean;
+  constructor(options?: { logger?: ScopedLogger; rangedFromOne?: boolean }) {
     this.logger = options?.logger ?? noopScopedLogger;
+    this.rangedFromOne = options?.rangedFromOne === true;
   }
 
   abort() {
@@ -116,7 +125,7 @@ export class DownloadService {
     onProgress: (p: number, loadedBytes?: number) => void,
     signal?: AbortSignal,
     referer?: string,
-    connections?: number,
+    connections?: ConcurrencySource,
   ): Promise<boolean> {
     const MAX_EXTRACT_ATTEMPTS = 3;
     for (let attempt = 1; attempt <= MAX_EXTRACT_ATTEMPTS; attempt += 1) {
@@ -175,23 +184,34 @@ export class DownloadService {
     onProgress: (p: number, loadedBytes?: number) => void,
     signal?: AbortSignal,
     referer?: string,
-    connections?: number,
+    connections?: ConcurrencySource,
   ): Promise<boolean> {
     const directReferer = typeof referer === 'string' && referer ? referer : DEFAULT_DOWNLOAD_REFERER;
-    if (clampDirectConnections(connections) > 1 && !signal?.aborted) {
+    // Rama multihilo si el objetivo supera 1 (o con rangedFromOne, también con 1);
+    // dentro, el pool escala y encoge en caliente según el handle.
+    if ((clampDirectConnections(readConcurrency(connections)) > 1 || this.rangedFromOne) && !signal?.aborted) {
       const rangedOk = await this.downloadDirectRangedOnce(url, dest, onProgress, signal, directReferer, connections);
       if (rangedOk || signal?.aborted) return rangedOk;
     }
     const MAX_DIRECT_ATTEMPTS = 3;
-    for (let attempt = 1; attempt <= MAX_DIRECT_ATTEMPTS; attempt += 1) {
-      if (signal?.aborted) return false;
-      const ok = await this.downloadDirectAxiosOnce(url, dest, onProgress, signal, directReferer);
-      if (ok || signal?.aborted) return ok;
-      if (attempt < MAX_DIRECT_ATTEMPTS) {
-        await this.sleepAbortable(1000 * attempt, signal);
+    // Camino simple: 1 stream en vuelo; se reporta al handle para observabilidad.
+    reportActualConcurrency(connections, 1);
+    // Sin pool ni frontera: un cambio de target no puede aplicarse aquí.
+    reportApplicationMode(connections, 'not-applicable');
+    try {
+      for (let attempt = 1; attempt <= MAX_DIRECT_ATTEMPTS; attempt += 1) {
+        if (signal?.aborted) return false;
+        const ok = await this.downloadDirectAxiosOnce(url, dest, onProgress, signal, directReferer);
+        if (ok || signal?.aborted) return ok;
+        if (attempt < MAX_DIRECT_ATTEMPTS) {
+          await this.sleepAbortable(1000 * attempt, signal);
+        }
       }
+      return false;
+    } finally {
+      // La fase simple termina: sin streams activos.
+      reportActualConcurrency(connections, 0);
     }
-    return false;
   }
 
   // Rama multihilo opt-in (ajuste Conexiones por archivo 1-8): exige 206 real y
@@ -202,10 +222,10 @@ export class DownloadService {
     onProgress: (p: number, loadedBytes?: number) => void,
     signal?: AbortSignal,
     referer?: string,
-    connections?: number,
+    connections?: ConcurrencySource,
   ): Promise<boolean> {
-    const wanted = clampDirectConnections(connections);
-    if (wanted <= 1 || signal?.aborted) return false;
+    const wanted = clampDirectConnections(readConcurrency(connections));
+    if ((wanted <= 1 && !this.rangedFromOne) || signal?.aborted) return false;
     const destDir = path.dirname(dest);
     const cacheDir = path.join(destDir, '.cache');
     try {
@@ -227,11 +247,14 @@ export class DownloadService {
       await fsp.rm(tempPath, { force: true }).catch(() => undefined);
       return false;
     }
-    const ok = await downloadDirectRanged(url, tempPath, probe.totalBytes, wanted, {
+    // El pool ranged aplica cambios de target sin esperar fronteras.
+    reportApplicationMode(connections, 'hot');
+    const ok = await downloadDirectRanged(url, tempPath, probe.totalBytes, connections ?? wanted, {
       userAgent: DIRECT_USER_AGENT,
       referer: typeof referer === 'string' && referer ? referer : DEFAULT_DOWNLOAD_REFERER,
       signal,
       onProgress,
+      allowOneWorker: this.rangedFromOne,
     });
     if (!ok || signal?.aborted) {
       if (!signal?.aborted) this.logger.debug('direct ranged falló, cae a descarga simple.');
@@ -492,11 +515,10 @@ export class DownloadService {
     signal?: AbortSignal,
     probe?: AttemptProbe,
     megaFileFactory?: MegaFileFactory,
-    connections?: number,
+    connections?: ConcurrencySource,
   ): Promise<boolean> {
     const factory = megaFileFactory ?? ((u: string) => megajs.File.fromURL(u) as unknown as MegaFileLike);
     const normalizedUrl = normalizeMegaUrl(String(url || '').trim());
-    const megaConnections = clampDirectConnections(connections ?? 6);
 
     const destDir = path.dirname(dest);
     const cacheDir = path.join(destDir, '.cache');
@@ -535,6 +557,8 @@ export class DownloadService {
     for (let attempt = 1; attempt <= MAX_MEGA_ATTEMPTS; attempt += 1) {
       if (signal?.aborted) return false;
       if (attempt > 1) probe?.onRetry?.();
+      // El cambio se aplica al crearse el stream que está a punto de nacer.
+      reportApplicationMode(connections, 'deferred');
       try {
         let file: MegaFileLike;
         try {
@@ -580,6 +604,13 @@ export class DownloadService {
               .writeFile(sidecarPath, JSON.stringify({ url: normalizedUrl, size: totalLength, savedAt: Date.now() }))
               .catch(() => undefined);
           }
+          // megajs fija maxConnections al crear el stream: este slice arranca ya
+          // con su valor.
+          const megaConnections = clampDirectConnections(readConcurrency(connections, 6));
+          reportActualConcurrency(connections, megaConnections);
+          // Ya congelado: el siguiente punto de aplicación sería el stream de un
+          // reintento, si queda alguno.
+          reportApplicationMode(connections, attempt < MAX_MEGA_ATTEMPTS ? 'deferred' : 'not-applicable');
           const outcome = await this.downloadMegaSlice(
             file,
             tempDest,
@@ -592,6 +623,7 @@ export class DownloadService {
             probe,
             megaConnections,
           );
+          reportActualConcurrency(connections, 0);
           if (outcome === 'completed') return !signal?.aborted;
           if (outcome === 'fatal' || signal?.aborted) return false;
         }

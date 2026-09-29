@@ -1,5 +1,11 @@
 import axios from 'axios';
 import * as fsp from 'fs/promises';
+import {
+  readConcurrency,
+  reportActualConcurrency,
+  subscribeConcurrency,
+  type ConcurrencySource,
+} from './downloads/attemptConcurrency';
 
 export const DIRECT_RANGED_MIN_CONNECTIONS = 1;
 export const DIRECT_RANGED_MAX_CONNECTIONS = 8;
@@ -23,6 +29,11 @@ export interface RangedDownloadOptions {
   referer: string;
   signal?: AbortSignal;
   onProgress?: (fraction01: number, loadedBytes?: number) => void;
+  // Tamaño de segmento fijo (tests/afinación); por defecto la heurística de
+  // siempre (4 MB o total/128).
+  segmentBytes?: number;
+  // Permite el pool con 1 worker (medición simple-1 vs ranged-1).
+  allowOneWorker?: boolean;
 }
 
 export function clampDirectConnections(value: unknown): number {
@@ -75,11 +86,15 @@ export async function downloadDirectRanged(
   url: string,
   tempPath: string,
   totalBytes: number,
-  connections: number,
+  connections: ConcurrencySource,
   options: RangedDownloadOptions,
 ): Promise<boolean> {
-  const workers = clampDirectConnections(connections);
-  if (!Number.isFinite(totalBytes) || totalBytes <= 0 || workers <= 1) return false;
+  // El pool arranca con 2+ workers (con allowOneWorker también con 1). Una
+  // descarga ya iniciada escala en caliente; una que arrancó simple sigue simple.
+  const initialWorkers = clampDirectConnections(readConcurrency(connections));
+  if (!Number.isFinite(totalBytes) || totalBytes <= 0 || (initialWorkers <= 1 && !options.allowOneWorker)) {
+    return false;
+  }
   if (options.signal?.aborted) return false;
   let handle: fsp.FileHandle | null = null;
   try {
@@ -167,13 +182,45 @@ export async function downloadDirectRanged(
       stream.on('error', (error: unknown) => fail(error));
     });
   };
-  try {
-    const segmentSize = Math.max(RANGED_SEGMENT_BYTES, Math.ceil(totalBytes / RANGED_MAX_SEGMENTS));
-    const segmentCount = Math.ceil(totalBytes / segmentSize);
-    let nextSegment = 0;
-    const runWorker = async (): Promise<void> => {
-      while (true) {
+  // Pool de streams con Range (no confundir con los workers de episodio): cada
+  // uno coge el siguiente segmento libre y el objetivo puede cambiar en caliente.
+  const segmentSize = options.segmentBytes
+    ? Math.max(1, Math.floor(options.segmentBytes))
+    : Math.max(RANGED_SEGMENT_BYTES, Math.ceil(totalBytes / RANGED_MAX_SEGMENTS));
+  const segmentCount = Math.ceil(totalBytes / segmentSize);
+  const targetWorkers = (): number => Math.max(1, clampDirectConnections(readConcurrency(connections)));
+  let nextSegment = 0;
+  let running = 0;
+  let failure: unknown = null;
+  const inflight = new Set<Promise<void>>();
+
+  function spawnUpTo(): void {
+    if (failure !== null) return;
+    // Sin segmentos pendientes no se spawnea nada (evita ciclos al final).
+    if (nextSegment >= segmentCount) return;
+    const cap = Math.min(targetWorkers(), segmentCount);
+    // El bucle acota los spawns aunque un worker recién creado salga enseguida.
+    let toSpawn = cap - running;
+    while (toSpawn > 0) {
+      toSpawn -= 1;
+      running += 1;
+      const promise = runWorker().finally(() => inflight.delete(promise));
+      inflight.add(promise);
+    }
+    reportActualConcurrency(connections, running);
+  }
+
+  async function runWorker(): Promise<void> {
+    // Arranque diferido: el spawn no es reentrante.
+    await Promise.resolve();
+    try {
+      for (;;) {
         if (options.signal?.aborted) throw new Error('Aborted');
+        if (failure !== null) return;
+        // Si sobran workers, este sale tras su segmento; al menos uno sigue
+        // hasta agotar el trabajo.
+        if (running > targetWorkers()) return;
+        spawnUpTo();
         const index = nextSegment;
         nextSegment += 1;
         if (index >= segmentCount) return;
@@ -181,10 +228,27 @@ export async function downloadDirectRanged(
         const end = Math.min(totalBytes - 1, start + segmentSize - 1);
         await runPart(index, start, end);
       }
-    };
-    await Promise.all(Array.from({ length: Math.min(workers, segmentCount) }, () => runWorker()));
+    } catch (error) {
+      if (failure === null) failure = error;
+    } finally {
+      running -= 1;
+      reportActualConcurrency(connections, running);
+    }
+  }
+
+  const unsubscribe = subscribeConcurrency(connections, spawnUpTo);
+  try {
+    spawnUpTo();
+    while (inflight.size > 0) {
+      await Promise.all(Array.from(inflight));
+    }
     await handle.sync().catch(() => undefined);
-  } catch {
+  } catch (error) {
+    if (failure === null) failure = error;
+  }
+  unsubscribe();
+  reportActualConcurrency(connections, 0);
+  if (failure !== null) {
     await handle.close().catch(() => undefined);
     handle = null;
     await fsp.rm(tempPath, { force: true }).catch(() => undefined);
