@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { AppTooltip } from '../../../components/ui/AppTooltip';
+import { AppTooltip } from '@/renderer/components/ui/AppTooltip';
 import animeav1Icon from '../../../../../assets/provider-icons/animeav1-32.png';
 import jkanimeIcon from '../../../../../assets/provider-icons/jkanime-32.png';
 

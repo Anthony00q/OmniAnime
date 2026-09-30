@@ -1,7 +1,7 @@
 import { app, dialog, ipcMain } from 'electron';
 import * as fs from 'fs';
 import * as path from 'path';
-import { redactLogText } from '../../../services/AppLogger';
+import { redactLogText } from '../../../services/logging/AppLogger';
 import {
   LOG_VIEW_MAX_BYTES_PER_FILE,
   LOG_VIEW_MAX_FILES,
@@ -13,8 +13,8 @@ import {
   splitDeletableLogFiles,
   removeLogEntries,
   selectLogEntriesFromSources,
-} from '../../../utils/logPage';
-import { collectLogSourcesAsync } from '../../../utils/logSources';
+} from '../../../utils/logging/logPage';
+import { collectLogSourcesAsync } from '../../../utils/logging/logSources';
 import type { IpcRegistryDependencies } from '../../IpcRegistry';
 import { collectDiagnosticsBundle } from './diagnostics.handlers';
 

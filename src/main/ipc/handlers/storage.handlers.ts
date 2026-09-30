@@ -1,20 +1,20 @@
 import { app, dialog, ipcMain, shell } from 'electron';
 import * as fs from 'fs';
 import * as path from 'path';
-import { SettingsManager } from '../../../services/SettingsManager';
-import { APP_LOG_FILENAME } from '../../../services/AppLogger';
-import { normalizeDownloadSettings } from '../../../utils/downloadSettings';
-import { normalizeLoggingSettings } from '../../../utils/loggingSettings';
-import { normalizeSoundPack, SOUND_PACK_CHOICES } from '../../../utils/soundPacks';
+import { SettingsManager } from '../../../services/persistence/SettingsManager';
+import { APP_LOG_FILENAME } from '../../../services/logging/AppLogger';
+import { normalizeDownloadSettings } from '../../../utils/downloads/downloadSettings';
+import { normalizeLoggingSettings } from '../../../utils/logging/loggingSettings';
+import { normalizeSoundPack, SOUND_PACK_CHOICES } from '../../../utils/sounds/soundPacks';
 import {
   parseSoundRef,
   sanitizeCustomSoundFiles,
   sanitizeSoundCustomMap,
   type CustomSoundFileMeta,
-} from '../../../utils/soundCatalog';
-import { SOUND_CATALOG } from '../../../utils/soundCatalogData';
+} from '../../../utils/sounds/soundCatalog';
+import { SOUND_CATALOG } from '../../../utils/sounds/soundCatalogData';
 import { isValidOutputDirString } from '../../../utils/outputDirs';
-import { isPathWithinAnyDirectory } from '../../../utils/pathSecurity';
+import { isPathWithinAnyDirectory } from '../../../utils/security/pathSecurity';
 import type { AppSettings } from '../../../types/settings';
 import type { IpcRegistryDependencies } from '../../IpcRegistry';
 

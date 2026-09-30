@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Dialog } from '../../../components/Dialog';
+import { Dialog } from '@/renderer/components/Dialog';
 import { Music, Play, Plus, Trash2, FileAudio, AlertCircle, Scissors } from 'lucide-react';
 import {
   SOUND_CATALOG_GROUPS,
@@ -8,10 +8,10 @@ import {
   parseSoundRef,
   type CustomSoundFileMeta,
   type SoundCatalogGroup,
-} from '../../../../utils/soundCatalog';
-import { SOUND_CATALOG } from '../../../../utils/soundCatalogData';
-import type { NotificationSoundType } from '../../../../utils/soundPacks';
-import { loadFullSoundBuffer, previewSoundSlice } from '../../../utils/sound';
+} from '@/utils/sounds/soundCatalog';
+import { SOUND_CATALOG } from '@/utils/sounds/soundCatalogData';
+import type { NotificationSoundType } from '@/utils/sounds/soundPacks';
+import { loadFullSoundBuffer, previewSoundSlice } from '@/renderer/utils/sound';
 import { SoundTrimEditor } from './SoundTrimEditor';
 
 interface SoundPickerDialogProps {

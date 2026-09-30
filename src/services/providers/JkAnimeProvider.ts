@@ -14,8 +14,8 @@ import {
   ScheduleEntry,
 } from '../../types/anime';
 import { AnimeProvider } from './AnimeProvider';
-import { noopScopedLogger, type ScopedLogger } from '../AppLogger';
-import { normalizeAllowedImageUrl } from '../../utils/networkSecurity';
+import { noopScopedLogger, type ScopedLogger } from '../logging/AppLogger';
+import { normalizeAllowedImageUrl } from '../../utils/security/networkSecurity';
 import { normalizeMegaUrl, normalizeMp4UploadUrl } from '../../utils/serverUtils';
 import { extractBalancedBlock, extractBalancedObjects, decodeBase64Text, isHttpUrl } from '../../utils/scrapeParse';
 

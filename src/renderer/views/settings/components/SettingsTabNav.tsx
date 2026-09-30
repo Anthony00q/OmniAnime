@@ -1,6 +1,6 @@
 import { memo, useEffect, useState } from 'react';
 import { useAtomValue } from 'jotai';
-import { settingsAtom } from '../../../store/atoms';
+import { settingsAtom } from '@/renderer/store/atoms';
 import { HardDrive, Download, Database, Palette, Bell, Keyboard, Info, ScrollText } from 'lucide-react';
 
 interface TabDef {

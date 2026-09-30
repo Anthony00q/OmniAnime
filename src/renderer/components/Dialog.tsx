@@ -1,6 +1,6 @@
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { AlertTriangle, Loader2 } from 'lucide-react';
-import { reportRendererError } from '../utils/rendererErrorReporting';
+import { reportRendererError } from '@/renderer/utils/rendererErrorReporting';
 
 interface DialogProps {
   open: boolean;

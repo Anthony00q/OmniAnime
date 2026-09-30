@@ -5,8 +5,8 @@ import {
   resolveAniListBanner,
   type AniListBannerInput,
   type AniListBannerResult,
-} from '../services/AniListService';
-import { normalizeAllowedImageUrl } from '../utils/networkSecurity';
+} from '../services/providers/AniListService';
+import { normalizeAllowedImageUrl } from '../utils/security/networkSecurity';
 import { USER_AGENT } from '../utils/windowUtils';
 
 // Fuente del banner persistido en la carpeta del anime.
@@ -20,7 +20,7 @@ export {
   anilistBannerInputFromDetails,
   type AniListBannerInput,
   type AniListBannerSource,
-} from '../services/AniListService';
+} from '../services/providers/AniListService';
 
 export type AniListFailureKind = 'ratelimit' | 'network' | 'nomatch';
 

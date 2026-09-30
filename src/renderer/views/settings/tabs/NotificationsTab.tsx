@@ -1,9 +1,9 @@
 import { memo, useState } from 'react';
 import { Bell, Volume2, Info, Zap, Play, ChevronDown, Music } from 'lucide-react';
 import { toast } from 'sonner';
-import { CustomSwitch } from '../../../components/CustomSwitch';
-import { ToastPositionSelector } from '../../../components/ToastPositionSelector';
-import { SoundPickerDialog } from '../components/SoundPickerDialog';
+import { CustomSwitch } from '@/renderer/components/CustomSwitch';
+import { ToastPositionSelector } from '@/renderer/components/ToastPositionSelector';
+import { SoundPickerDialog } from '@/renderer/views/settings/components/SoundPickerDialog';
 import {
   DEFAULT_TYPE_VOLUMES,
   SOUND_PACK_CHOICES,
@@ -11,9 +11,9 @@ import {
   SOUND_PACK_LABELS,
   type NotificationSoundType,
   type SoundPackId,
-} from '../../../../utils/soundPacks';
-import { parseSoundRef, type CustomSoundFileMeta, type SoundCatalogGroup } from '../../../../utils/soundCatalog';
-import { SOUND_CATALOG } from '../../../../utils/soundCatalogData';
+} from '@/utils/sounds/soundPacks';
+import { parseSoundRef, type CustomSoundFileMeta, type SoundCatalogGroup } from '@/utils/sounds/soundCatalog';
+import { SOUND_CATALOG } from '@/utils/sounds/soundCatalogData';
 
 interface NotificationsTabProps {
   settings: any;

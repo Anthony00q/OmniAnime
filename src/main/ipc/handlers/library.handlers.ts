@@ -1,6 +1,6 @@
 import { ipcMain } from 'electron';
-import { SettingsManager } from '../../../services/SettingsManager';
-import { isPathWithinAnyDirectory } from '../../../utils/pathSecurity';
+import { SettingsManager } from '../../../services/persistence/SettingsManager';
+import { isPathWithinAnyDirectory } from '../../../utils/security/pathSecurity';
 import type { IpcRegistryDependencies } from '../../IpcRegistry';
 
 export function registerLibraryHandlers({

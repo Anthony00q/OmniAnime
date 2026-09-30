@@ -1,8 +1,8 @@
 import { app, dialog, ipcMain } from 'electron';
 import * as path from 'path';
-import { CustomSoundService } from '../../../services/CustomSoundService';
+import { CustomSoundService } from '../../../services/sounds/CustomSoundService';
 import type { IpcRegistryDependencies } from '../../IpcRegistry';
-import { ALLOWED_CUSTOM_SOUND_EXTS } from '../../../utils/soundCatalog';
+import { ALLOWED_CUSTOM_SOUND_EXTS } from '../../../utils/sounds/soundCatalog';
 
 export function registerSoundHandlers({ writeGlobalLog }: IpcRegistryDependencies): void {
   const service = new CustomSoundService({

@@ -20,7 +20,7 @@ import {
   providerChangedCounterAtom,
   appUpdateAvailableAtom,
   appUpdateModalOpenAtom,
-} from '../store/atoms';
+} from '@/renderer/store/atoms';
 import { AppTooltip } from './ui/AppTooltip';
 
 interface SidebarProps {

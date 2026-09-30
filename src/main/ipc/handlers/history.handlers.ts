@@ -1,7 +1,7 @@
 import { ipcMain, shell } from 'electron';
 import * as fs from 'fs';
 import * as path from 'path';
-import { isPathWithinAnyDirectory } from '../../../utils/pathSecurity';
+import { isPathWithinAnyDirectory } from '../../../utils/security/pathSecurity';
 import type { IpcRegistryDependencies } from '../../IpcRegistry';
 
 export function registerHistoryHandlers({

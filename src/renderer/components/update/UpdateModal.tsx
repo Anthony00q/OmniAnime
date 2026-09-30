@@ -1,17 +1,17 @@
 import { useEffect, useState } from 'react';
 import { useAtomValue } from 'jotai';
 import { CheckCircle2, CircleArrowUp } from 'lucide-react';
-import { Dialog } from '../Dialog';
-import { ProgressBar } from '../ui/ProgressBar';
+import { Dialog } from '@/renderer/components/Dialog';
+import { ProgressBar } from '@/renderer/components/ui/ProgressBar';
 import { ReleaseNotesView } from './ReleaseNotesView';
-import { useAppUpdate } from '../../hooks/useAppUpdate';
+import { useAppUpdate } from '@/renderer/hooks/useAppUpdate';
 import {
   appUpdateAvailableAtom,
   appUpdateErrorAtom,
   appUpdateModalOpenAtom,
   appUpdatePercentAtom,
   appUpdatePhaseAtom,
-} from '../../store/atoms';
+} from '@/renderer/store/atoms';
 
 const FALLBACK_NOTES = 'Sin notas de cambios para esta versión.';
 

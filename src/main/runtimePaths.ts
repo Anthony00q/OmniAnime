@@ -1,7 +1,7 @@
 import { app } from 'electron';
 import * as fs from 'fs';
 import * as path from 'path';
-import type { FfmpegRuntimeTools } from '../services/DownloadService';
+import type { FfmpegRuntimeTools } from '../services/downloads/DownloadService';
 import { resolveTrayIconPath } from './trayMenu';
 
 export function getSplashHtmlPath(): string {

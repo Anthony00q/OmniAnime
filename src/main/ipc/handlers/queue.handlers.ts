@@ -1,14 +1,14 @@
 import { ipcMain, shell } from 'electron';
 import * as fs from 'fs';
 import * as path from 'path';
-import { SettingsManager } from '../../../services/SettingsManager';
-import { LibraryAssetService } from '../../../services/LibraryAssetService';
+import { SettingsManager } from '../../../services/persistence/SettingsManager';
+import { LibraryAssetService } from '../../../services/library/LibraryAssetService';
 import {
   formatEpisodeCountLabel,
   normalizeDisplayAnimeTitle,
   normalizeFolderAlternativeTitles,
 } from '../../../utils/titleUtils';
-import { isPathSafeForDestructiveOperation } from '../../../utils/pathSecurity';
+import { isPathSafeForDestructiveOperation } from '../../../utils/security/pathSecurity';
 import type { DownloadProvider, QueueItem } from '../../../types/queue';
 import type { IpcRegistryDependencies } from '../../IpcRegistry';
 import { anilistBannerInputFromDetails, resolveAniListBannerResult } from '../../anilistBanner';

@@ -1,9 +1,9 @@
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowDown, ArrowUp, Info, RotateCcw } from 'lucide-react';
-import { AppTooltip } from '../../../components/ui/AppTooltip';
-import { CustomSwitch } from '../../../components/CustomSwitch';
+import { AppTooltip } from '@/renderer/components/ui/AppTooltip';
+import { CustomSwitch } from '@/renderer/components/CustomSwitch';
 import { SortableHandle } from './SortableHandle';
-import { useSortableList } from '../utils/useSortableList';
+import { useSortableList } from '@/renderer/views/settings/utils/useSortableList';
 
 interface ServerOrderCardProps {
   providerLabel: string;

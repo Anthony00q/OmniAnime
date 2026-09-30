@@ -1,9 +1,9 @@
-import { DatabaseManager } from '../services/DatabaseManager';
-import { DownloadService } from '../services/DownloadService';
-import { HomeFeedService } from '../services/HomeFeedService';
-import { ScheduleService } from '../services/ScheduleService';
-import { ProviderManager } from '../services/ProviderManager';
-import { ProviderGateway } from '../services/ProviderGateway';
+import { DatabaseManager } from '../services/persistence/DatabaseManager';
+import { DownloadService } from '../services/downloads/DownloadService';
+import { HomeFeedService } from '../services/providers/HomeFeedService';
+import { ScheduleService } from '../services/providers/ScheduleService';
+import { ProviderManager } from '../services/providers/ProviderManager';
+import { ProviderGateway } from '../services/providers/ProviderGateway';
 
 export interface MainContext {
   providerManager: ProviderManager;

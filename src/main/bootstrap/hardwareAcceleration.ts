@@ -1,6 +1,6 @@
 import { app } from 'electron';
-import { noopScopedLogger, type ScopedLogger } from '../../services/AppLogger';
-import { readBootHardwareAcceleration } from '../../services/SettingsManager';
+import { noopScopedLogger, type ScopedLogger } from '../../services/logging/AppLogger';
+import { readBootHardwareAcceleration } from '../../services/persistence/SettingsManager';
 
 export function setupHardwareAcceleration(options?: { logger?: ScopedLogger }): void {
   const logger = options?.logger ?? noopScopedLogger;

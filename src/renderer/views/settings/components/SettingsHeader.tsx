@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { X } from 'lucide-react';
-import { AppTooltip } from '../../../components/ui/AppTooltip';
+import { AppTooltip } from '@/renderer/components/ui/AppTooltip';
 
 interface SettingsHeaderProps {
   isDirty: boolean;

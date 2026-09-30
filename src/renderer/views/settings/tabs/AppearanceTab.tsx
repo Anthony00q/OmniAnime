@@ -1,10 +1,10 @@
 import { memo, useRef, useCallback } from 'react';
 import { Palette, Eye, Check, AlertCircle, Copy, LayoutGrid, List } from 'lucide-react';
-import { THEME_META, THEME_IDS, ACCENT_PRESETS, THEME_SUGGESTED_ACCENT } from '../constants';
-import type { ThemeId } from '../../../../types/settings';
-import { isActiveTheme } from '../utils/settingsHelpers';
-import { AppTooltip } from '../../../components/ui/AppTooltip';
-import { useEpisodeView, type EpisodeView } from '../../../utils/episodeView';
+import { THEME_META, THEME_IDS, ACCENT_PRESETS, THEME_SUGGESTED_ACCENT } from '@/renderer/views/settings/constants';
+import type { ThemeId } from '@/types/settings';
+import { isActiveTheme } from '@/renderer/views/settings/utils/settingsHelpers';
+import { AppTooltip } from '@/renderer/components/ui/AppTooltip';
+import { useEpisodeView, type EpisodeView } from '@/renderer/utils/episodeView';
 
 // Controlada por SettingsView: el cambio se estadía hasta Guardar (desde
 // Detalles aplica al instante). El valor en vivo sincroniza sola al guardar

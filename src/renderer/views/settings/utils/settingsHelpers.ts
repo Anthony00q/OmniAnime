@@ -1,10 +1,10 @@
-import type { AppSettings, ThemeId } from '../../../../types/settings';
-import { normalizeDownloadSettings } from '../../../../utils/downloadSettings';
-import { normalizeLoggingSettings } from '../../../../utils/loggingSettings';
-import { normalizeSoundPack } from '../../../../utils/soundPacks';
-import { sanitizeCustomSoundFiles, sanitizeSoundCustomMap } from '../../../../utils/soundCatalog';
-import { resolveDefaultOutputDir, sanitizeOutputDirs } from '../../../../utils/outputDirs';
-import { isThemeValue } from '../../../utils/color';
+import type { AppSettings, ThemeId } from '@/types/settings';
+import { normalizeDownloadSettings } from '@/utils/downloads/downloadSettings';
+import { normalizeLoggingSettings } from '@/utils/logging/loggingSettings';
+import { normalizeSoundPack } from '@/utils/sounds/soundPacks';
+import { sanitizeCustomSoundFiles, sanitizeSoundCustomMap } from '@/utils/sounds/soundCatalog';
+import { resolveDefaultOutputDir, sanitizeOutputDirs } from '@/utils/outputDirs';
+import { isThemeValue } from '@/renderer/utils/color';
 
 export function normalizeSettings(settings: AppSettings | null | undefined): AppSettings {
   const s = (settings || {}) as Partial<AppSettings> & Record<string, unknown>;

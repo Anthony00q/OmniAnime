@@ -1,10 +1,10 @@
 import { app } from 'electron';
 import * as path from 'path';
-import { redactLogText } from '../../../services/AppLogger';
-import { SettingsManager } from '../../../services/SettingsManager';
-import { buildDiagnosticsText } from '../../../utils/diagnostics';
-import { capEntryText, selectLogEntriesFromSources, type LogSelection } from '../../../utils/logPage';
-import { collectLogSources } from '../../../utils/logSources';
+import { redactLogText } from '../../../services/logging/AppLogger';
+import { SettingsManager } from '../../../services/persistence/SettingsManager';
+import { buildDiagnosticsText } from '../../../utils/logging/diagnostics';
+import { capEntryText, selectLogEntriesFromSources, type LogSelection } from '../../../utils/logging/logPage';
+import { collectLogSources } from '../../../utils/logging/logSources';
 import type { IpcRegistryDependencies } from '../../IpcRegistry';
 
 const MAX_EXPORT_ENTRIES = 2000;

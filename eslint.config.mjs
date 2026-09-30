@@ -78,6 +78,18 @@ export default tseslint.config(
       '@typescript-eslint/no-explicit-any': 'off',
       // allow empty catch for best-effort cleanup — intentional
       'no-empty': ['error', { allowEmptyCatch: true }],
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              // El lookahead deja pasar solo los imports de assets/
+              regex: '^(?!.*assets/).*\\.\\./',
+              message: 'Usa el alias @/ (raíz src/) en lugar de rutas relativas; ../ queda solo para assets/.',
+            },
+          ],
+        },
+      ],
     },
   },
 

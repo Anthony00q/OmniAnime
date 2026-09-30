@@ -1,7 +1,7 @@
 import { app, BrowserWindow, Menu, session, Tray } from 'electron';
 import * as fs from 'fs';
 import type { AppSettings } from '../types/settings';
-import { noopScopedLogger, type ScopedLogger } from '../services/AppLogger';
+import { noopScopedLogger, type ScopedLogger } from '../services/logging/AppLogger';
 import { applyYouTubeEmbedIdentityHeaders, resolveWindowCloseAction } from '../utils/windowUtils';
 import { buildTrayMenuTemplate } from './trayMenu';
 import {

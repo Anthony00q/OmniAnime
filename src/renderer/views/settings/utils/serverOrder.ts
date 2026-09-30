@@ -1,4 +1,4 @@
-import { resolveServerOrderList } from '../../../../utils/serverUtils';
+import { resolveServerOrderList } from '@/utils/serverUtils';
 
 /**
  * Orden de servidores de un proveedor.

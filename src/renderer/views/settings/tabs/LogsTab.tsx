@@ -16,13 +16,13 @@ import {
 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { CustomSelect } from '../../../components/CustomSelect';
-import { Dialog } from '../../../components/Dialog';
-import { AppTooltip } from '../../../components/ui/AppTooltip';
-import { EmptyState } from '../../../components/ui/EmptyState';
-import { useLogFilePage, useLogFilenames } from '../../../hooks/useQueries';
-import { exportDiagnostics, revealLogFile } from '../../../utils/diagnosticsActions';
-import { filterLogFilenames } from '../../../../utils/logPage';
+import { CustomSelect } from '@/renderer/components/CustomSelect';
+import { Dialog } from '@/renderer/components/Dialog';
+import { AppTooltip } from '@/renderer/components/ui/AppTooltip';
+import { EmptyState } from '@/renderer/components/ui/EmptyState';
+import { useLogFilePage, useLogFilenames } from '@/renderer/hooks/useQueries';
+import { exportDiagnostics, revealLogFile } from '@/renderer/utils/diagnosticsActions';
+import { filterLogFilenames } from '@/utils/logging/logPage';
 
 const FILE_FILTER_OPTIONS = [
   { value: 'all', label: 'Todas' },

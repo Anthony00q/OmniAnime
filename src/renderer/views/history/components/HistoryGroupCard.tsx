@@ -1,11 +1,16 @@
 import { memo } from 'react';
 import { Trash2, FolderOpen, ChevronRight, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
-import { StatusBadge } from '../../../components/ui/StatusBadge';
-import { AppTooltip } from '../../../components/ui/AppTooltip';
+import { StatusBadge } from '@/renderer/components/ui/StatusBadge';
+import { AppTooltip } from '@/renderer/components/ui/AppTooltip';
 import { HistoryEpisodesBadge } from './HistoryEpisodesBadge';
 import { ProviderBadge } from './ProviderBadge';
-import { deriveGroupDisplay, formatHistoryReason, getGroupStatus, type HistoryGroup } from '../model/historyModel';
+import {
+  deriveGroupDisplay,
+  formatHistoryReason,
+  getGroupStatus,
+  type HistoryGroup,
+} from '@/renderer/views/history/model/historyModel';
 
 interface HistoryGroupCardProps {
   group: HistoryGroup;

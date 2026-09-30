@@ -14,11 +14,11 @@ import {
   ArrowUp,
   ArrowDown,
 } from 'lucide-react';
-import { CustomSelect } from '../../../components/CustomSelect';
-import { CustomSwitch } from '../../../components/CustomSwitch';
-import { AppTooltip } from '../../../components/ui/AppTooltip';
-import { SortableHandle } from '../components/SortableHandle';
-import { useSortableList } from '../utils/useSortableList';
+import { CustomSelect } from '@/renderer/components/CustomSelect';
+import { CustomSwitch } from '@/renderer/components/CustomSwitch';
+import { AppTooltip } from '@/renderer/components/ui/AppTooltip';
+import { SortableHandle } from '@/renderer/views/settings/components/SortableHandle';
+import { useSortableList } from '@/renderer/views/settings/utils/useSortableList';
 
 interface SystemTabProps {
   settings: any;

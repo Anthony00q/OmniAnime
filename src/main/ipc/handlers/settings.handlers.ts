@@ -1,9 +1,9 @@
 import { app, ipcMain } from 'electron';
 import * as path from 'path';
-import { SettingsManager } from '../../../services/SettingsManager';
-import { CustomSoundService } from '../../../services/CustomSoundService';
-import { normalizeDownloadSettings } from '../../../utils/downloadSettings';
-import { normalizeLoggingSettings } from '../../../utils/loggingSettings';
+import { SettingsManager } from '../../../services/persistence/SettingsManager';
+import { CustomSoundService } from '../../../services/sounds/CustomSoundService';
+import { normalizeDownloadSettings } from '../../../utils/downloads/downloadSettings';
+import { normalizeLoggingSettings } from '../../../utils/logging/loggingSettings';
 import { resolveDefaultOutputDir, sanitizeOutputDirs } from '../../../utils/outputDirs';
 import type { AppSettings } from '../../../types/settings';
 import type { IpcRegistryDependencies } from '../../IpcRegistry';

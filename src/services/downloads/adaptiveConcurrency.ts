@@ -1,4 +1,4 @@
-import type { ConcurrencyObservationKind, ServerFailureCategory } from '../ServerStatsStore';
+import type { ConcurrencyObservationKind, ServerFailureCategory } from '../persistence/ServerStatsStore';
 import type { ConcurrencyApplicationMode } from './downloadContracts';
 import {
   DIRECT_CONCURRENCY_LEVELS,

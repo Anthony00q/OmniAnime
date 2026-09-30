@@ -1,12 +1,12 @@
 import type { ProviderDownloadLink, QueueItem } from '../../types/queue';
-import type { EpisodeAttemptCallbacks, EpisodeAttemptResult } from '../EpisodeDownloadAttemptService';
+import type { EpisodeAttemptCallbacks, EpisodeAttemptResult } from './EpisodeDownloadAttemptService';
 import {
   categorizeAttemptFailure,
   type EpisodeDownloadSummary,
   type ServerAttemptOutcome,
   type ServerFailureCategory,
-} from '../ServerStatsStore';
-import { noopScopedLogger, type ScopedLogger } from '../AppLogger';
+} from '../persistence/ServerStatsStore';
+import { noopScopedLogger, type ScopedLogger } from '../logging/AppLogger';
 
 // Alcance episodio: ordenar + fallback. Sin cola, workers, pausa, gates, slots,
 // historial, SQLite, tray, IPC ni persistencia; los efectos llegan inyectados.

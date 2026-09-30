@@ -4,7 +4,7 @@ import {
   parseReleaseNotes,
   type ReleaseNotesBlock,
   type ReleaseNotesInline,
-} from '../../utils/releaseNotes';
+} from '@/renderer/utils/releaseNotes';
 
 function Inline({ nodes }: { nodes: ReleaseNotesInline[] }) {
   return (

@@ -1,4 +1,4 @@
-import { SkeletonCard } from '../ui/Skeleton';
+import { SkeletonCard } from '@/renderer/components/ui/Skeleton';
 
 interface PosterGridSkeletonProps {
   count?: number;

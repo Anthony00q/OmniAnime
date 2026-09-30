@@ -1,6 +1,6 @@
-import type { LogLevel } from '../services/AppLogger';
-import type { SoundPackId, NotificationSoundType } from '../utils/soundPacks';
-import type { CustomSoundFileMeta } from '../utils/soundCatalog';
+import type { LogLevel } from '../services/logging/AppLogger';
+import type { SoundPackId, NotificationSoundType } from '../utils/sounds/soundPacks';
+import type { CustomSoundFileMeta } from '../utils/sounds/soundCatalog';
 
 export type ThemeId = 'dark' | 'quantum' | 'oled' | 'tinta';
 

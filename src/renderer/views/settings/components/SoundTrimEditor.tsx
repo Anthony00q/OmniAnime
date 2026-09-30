@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, Play, Square } from 'lucide-react';
-import { MAX_TRIM_SEC, MIN_TRIM_SEC, clampPlayhead, peaksFromSamples } from '../../../../utils/soundTrim';
-import { previewSoundSlice, stopPreviewSound } from '../../../utils/sound';
+import { MAX_TRIM_SEC, MIN_TRIM_SEC, clampPlayhead, peaksFromSamples } from '@/utils/sounds/soundTrim';
+import { previewSoundSlice, stopPreviewSound } from '@/renderer/utils/sound';
 
 interface SoundTrimEditorProps {
   buffer: AudioBuffer;

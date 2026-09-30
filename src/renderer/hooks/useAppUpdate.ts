@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
-import type { AppUpdateCheckResult, AppUpdateState } from '../../types/appUpdate';
-import { shouldPlaySystemSound } from '../../utils/soundPacks';
+import type { AppUpdateCheckResult, AppUpdateState } from '@/types/appUpdate';
+import { shouldPlaySystemSound } from '@/utils/sounds/soundPacks';
 import {
   appUpdateAvailableAtom,
   appUpdateDismissedAtom,
@@ -10,8 +10,8 @@ import {
   appUpdatePercentAtom,
   appUpdatePhaseAtom,
   settingsAtom,
-} from '../store/atoms';
-import { playNotificationSound } from '../utils/sound';
+} from '@/renderer/store/atoms';
+import { playNotificationSound } from '@/renderer/utils/sound';
 
 // Check único tras el handoff del splash: no bloquea el arranque,
 // el modal solo abre si hay versión nueva y no se descartó en la sesión.

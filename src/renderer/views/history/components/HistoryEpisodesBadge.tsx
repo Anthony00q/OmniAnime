@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { Layers, X, Ban, Clock } from 'lucide-react';
-import { AppTooltip } from '../../../components/ui/AppTooltip';
+import { AppTooltip } from '@/renderer/components/ui/AppTooltip';
 
 export const HistoryEpisodesBadge = memo(function HistoryEpisodesBadge({
   requestedCount,

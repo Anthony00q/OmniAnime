@@ -1,6 +1,6 @@
 import { Component, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
-import { reportRendererError } from '../utils/rendererErrorReporting';
+import { reportRendererError } from '@/renderer/utils/rendererErrorReporting';
 
 interface Props {
   children: ReactNode;

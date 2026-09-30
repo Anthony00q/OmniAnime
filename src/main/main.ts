@@ -15,26 +15,26 @@ import {
   getToolsDir,
   getFfmpegTools,
 } from './runtimePaths';
-import { ProviderManager } from '../services/ProviderManager';
-import { DownloadService } from '../services/DownloadService';
-import { EpisodeDownloadAttemptService } from '../services/EpisodeDownloadAttemptService';
-import { DownloadQueueProcessor } from '../services/DownloadQueueProcessor';
-import { AppLogger, type LogScope, type ScopedLogger } from '../services/AppLogger';
-import { effectiveMinLevel, normalizeLoggingSettings } from '../utils/loggingSettings';
-import { EpisodeFileService } from '../services/EpisodeFileService';
-import { HistoryService } from '../services/HistoryService';
-import { LibraryAssetService } from '../services/LibraryAssetService';
-import { LibraryFileService } from '../services/LibraryFileService';
-import { QueueStore } from '../services/QueueStore';
-import { PausedProgressStore, applyStoredSnapshot } from '../services/PausedProgressStore';
-import { AppUpdateService } from '../services/AppUpdateService';
-import { ServerStatsStore } from '../services/ServerStatsStore';
+import { ProviderManager } from '../services/providers/ProviderManager';
+import { DownloadService } from '../services/downloads/DownloadService';
+import { EpisodeDownloadAttemptService } from '../services/downloads/EpisodeDownloadAttemptService';
+import { DownloadQueueProcessor } from '../services/downloads/DownloadQueueProcessor';
+import { AppLogger, type LogScope, type ScopedLogger } from '../services/logging/AppLogger';
+import { effectiveMinLevel, normalizeLoggingSettings } from '../utils/logging/loggingSettings';
+import { EpisodeFileService } from '../services/library/EpisodeFileService';
+import { HistoryService } from '../services/library/HistoryService';
+import { LibraryAssetService } from '../services/library/LibraryAssetService';
+import { LibraryFileService } from '../services/library/LibraryFileService';
+import { QueueStore } from '../services/persistence/QueueStore';
+import { PausedProgressStore, applyStoredSnapshot } from '../services/persistence/PausedProgressStore';
+import { AppUpdateService } from '../services/update/AppUpdateService';
+import { ServerStatsStore } from '../services/persistence/ServerStatsStore';
 import { ConcurrencyExperimentStore, resolveCadenceProfile } from '../services/downloads/attemptExperiments';
-import { ThumbnailService } from '../services/ThumbnailService';
-import { createRuntimeDirectories } from '../services/RuntimeDirectories';
-import { SettingsManager } from '../services/SettingsManager';
-import { DatabaseManager } from '../services/DatabaseManager';
-import { StorageService } from '../services/StorageService';
+import { ThumbnailService } from '../services/library/ThumbnailService';
+import { createRuntimeDirectories } from '../services/persistence/RuntimeDirectories';
+import { SettingsManager } from '../services/persistence/SettingsManager';
+import { DatabaseManager } from '../services/persistence/DatabaseManager';
+import { StorageService } from '../services/library/StorageService';
 import { terminateChildProcessTree } from '../utils/processUtils';
 import type { DownloadAnimeDetails, AnimeSearchResult } from '../types/anime';
 import type { HistoryWriteRecord } from '../types/history';
@@ -48,7 +48,7 @@ import {
   normalizeServerName as normalizeServerNameUtil,
 } from '../utils/serverUtils';
 import { buildCanonicalEpisodeFileName as buildCanonicalEpisodeFileNameUtil } from '../utils/episodeUtils';
-import { detectFreshInstall, normalizeDownloadSettings } from '../utils/downloadSettings';
+import { detectFreshInstall, normalizeDownloadSettings } from '../utils/downloads/downloadSettings';
 import { USER_AGENT } from '../utils/windowUtils';
 import { WindowLifecycleService, type PreloadedData } from './WindowLifecycleService';
 import { registerIpcHandlers } from './IpcRegistry';
@@ -846,7 +846,7 @@ function scheduleQueueUpdate(): void {
 
 function scheduleQueueProgress(
   item: QueueItem,
-  activeEps?: import('../services/QueueStore').ActiveEpisodeProgress[],
+  activeEps?: import('../services/persistence/QueueStore').ActiveEpisodeProgress[],
 ): void {
   queueStore.scheduleProgress(item, activeEps);
 }

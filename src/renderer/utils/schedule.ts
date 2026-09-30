@@ -1,4 +1,4 @@
-import type { ScheduleEntry } from '../../types/anime';
+import type { ScheduleEntry } from '@/types/anime';
 
 export const WEEKDAY_LABELS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 

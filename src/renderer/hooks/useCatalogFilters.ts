@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAtom } from 'jotai';
-import { pendingCatalogGenreAtom } from '../store/atoms';
-import { createDefaultCatalogFilters, resolveFilterChipLabel } from '../utils/catalogFilters';
+import { pendingCatalogGenreAtom } from '@/renderer/store/atoms';
+import { createDefaultCatalogFilters, resolveFilterChipLabel } from '@/renderer/utils/catalogFilters';
 import { useFiltersData } from './useQueries';
 
 export function useCatalogFilters() {

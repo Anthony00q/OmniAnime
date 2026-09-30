@@ -5,10 +5,10 @@ import {
   type NotificationSoundType,
   type SoundPackId,
   type SoundRecipe,
-} from '../../utils/soundPacks';
-import { parseSoundRef } from '../../utils/soundCatalog';
-import { clampTrim } from '../../utils/soundTrim';
-import { SOUND_CATALOG } from '../../utils/soundCatalogData';
+} from '@/utils/sounds/soundPacks';
+import { parseSoundRef } from '@/utils/sounds/soundCatalog';
+import { clampTrim } from '@/utils/sounds/soundTrim';
+import { SOUND_CATALOG } from '@/utils/sounds/soundCatalogData';
 
 export type { NotificationSoundType, SoundPackId };
 export { DEFAULT_TYPE_VOLUMES };

@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef } from 'react';
 import { useAtomValue } from 'jotai';
-import { themeAtom, accentColorAtom } from '../store/atoms';
-import { getAccentHex } from '../utils/color';
+import { themeAtom, accentColorAtom } from '@/renderer/store/atoms';
+import { getAccentHex } from '@/renderer/utils/color';
 
 export function useThemeSync(): void {
   const theme = useAtomValue(themeAtom);

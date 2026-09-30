@@ -11,7 +11,7 @@ if (!pkgRoot) {
 
 const manifest = JSON.parse(fs.readFileSync(path.join(pkgRoot, 'manifest.json'), 'utf8'));
 const assetsDir = path.resolve('assets/sounds');
-const dataPath = path.resolve('src/utils/soundCatalogData.ts');
+const dataPath = path.resolve('src/utils/sounds/soundCatalogData.ts');
 
 const SELECTION = {
   inicio: [

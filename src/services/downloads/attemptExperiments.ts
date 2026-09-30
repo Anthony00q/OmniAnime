@@ -7,7 +7,7 @@ import {
   type ConcurrencyLearning,
   type ConcurrencyLevelStats,
   type ServerFailureCategory,
-} from '../ServerStatsStore';
+} from '../persistence/ServerStatsStore';
 import { concurrencyObservationsFromDecisions, DEFAULT_ADAPTIVE_POLICY } from './adaptiveConcurrency';
 import type { AdaptiveDecision, AdaptiveDecisionCause, AdaptiveDecisionKind } from './adaptiveConcurrency';
 import type { ConcurrencyApplicationMode } from './attemptConcurrency';

@@ -1,8 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { useAtomValue } from 'jotai';
 import { toast } from 'sonner';
-import { settingsAtom } from '../store/atoms';
-import { playNotificationSound } from '../utils/sound';
+import { settingsAtom } from '@/renderer/store/atoms';
+import { playNotificationSound } from '@/renderer/utils/sound';
 
 const MAX_VISIBLE_TOASTS = 3;
 

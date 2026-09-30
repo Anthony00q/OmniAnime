@@ -1,10 +1,10 @@
 import { app, protocol } from 'electron';
 import * as fs from 'fs';
 import * as path from 'path';
-import { isPathWithinAnyDirectory } from '../../utils/pathSecurity';
-import { SettingsManager } from '../../services/SettingsManager';
-import { LibraryAssetService } from '../../services/LibraryAssetService';
-import { noopScopedLogger, type ScopedLogger } from '../../services/AppLogger';
+import { isPathWithinAnyDirectory } from '../../utils/security/pathSecurity';
+import { SettingsManager } from '../../services/persistence/SettingsManager';
+import { LibraryAssetService } from '../../services/library/LibraryAssetService';
+import { noopScopedLogger, type ScopedLogger } from '../../services/logging/AppLogger';
 
 export function registerOmniMediaProtocol(options?: { logger?: ScopedLogger }): void {
   const logger = options?.logger ?? noopScopedLogger;

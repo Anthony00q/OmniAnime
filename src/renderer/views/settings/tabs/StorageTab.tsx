@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { BarChart3, Database, Eraser, Eye, HardDrive, Loader2, Shield, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { AppTooltip } from '../../../components/ui/AppTooltip';
+import { AppTooltip } from '@/renderer/components/ui/AppTooltip';
 
 interface StorageTabProps {
   storageStatsQuery: any;

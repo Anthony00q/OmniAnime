@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Play, Image as ImageIcon } from 'lucide-react';
-import { reportRendererError } from '../utils/rendererErrorReporting';
+import { reportRendererError } from '@/renderer/utils/rendererErrorReporting';
 
 interface EpisodeThumbnailProps {
   videoPath: string;

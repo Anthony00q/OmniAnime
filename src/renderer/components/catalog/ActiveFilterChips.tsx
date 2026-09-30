@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
-import { AppTooltip } from '../ui/AppTooltip';
+import { AppTooltip } from '@/renderer/components/ui/AppTooltip';
 
 interface ActiveFilterChip {
   key: string;

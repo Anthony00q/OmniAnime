@@ -1,13 +1,17 @@
 import { memo, useState } from 'react';
 import { Gauge, Server, Layers, Eye, SlidersHorizontal, Info, ChevronDown, FolderDown } from 'lucide-react';
-import { CustomSelect } from '../../../components/CustomSelect';
-import { CustomSwitch } from '../../../components/CustomSwitch';
-import { ServerOrderCard } from '../components/ServerOrderCard';
-import { applyServerMove, applyServerToggle, splitServerOrder } from '../utils/serverOrder';
-import { ADAPTIVE_MANAGED_HINT, isConnectionControlLocked, managedHintId } from '../utils/adaptiveConnections';
-import { AppTooltip } from '../../../components/ui/AppTooltip';
-import { DEFAULT_DOWNLOAD_SETTINGS } from '../../../../utils/downloadSettings';
-import { snapToClosestOption } from '../utils/settingsHelpers';
+import { CustomSelect } from '@/renderer/components/CustomSelect';
+import { CustomSwitch } from '@/renderer/components/CustomSwitch';
+import { ServerOrderCard } from '@/renderer/views/settings/components/ServerOrderCard';
+import { applyServerMove, applyServerToggle, splitServerOrder } from '@/renderer/views/settings/utils/serverOrder';
+import {
+  ADAPTIVE_MANAGED_HINT,
+  isConnectionControlLocked,
+  managedHintId,
+} from '@/renderer/views/settings/utils/adaptiveConnections';
+import { AppTooltip } from '@/renderer/components/ui/AppTooltip';
+import { DEFAULT_DOWNLOAD_SETTINGS } from '@/utils/downloads/downloadSettings';
+import { snapToClosestOption } from '@/renderer/views/settings/utils/settingsHelpers';
 import animeav1Icon from '../../../../../assets/provider-icons/animeav1-32.png';
 import jkanimeIcon from '../../../../../assets/provider-icons/jkanime-32.png';
 import {
@@ -17,7 +21,7 @@ import {
   DOWNLOAD_RETRIES_OPTIONS,
   DOWNLOAD_START_TIMEOUT_OPTIONS,
   PROVIDER_SERVERS,
-} from '../constants';
+} from '@/renderer/views/settings/constants';
 
 const PROVIDER_ICONS: Record<string, string> = {
   animeav1: animeav1Icon,

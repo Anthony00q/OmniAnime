@@ -1,13 +1,13 @@
 import { useEffect } from 'react';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
-import { shouldKeepFocusOnMouseClick, shouldSuppressSpace } from '../../utils/focusBlur';
+import { shouldKeepFocusOnMouseClick, shouldSuppressSpace } from '@/utils/focusBlur';
 import {
   currentViewAtom,
   previousViewAtom,
   settingsAtom,
   showCloseConfirmAtom,
   navigateToCatalogAtom,
-} from '../store/atoms';
+} from '@/renderer/store/atoms';
 
 const NAVIGATION_VIEWS = ['home', 'catalog', 'details', 'downloader', 'history', 'scanner', 'player', 'settings'];
 

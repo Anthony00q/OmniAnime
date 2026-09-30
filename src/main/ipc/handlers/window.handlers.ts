@@ -1,7 +1,7 @@
 import { app, ipcMain, shell } from 'electron';
 import * as fs from 'fs';
 import * as path from 'path';
-import { isAllowedExternalUrl } from '../../../utils/externalUrl';
+import { isAllowedExternalUrl } from '../../../utils/security/externalUrl';
 import type { IpcRegistryDependencies } from '../../IpcRegistry';
 
 export function registerWindowHandlers({ getMainWindow, setIsQuitting }: IpcRegistryDependencies): void {

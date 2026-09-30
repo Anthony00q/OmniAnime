@@ -1,4 +1,4 @@
-import type { HomeEpisode } from '../../types/anime';
+import type { HomeEpisode } from '@/types/anime';
 
 // Orden de secciones del home; lo desconocido va al final.
 const SECTION_ORDER = ['anime', 'donghua', 'ova'];

@@ -1,6 +1,6 @@
-import type { ServerFailureCategory } from '../ServerStatsStore';
+import type { ServerFailureCategory } from '../persistence/ServerStatsStore';
 import type { AttemptConcurrencyHandle } from './attemptConcurrency';
-import { updateSpeedWindow, type SpeedWindow } from '../../utils/speedMeter';
+import { updateSpeedWindow, type SpeedWindow } from '../../utils/downloads/speedMeter';
 
 // Observación temporal de un intento (un episodio contra un servidor): describe
 // el estado en vivo sin decidir nada (sin setTarget, sin persistir, sin timers).

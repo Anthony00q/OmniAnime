@@ -1,6 +1,6 @@
 import { atom } from 'jotai';
-import type { AppSettings, ThemeId } from '../../types/settings';
-import { DEFAULT_ACCENT_HSL, isThemeValue } from '../utils/color';
+import type { AppSettings, ThemeId } from '@/types/settings';
+import { DEFAULT_ACCENT_HSL, isThemeValue } from '@/renderer/utils/color';
 
 export type ToastPosition = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'top-center' | 'bottom-center';
 

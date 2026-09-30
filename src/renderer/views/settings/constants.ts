@@ -1,11 +1,11 @@
-import type { ThemeId } from '../../../types/settings';
-import { DEFAULT_ACCENT_HEX } from '../../utils/color';
+import type { ThemeId } from '@/types/settings';
+import { DEFAULT_ACCENT_HEX } from '@/renderer/utils/color';
 import {
   SERVER_CANDIDATES_ANIMEAV1,
   SERVER_CANDIDATES_JKANIME,
   SERVER_ORDER_ANIMEAV1_DEFAULT,
   SERVER_ORDER_JKANIME_DEFAULT,
-} from '../../../utils/serverUtils';
+} from '@/utils/serverUtils';
 
 export const ACCENT_PRESETS = ['#e8a33d', '#c97b4a', '#b4552d', '#8a9a5b', '#d9c9a8'] as const;
 

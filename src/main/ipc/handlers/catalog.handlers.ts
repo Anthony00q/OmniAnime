@@ -1,7 +1,7 @@
 import { dialog, ipcMain } from 'electron';
 import axios from 'axios';
 import { USER_AGENT } from '../../../utils/windowUtils';
-import { assertAllowedImageRedirect, isAllowedImageUrl } from '../../../utils/networkSecurity';
+import { assertAllowedImageRedirect, isAllowedImageUrl } from '../../../utils/security/networkSecurity';
 import { JkAnimeProvider } from '../../../services/providers/JkAnimeProvider';
 import type { CatalogFilters } from '../../../types/anime';
 import type { IpcRegistryDependencies } from '../../IpcRegistry';

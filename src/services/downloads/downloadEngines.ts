@@ -1,10 +1,10 @@
 import * as path from 'path';
-import type { DownloadService, FfmpegRuntimeTools } from '../DownloadService';
+import type { DownloadService, FfmpegRuntimeTools } from './DownloadService';
 import { downloadHlsToMp4 } from '../hls/HlsNativeDownloader';
-import { MP4UPLOAD_REFERER, resolveMp4UploadDirect } from '../Mp4UploadResolver';
-import type { Mp4UploadResolveFn } from '../Mp4UploadResolver';
-import { resolveVoeDirect } from '../VoeResolver';
-import type { VoeResolveFn } from '../VoeResolver';
+import { MP4UPLOAD_REFERER, resolveMp4UploadDirect } from './Mp4UploadResolver';
+import type { Mp4UploadResolveFn } from './Mp4UploadResolver';
+import { resolveVoeDirect } from './VoeResolver';
+import type { VoeResolveFn } from './VoeResolver';
 import { normalizeMp4UploadUrl, providerDownloadReferer, resolveHlsPlaybackUrl } from '../../utils/serverUtils';
 import type { DownloadContext, DownloadEngine, DownloadResult, DownloadSource } from './downloadContracts';
 
