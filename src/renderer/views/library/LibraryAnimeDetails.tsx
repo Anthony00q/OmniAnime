@@ -389,7 +389,7 @@ export function LibraryAnimeDetails({
           onOpenChange={(open) => !open && setShowFolderDetails(false)}
         />
 
-        <div className="min-w-0 shrink-0 bg-background px-4 py-4 sm:px-8 sm:py-6 md:px-10">
+        <div className="hero-seam-fade relative min-w-0 shrink-0 bg-background px-4 py-4 sm:px-8 sm:py-6 md:px-10">
           {isLoading ? (
             <EpisodeListSkeleton count={skeletonRows} />
           ) : isError ? (

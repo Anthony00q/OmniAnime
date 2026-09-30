@@ -34,10 +34,8 @@ export function LibraryHeroBanner({ title, bannerSrc, onDimNode }: LibraryHeroBa
             aria-hidden="true"
             className="absolute inset-0 bg-gradient-to-r from-background/80 via-background/35 to-transparent"
           />
-          <div
-            aria-hidden="true"
-            className="absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-b from-transparent to-background"
-          />
+          <div aria-hidden="true" className="hero-top-fade" />
+          <div aria-hidden="true" className="hero-bottom-fade" />
         </>
       ) : (
         <div
@@ -127,10 +125,6 @@ export function LibraryHero({
           {providerName}
         </p>
       </div>
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-b from-transparent to-background"
-      />
     </div>
   );
 }

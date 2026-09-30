@@ -560,10 +560,8 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
               aria-hidden="true"
               className="absolute inset-0 bg-gradient-to-r from-background/80 via-background/35 to-transparent"
             />
-            <div
-              aria-hidden="true"
-              className="absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-b from-transparent to-background"
-            />
+            <div aria-hidden="true" className="hero-top-fade" />
+            <div aria-hidden="true" className="hero-bottom-fade" />
           </>
         ) : (
           <div
@@ -683,13 +681,9 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
               </p>
             )}
           </div>
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-b from-transparent to-background"
-          />
         </div>
 
-        <div className="grid flex-1 grid-cols-1 gap-8 bg-background px-4 py-6 sm:px-8 md:px-10 md:py-8 xl:grid-cols-3 xl:gap-12">
+        <div className="hero-seam-fade relative grid flex-1 grid-cols-1 gap-8 bg-background px-4 py-6 sm:px-8 md:px-10 md:py-8 xl:grid-cols-3 xl:gap-12">
           <div className="min-w-0 space-y-8 xl:col-span-2">
             <section>
               <h3 className="text-xl font-bold mb-3 text-foreground">Sinopsis</h3>

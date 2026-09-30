@@ -1035,6 +1035,51 @@ html[dir='ltr'] {
   mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent 100%);
 }
 
+/* Tres paradas para decaer cuadrático: con dos se ve lineal y deja anillo de Mach. */
+.hero-bottom-fade {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 70%;
+  pointer-events: none;
+  background: linear-gradient(
+    to top,
+    var(--color-background) 0%,
+    color-mix(in srgb, var(--color-background) 80%, transparent) 30%,
+    transparent 100%
+  );
+}
+
+/* Suaviza el borde superior del banner bajo la barra de la vista. */
+.hero-top-fade {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 8rem;
+  opacity: 0.4;
+  pointer-events: none;
+  background: linear-gradient(to bottom, var(--color-background), transparent);
+}
+
+.hero-seam-fade::before {
+  content: '';
+  position: absolute;
+  top: -5rem;
+  left: 0;
+  width: 100%;
+  height: 5rem;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(
+    to top,
+    var(--color-background) 0%,
+    color-mix(in srgb, var(--color-background) 75%, transparent) 45%,
+    transparent 100%
+  );
+}
+
 .sala-empty-icon {
   display: flex;
   align-items: center;
