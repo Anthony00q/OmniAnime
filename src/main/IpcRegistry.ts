@@ -4,6 +4,7 @@ import type { FolderLibraryMeta } from '../types/library';
 import type { DownloadProvider, QueueItem } from '../types/queue';
 import { ProviderGateway } from '../services/ProviderGateway';
 import { HomeFeedService } from '../services/HomeFeedService';
+import { ScheduleService } from '../services/ScheduleService';
 import { HistoryService } from '../services/HistoryService';
 import { LibraryFileService } from '../services/LibraryFileService';
 import { EpisodeFileService } from '../services/EpisodeFileService';
@@ -33,6 +34,7 @@ export interface IpcRegistryDependencies {
   preloadedData: PreloadedData;
   providerGateway: ProviderGateway;
   homeFeedService: HomeFeedService;
+  scheduleService: ScheduleService;
   historyService: HistoryService;
   libraryFileService: LibraryFileService;
   episodeFileService: EpisodeFileService;

@@ -11,12 +11,15 @@ import {
   CatalogFilters,
   CatalogFiltersData,
   AnimeLanguage,
+  ScheduleData,
+  ScheduleEntry,
 } from '../../types/anime';
 import { AnimeProvider } from './AnimeProvider';
 import { noopScopedLogger, type ScopedLogger } from '../AppLogger';
 import { normalizeMegaUrl, normalizeMp4UploadUrl } from '../../utils/serverUtils';
 import {
   extractBalancedBlock,
+  extractBalancedObjects,
   splitTopLevelItems,
   unescapeSvelteString,
   safeParseInt,
@@ -76,6 +79,73 @@ export function extractAkaTitles(scope: string): { en: string; ja: string } {
   };
 }
 
+// Timestamp del payload ("2026-09-16T17:15:57.781642+00:00") a Date en hora local.
+function parseAv1Timestamp(raw: string): Date | null {
+  const text = String(raw || '').trim();
+  if (!text) return null;
+  let s = text.replace(' ', 'T').replace(/\.(\d{3})\d+/, '.$1');
+  if (s.endsWith('+00')) s = s.replace('+00', 'Z');
+  let parsed = new Date(s);
+  if (isNaN(parsed.getTime())) {
+    parsed = new Date(text.split('.')[0].replace(' ', 'T') + 'Z');
+  }
+  return isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function relativeTimeText(past: Date, now: Date = new Date()): string {
+  const diffMs = now.getTime() - past.getTime();
+  const diffSec = Math.floor(diffMs / 1000);
+  const diffMin = Math.floor(diffSec / 60);
+  const diffHrs = Math.floor(diffMin / 60);
+  const diffDays = Math.floor(diffHrs / 24);
+  if (diffSec < 60) return 'Hace un momento';
+  if (diffMin < 60) return `Hace ${diffMin} min`;
+  if (diffHrs < 24) return `Hace ${diffHrs} horas`;
+  if (diffDays < 7) return `Hace ${diffDays} días`;
+  return past.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+// Día ISO de la semana (1=Lunes … 7=Domingo) en hora local.
+function av1IsoWeekday(date: Date): number {
+  return ((date.getDay() + 6) % 7) + 1;
+}
+
+// Horario semanal (/horario): día y hora salen del último episodio publicado,
+// misma heurística que la propia web (los horarios son referenciales).
+export function parseAv1Schedule(html: string): ScheduleData {
+  const entries: ScheduleEntry[] = [];
+  const content = extractBalancedBlock(html, 'media:[', '[', ']');
+  if (content === null) return { entries };
+  for (const object of extractBalancedObjects(content)) {
+    try {
+      const inner = object.slice(1, -1);
+      const epInner = extractBalancedBlock(inner, 'latestEpisode:{', '{', '}');
+      if (epInner === null) continue;
+      const numM = epInner.match(/number:(\d+)/);
+      const dateM = epInner.match(/createdAt:"([^"]+)"/);
+      const published = dateM ? parseAv1Timestamp(dateM[1]) : null;
+      const slugM = inner.match(/slug:"([^"]+)"/);
+      const titleM = inner.match(/title:"((?:[^"\\]|\\.)*)"/);
+      const idM = matchAtTopLevel(inner, /id:(\d+)/);
+      if (!numM || published === null || !slugM || !titleM || !idM) continue;
+      entries.push({
+        slug: slugM[1],
+        title: unescapeSvelteString(titleM[1]),
+        poster: `https://cdn.animeav1.com/covers/${idM[1]}.jpg`,
+        day: av1IsoWeekday(published),
+        time: `${String(published.getHours()).padStart(2, '0')}:${String(published.getMinutes()).padStart(2, '0')}`,
+        episode: null,
+        updatedAt: published.toISOString(),
+        note: null,
+        finished: false,
+      });
+    } catch {
+      continue;
+    }
+  }
+  return { entries };
+}
+
 export class AnimeAV1Provider implements AnimeProvider {
   private readonly logger: ScopedLogger;
   constructor(options?: { logger?: ScopedLogger }) {
@@ -128,16 +198,19 @@ export class AnimeAV1Provider implements AnimeProvider {
 
   private cache: {
     home: { data: HomeEpisode[]; timestamp: number } | null;
+    schedule: { data: ScheduleData; timestamp: number } | null;
     filters: { data: CatalogFiltersData; timestamp: number } | null;
     catalog: Map<string, { data: AnimeSearchResult[]; timestamp: number }>;
   } = {
     home: null,
+    schedule: null,
     filters: null,
     catalog: new Map(),
   };
 
   private readonly CACHE_TTL = {
     home: 2 * 60 * 1000, // 2m
+    schedule: 30 * 60 * 1000, // 30m
     catalog: 5 * 60 * 1000, // 5m
     filters: 60 * 60 * 1000, // 1h
   };
@@ -266,35 +339,8 @@ export class AnimeAV1Provider implements AnimeProvider {
   }
 
   private getTimeAgo(dateStr: string): string {
-    if (!dateStr) return 'Reciente';
-    try {
-      let s = dateStr.replace(' ', 'T').replace(/\.(\d{3})\d+/, '.$1');
-      if (s.endsWith('+00')) s = s.replace('+00', 'Z');
-
-      let past = new Date(s);
-      if (isNaN(past.getTime())) {
-        const simple = dateStr.split('.')[0].replace(' ', 'T') + 'Z';
-        past = new Date(simple);
-      }
-      if (isNaN(past.getTime())) return 'Reciente';
-
-      const now = new Date();
-      const diffMs = now.getTime() - past.getTime();
-
-      const diffSec = Math.floor(diffMs / 1000);
-      const diffMin = Math.floor(diffSec / 60);
-      const diffHrs = Math.floor(diffMin / 60);
-      const diffDays = Math.floor(diffHrs / 24);
-
-      if (diffSec < 60) return 'Hace un momento';
-      if (diffMin < 60) return `Hace ${diffMin} min`;
-      if (diffHrs < 24) return `Hace ${diffHrs} horas`;
-      if (diffDays < 7) return `Hace ${diffDays} días`;
-
-      return past.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    } catch {
-      return 'Reciente';
-    }
+    const past = parseAv1Timestamp(dateStr);
+    return past ? relativeTimeText(past) : 'Reciente';
   }
 
   async getHome(force = false, signal?: AbortSignal): Promise<HomeEpisode[]> {
@@ -350,6 +396,22 @@ export class AnimeAV1Provider implements AnimeProvider {
     } catch (e) {
       this.logger.error('animeav1 home: ' + String(e));
       return [];
+    }
+  }
+
+  async getSchedule(force = false, signal?: AbortSignal): Promise<ScheduleData | null> {
+    const now = Date.now();
+    if (!force && this.cache.schedule && now - this.cache.schedule.timestamp < this.CACHE_TTL.schedule) {
+      return this.cache.schedule.data;
+    }
+    try {
+      const r = await this.client.get(`${BASE_URL}/horario`, { signal });
+      const data = parseAv1Schedule(r.data);
+      this.cache.schedule = { data, timestamp: now };
+      return data;
+    } catch (e) {
+      this.logger.error('animeav1 schedule: ' + String(e));
+      return null;
     }
   }
 

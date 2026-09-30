@@ -10,6 +10,8 @@ import {
   HomeEpisodeKind,
   CatalogFiltersData,
   AnimeLanguage,
+  ScheduleData,
+  ScheduleEntry,
 } from '../../types/anime';
 import { AnimeProvider } from './AnimeProvider';
 import { noopScopedLogger, type ScopedLogger } from '../AppLogger';
@@ -209,6 +211,19 @@ const JK_HOME_SECTIONS: Array<{ id: string; kind: HomeEpisodeKind }> = [
   { id: 'ovas', kind: 'ova' },
 ];
 
+// Días del horario en orden de documento; los acentos se normalizan al comparar.
+const JK_WEEKDAYS = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'];
+
+function jkDayNumber(name: unknown): number | null {
+  const norm = String(name || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim();
+  const idx = JK_WEEKDAYS.indexOf(norm);
+  return idx >= 0 ? idx + 1 : null;
+}
+
 // Tarjeta de la portada: el episodio sale de la URL aunque el badge diga ONA/OVA.
 function readJkHomeCard($: ReturnType<typeof cheerio.load>, el: any): Omit<HomeEpisode, 'kind'> | null {
   const url = $(el).find('a').first().attr('href') || '';
@@ -243,6 +258,45 @@ export function collectJkHomeEpisodes($: ReturnType<typeof cheerio.load>): HomeE
     if (card) out.push({ ...card, kind: 'anime' });
   });
   return out;
+}
+
+// Horario semanal (/horario): día y frescura del último capítulo; la fuente no publica hora.
+export function collectJkSchedule($: ReturnType<typeof cheerio.load>): ScheduleData {
+  const entries: ScheduleEntry[] = [];
+
+  $('.box.semana').each((dayIdx: number, el: any) => {
+    const day = jkDayNumber($(el).find('h2').first().text()) ?? dayIdx + 1;
+    $(el)
+      .find('.cajas .box.img')
+      .each((_: number, card: any) => {
+        const $card = $(card);
+        const href = String($card.find('a').first().attr('href') || '');
+        const slug = href.split('?')[0].split('/').filter(Boolean).pop() || '';
+        if (!/^[a-z0-9-]+$/i.test(slug)) return;
+        const title =
+          String(
+            $card.attr('title') || $card.find('img').attr('title') || $card.find('h3').first().text() || '',
+          ).trim() || slug.replace(/-/g, ' ');
+        const poster = normalizeAllowedImageUrl(String($card.find('img').first().attr('src') || ''), `${JK_BASE_URL}/`);
+        const epMatch = $card.find('.last span').first().text().match(/(\d+)/);
+        const note = $card.find('.last time').first().text().replace(/\s+/g, ' ').trim() || null;
+        const finished =
+          $card.find('strong.finished_anime').length > 0 || $card.find('.dropmenu').attr('data-status') === 'finished';
+        entries.push({
+          slug,
+          title,
+          poster,
+          day,
+          time: null,
+          episode: epMatch ? Number(epMatch[1]) : null,
+          updatedAt: null,
+          note,
+          finished,
+        });
+      });
+  });
+
+  return { entries };
 }
 
 export class JkAnimeProvider implements AnimeProvider {
@@ -290,6 +344,16 @@ export class JkAnimeProvider implements AnimeProvider {
     } catch (error) {
       this.logger.error(`jkanime home: ${error}`);
       return [];
+    }
+  }
+
+  async getSchedule(): Promise<ScheduleData | null> {
+    try {
+      const { data } = await axios.get(`${this.BASE_URL}/horario`, this.requestConfig());
+      return collectJkSchedule(cheerio.load(data));
+    } catch (error) {
+      this.logger.error(`jkanime schedule: ${error}`);
+      return null;
     }
   }
 

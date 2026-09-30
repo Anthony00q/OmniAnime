@@ -9,6 +9,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { AppTooltipProvider } from './components/ui/AppTooltip';
 import { Dialog } from './components/Dialog';
 import { HomeView } from './views/HomeView';
+import { ScheduleView } from './views/ScheduleView';
 import { CatalogView } from './views/CatalogView';
 import { AnimeDetailsView } from './views/AnimeDetailsView';
 import { LibraryView } from './views/LibraryView';
@@ -182,6 +183,11 @@ export default function App() {
             <ErrorBoundary scope="ui:home">
               <div className={getViewPanelClass(currentView, 'home')}>
                 <HomeView isActive={currentView === 'home'} />
+              </div>
+            </ErrorBoundary>
+            <ErrorBoundary scope="ui:schedule">
+              <div className={getViewPanelClass(currentView, 'schedule')}>
+                <ScheduleView isActive={currentView === 'schedule'} />
               </div>
             </ErrorBoundary>
             <ErrorBoundary scope="ui:catalog">

@@ -3,6 +3,7 @@ import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   Home,
+  CalendarDays,
   Library,
   BookOpen,
   Download,
@@ -56,6 +57,7 @@ export function Sidebar({ currentView, setCurrentView }: SidebarProps) {
       // explícito por petición ya no contaminan, esto solo ahorra red.
       // Sin await para no devolver la latencia al indicador (optimista).
       void queryClient.cancelQueries({ queryKey: ['home'] }).catch(() => {});
+      void queryClient.cancelQueries({ queryKey: ['schedule'] }).catch(() => {});
       void queryClient.cancelQueries({ queryKey: ['catalog'] }).catch(() => {});
       void queryClient.cancelQueries({ queryKey: ['search'] }).catch(() => {});
       void queryClient.cancelQueries({ queryKey: ['filters'] }).catch(() => {});
@@ -77,6 +79,7 @@ export function Sidebar({ currentView, setCurrentView }: SidebarProps) {
 
   const items = [
     { id: 'home', icon: Home, label: 'Inicio' },
+    { id: 'schedule', icon: CalendarDays, label: 'Horarios' },
     { id: 'catalog', icon: Library, label: 'Catálogo' },
     { id: 'details', icon: BookOpen, label: 'Detalles' },
     { id: 'downloader', icon: Download, label: 'Descargas' },

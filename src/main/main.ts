@@ -183,7 +183,7 @@ const mainContext = createMainContext({
   downloadService,
   database: DatabaseManager.getInstance(),
 });
-const { database, homeFeedService, providerGateway } = mainContext;
+const { database, homeFeedService, scheduleService, providerGateway } = mainContext;
 
 const preloadedData: PreloadedData = {
   providerId: 'animeav1',
@@ -688,6 +688,7 @@ app.on('before-quit', () => {
     flushQueueUpdate();
     preloadedData.libraryMeta = null;
     homeFeedService.clearFreshCache();
+    scheduleService.clearFreshCache();
   } catch {}
 });
 
@@ -1201,6 +1202,7 @@ registerIpcHandlers({
   preloadedData,
   providerGateway,
   homeFeedService,
+  scheduleService,
   historyService,
   libraryFileService,
   episodeFileService,

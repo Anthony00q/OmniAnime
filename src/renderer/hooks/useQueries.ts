@@ -10,6 +10,7 @@ import { useDeferredValue, useEffect, useRef, useState } from 'react';
 import { useAtomValue } from 'jotai';
 import { activeProviderAtom } from '../store/atoms';
 import { hasNewCatalogItems } from '../utils/catalogResults';
+import type { ScheduleData } from '../../types/anime';
 
 function ensureIpcSuccess<T>(result: T): T {
   if (result === false) {
@@ -50,6 +51,40 @@ export function useHomeData() {
       })
       .catch(() => {
         queryClient.invalidateQueries({ queryKey: ['home', provider] });
+      })
+      .finally(() => {
+        setIsRefreshing(false);
+      });
+  };
+
+  return { ...query, refresh, isRefreshing };
+}
+
+export function useSchedule() {
+  const provider = useDeferredProvider();
+  const queryClient = useQueryClient();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const query = useQuery<ScheduleData>({
+    queryKey: ['schedule', provider],
+    queryFn: async () => {
+      const data = (await window.api.invoke('get-schedule', { force: false, provider })) as ScheduleData | null;
+      if (!data) throw new Error('No se pudo cargar el horario');
+      return data;
+    },
+    staleTime: 30 * 60 * 1000,
+  });
+
+  const refresh = () => {
+    setIsRefreshing(true);
+    window.api
+      .invoke('get-schedule', { force: true, provider })
+      .then((data: ScheduleData | null) => {
+        if (!data) throw new Error('No se pudo cargar el horario');
+        queryClient.setQueryData(['schedule', provider], data);
+      })
+      .catch(() => {
+        queryClient.invalidateQueries({ queryKey: ['schedule', provider] });
       })
       .finally(() => {
         setIsRefreshing(false);

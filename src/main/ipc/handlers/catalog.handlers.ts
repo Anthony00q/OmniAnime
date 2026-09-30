@@ -9,6 +9,7 @@ import type { IpcRegistryDependencies } from '../../IpcRegistry';
 export function registerCatalogHandlers({
   providerGateway,
   homeFeedService,
+  scheduleService,
   getAnimeDetailsBySlug,
   writeGlobalLog,
 }: IpcRegistryDependencies): void {
@@ -110,6 +111,15 @@ export function registerCatalogHandlers({
       }
     },
   );
+
+  ipcMain.handle('get-schedule', async (_, payload?: { force?: boolean; provider?: string }) => {
+    try {
+      return await scheduleService.getSchedule(!!payload?.force, payload?.provider);
+    } catch (error) {
+      writeGlobalLog(`Schedule error: ${error}`);
+      return null;
+    }
+  });
 
   ipcMain.handle('get-catalog', async (_, filters: CatalogFilters & { provider?: string } = {}, force = false) => {
     try {

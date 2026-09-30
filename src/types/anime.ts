@@ -71,6 +71,29 @@ export interface HomeEpisode {
 
 export type HomeEpisodeKind = 'anime' | 'donghua' | 'ova';
 
+// Horario semanal de emisión: una entrada por anime y día.
+export interface ScheduleEntry {
+  slug: string;
+  title: string;
+  poster: string;
+  // Día ISO de la semana en hora local: 1=Lunes … 7=Domingo.
+  day: number;
+  // Hora local "HH:mm" aproximada; null si la fuente no publica hora.
+  time: string | null;
+  // Episodio que anuncia la fila (último capítulo publicado en JkAnime);
+  // null cuando la fuente no muestra episodio en su horario (AnimeAV1).
+  episode: number | null;
+  // ISO del último episodio publicado; null si la fuente no lo da.
+  updatedAt: string | null;
+  // Frescura publicada por la fuente ("hace 6 días"); null si no la da.
+  note: string | null;
+  finished: boolean;
+}
+
+export interface ScheduleData {
+  entries: ScheduleEntry[];
+}
+
 export interface AnimeSearchFilters {
   genre?: string[];
   category?: string;

@@ -348,6 +348,11 @@ html[dir='ltr'] {
   contain-intrinsic-size: 0 150px;
 }
 
+.schedule-row {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 110px;
+}
+
 .motion-origin-popper {
   transform-origin: var(--radix-select-content-transform-origin);
 }

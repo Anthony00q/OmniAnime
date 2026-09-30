@@ -50,6 +50,7 @@ var INVOKE_CHANNELS = new Set([
   'save-settings',
   'get-image-base64',
   'get-home-data',
+  'get-schedule',
   'get-catalog',
   'get-filters-data',
   'search-anime',

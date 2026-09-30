@@ -77,6 +77,27 @@ export function QueueSkeleton({ count = 3 }: { count?: number }) {
   );
 }
 
+export function ScheduleSkeleton({ count = 7 }: { count?: number }) {
+  return (
+    <ul className="pt-2" role="status" aria-label="Cargando horario" aria-busy="true">
+      {Array.from({ length: count }).map((_, idx) => (
+        <li
+          key={idx}
+          className="schedule-row flex items-center gap-4 border-b border-border/40 px-2 py-4 last:border-0"
+          aria-hidden="true"
+        >
+          <div className="h-[78px] w-[52px] shrink-0 animate-pulse rounded bg-secondary/40" />
+          <div className="min-w-0 flex-1 space-y-2">
+            <div className="h-4 w-2/3 animate-pulse rounded bg-secondary/60" />
+            <div className="h-3 w-1/3 animate-pulse rounded bg-secondary/30" />
+          </div>
+          <div className="h-7 w-32 shrink-0 animate-pulse rounded-full bg-secondary/40" />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export function HistorySkeleton({ count = 5 }: { count?: number }) {
   return (
     <div
