@@ -663,7 +663,7 @@ const QueueItemRow = memo(
                       type="button"
                       onClick={handleClickDetails}
                       aria-label={`Ver detalles de ${item.animeTitle}`}
-                      className="block w-full min-w-0 max-w-full text-left transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                      className="block w-fit min-w-0 max-w-full text-left transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
                     >
                       <span ref={titleRef} data-truncated={isTruncated || undefined} className="title-fade">
                         {item.animeTitle}
