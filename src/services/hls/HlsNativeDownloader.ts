@@ -6,7 +6,7 @@ import * as path from 'path';
 import { execFile } from 'child_process';
 import { parseMasterPlaylist, parseMediaPlaylist } from './HlsPlaylistParser';
 import { remuxPartsViaConcatProtocol } from './HlsAssembler';
-import { safeErrorMessage } from '../../utils/logging/redactLog';
+import { errorDetailForLog, safeErrorMessage } from '../../utils/logging/redactLog';
 
 export const HLS_NATIVE_CONCURRENCY = 10;
 // La bajada ocupa el 90% de la barra; el ensamblado local, el 10% final.
@@ -220,7 +220,7 @@ export async function downloadHlsToMp4(
         playlistText = await fetchText(variantUrl);
       } catch (error: unknown) {
         if (signal?.aborted || isAbortError(error)) return { ok: false, aborted: true, error: 'descarga abortada' };
-        return { ok: false, error: `no se pudo leer la variante HLS: ${(error as Error)?.message || error}` };
+        return { ok: false, error: `no se pudo leer la variante HLS: ${safeErrorMessage(error)}` };
       }
     }
     const media = parseMediaPlaylist(playlistText, mediaBase);
@@ -232,7 +232,7 @@ export async function downloadHlsToMp4(
     try {
       segmentUrls = media.segments.map((s) => assertSameOriginUrl(s, mediaBase));
     } catch (error: unknown) {
-      return { ok: false, error: (error as Error)?.message || 'segmento HLS no válido' };
+      return { ok: false, error: safeErrorMessage(error) || 'segmento HLS no válido' };
     }
     let mapBytes: Buffer | null = null;
     let downloadedBytes = 0;
@@ -242,7 +242,7 @@ export async function downloadHlsToMp4(
         downloadedBytes += mapBytes.length;
       } catch (error: unknown) {
         if (signal?.aborted || isAbortError(error)) return { ok: false, aborted: true, error: 'descarga abortada' };
-        return { ok: false, error: `no se pudo leer el init HLS: ${(error as Error)?.message || error}` };
+        return { ok: false, error: `no se pudo leer el init HLS: ${safeErrorMessage(error)}` };
       }
     }
 
@@ -361,8 +361,7 @@ export async function downloadHlsToMp4(
     }
     if (segmentError) {
       await cleanupTransient();
-      const message = segmentError instanceof Error ? segmentError.message : String(segmentError);
-      return { ok: false, error: `segmento HLS irrecuperable: ${message.slice(0, 200)}` };
+      return { ok: false, error: `segmento HLS irrecuperable: ${safeErrorMessage(segmentError).slice(0, 200)}` };
     }
 
     const orderedParts: string[] = [];
@@ -394,7 +393,7 @@ export async function downloadHlsToMp4(
         return { ok: false, aborted: true, error: 'descarga abortada' };
       }
       await cleanupTransient();
-      return { ok: false, error: `no se pudo ensamblar el mp4: ${(error as Error)?.message || error}`.slice(0, 300) };
+      return { ok: false, error: `no se pudo ensamblar el mp4: ${errorDetailForLog(error)}`.slice(0, 300) };
     }
     if (signal?.aborted) {
       await cleanupTransient();
@@ -413,7 +412,7 @@ export async function downloadHlsToMp4(
       tmpOut = '';
     } catch (error: unknown) {
       await cleanupTransient();
-      return { ok: false, error: `no se pudo publicar el mp4: ${(error as Error)?.message || error}` };
+      return { ok: false, error: `no se pudo publicar el mp4: ${errorDetailForLog(error)}` };
     }
     await purgeHlsTemps();
     report(1);
@@ -421,6 +420,6 @@ export async function downloadHlsToMp4(
   } catch (error: unknown) {
     await cleanupTransient();
     if (signal?.aborted) return { ok: false, aborted: true, error: 'descarga abortada' };
-    return { ok: false, error: (error as Error)?.message || 'fallo HLS desconocido' };
+    return { ok: false, error: `fallo HLS desconocido (${errorDetailForLog(error)})` };
   }
 }

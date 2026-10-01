@@ -1,6 +1,7 @@
 import { dialog, ipcMain } from 'electron';
 import axios from 'axios';
 import { USER_AGENT } from '../../../utils/windowUtils';
+import { safeErrorMessage } from '../../../utils/logging/redactLog';
 import { assertAllowedImageRedirect, isAllowedImageUrl } from '../../../utils/security/networkSecurity';
 import { JkAnimeProvider } from '../../../services/providers/JkAnimeProvider';
 import type { CatalogFilters } from '../../../types/anime';
@@ -106,7 +107,7 @@ export function registerCatalogHandlers({
           payload && typeof payload === 'object' && typeof payload.provider === 'string' ? payload.provider : undefined;
         return await homeFeedService.getHomeFeed('anime', 30, force, providerId);
       } catch (error) {
-        writeGlobalLog(`Home error: ${error}`);
+        writeGlobalLog(`Home error: ${safeErrorMessage(error)}`);
         return [];
       }
     },
@@ -116,7 +117,7 @@ export function registerCatalogHandlers({
     try {
       return await scheduleService.getSchedule(!!payload?.force, payload?.provider);
     } catch (error) {
-      writeGlobalLog(`Schedule error: ${error}`);
+      writeGlobalLog(`Schedule error: ${safeErrorMessage(error)}`);
       return null;
     }
   });
@@ -144,7 +145,7 @@ export function registerCatalogHandlers({
         force,
       );
     } catch (error) {
-      writeGlobalLog(`Catalog error: ${error}`);
+      writeGlobalLog(`Catalog error: ${safeErrorMessage(error)}`);
       return [];
     }
   });
@@ -156,7 +157,7 @@ export function registerCatalogHandlers({
         payload && typeof payload === 'object' && typeof payload.provider === 'string' ? payload.provider : undefined;
       return await resolveProvider(providerId).getFiltersData(force);
     } catch (error) {
-      writeGlobalLog(`Filters error: ${error}`);
+      writeGlobalLog(`Filters error: ${safeErrorMessage(error)}`);
       return { categories: [], genres: [], years: [] };
     }
   });
@@ -168,7 +169,7 @@ export function registerCatalogHandlers({
         payload && typeof payload === 'object' && typeof payload.provider === 'string' ? payload.provider : undefined;
       return await resolveProvider(providerId).search(query);
     } catch (error) {
-      writeGlobalLog(`Search error: ${error}`);
+      writeGlobalLog(`Search error: ${safeErrorMessage(error)}`);
       return [];
     }
   });
@@ -182,7 +183,7 @@ export function registerCatalogHandlers({
           : undefined;
       return await getAnimeDetailsBySlug(slug, providerId as 'animeav1' | 'jkanime' | undefined);
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error);
+      const message = safeErrorMessage(error);
       writeGlobalLog(
         `get-details handler error (${String((payload as { slug?: string })?.slug ?? payload)}): ${message}`,
       );
@@ -200,7 +201,7 @@ export function registerCatalogHandlers({
         if (!(provider instanceof JkAnimeProvider)) return {};
         return await provider.getEpisodeThumbs(slug, Number(payload?.fromEp), Number(payload?.toEp));
       } catch (error: unknown) {
-        writeGlobalLog(`get-episode-thumbs handler error: ${error instanceof Error ? error.message : String(error)}`);
+        writeGlobalLog(`get-episode-thumbs handler error: ${safeErrorMessage(error)}`);
         return {};
       }
     },

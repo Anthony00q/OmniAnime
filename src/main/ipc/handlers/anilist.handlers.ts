@@ -1,5 +1,6 @@
 import { ipcMain } from 'electron';
 import { resolveAniListBannerResult } from '../../anilistBanner';
+import { safeErrorMessage } from '../../../utils/logging/redactLog';
 import type { IpcRegistryDependencies } from '../../IpcRegistry';
 
 // Banner y estudio opcionales: ante error o duda devuelve null y la ficha sigue igual.
@@ -52,7 +53,7 @@ export function registerAniListHandlers({ writeGlobalLog, scopedLog }: IpcRegist
         if (!resolved) return null;
         return { anilistId: resolved.anilistId, banner: resolved.banner, studio: resolved.studio ?? null };
       } catch (error) {
-        writeGlobalLog(`AniList banner error: ${error instanceof Error ? error.message : String(error)}`);
+        writeGlobalLog(`AniList banner error: ${safeErrorMessage(error)}`);
         return null;
       }
     },

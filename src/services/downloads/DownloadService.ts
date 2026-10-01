@@ -154,7 +154,7 @@ export class DownloadService {
         if (ok || signal?.aborted) return ok;
       } catch (e: any) {
         if (signal?.aborted || e?.name === 'AbortError' || axios.isCancel(e)) return false;
-        this.logger.warn(`mediafire extract (intento ${attempt}/${MAX_EXTRACT_ATTEMPTS}): ${e.message}`);
+        this.logger.warn(`mediafire extract (intento ${attempt}/${MAX_EXTRACT_ATTEMPTS}): ${errorDetailForLog(e)}`);
       }
       if (attempt < MAX_EXTRACT_ATTEMPTS && !signal?.aborted) {
         await this.sleepAbortable(1000 * attempt, signal);
@@ -636,10 +636,10 @@ export class DownloadService {
           return false;
         }
         if (kind === 'permanent') {
-          this.logger.warn(`mega permanente, sin reintento: ${(e as Error)?.message || e}`);
+          this.logger.warn(`mega permanente, sin reintento: ${errorDetailForLog(e)}`);
           return false;
         }
-        this.logger.debug(`mega transitorio (intento ${attempt}/${MAX_MEGA_ATTEMPTS}): ${(e as Error)?.message || e}`);
+        this.logger.debug(`mega transitorio (intento ${attempt}/${MAX_MEGA_ATTEMPTS}): ${errorDetailForLog(e)}`);
       }
       if (attempt < MAX_MEGA_ATTEMPTS && !signal?.aborted) {
         await this.sleepAbortable(1000 * attempt, signal);
