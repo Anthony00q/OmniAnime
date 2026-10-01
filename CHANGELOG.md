@@ -1,5 +1,32 @@
 # Changelog
 
+## [1.1.2] - 2026-10-01
+
+### Catálogo
+
+- La nueva sección **Horarios** reúne la programación semanal de emisión del proveedor activo, agrupada por días.
+- La programación se puede ver en lista o en cuadrícula.
+- Cada emisión indica su hora y si está emitida, retrasada o concluida.
+
+### Descargas
+
+- Los episodios encolados desde una ficha descargan con el proveedor de esa ficha, aunque el proveedor activo cambie después.
+- El orden por defecto de servidores de Jkanime sitúa **Voe** en segundo lugar.
+- En la cola, el título de cada elemento se ajusta al ancho de su nombre.
+
+### Ajustes
+
+- Los mensajes de error que se muestran en **Registros** ya no incluyen rutas de archivos ni direcciones web.
+
+### Interfaz
+
+- El banner de la ficha y de la librería se funde con el contenido en un degradado más suave.
+
+### Actualizaciones
+
+- El aviso de actualización compara la versión instalada con la nueva que se va a instalar.
+- Las novedades muestran solo las de la versión nueva, con un fundido inferior cuando quedan por leer.
+
 ## [1.1.1] - 2026-09-29
 
 ### Descargas
