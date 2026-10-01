@@ -468,6 +468,7 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
         preferredServer: 'Auto',
         lang: selectedLang,
         outputDirIndex: dirIndex,
+        provider: deferredProvider,
       },
       {
         onSuccess: (result) => {

@@ -19,6 +19,8 @@ export interface QueueEnqueuePayload {
   preferredServer?: string;
   lang?: 'SUB' | 'DUB';
   outputDirIndex?: number;
+  // Proveedor de la ficha visible; sin él o desconocido se usa el activo.
+  provider?: DownloadProvider;
 }
 
 export interface QueueEnqueueResult {
@@ -60,7 +62,15 @@ export class QueueEnqueueService {
     const { slug, episodes, preferredServer, lang: rawLang, outputDirIndex } = payload;
     // DUB desactivado: solo SUB
     const lang = rawLang === 'DUB' ? 'SUB' : rawLang || 'SUB';
-    const queueProvider = this.options.getActiveProviderId() as DownloadProvider;
+    // El provider del payload (el de la ficha visible) manda; el activo es fallback.
+    const requestedProvider = String(payload.provider || '')
+      .trim()
+      .toLowerCase();
+    const queueProvider = (
+      requestedProvider === 'animeav1' || requestedProvider === 'jkanime'
+        ? requestedProvider
+        : this.options.getActiveProviderId()
+    ) as DownloadProvider;
     const details = await this.options.getAnimeDetails(slug, queueProvider);
     if (!details) return false;
 
