@@ -20,3 +20,19 @@ export function redactLogText(text: string, homeDir = ''): string {
   out = out.replace(/([?&](token|key|auth|signature|sig)=)[^&\s'"]+/gi, '$1[REDACTED]');
   return out;
 }
+
+// Detalle de error seguro para logs: código o nombre, jamás el mensaje
+// (los mensajes de fs y axios arrastran rutas y URLs).
+export function errorDetailForLog(error: unknown): string {
+  const code = (error as NodeJS.ErrnoException | null | undefined)?.code;
+  if (code) return String(code);
+  const name = (error as Error | null | undefined)?.name;
+  return name && name !== 'Error' ? name : 'error';
+}
+
+// Motivo de error conservando el detalle, con URLs tapadas: para ramas donde
+// el mensaje diagnostica de verdad y no arrastra rutas de disco.
+export function safeErrorMessage(error: unknown): string {
+  const message = String((error as Error | null | undefined)?.message || error || '');
+  return redactLogText(message.replace(/https?:\/\/\S+/gi, '[url]'));
+}

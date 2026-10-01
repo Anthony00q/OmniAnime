@@ -8,6 +8,7 @@ import * as path from 'path';
 import * as megajs from 'megajs';
 import { normalizeMegaUrl } from '../../utils/serverUtils';
 import { noopScopedLogger, type ScopedLogger } from '../logging/AppLogger';
+import { errorDetailForLog } from '../../utils/logging/redactLog';
 import { clampDirectConnections, downloadDirectRanged, probeDirectRangeSupport } from './DirectRangedDownloader';
 import {
   readConcurrency,
@@ -478,14 +479,14 @@ export class DownloadService {
             await fsp.rm(sidecarDest, { force: true }).catch(() => undefined);
             resolve(true);
           } catch (e) {
-            this.logger.error(`direct rename: ${e}`);
+            this.logger.error(`direct rename: ${errorDetailForLog(e)}`);
             resolve(false);
           }
         });
 
         writer!.on('error', (err) => {
           finishCleanup();
-          this.logger.error(`direct writer: ${err}`);
+          this.logger.error(`direct writer: ${errorDetailForLog(err)}`);
           resolve(false);
         });
 
@@ -500,7 +501,7 @@ export class DownloadService {
       if (signal?.aborted || e.name === 'AbortError' || axios.isCancel(e)) {
         // Ya manejado por onExternalAbort
       } else {
-        this.logger.error(`direct crítico: ${e.message}`);
+        this.logger.error(`direct crítico: ${errorDetailForLog(e)}`);
       }
       if (signal) signal.removeEventListener('abort', onExternalAbort);
       this.untrackController(internalController);

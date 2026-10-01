@@ -6,6 +6,7 @@ import { megaResumeFiles } from './DownloadService';
 import type { ProviderDownloadLink, QueueItem } from '../../types/queue';
 import type { DownloadSettings } from '../../types/settings';
 import { normalizeDownloadSettings } from '../../utils/downloads/downloadSettings';
+import { errorDetailForLog } from '../../utils/logging/redactLog';
 import type { DownloadEngine, EngineProgress } from './downloadContracts';
 import {
   connectionLevelForServer,
@@ -715,7 +716,7 @@ export class EpisodeDownloadAttemptService {
     const failure = results.find((r) => r.status === 'rejected');
     if (failure) {
       this.options.log(
-        `WARN Error limpiando temporales de ${path.basename(destPath)}: ${(failure as PromiseRejectedResult).reason}`,
+        `WARN Error limpiando temporales de ${path.basename(destPath)}: ${errorDetailForLog((failure as PromiseRejectedResult).reason)}`,
         'warn',
       );
     } else {
@@ -744,7 +745,7 @@ export class EpisodeDownloadAttemptService {
         try {
           await fsp.rm(filePath, { force: true });
         } catch (error) {
-          this.options.logError(`No se pudo eliminar temporal ${filePath}: ${error}`);
+          this.options.logError(`No se pudo eliminar temporal ${path.basename(filePath)}: ${errorDetailForLog(error)}`);
         }
       }),
     );
@@ -757,7 +758,7 @@ export class EpisodeDownloadAttemptService {
           .map((name) => fsp.rm(path.join(cacheDir, name), { force: true }).catch(() => undefined)),
       );
     } catch (error) {
-      this.options.logError(`No se pudo purgar temporales HLS de ${cacheDir}: ${error}`);
+      this.options.logError(`No se pudo purgar temporales HLS de ${baseName}: ${errorDetailForLog(error)}`);
     }
   }
 
@@ -811,7 +812,7 @@ export class EpisodeDownloadAttemptService {
         for (const r of results) if (r) out.set(r.name, r.size);
       }
     } catch (error) {
-      this.options.logError(`No se pudo inspeccionar ${dirPath}: ${error}`);
+      this.options.logError(`No se pudo inspeccionar ${path.basename(dirPath)}: ${errorDetailForLog(error)}`);
     }
     return out;
   }
@@ -842,7 +843,9 @@ export class EpisodeDownloadAttemptService {
         }
       }
     } catch (error) {
-      this.options.logError(`No se pudo completar la deteccion de un MP4 en ${destPath}: ${error}`);
+      this.options.logError(
+        `No se pudo completar la deteccion de un MP4 en ${path.basename(destPath)}: ${errorDetailForLog(error)}`,
+      );
     }
     return false;
   }
@@ -884,7 +887,9 @@ export class EpisodeDownloadAttemptService {
         return st.isFile() && st.size > 0;
       }
     } catch (error) {
-      this.options.logError(`No se pudo normalizar el archivo de episodio ${destPath}: ${error}`);
+      this.options.logError(
+        `No se pudo normalizar el archivo de episodio ${path.basename(destPath)}: ${errorDetailForLog(error)}`,
+      );
     }
     return false;
   }

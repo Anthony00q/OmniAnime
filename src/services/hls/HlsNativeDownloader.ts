@@ -6,6 +6,7 @@ import * as path from 'path';
 import { execFile } from 'child_process';
 import { parseMasterPlaylist, parseMediaPlaylist } from './HlsPlaylistParser';
 import { remuxPartsViaConcatProtocol } from './HlsAssembler';
+import { safeErrorMessage } from '../../utils/logging/redactLog';
 
 export const HLS_NATIVE_CONCURRENCY = 10;
 // La bajada ocupa el 90% de la barra; el ensamblado local, el 10% final.
@@ -65,14 +66,15 @@ function isLoopbackHost(hostname: string): boolean {
   return normalized === '127.0.0.1' || normalized === '::1' || normalized === 'localhost';
 }
 
-function assertSameOriginUrl(rawUrl: string, playlistUrl: string): string {
+export function assertSameOriginUrl(rawUrl: string, playlistUrl: string): string {
   let parsed: URL;
   let base: URL;
   try {
     parsed = new URL(rawUrl);
     base = new URL(playlistUrl);
   } catch {
-    throw new Error(`URL de segmento inválida: ${String(rawUrl).slice(0, 80)}`);
+    // Sin la URL en el mensaje: acaba en failureReason y en el log.
+    throw new Error('URL de segmento inválida');
   }
   const loopbackHttp = parsed.protocol === 'http:' && isLoopbackHost(parsed.hostname);
   if (parsed.protocol !== 'https:' && !loopbackHttp) throw new Error('segmento fuera de https');
@@ -208,7 +210,7 @@ export async function downloadHlsToMp4(
       playlistText = await fetchText(m3u8Url);
     } catch (error: unknown) {
       if (signal?.aborted || isAbortError(error)) return { ok: false, aborted: true, error: 'descarga abortada' };
-      return { ok: false, error: `no se pudo leer el playlist: ${(error as Error)?.message || error}` };
+      return { ok: false, error: `no se pudo leer el playlist: ${safeErrorMessage(error)}` };
     }
     const variantUrl = parseMasterPlaylist(playlistText, m3u8Url);
     let mediaBase = m3u8Url;

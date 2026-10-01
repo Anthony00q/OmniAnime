@@ -8,6 +8,7 @@ import {
   normalizeDisplayAnimeTitle,
   normalizeFolderAlternativeTitles,
 } from '../../utils/titleUtils';
+import { errorDetailForLog } from '../../utils/logging/redactLog';
 import { anilistBannerInputFromDetails, type AniListBannerInput } from '../providers/AniListService';
 
 export type AniListBannerFailureKind = 'ratelimit' | 'network' | 'nomatch';
@@ -105,7 +106,7 @@ export class QueueEnqueueService {
         })(),
       ]);
     } catch (error) {
-      this.options.logError(`Error descargando portada para ${slug}: ${error}`);
+      this.options.logError(`Error descargando portada para ${slug}: ${errorDetailForLog(error)}`);
     }
 
     if (localPosterUrl && (localPosterUrl.startsWith('file:') || localPosterUrl.startsWith('omni-media:'))) {
