@@ -19,6 +19,7 @@ import { ProviderManager } from '../services/providers/ProviderManager';
 import { DownloadService } from '../services/downloads/DownloadService';
 import { EpisodeDownloadAttemptService } from '../services/downloads/EpisodeDownloadAttemptService';
 import { DownloadQueueProcessor } from '../services/downloads/DownloadQueueProcessor';
+import { EpisodeLinksService } from '../services/downloads/EpisodeLinksService';
 import { AppLogger, type LogScope, type ScopedLogger } from '../services/logging/AppLogger';
 import { effectiveMinLevel, normalizeLoggingSettings } from '../utils/logging/loggingSettings';
 import { EpisodeFileService } from '../services/library/EpisodeFileService';
@@ -40,13 +41,7 @@ import { terminateChildProcessTree } from '../utils/processUtils';
 import type { DownloadAnimeDetails } from '../types/anime';
 import type { HistoryWriteRecord } from '../types/history';
 import type { FolderLibraryMeta } from '../types/library';
-import type { DownloadProvider, ProviderDownloadLink, QueueItem } from '../types/queue';
-import {
-  effectiveServerOrder as effectiveServerOrderUtil,
-  getServerPriorityOrder as getServerPriorityOrderUtil,
-  isBlockedServer as isBlockedServerUtil,
-  normalizeServerName as normalizeServerNameUtil,
-} from '../utils/serverUtils';
+import type { DownloadProvider, QueueItem } from '../types/queue';
 import { buildCanonicalEpisodeFileName as buildCanonicalEpisodeFileNameUtil } from '../utils/episodeUtils';
 import { detectFreshInstall, normalizeDownloadSettings } from '../utils/downloads/downloadSettings';
 import { USER_AGENT } from '../utils/windowUtils';
@@ -552,116 +547,6 @@ const SERVER_SPEED: Record<string, string> = {
   HLS: 'streaming',
 };
 
-function normalizeServerName(serverRaw: string): string {
-  return normalizeServerNameUtil(serverRaw);
-}
-
-function isBlockedServer(canonicalServer: string): boolean {
-  return isBlockedServerUtil(canonicalServer);
-}
-
-function getServerPriorityOrder(providerId?: string): string[] {
-  try {
-    const stored = SettingsManager.get().download;
-    return effectiveServerOrderUtil(providerId, {
-      animeav1: stored?.serverOrderAnimeav1,
-      jkanime: stored?.serverOrderJkanime,
-    });
-  } catch {
-    return getServerPriorityOrderUtil(providerId);
-  }
-}
-
-function getAllowedServersForProvider(_provider: DownloadProvider, order: string[]): string[] {
-  return [...order];
-}
-
-// Traza diagnóstica por servidor (found/normalized/blocked/deduplicated/
-// allowlisted). Solo activa con OMNIANIME_SERVER_TRACE=1; nunca loguea URLs.
-function isServerTraceEnabled(): boolean {
-  return process.env.OMNIANIME_SERVER_TRACE === '1';
-}
-
-function traceServerStage(ep: number, providerId: string, server: string, stage: string): void {
-  if (!isServerTraceEnabled()) return;
-  sendLog(`[server-trace] EP ${ep} ${providerId} ${server} ${stage}`, 'info');
-}
-
-async function getEpisodeLinksFromProviders(
-  item: QueueItem,
-  ep: number,
-  signal?: AbortSignal,
-): Promise<ProviderDownloadLink[]> {
-  const slug = String(item.downloadSlug || item.slug || '').trim();
-  // DUB desactivado: solo SUB
-  const lang = item.lang === 'DUB' ? 'SUB' : item.lang || 'SUB';
-  if (!slug || signal?.aborted) return [];
-
-  // Usa providerId del QueueItem, no el activo global.
-  const targetProviderId = (item.providerId || providerManager.activeProviderIdName) as DownloadProvider;
-  const order = getServerPriorityOrder(targetProviderId);
-  const provider = providerManager.getProvider(targetProviderId) || providerManager.activeProvider;
-  sendLog(`EP ${ep}: buscando servidores en ${targetProviderId}...`, 'info');
-
-  const providerLinks: ProviderDownloadLink[] = [];
-  const dedupe = new Set<string>();
-  const allowedServers = new Set(getAllowedServersForProvider(targetProviderId, order));
-  const rows = await provider.getLinks(slug, ep, lang, signal).catch(() => []);
-  if (signal?.aborted) return [];
-
-  for (const l of rows) {
-    const rawName = String(l.server || '').trim() || '?';
-    traceServerStage(ep, targetProviderId, rawName, 'found');
-    serverStatsStore.recordFound(targetProviderId, rawName);
-    const canonicalServer = normalizeServerName(l.server);
-    if (canonicalServer !== rawName) {
-      traceServerStage(ep, targetProviderId, `${rawName}->${canonicalServer}`, 'normalized');
-    }
-    if (!l.url) {
-      traceServerStage(ep, targetProviderId, canonicalServer, 'blocked:empty-url');
-      continue;
-    }
-    if (isBlockedServer(canonicalServer)) {
-      traceServerStage(ep, targetProviderId, canonicalServer, 'blocked:security');
-      continue;
-    }
-    if (!allowedServers.has(canonicalServer)) {
-      traceServerStage(ep, targetProviderId, canonicalServer, 'blocked:allowlist');
-      continue;
-    }
-
-    const key = `${slug}|${ep}|${canonicalServer.toLowerCase()}|${l.url}`;
-    if (dedupe.has(key)) {
-      traceServerStage(ep, targetProviderId, canonicalServer, 'deduplicated');
-      continue;
-    }
-    dedupe.add(key);
-    traceServerStage(ep, targetProviderId, canonicalServer, 'allowlisted');
-    serverStatsStore.recordAllowlisted(targetProviderId, canonicalServer);
-
-    providerLinks.push({
-      server: canonicalServer,
-      url: l.url,
-      provider: targetProviderId,
-      canonicalServer,
-      sourceSlug: slug,
-      sourceEpisode: ep,
-    });
-  }
-
-  if (providerLinks.length > 0) {
-    const names = Array.from(new Set(providerLinks.map((link) => link.canonicalServer)));
-    sendLog(
-      `EP ${ep}: en ${targetProviderId} se encontraron ${providerLinks.length} servidor(es): ${names.join(', ')}`,
-      'info',
-    );
-    return providerLinks;
-  }
-
-  sendLog(`EP ${ep}: en ${targetProviderId} no se encontró servidor disponible.`, 'warn');
-  return [];
-}
-
 function buildQueueEpisodePath(item: QueueItem, episode: number): string {
   // DUB desactivado: solo SUB
   const lang = item.lang === 'DUB' ? 'SUB' : item.lang || 'SUB';
@@ -671,14 +556,24 @@ function buildQueueEpisodePath(item: QueueItem, episode: number): string {
   );
 }
 
+const episodeLinksService = new EpisodeLinksService({
+  getProviderById: (providerId) => providerManager.getProvider(providerId),
+  getActiveProvider: () => providerManager.activeProvider,
+  getActiveProviderId: () => providerManager.activeProviderIdName,
+  getServerOrderSettings: () => SettingsManager.get().download,
+  recordFound: (provider, server) => serverStatsStore.recordFound(provider, server),
+  recordAllowlisted: (provider, server) => serverStatsStore.recordAllowlisted(provider, server),
+  log: sendLog,
+});
+
 const queueProcessor = new DownloadQueueProcessor({
   queueStore,
   attemptService: episodeDownloadAttemptService,
   abortDownloadService: () => downloadService.abort(),
   pausedProgress: pausedProgressStore,
   getDownloadSettings: getNormalizedDownloadSettings,
-  getEpisodeLinks: getEpisodeLinksFromProviders,
-  getServerPriorityOrder,
+  getEpisodeLinks: (item, ep, signal) => episodeLinksService.getEpisodeLinks(item, ep, signal),
+  getServerPriorityOrder: (providerId) => episodeLinksService.getServerPriorityOrder(providerId),
   getServerSpeed: (server) => SERVER_SPEED[server] || '–',
   buildEpisodePath: buildQueueEpisodePath,
   writeHistory,
