@@ -21,6 +21,7 @@ import {
   concurrencyObservationsFromDecisions,
   type AdaptiveConcurrencyController,
 } from './adaptiveConcurrency';
+import { countAdaptiveDecisions, createAttemptAdaptiveLog, type AttemptAdaptiveLog } from './attemptAdaptiveLog';
 import {
   buildAttemptExperimentRecord,
   CONCURRENCY_CADENCE_PROFILES,
@@ -75,6 +76,9 @@ export interface AttemptConcurrencyInfo {
   seed: number;
   finalLevel: number;
   probes: number;
+  improved: number;
+  kept: number;
+  decreased: number;
   preferred: number | null;
   safeMax: number | null;
 }
@@ -410,6 +414,23 @@ export class EpisodeDownloadAttemptService {
       this.attemptControllers.push(adaptive);
       if (this.attemptControllers.length > MAX_RETAINED_ATTEMPT_TELEMETRIES) this.attemptControllers.shift();
     }
+    // Solo para los servidores que Adaptive gobierna; HLS no consume el handle y no se registra.
+    const adaptiveLog =
+      adaptive && connectionLevelForServer(link.server, dl) !== null
+        ? createAttemptAdaptiveLog({
+            server: link.server,
+            seed,
+            seedSource:
+              !experiment?.coldStart && (learning?.preferredConcurrency ?? null) !== null ? 'learned' : 'manual',
+            decisions: () => adaptive.snapshot().decisions,
+            actual: () => concurrency.actual(),
+            applicationMode: () => readApplicationMode(concurrency, engine?.concurrencyApplication ?? 'hot'),
+            log: (message) => {
+              this.fileLog.info(message, this.attemptContext(item, episode, link.server));
+            },
+          })
+        : null;
+    adaptiveLog?.start();
 
     const onParentAbort = () => {
       try {
@@ -472,6 +493,7 @@ export class EpisodeDownloadAttemptService {
             markStarted();
             // Medición cruda, antes del gate de % y de cualquier throttle.
             telemetry.recordBytes(engineProgress.loadedBytes, engineProgress.fraction01);
+            adaptiveLog?.observe();
             this.reportEngineProgress(item, episode, link.server, progressState, callbacks, engineProgress);
           },
         });
@@ -524,6 +546,7 @@ export class EpisodeDownloadAttemptService {
       if (adaptive) {
         // Dispose primero: cierra los probes pendientes y deja el controller inerte.
         adaptive.dispose();
+        adaptiveLog?.finish();
         if (experiment) {
           // En modo experimental se registra todo (también fallos y cancelaciones).
           const interrupted = attemptAbort.signal.aborted && !attemptTimedOut;
@@ -536,13 +559,14 @@ export class EpisodeDownloadAttemptService {
           });
         } else if (success) {
           // Solo un intento que terminó bien enseña.
-          this.emitConcurrencyLearning(item, link.server, adaptive, telemetry);
+          this.emitConcurrencyLearning(item, link.server, adaptive, telemetry, adaptiveLog);
         }
       }
       concurrency.dispose();
       telemetry.dispose();
     }
 
+    const counts = adaptive ? countAdaptiveDecisions(adaptive.snapshot().decisions) : null;
     return {
       success,
       aborted: attemptAbort.signal.aborted,
@@ -557,7 +581,10 @@ export class EpisodeDownloadAttemptService {
         mode: adaptive ? 'adaptive' : 'manual',
         seed,
         finalLevel: adaptive ? adaptive.snapshot().level : seed,
-        probes: adaptive ? adaptive.snapshot().decisions.filter((decision) => decision.kind === 'probe-up').length : 0,
+        probes: counts ? counts.probes : 0,
+        improved: counts ? counts.improved : 0,
+        kept: counts ? counts.kept : 0,
+        decreased: counts ? counts.decreased : 0,
         preferred: adaptive ? (learning?.preferredConcurrency ?? null) : null,
         safeMax: adaptive ? (learning?.safeMax ?? null) : null,
       },
@@ -570,13 +597,16 @@ export class EpisodeDownloadAttemptService {
     server: string,
     controller: AdaptiveConcurrencyController,
     telemetry: AttemptTelemetry,
+    adaptiveLog?: AttemptAdaptiveLog | null,
   ): void {
     const record = this.options.recordConcurrencyObservation;
     if (!record) return;
     try {
       // Con el enlace compartido la observación no enseña.
       const learningEligible = this.isLearningEligible(telemetry);
-      for (const observation of concurrencyObservationsFromDecisions(controller.snapshot().decisions)) {
+      const observations = concurrencyObservationsFromDecisions(controller.snapshot().decisions);
+      adaptiveLog?.learning(observations, learningEligible);
+      for (const observation of observations) {
         record({ provider: String(item.providerId ?? ''), server, ...observation, learningEligible });
       }
     } catch {

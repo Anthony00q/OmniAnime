@@ -235,4 +235,4 @@ Quien reciba el instalador tiene derecho a obtener el código fuente completo co
 
 ---
 
-<p align="center"><sub>Hecho por <strong>Anthony</strong> con ayuda de IA — gran parte del proyecto fue <em>vibe coding</em>.</sub></p>
+<p align="center"><sub>Hecho por <strong>Anthon00qy</strong> con ayuda de IA — gran parte del proyecto fue <em>vibe coding</em>.</sub></p>

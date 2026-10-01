@@ -160,6 +160,14 @@ export class DownloadCoordinator {
           `EP ${episode} · intento ${attemptIndex}/${totalAttempts} · ${providerLabel}` +
           ` · ${canonicalServer} · ${failureCategory ?? 'success'}` +
           ` · ${(durationMs / 1000).toFixed(1)}s · ${success ? 'fin' : nextLabel}`;
+        // Concurrencia del intento en éxito y fallo; `na` en manual, `null` sin valor.
+        const conc = result.concurrencyInfo;
+        const concLabel = conc
+          ? ` · concurrencia ${conc.mode} seed=${conc.seed} final=${conc.finalLevel} probes=${conc.probes}` +
+            ` improved=${conc.improved} kept=${conc.kept} decreased=${conc.decreased}` +
+            ` preferred=${conc.mode === 'manual' ? 'na' : (conc.preferred ?? 'null')}` +
+            ` safeMax=${conc.mode === 'manual' ? 'na' : (conc.safeMax ?? 'null')}`
+          : ' · concurrencia na';
         try {
           this.deps.recordServerOutcome?.({
             provider: String(link.provider || ''),
@@ -182,13 +190,6 @@ export class DownloadCoordinator {
               ` (intento ${attemptIndex}/${totalAttempts})`,
             'success',
           );
-          // Campos cerrados: `na` en manual, `null` cuando no hay valor.
-          const conc = result.concurrencyInfo;
-          const concLabel = conc
-            ? ` · concurrencia ${conc.mode} seed=${conc.seed} final=${conc.finalLevel} probes=${conc.probes}` +
-              ` preferred=${conc.mode === 'manual' ? 'na' : (conc.preferred ?? 'null')}` +
-              ` safeMax=${conc.mode === 'manual' ? 'na' : (conc.safeMax ?? 'null')}`
-            : ' · concurrencia na';
           this.fileLog.info(
             `EP ${episode} descargado desde "${link.server}" en ${(elapsedMs / 1000).toFixed(1)}s ` +
               `(intento ${attemptIndex}/${totalAttempts})${concLabel}`,
@@ -199,7 +200,7 @@ export class DownloadCoordinator {
         }
         if (result.invalidMp4) {
           this.fileLog.warn(
-            `"${link.server}" sin archivo válido (intento ${attemptIndex}/${totalAttempts})`,
+            `"${link.server}" sin archivo válido (intento ${attemptIndex}/${totalAttempts})${concLabel}`,
             this.attemptFileContext(item, episode, providerLabel, canonicalServer),
           );
           continue;
@@ -212,7 +213,7 @@ export class DownloadCoordinator {
             'warn',
           );
           this.fileLog.warn(
-            `"${link.server}" sin inicio en ${timeoutSec}s (${outcomeTag})`,
+            `"${link.server}" sin inicio en ${timeoutSec}s (${outcomeTag})${concLabel}`,
             this.attemptFileContext(item, episode, providerLabel, canonicalServer),
           );
           await this.deps.cleanEpisodeTemps(dest);
@@ -223,12 +224,12 @@ export class DownloadCoordinator {
           this.deps.sendLog(`${result.toolFailureMessage} (${outcomeTag})`, isLast ? 'error' : 'warn');
           if (isLast)
             this.fileLog.error(
-              `${result.toolFailureMessage} (${outcomeTag})`,
+              `${result.toolFailureMessage} (${outcomeTag})${concLabel}`,
               this.attemptFileContext(item, episode, providerLabel, canonicalServer),
             );
           else
             this.fileLog.warn(
-              `${result.toolFailureMessage} (${outcomeTag})`,
+              `${result.toolFailureMessage} (${outcomeTag})${concLabel}`,
               this.attemptFileContext(item, episode, providerLabel, canonicalServer),
             );
           await this.deps.cleanEpisodeCache(dest);
@@ -240,7 +241,7 @@ export class DownloadCoordinator {
               'warn',
             );
             this.fileLog.warn(
-              `"${link.server}" salto manual (${outcomeTag})`,
+              `"${link.server}" salto manual (${outcomeTag})${concLabel}`,
               this.attemptFileContext(item, episode, providerLabel, canonicalServer),
             );
           } else {
@@ -251,12 +252,12 @@ export class DownloadCoordinator {
             );
             if (isLast)
               this.fileLog.error(
-                `"${link.server}" falló sin más servidores (${outcomeTag})`,
+                `"${link.server}" falló sin más servidores (${outcomeTag})${concLabel}`,
                 this.attemptFileContext(item, episode, providerLabel, canonicalServer),
               );
             else
               this.fileLog.warn(
-                `"${link.server}" falló (${outcomeTag})`,
+                `"${link.server}" falló (${outcomeTag})${concLabel}`,
                 this.attemptFileContext(item, episode, providerLabel, canonicalServer),
               );
           }
