@@ -2,7 +2,7 @@ export const BLOCKED_SERVERS = new Set(['1fichier', 'fichier', 'drive', 'gdrive'
 
 export const SERVER_ORDER_ANIMEAV1_DEFAULT = ['Voe', 'Mega', 'MP4Upload'] as const;
 
-export const SERVER_ORDER_JKANIME_DEFAULT = ['Mediafire', 'Mega', 'MP4Upload', 'Voe'] as const;
+export const SERVER_ORDER_JKANIME_DEFAULT = ['Mediafire', 'Voe', 'Mega', 'MP4Upload'] as const;
 
 export const DEFAULT_SERVER_PRIORITY: readonly string[] = SERVER_ORDER_ANIMEAV1_DEFAULT;
 
