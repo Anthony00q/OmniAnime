@@ -25,6 +25,7 @@ import { EpisodeFileService } from '../services/library/EpisodeFileService';
 import { HistoryService } from '../services/library/HistoryService';
 import { LibraryAssetService } from '../services/library/LibraryAssetService';
 import { LibraryFileService } from '../services/library/LibraryFileService';
+import { LibraryPreloadService } from '../services/library/LibraryPreloadService';
 import { QueueStore } from '../services/persistence/QueueStore';
 import { PausedProgressStore, applyStoredSnapshot } from '../services/persistence/PausedProgressStore';
 import { AppUpdateService } from '../services/update/AppUpdateService';
@@ -36,11 +37,10 @@ import { SettingsManager } from '../services/persistence/SettingsManager';
 import { DatabaseManager } from '../services/persistence/DatabaseManager';
 import { StorageService } from '../services/library/StorageService';
 import { terminateChildProcessTree } from '../utils/processUtils';
-import type { DownloadAnimeDetails, AnimeSearchResult } from '../types/anime';
+import type { DownloadAnimeDetails } from '../types/anime';
 import type { HistoryWriteRecord } from '../types/history';
 import type { FolderLibraryMeta } from '../types/library';
 import type { DownloadProvider, ProviderDownloadLink, QueueItem } from '../types/queue';
-import { computeTitleMatchScore, normalizeFolderAlternativeTitles } from '../utils/titleUtils';
 import {
   effectiveServerOrder as effectiveServerOrderUtil,
   getServerPriorityOrder as getServerPriorityOrderUtil,
@@ -52,8 +52,7 @@ import { detectFreshInstall, normalizeDownloadSettings } from '../utils/download
 import { USER_AGENT } from '../utils/windowUtils';
 import { WindowLifecycleService, type PreloadedData } from './WindowLifecycleService';
 import { registerIpcHandlers } from './IpcRegistry';
-import { anilistBannerInputFromDetails, resolveAniListBannerResult } from './anilistBanner';
-import anitomy from 'anitomy';
+import { resolveAniListBannerResult } from './anilistBanner';
 
 // Register privileged custom scheme for local posters/banners with webSecurity:true
 // Must be before app.whenReady(). Allows <img src="omni-media://..."> from both file:// and http:// (dev)
@@ -205,400 +204,6 @@ function ensureFolderBanner(folderPath: string, bannerUrl: string | null | undef
   return libraryAssetService.ensureFolderBanner(folderPath, bannerUrl);
 }
 
-function buildLibrarySearchVariants(rawName: string): string[] {
-  const base = String(rawName || '')
-    .replace(/[_-]+/g, ' ')
-    .replace(/\(.*?\)|\[.*?\]|\{.*?\}/g, ' ')
-    .replace(/\s{2,}/g, ' ')
-    .trim();
-
-  let anitomyTitle = '';
-  try {
-    const parsed = anitomy.parse(rawName + '.mkv');
-    if (parsed && parsed.title) {
-      anitomyTitle = parsed.title.replace(/[_-]+/g, ' ').trim();
-    }
-  } catch {}
-
-  const cleaned = base
-    .replace(/\b(season|temporada|part|cour|sub|dub|final|completo)\b/gi, ' ')
-    .replace(/\b\d{1,2}\b/g, ' ')
-    .replace(/\s{2,}/g, ' ')
-    .trim();
-
-  const variants = [base];
-  if (anitomyTitle && anitomyTitle !== base) {
-    variants.push(anitomyTitle);
-  }
-  variants.push(cleaned);
-
-  return Array.from(new Set(variants.map((v) => v.trim()).filter(Boolean))).slice(0, 3);
-}
-
-async function mapLimit<T, R>(
-  items: T[],
-  concurrency: number,
-  worker: (item: T, index: number) => Promise<R>,
-): Promise<R[]> {
-  const out: R[] = new Array(items.length);
-  let cursor = 0;
-
-  const runners = new Array(Math.max(1, concurrency)).fill(0).map(async () => {
-    while (true) {
-      const idx = cursor;
-      cursor += 1;
-      if (idx >= items.length) break;
-      try {
-        out[idx] = await worker(items[idx], idx);
-      } catch (error) {
-        writeGlobalLog(error);
-        // Preserve slot as null-equivalent to avoid hiding via filter(Boolean) ambiguity
-        (out as unknown as Array<R | null>)[idx] = null as unknown as R;
-      }
-    }
-  });
-
-  await Promise.all(runners);
-  return out;
-}
-
-export interface LibraryMetaPreloadRow {
-  folderName: string;
-  folderPath: string;
-  sourceDir: string;
-  sourceDirIndex: number;
-  birthtime: number;
-  episodeCount: number;
-  slug: string | null;
-  title: string;
-  secondaryTitle?: string;
-  alternativeTitles?: string[];
-  poster: string | null;
-  banner: string | null;
-  category?: string;
-  year?: string;
-  status?: string;
-  season?: string;
-  providerId?: string | null;
-  updatedAt: number;
-}
-
-async function buildLibraryMetaPreload(
-  baseDirs: string[],
-  maxFolders = 0,
-  onProgress?: (info: { processed: number; total: number; matched: number }) => void,
-  allowRemoteLookup = true,
-): Promise<LibraryMetaPreloadRow[]> {
-  try {
-    const videoExts = new Set(['.mp4', '.mkv', '.avi', '.flv', '.webm']);
-    const allFolders: Array<{
-      name: string;
-      folderPath: string;
-      sourceDir: string;
-      sourceDirIndex: number;
-      birthtime: number;
-      episodeCount: number;
-      localPoster: string | null;
-      localBanner: string | null;
-      localMeta: FolderLibraryMeta | null;
-    }> = [];
-
-    for (const [dirIndex, baseDir] of baseDirs.entries()) {
-      if (!baseDir) continue;
-      try {
-        await fs.promises.stat(baseDir);
-      } catch {
-        continue;
-      }
-
-      let dirents: fs.Dirent[];
-      try {
-        dirents = (await fs.promises.readdir(baseDir, { withFileTypes: true })) as unknown as fs.Dirent[];
-      } catch (error) {
-        writeGlobalLog(`No se pudo leer ${baseDir} durante el precargado: ${error}`);
-        continue;
-      }
-      for (const d of await mapLimit(
-        dirents.filter((x) => x.isDirectory()),
-        16,
-        async (d) => {
-          const folderPath = path.join(baseDir, d.name);
-          // Conteo en la misma lectura que detecta video: sin I/O extra
-          let episodeCount = 0;
-          try {
-            const entries = (await fs.promises.readdir(folderPath, {
-              withFileTypes: true,
-            })) as unknown as fs.Dirent[];
-            episodeCount = entries.reduce(
-              (acc, e) => (e.isFile() && videoExts.has(path.extname(e.name).toLowerCase()) ? acc + 1 : acc),
-              0,
-            );
-          } catch (error) {
-            writeGlobalLog(`No se pudo leer ${folderPath} durante el precargado: ${error}`);
-          }
-          if (episodeCount === 0) return null;
-
-          let birthtime = 0;
-          try {
-            const st = await fs.promises.stat(folderPath);
-            birthtime = st.birthtimeMs || 0;
-          } catch (error) {
-            writeGlobalLog(`No se pudo obtener la fecha de ${folderPath}: ${error}`);
-          }
-          const [localPoster, localBanner, localMeta] = await Promise.all([
-            libraryAssetService.getFolderPosterFileUrlAsync(folderPath),
-            libraryAssetService.getFolderBannerFileUrlAsync(folderPath),
-            libraryAssetService.readFolderLibraryMetaAsync(folderPath),
-          ]);
-          return {
-            name: d.name,
-            folderPath,
-            sourceDir: baseDir,
-            sourceDirIndex: dirIndex,
-            birthtime,
-            episodeCount,
-            localPoster,
-            localBanner,
-            localMeta,
-          };
-        },
-      )) {
-        if (!d) continue;
-        allFolders.push(d);
-      }
-    }
-
-    let runRetro = false;
-    try {
-      runRetro = SettingsManager.get().autoRenameRetroactive === true;
-    } catch {}
-    const resetRetroOnce = () => {
-      if (!runRetro) return;
-      try {
-        SettingsManager.clearAutoRenameRetroactiveOnce();
-      } catch (error) {
-        writeGlobalLog(`No se pudo desactivar el renombrado retroactivo: ${error}`);
-      }
-    };
-
-    if (allFolders.length === 0) {
-      resetRetroOnce();
-      return [];
-    }
-
-    const sorted = allFolders.sort((a, b) => b.birthtime - a.birthtime);
-    const targets = maxFolders > 0 ? sorted.slice(0, maxFolders) : sorted;
-    if (!targets.length) {
-      resetRetroOnce();
-      return [];
-    }
-
-    const searchCache = new Map<string, AnimeSearchResult[]>();
-    let processed = 0;
-    let matched = 0;
-    let lastProgressEmit = 0;
-    onProgress?.({ processed: 0, total: targets.length, matched: 0 });
-
-    const rows = await mapLimit(targets, 3, async (folder) => {
-      if (runRetro) {
-        try {
-          await normalizeEpisodeFilesInFolder(folder.folderPath);
-        } catch (e) {
-          scopedLog('app').error(`preload rename: ${e}`);
-        }
-      }
-      if (folder.localMeta?.slug && (folder.localPoster || folder.localBanner)) {
-        processed += 1;
-        matched += 1;
-        if (onProgress && (processed % 3 === 0 || processed === targets.length)) {
-          onProgress({ processed, total: targets.length, matched });
-        }
-
-        return {
-          folderName: folder.name,
-          folderPath: folder.folderPath,
-          sourceDir: folder.sourceDir,
-          sourceDirIndex: folder.sourceDirIndex,
-          birthtime: folder.birthtime,
-          episodeCount: folder.episodeCount,
-          slug: folder.localMeta.slug || null,
-          title: folder.localMeta.title || folder.name,
-          secondaryTitle: folder.localMeta.secondaryTitle || '',
-          alternativeTitles: folder.localMeta.alternativeTitles || [],
-          poster: folder.localPoster,
-          banner: folder.localBanner,
-          category: folder.localMeta.category || '',
-          year: folder.localMeta.year || '',
-          status: folder.localMeta.status || '',
-          season: folder.localMeta.season || '',
-          providerId: folder.localMeta.providerId ?? null,
-          updatedAt: Date.now(),
-        };
-      }
-
-      if (folder.localPoster && folder.localMeta && !folder.localMeta.slug) {
-        processed += 1;
-        matched += 1;
-        if (onProgress && (processed % 3 === 0 || processed === targets.length)) {
-          onProgress({ processed, total: targets.length, matched });
-        }
-
-        return {
-          folderName: folder.name,
-          folderPath: folder.folderPath,
-          sourceDir: folder.sourceDir,
-          sourceDirIndex: folder.sourceDirIndex,
-          birthtime: folder.birthtime,
-          episodeCount: folder.episodeCount,
-          slug: null,
-          title: folder.localMeta.title || folder.name,
-          secondaryTitle: folder.localMeta.secondaryTitle || '',
-          alternativeTitles: folder.localMeta.alternativeTitles || [],
-          poster: folder.localPoster,
-          banner: folder.localBanner,
-          category: folder.localMeta.category || '',
-          year: folder.localMeta.year || '',
-          status: folder.localMeta.status || '',
-          season: folder.localMeta.season || '',
-          providerId: folder.localMeta.providerId ?? null,
-          updatedAt: Date.now(),
-        };
-      }
-
-      // Sin lookup remoto (splash) o sin conexión: fila básica completa en vez
-      // de null, para que la siembra ['library', dirs] no oculte carpetas.
-      const buildBasicRow = (): LibraryMetaPreloadRow => ({
-        folderName: folder.name,
-        folderPath: folder.folderPath,
-        sourceDir: folder.sourceDir,
-        sourceDirIndex: folder.sourceDirIndex,
-        birthtime: folder.birthtime,
-        episodeCount: folder.episodeCount,
-        slug: folder.localMeta?.slug || null,
-        title: folder.localMeta?.title || folder.name,
-        secondaryTitle: folder.localMeta?.secondaryTitle || '',
-        alternativeTitles: folder.localMeta?.alternativeTitles || [],
-        poster: folder.localPoster,
-        banner: folder.localBanner,
-        category: folder.localMeta?.category || '',
-        year: folder.localMeta?.year || '',
-        status: folder.localMeta?.status || '',
-        season: folder.localMeta?.season || '',
-        providerId: folder.localMeta?.providerId ?? null,
-        updatedAt: Date.now(),
-      });
-
-      if (!allowRemoteLookup || !(await checkConnectivity())) {
-        processed += 1;
-        const now = Date.now();
-        if (onProgress && (processed % 4 === 0 || now - lastProgressEmit > 450 || processed === targets.length)) {
-          lastProgressEmit = now;
-          onProgress({ processed, total: targets.length, matched });
-        }
-        return buildBasicRow();
-      }
-
-      const variants = buildLibrarySearchVariants(folder.name);
-      const matchingProvider = providerGateway.activeProvider;
-      const matchingProviderId = matchingProvider.id;
-      let best: AnimeSearchResult | null = null;
-      let bestScore = -1;
-
-      for (const q of variants) {
-        if (!q) continue;
-        const searchCacheKey = `${matchingProviderId}:${q}`;
-        if (!searchCache.has(searchCacheKey)) {
-          try {
-            const found = await matchingProvider.search(q);
-            searchCache.set(searchCacheKey, found || []);
-          } catch {
-            searchCache.set(searchCacheKey, []);
-          }
-        }
-
-        const list = searchCache.get(searchCacheKey) || [];
-        for (const item of list.slice(0, 10)) {
-          const title = String(item.title || '').trim();
-          const score = computeTitleMatchScore(q, title || '');
-          if (score > bestScore) {
-            bestScore = score;
-            best = item;
-          }
-        }
-      }
-
-      processed += 1;
-      const now = Date.now();
-      if (onProgress && (processed % 4 === 0 || now - lastProgressEmit > 450 || processed === targets.length)) {
-        lastProgressEmit = now;
-        onProgress({ processed, total: targets.length, matched });
-      }
-
-      // Sin match remoto: conservar la carpeta con fila básica (no ocultar)
-      if (!best || bestScore < 38) return buildBasicRow();
-
-      let details: DownloadAnimeDetails | null = null;
-      try {
-        details = await matchingProvider.getDetails(String(best.slug || ''));
-      } catch (error) {
-        writeGlobalLog(`No se pudieron obtener detalles de ${String(best.slug || '')}: ${error}`);
-      }
-
-      const posterUrl = details?.poster || best.poster || null;
-      const localPoster = await ensureFolderPoster(folder.folderPath, posterUrl);
-      // Banner como en la ficha: solo AniList validado, sin fallback al póster.
-      const anilistBannerUrl = details
-        ? ((await resolveAniListBannerResult(anilistBannerInputFromDetails(details)))?.banner ?? null)
-        : null;
-      const localBanner = anilistBannerUrl ? await ensureFolderBanner(folder.folderPath, anilistBannerUrl) : null;
-
-      const preloadTitle = String(details?.title || best.title || folder.name);
-      writeFolderLibraryMeta(folder.folderPath, {
-        slug: String(best.slug || ''),
-        title: preloadTitle,
-        secondaryTitle: String(details?.japaneseTitle || '').trim(),
-        alternativeTitles: normalizeFolderAlternativeTitles(details?.alternativeTitles, preloadTitle),
-        category: details?.category || '',
-        year: details?.year || '',
-        status: details?.status || '',
-        season: details?.season || '',
-        providerId: matchingProviderId,
-      });
-
-      matched += 1;
-      if (onProgress && (processed % 3 === 0 || processed === targets.length)) {
-        onProgress({ processed, total: targets.length, matched });
-      }
-
-      return {
-        folderName: folder.name,
-        folderPath: folder.folderPath,
-        sourceDir: folder.sourceDir,
-        sourceDirIndex: folder.sourceDirIndex,
-        birthtime: folder.birthtime,
-        episodeCount: folder.episodeCount,
-        slug: String(best.slug || ''),
-        title: preloadTitle,
-        secondaryTitle: String(details?.japaneseTitle || '').trim(),
-        alternativeTitles: normalizeFolderAlternativeTitles(details?.alternativeTitles, preloadTitle),
-        poster: localPoster || best.poster || null,
-        banner: localBanner || null,
-        category: details?.category || '',
-        year: details?.year || '',
-        status: details?.status || '',
-        season: details?.season || '',
-        providerId: matchingProviderId,
-        updatedAt: Date.now(),
-      };
-    });
-
-    resetRetroOnce();
-    return rows.filter(Boolean) as LibraryMetaPreloadRow[];
-  } catch {
-    return [];
-  }
-}
-
 async function getAnimeDetailsBySlug(
   slug: string,
   providerId?: DownloadProvider,
@@ -743,6 +348,23 @@ const episodeFileService = new EpisodeFileService({
   assetService: libraryAssetService,
   log: writeGlobalLog,
   onFilesRenamed: (pairs) => thumbnailService.moveThumbnailsStaged(pairs),
+});
+const libraryPreloadService = new LibraryPreloadService({
+  assetService: libraryAssetService,
+  getMatchingProvider: () => providerGateway.activeProvider,
+  resolveAniListBannerUrl: (input) => resolveAniListBannerResult(input).then((resolved) => resolved?.banner ?? null),
+  isAutoRenameRetroactive: () => {
+    try {
+      return SettingsManager.get().autoRenameRetroactive === true;
+    } catch {
+      return false;
+    }
+  },
+  clearAutoRenameRetroactiveOnce: () => SettingsManager.clearAutoRenameRetroactiveOnce(),
+  normalizeEpisodeFiles: (folderPath) => normalizeEpisodeFilesInFolder(folderPath),
+  checkConnectivity,
+  log: writeGlobalLog,
+  scopedLogError: (message) => scopedLog('app').error(message),
 });
 const thumbnailService = new ThumbnailService({
   toolsDir: getToolsDir(),
@@ -1158,7 +780,7 @@ windowLifecycleService = new WindowLifecycleService({
       (async () => {
         updateStatus('Escaneando librería local (0%)...', 52);
         const libDirs = settings.outputDirs || [settings.defaultOutputDir];
-        return buildLibraryMetaPreload(
+        return libraryPreloadService.buildMetaPreload(
           libDirs,
           0,
           ({ processed, total, matched }) => {
@@ -1173,7 +795,12 @@ windowLifecycleService = new WindowLifecycleService({
     return { providerId: providerGateway.activeProvider.id, home, filters, catalog, libraryMeta };
   },
   warmLibrary: async (settings) => {
-    await buildLibraryMetaPreload(settings.outputDirs || [settings.defaultOutputDir], 0, undefined, true);
+    await libraryPreloadService.buildMetaPreload(
+      settings.outputDirs || [settings.defaultOutputDir],
+      0,
+      undefined,
+      true,
+    );
   },
   setPreloadedData: ({ providerId, home, filters, catalog, libraryMeta }) => {
     preloadedData.providerId = providerId;
