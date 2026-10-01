@@ -20,6 +20,7 @@ import { DownloadService } from '../services/downloads/DownloadService';
 import { EpisodeDownloadAttemptService } from '../services/downloads/EpisodeDownloadAttemptService';
 import { DownloadQueueProcessor } from '../services/downloads/DownloadQueueProcessor';
 import { EpisodeLinksService } from '../services/downloads/EpisodeLinksService';
+import { QueueEnqueueService } from '../services/downloads/QueueEnqueueService';
 import { AppLogger, type LogScope, type ScopedLogger } from '../services/logging/AppLogger';
 import { effectiveMinLevel, normalizeLoggingSettings } from '../utils/logging/loggingSettings';
 import { EpisodeFileService } from '../services/library/EpisodeFileService';
@@ -566,6 +567,31 @@ const episodeLinksService = new EpisodeLinksService({
   log: sendLog,
 });
 
+const queueEnqueueService = new QueueEnqueueService({
+  getAnimeDetails: (slug, providerId) => getAnimeDetailsBySlug(slug, providerId),
+  getActiveProviderId: () => providerGateway.activeProviderIdName,
+  getOutputDirs: () => {
+    const settings = SettingsManager.get();
+    return {
+      outputDirs: settings.outputDirs || [settings.defaultOutputDir],
+      defaultOutputDir: settings.defaultOutputDir,
+    };
+  },
+  listQueueItems: () => downloadQueue,
+  ensureFolderPoster: (folderPath, posterUrl) => libraryAssetService.ensureFolderPoster(folderPath, posterUrl),
+  ensureFolderBanner: (folderPath, bannerUrl) => libraryAssetService.ensureFolderBanner(folderPath, bannerUrl),
+  resolveAniListBannerUrl: (input, onFailure) =>
+    resolveAniListBannerResult(input, undefined, onFailure).then((resolved) => resolved?.banner ?? null),
+  urlToFilePath: (url) => LibraryAssetService.urlToFilePath(url),
+  writeFolderLibraryMeta: (folderPath, data) => libraryAssetService.writeFolderLibraryMeta(folderPath, data),
+  addItem: (item) => queueStore.add(item),
+  sendQueueUpdate: () => sendQueueUpdate(),
+  processQueue: () => processQueue(),
+  logQueue: (message, meta) => scopedLog('queue').info(message, meta),
+  logAnilistWarn: (message) => scopedLog('anilist').warn(message),
+  logError: (error) => writeGlobalLog(error),
+});
+
 const queueProcessor = new DownloadQueueProcessor({
   queueStore,
   attemptService: episodeDownloadAttemptService,
@@ -731,6 +757,7 @@ registerIpcHandlers({
   thumbnailService,
   queueStore,
   queueProcessor,
+  queueEnqueueService,
   serverStatsStore,
   downloadQueue,
   appUpdateService,

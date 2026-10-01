@@ -12,6 +12,7 @@ import { ThumbnailService } from '../services/library/ThumbnailService';
 import { QueueStore } from '../services/persistence/QueueStore';
 import { ServerStatsStore } from '../services/persistence/ServerStatsStore';
 import { DownloadQueueProcessor } from '../services/downloads/DownloadQueueProcessor';
+import { QueueEnqueueService } from '../services/downloads/QueueEnqueueService';
 import { AppUpdateService } from '../services/update/AppUpdateService';
 import { StorageService } from '../services/library/StorageService';
 import type { PreloadedData } from './WindowLifecycleService';
@@ -41,6 +42,7 @@ export interface IpcRegistryDependencies {
   thumbnailService: ThumbnailService;
   queueStore: QueueStore;
   queueProcessor: DownloadQueueProcessor;
+  queueEnqueueService: QueueEnqueueService;
   serverStatsStore: ServerStatsStore;
   downloadQueue: QueueItem[];
   appUpdateService: AppUpdateService | null;
