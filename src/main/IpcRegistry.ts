@@ -1,6 +1,5 @@
 import { BrowserWindow, ipcMain } from 'electron';
 import type { DownloadAnimeDetails } from '../types/anime';
-import type { FolderLibraryMeta } from '../types/library';
 import type { DownloadProvider, QueueItem } from '../types/queue';
 import { ProviderGateway } from '../services/providers/ProviderGateway';
 import { HomeFeedService } from '../services/providers/HomeFeedService';
@@ -51,9 +50,6 @@ export interface IpcRegistryDependencies {
   getAllowedBaseDirs: () => string[];
   getConnectivityStatus: () => boolean;
   getAnimeDetailsBySlug: (slug: string, providerId?: DownloadProvider) => Promise<DownloadAnimeDetails | null>;
-  ensureFolderPoster: (folderPath: string, posterUrl: string | null | undefined) => Promise<string | null>;
-  ensureFolderBanner: (folderPath: string, bannerUrl: string | null | undefined) => Promise<string | null>;
-  writeFolderLibraryMeta: (folderPath: string, data: FolderLibraryMeta) => void;
   normalizeEpisodeFilesInFolder: (
     animePath: string,
     forceRename?: boolean,

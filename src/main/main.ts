@@ -41,7 +41,6 @@ import { StorageService } from '../services/library/StorageService';
 import { terminateChildProcessTree } from '../utils/processUtils';
 import type { DownloadAnimeDetails } from '../types/anime';
 import type { HistoryWriteRecord } from '../types/history';
-import type { FolderLibraryMeta } from '../types/library';
 import type { DownloadProvider, QueueItem } from '../types/queue';
 import { buildCanonicalEpisodeFileName as buildCanonicalEpisodeFileNameUtil } from '../utils/episodeUtils';
 import { detectFreshInstall, normalizeDownloadSettings } from '../utils/downloads/downloadSettings';
@@ -187,18 +186,6 @@ const preloadedData: PreloadedData = {
   catalog: null,
   libraryMeta: null,
 };
-
-function writeFolderLibraryMeta(folderPath: string, data: FolderLibraryMeta): void {
-  libraryAssetService.writeFolderLibraryMeta(folderPath, data);
-}
-
-function ensureFolderPoster(folderPath: string, posterUrl: string | null | undefined): Promise<string | null> {
-  return libraryAssetService.ensureFolderPoster(folderPath, posterUrl);
-}
-
-function ensureFolderBanner(folderPath: string, bannerUrl: string | null | undefined): Promise<string | null> {
-  return libraryAssetService.ensureFolderBanner(folderPath, bannerUrl);
-}
 
 async function getAnimeDetailsBySlug(
   slug: string,
@@ -769,9 +756,6 @@ registerIpcHandlers({
   },
   getConnectivityStatus: () => getConnectivityStatusImpl(),
   getAnimeDetailsBySlug,
-  ensureFolderPoster,
-  ensureFolderBanner,
-  writeFolderLibraryMeta,
   normalizeEpisodeFilesInFolder,
   processQueue,
   sendQueueUpdate,
