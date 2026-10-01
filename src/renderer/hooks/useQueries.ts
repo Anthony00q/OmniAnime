@@ -2,6 +2,7 @@
 // por dominio y este barrel re-exporta la superficie pública (AGENTS.md §2).
 export * from './queries/home';
 export * from './queries/catalog';
+export * from './queries/providers';
 export * from './queries/details';
 export * from './queries/anilist';
 export * from './queries/jkThumbs';

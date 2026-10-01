@@ -14,13 +14,12 @@ import {
   SquarePen,
   Trash2,
 } from 'lucide-react';
-import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { CustomSelect } from '@/renderer/components/CustomSelect';
 import { Dialog } from '@/renderer/components/Dialog';
 import { AppTooltip } from '@/renderer/components/ui/AppTooltip';
 import { EmptyState } from '@/renderer/components/ui/EmptyState';
-import { useLogFilePage, useLogFilenames } from '@/renderer/hooks/useQueries';
+import { useLogFilePage, useLogFilenames, useDeleteLogFiles, fetchLogPageSnapshot } from '@/renderer/hooks/useQueries';
 import { exportDiagnostics, revealLogFile } from '@/renderer/utils/diagnosticsActions';
 import { filterLogFilenames } from '@/utils/logging/logPage';
 
@@ -119,7 +118,7 @@ export const LogsTab = memo(function LogsTab({ isActive = true }: LogsTabProps) 
   const [deleting, setDeleting] = useState(false);
   const [spinning, setSpinning] = useState(false);
   const spinTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const queryClient = useQueryClient();
+  const deleteLogFiles = useDeleteLogFiles();
   const filesQuery: any = useLogFilenames(isActive);
   const files: Array<{ name: string; size: number; mtimeMs: number; isCurrent: boolean }> = useMemo(
     () => filesQuery.data?.files || [],
@@ -198,7 +197,7 @@ export const LogsTab = memo(function LogsTab({ isActive = true }: LogsTabProps) 
     if (selected.size === 0 || deleting) return;
     setDeleting(true);
     try {
-      const res: any = await window.api.invoke('delete-log-files', { files: [...selected] });
+      const res: any = await deleteLogFiles.mutateAsync([...selected]);
       if (res?.ok === true) {
         toast.success(
           res.deleted === 1 ? 'Espacio liberado: 1 sesión anterior' : `Espacio liberado: ${res.deleted} sesiones`,
@@ -206,7 +205,6 @@ export const LogsTab = memo(function LogsTab({ isActive = true }: LogsTabProps) 
         );
         if (openFile && selected.has(openFile)) setOpenFile(null);
         setSelected(new Set());
-        await queryClient.invalidateQueries({ queryKey: ['log-filenames'] });
       } else {
         toast.error('Nada que liberar', { description: String(res?.error || 'Sin datos') });
       }
@@ -222,15 +220,7 @@ export const LogsTab = memo(function LogsTab({ isActive = true }: LogsTabProps) 
     if (copying || !currentName) return;
     setCopying(true);
     try {
-      const res: any = await window.api.invoke('get-log-page', {
-        level: 'all',
-        scope: 'all',
-        query: '',
-        sessionOnly: false,
-        filename: currentName,
-        cursor: 0,
-        limit: 500,
-      });
+      const res: any = await fetchLogPageSnapshot(currentName, 500);
       const entries = res?.entries || [];
       if (entries.length === 0) {
         toast.error('Esta sesión aún está en blanco');

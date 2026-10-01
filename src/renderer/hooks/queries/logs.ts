@@ -1,4 +1,4 @@
-import { useQuery, useInfiniteQuery, keepPreviousData } from '@tanstack/react-query';
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 
 export interface LogPageFilters {
   level: string;
@@ -66,5 +66,30 @@ export function useLogFilePage(filename: string | null, enabled = true) {
     enabled: enabled && !!filename,
     staleTime: 10 * 1000,
     placeholderData: keepPreviousData,
+  });
+}
+
+// Copia de la sesión actual: lectura puntual, sin query.
+export function fetchLogPageSnapshot(filename: string, limit: number): Promise<any> {
+  return window.api.invoke('get-log-page', {
+    level: 'all',
+    scope: 'all',
+    query: '',
+    sessionOnly: false,
+    filename,
+    cursor: 0,
+    limit,
+  });
+}
+
+export function useDeleteLogFiles() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (files: string[]): Promise<any> => window.api.invoke('delete-log-files', { files }),
+    onSuccess: (result) => {
+      // Solo se refresca la lista cuando el borrado tuvo efecto real.
+      if (result?.ok === true) queryClient.invalidateQueries({ queryKey: ['log-filenames'] });
+    },
   });
 }

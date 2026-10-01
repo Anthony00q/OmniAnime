@@ -2,14 +2,6 @@ import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
 import { hasNewCatalogItems } from '@/renderer/utils/catalogResults';
 import { useDeferredProvider } from './internal';
 
-export function useActiveProvider() {
-  return useQuery({
-    queryKey: ['active-provider'],
-    queryFn: () => window.api.invoke('get-active-provider') as Promise<string>,
-    staleTime: Infinity,
-  });
-}
-
 export function useSearchAnime(query: string, enabled: boolean) {
   const provider = useDeferredProvider();
 

@@ -1,6 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useAtom, useAtomValue, useSetAtom } from 'jotai';
-import { useQueryClient } from '@tanstack/react-query';
+import { useAtomValue, useSetAtom } from 'jotai';
 import {
   Home,
   CalendarDays,
@@ -15,12 +13,8 @@ import {
   CircleArrowUp,
 } from 'lucide-react';
 import clsx from 'clsx';
-import {
-  activeProviderAtom,
-  providerChangedCounterAtom,
-  appUpdateAvailableAtom,
-  appUpdateModalOpenAtom,
-} from '@/renderer/store/atoms';
+import { activeProviderAtom, appUpdateAvailableAtom, appUpdateModalOpenAtom } from '@/renderer/store/atoms';
+import { useProvidersList, useProviderSwitch } from '@/renderer/hooks/useQueries';
 import { AppTooltip } from './ui/AppTooltip';
 
 interface SidebarProps {
@@ -29,53 +23,12 @@ interface SidebarProps {
 }
 
 export function Sidebar({ currentView, setCurrentView }: SidebarProps) {
-  const [providers, setProviders] = useState<{ id: string; name: string }[]>([]);
-  const [activeProvider, setActiveProvider] = useAtom(activeProviderAtom);
-  const setProviderChanged = useSetAtom(providerChangedCounterAtom);
+  const providers = useProvidersList();
+  const handleProviderChange = useProviderSwitch();
+  const activeProvider = useAtomValue(activeProviderAtom);
   const updateAvailable = useAtomValue(appUpdateAvailableAtom);
   const updateModalOpen = useAtomValue(appUpdateModalOpenAtom);
   const setUpdateModalOpen = useSetAtom(appUpdateModalOpenAtom);
-  const queryClient = useQueryClient();
-
-  useEffect(() => {
-    window.api
-      .invoke('get-providers')
-      .then(setProviders)
-      .catch(() => {});
-  }, []);
-
-  // Optimista: pinta el indicador en el mismo frame y persiste en background.
-  const handleProviderChange = useCallback(
-    (id: string) => {
-      if (id === activeProvider) return;
-      const prev = activeProvider;
-      setActiveProvider(id);
-      queryClient.setQueryData(['active-provider'], id);
-      setProviderChanged((c) => c + 1);
-      window.dispatchEvent(new Event('provider-changed'));
-      // Cancela peticiones en vuelo del proveedor anterior: con provider
-      // explícito por petición ya no contaminan, esto solo ahorra red.
-      // Sin await para no devolver la latencia al indicador (optimista).
-      void queryClient.cancelQueries({ queryKey: ['home'] }).catch(() => {});
-      void queryClient.cancelQueries({ queryKey: ['schedule'] }).catch(() => {});
-      void queryClient.cancelQueries({ queryKey: ['catalog'] }).catch(() => {});
-      void queryClient.cancelQueries({ queryKey: ['search'] }).catch(() => {});
-      void queryClient.cancelQueries({ queryKey: ['filters'] }).catch(() => {});
-      void queryClient.cancelQueries({ queryKey: ['details'] }).catch(() => {});
-      const rollbackIfStale = () => {
-        if (queryClient.getQueryData(['active-provider']) !== id) return;
-        setActiveProvider(prev);
-        queryClient.setQueryData(['active-provider'], prev);
-      };
-      void window.api
-        .invoke('set-active-provider', id)
-        .then((result) => {
-          if (result === false) rollbackIfStale();
-        })
-        .catch(rollbackIfStale);
-    },
-    [activeProvider, queryClient, setActiveProvider, setProviderChanged],
-  );
 
   const items = [
     { id: 'home', icon: Home, label: 'Inicio' },

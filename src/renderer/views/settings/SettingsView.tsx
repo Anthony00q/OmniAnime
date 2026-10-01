@@ -10,7 +10,13 @@ import { playNotificationSound, type NotificationSoundType, type SoundPackId } f
 import { DEFAULT_ACCENT_HEX, getAccentHex, isValidAccentColor } from '@/renderer/utils/color';
 import { settingsAtom } from '@/renderer/store/atoms';
 import type { AppSettings, ThemeId } from '@/types/settings';
-import { useLoadSettings, useSaveSettings, useStorageStats, useStorageActions } from '@/renderer/hooks/useQueries';
+import {
+  useLoadSettings,
+  useSaveSettings,
+  useStorageStats,
+  useStorageActions,
+  fetchDefaultSettings,
+} from '@/renderer/hooks/useQueries';
 import { ErrorState } from '@/renderer/components/ui/ErrorState';
 import { AppearanceTab } from './tabs/AppearanceTab';
 import { DownloadsTab } from './tabs/DownloadsTab';
@@ -123,7 +129,7 @@ export function SettingsView({ isActive = true }: { isActive?: boolean }) {
 
   const checkActiveDownloads = async (): Promise<boolean> => {
     try {
-      const queue = await (window as any).api?.invoke?.('get-queue');
+      const queue = await window.api.invoke('get-queue');
       const items = Array.isArray(queue) ? queue : queue?.items || [];
       return items.some((item: any) => item?.status === 'downloading');
     } catch {
@@ -141,7 +147,7 @@ export function SettingsView({ isActive = true }: { isActive?: boolean }) {
   const handleRestartNow = async () => {
     setRestartLoading(true);
     try {
-      await (window as any).api?.invoke?.('app-restart');
+      await window.api.invoke('app-restart');
     } catch {
       toast.error('No se pudo reiniciar. Cierra y vuelve a abrir la app.');
       setRestartLoading(false);
@@ -259,7 +265,7 @@ export function SettingsView({ isActive = true }: { isActive?: boolean }) {
 
   const confirmRestore = async () => {
     try {
-      const defaultSettings = await window.api.invoke('get-default-settings');
+      const defaultSettings = await fetchDefaultSettings();
       const nextSettings = normalizeSettings(defaultSettings) as AppSettings;
       const hwChanged = (nextSettings?.hardwareAcceleration !== false) !== prevHwAccelRef.current;
       const providerChanged = (nextSettings?.defaultProvider || 'animeav1') !== (prevProviderRef.current || 'animeav1');

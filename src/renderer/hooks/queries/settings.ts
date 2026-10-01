@@ -9,6 +9,11 @@ export function useLoadSettings() {
   });
 }
 
+// Lectura puntual para acciones (restaurar valores por defecto): sin query.
+export function fetchDefaultSettings(): Promise<any> {
+  return window.api.invoke('get-default-settings');
+}
+
 export function useSaveSettings() {
   const queryClient = useQueryClient();
 
