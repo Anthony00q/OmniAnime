@@ -6,8 +6,9 @@ interface ReleaseNoteEntry {
 }
 
 // Normaliza releaseNotes de electron-updater (string | ReleaseNoteInfo[] | null)
-// a texto plano listo para mostrar. El feed Atom de GitHub entrega HTML;
-// latest.yml entrega markdown: ambos quedan en texto limpio. Sin red.
+// a texto del modal: el HTML del feed Atom y el markdown de latest.yml salen
+// con la misma estructura mínima (`#` encabezados, `- ` viñetas, `**negrita**`).
+// Sin red.
 export function normalizeReleaseNotes(input: unknown): string | undefined {
   if (typeof input === 'string') {
     const text = toPlainText(input).trim();
@@ -57,9 +58,10 @@ function stripHtml(html: string): string {
   const withoutComments = html.replace(/<!--[\s\S]*?-->/g, '');
   const withBreaks = withoutComments
     .replace(/<li[^>]*>/gi, '\n- ')
-    .replace(/<\/(p|div|ul|ol|h1|h2|h3|h4|h5|h6|li|tr|table)>/gi, '\n')
-    .replace(/<(br|p|div|ul|ol|h1|h2|h3|h4|h5|h6|tr|table)[^>]*>/gi, '\n');
-  const withoutTags = withBreaks.replace(/<[^>]+>/g, '');
+    .replace(/<h[1-6][^>]*>/gi, '\n# ')
+    .replace(/<\/(p|div|ul|ol|h[1-6]|li|tr|table)>/gi, '\n')
+    .replace(/<(br|p|div|ul|ol|tr|table)[^>]*>/gi, '\n');
+  const withoutTags = withBreaks.replace(/<\/?(strong|b)[^>]*>/gi, '**').replace(/<[^>]+>/g, '');
   return withoutTags
     .split('\n')
     .map((line) => line.trimEnd())

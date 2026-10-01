@@ -77,9 +77,11 @@ La sección `## [X.Y.Z] - fecha` admite un formato mínimo que el modal de
 actualización renderiza: líneas `### Zona` como grupos, líneas `- ...`
 como viñetas y `**negrita**` en línea (la forma legacy `Etiqueta:` en
 línea suelta aún renderiza en el modal, pero no la uses en secciones
-nuevas). Todo lo demás se muestra como texto tal cual. El extractor y
-`latest.yml` pasan el texto sin tocarlo, así que la web de GitHub lo
-renderiza sola desde el mismo origen (ahí `###` se ve como encabezado).
+nuevas). Todo lo demás se muestra como texto tal cual, así que sin
+enlaces, cursiva ni código: el modal solo pinta encabezados, viñetas y
+negrita. El extractor y `latest.yml` pasan el texto sin tocarlo, así que
+la web de GitHub lo renderiza sola desde el mismo origen (ahí `###` se ve
+como encabezado).
 
 Anti-instalador-vacío: `prebuild:win` y `prebuild:win:publish` ejecutan
 `setup-tools --check` antes de empaquetar; si falta el binario o no

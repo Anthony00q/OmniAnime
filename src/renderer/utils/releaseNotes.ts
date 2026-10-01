@@ -80,14 +80,62 @@ export interface ReleaseNotesSection {
   blocks: Exclude<ReleaseNotesBlock, { kind: 'heading' }>[];
 }
 
+export function inlineText(nodes: ReleaseNotesInline[]): string {
+  return nodes.map((node) => node.text).join('');
+}
+
+const VERSION_LINE_RE = /^v?\[?(\d+)\.(\d+)\.(\d+)\]?(\s*[-–—(].*)?$/;
+
+// Marca de versión (`vX.Y.Z`, `## [X.Y.Z] - fecha`): el modal la trata como
+// divisor de entradas del changelog.
+export function isVersionLine(text: string): boolean {
+  return VERSION_LINE_RE.test(text.trim());
+}
+
+function versionTriple(text: string): string | null {
+  const match = VERSION_LINE_RE.exec(text.trim());
+  return match ? `${match[1]}.${match[2]}.${match[3]}` : null;
+}
+
+function dropLeadingBlanks(lines: string[]): string {
+  const rest = [...lines];
+  while (rest.length > 0 && !rest[0].trim()) rest.shift();
+  return rest.join('\n');
+}
+
+// Muestra solo las entradas de la versión a la que se actualiza (hasta la
+// marca siguiente de cualquier versión). Sin marcas, o sin la suya, conserva
+// el preámbulo sin versionar.
+export function releaseNotesForVersion(notes: string, version: string): string {
+  const wanted = versionTriple(version);
+  if (!wanted) return notes;
+  const lines = notes.split(/\r?\n/);
+  const marks: Array<{ line: number; triple: string }> = [];
+  lines.forEach((line, index) => {
+    const triple = versionTriple(line.trim().replace(/^#{1,6}\s+/, ''));
+    if (triple) marks.push({ line: index, triple });
+  });
+  if (marks.length === 0) return notes;
+  const own = marks.filter((mark) => mark.triple === wanted);
+  if (own.length === 0) return dropLeadingBlanks(lines.slice(0, marks[0].line));
+  const parts = own.flatMap((mark) => {
+    const next = marks.find((other) => other.line > mark.line);
+    const part = dropLeadingBlanks(lines.slice(mark.line + 1, next ? next.line : lines.length));
+    return part ? [part] : [];
+  });
+  return parts.reduce((acc, part) => (acc ? `${acc.replace(/\n+$/, '')}\n\n${part}` : part), '');
+}
+
 // Cose cada encabezado con su contenido: aire apretado dentro de la
 // sección y generoso entre secciones. Sin encabezado, sección suelta.
-// Un encabezado sin contenido no genera sección (evita huecos vacíos).
+// Un encabezado de zona sin contenido no genera sección (evita huecos
+// vacíos); uno de versión sí, porque separa entradas del changelog.
 export function groupReleaseSections(blocks: ReleaseNotesBlock[]): ReleaseNotesSection[] {
   const sections: ReleaseNotesSection[] = [];
   let current: ReleaseNotesSection | null = null;
   const pushCurrent = () => {
-    if (current && current.blocks.length > 0) sections.push(current);
+    const isVersionDivider = current?.heading ? isVersionLine(inlineText(current.heading)) : false;
+    if (current && (current.blocks.length > 0 || isVersionDivider)) sections.push(current);
     current = null;
   };
   for (const block of blocks) {
