@@ -1,6 +1,7 @@
 import * as fsp from 'fs/promises';
 import * as path from 'path';
 import { buildCanonicalEpisodeFileName, extractEpisodeNumberFromVideoFileName } from '../../utils/episodeUtils';
+import { errorDetailForLog } from '../../utils/logging/redactLog';
 import type { LibraryAssetService } from './LibraryAssetService';
 
 export interface EpisodeFileSettings {
@@ -261,14 +262,16 @@ export class EpisodeFileService {
         renamed += 1;
         renamedPairs.push({ from: oldPath, to: newPath });
       } catch (error) {
-        this.options.log(`No se pudo renombrar ${oldPath} a ${newPath}: ${error}`);
+        this.options.log(
+          `No se pudo renombrar ${path.basename(oldPath)} a ${path.basename(newPath)}: ${errorDetailForLog(error)}`,
+        );
       }
     }
     if (renamedPairs.length > 0) {
       try {
         await this.options.onFilesRenamed?.(renamedPairs);
       } catch (error) {
-        this.options.log(`No se pudieron mover miniaturas en ${animePath}: ${error}`);
+        this.options.log(`No se pudieron mover miniaturas en ${path.basename(animePath)}: ${errorDetailForLog(error)}`);
       }
     }
 
@@ -301,7 +304,7 @@ export class EpisodeFileService {
             const stats = await fsp.stat(filePath);
             sizeBytes = stats.size;
           } catch (error) {
-            this.options.log(`No se pudo inspeccionar ${filePath}: ${error}`);
+            this.options.log(`No se pudo inspeccionar ${path.basename(filePath)}: ${errorDetailForLog(error)}`);
             return null;
           }
           return {
@@ -353,7 +356,9 @@ export class EpisodeFileService {
                 (entry) => entry.isFile() && VIDEO_EXTENSIONS.has(path.extname(entry.name).toLowerCase()),
               ).length;
             } catch (error) {
-              this.options.log(`No se pudo leer ${folderPath} para reordenar: ${error}`);
+              this.options.log(
+                `No se pudo leer ${path.basename(folderPath)} para reordenar: ${errorDetailForLog(error)}`,
+              );
               return null;
             }
             if (episodeCount === 0) return null;
@@ -486,7 +491,9 @@ export class EpisodeFileService {
             try {
               await fsp.rename(temp.tempPath, temp.originalPath);
             } catch (rollbackError) {
-              this.options.log(`Error revirtiendo ${temp.tempPath}: ${rollbackError}`);
+              this.options.log(
+                `Error revirtiendo ${path.basename(temp.tempPath)}: ${errorDetailForLog(rollbackError)}`,
+              );
             }
           }
           this.options.log(error);
@@ -514,14 +521,18 @@ export class EpisodeFileService {
             try {
               if (await pathExists(applied.finalPath)) await fsp.rename(applied.finalPath, applied.tempPath);
             } catch (rollbackError) {
-              this.options.log(`Error revirtiendo ${applied.finalPath}: ${rollbackError}`);
+              this.options.log(
+                `Error revirtiendo ${path.basename(applied.finalPath)}: ${errorDetailForLog(rollbackError)}`,
+              );
             }
           }
           for (const temp of tempNames) {
             try {
               if (await pathExists(temp.tempPath)) await fsp.rename(temp.tempPath, temp.originalPath);
             } catch (rollbackError) {
-              this.options.log(`Error restaurando ${temp.tempPath}: ${rollbackError}`);
+              this.options.log(
+                `Error restaurando ${path.basename(temp.tempPath)}: ${errorDetailForLog(rollbackError)}`,
+              );
             }
           }
           this.options.log(error);
@@ -543,7 +554,9 @@ export class EpisodeFileService {
         try {
           await this.options.onFilesRenamed?.(thumbPairs);
         } catch (error) {
-          this.options.log(`No se pudieron mover miniaturas en ${folderPath}: ${error}`);
+          this.options.log(
+            `No se pudieron mover miniaturas en ${path.basename(folderPath)}: ${errorDetailForLog(error)}`,
+          );
         }
       }
       return { success: true, renamed: finalNames.length };

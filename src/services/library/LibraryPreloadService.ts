@@ -5,6 +5,7 @@ import type { AnimeDetails, AnimeSearchResult } from '../../types/anime';
 import type { FolderLibraryMeta, LibraryMetaPreloadRow } from '../../types/library';
 import { computeTitleMatchScore, normalizeFolderAlternativeTitles } from '../../utils/titleUtils';
 import { anilistBannerInputFromDetails, type AniListBannerInput } from '../providers/AniListService';
+import { errorDetailForLog, safeErrorMessage } from '../../utils/logging/redactLog';
 
 export interface LibraryPreloadAssetPort {
   getFolderPosterFileUrlAsync(folderPath: string): Promise<string | null>;
@@ -126,7 +127,9 @@ export class LibraryPreloadService {
         try {
           dirents = (await fs.promises.readdir(baseDir, { withFileTypes: true })) as unknown as fs.Dirent[];
         } catch (error) {
-          this.options.log(`No se pudo leer ${baseDir} durante el precargado: ${error}`);
+          this.options.log(
+            `No se pudo leer ${path.basename(baseDir)} durante el precargado: ${errorDetailForLog(error)}`,
+          );
           continue;
         }
         for (const d of await mapLimit(
@@ -145,7 +148,9 @@ export class LibraryPreloadService {
                 0,
               );
             } catch (error) {
-              this.options.log(`No se pudo leer ${folderPath} durante el precargado: ${error}`);
+              this.options.log(
+                `No se pudo leer ${path.basename(folderPath)} durante el precargado: ${errorDetailForLog(error)}`,
+              );
             }
             if (episodeCount === 0) return null;
 
@@ -154,7 +159,9 @@ export class LibraryPreloadService {
               const st = await fs.promises.stat(folderPath);
               birthtime = st.birthtimeMs || 0;
             } catch (error) {
-              this.options.log(`No se pudo obtener la fecha de ${folderPath}: ${error}`);
+              this.options.log(
+                `No se pudo obtener la fecha de ${path.basename(folderPath)}: ${errorDetailForLog(error)}`,
+              );
             }
             const [localPoster, localBanner, localMeta] = await Promise.all([
               this.options.assetService.getFolderPosterFileUrlAsync(folderPath),
@@ -189,7 +196,7 @@ export class LibraryPreloadService {
         try {
           this.options.clearAutoRenameRetroactiveOnce();
         } catch (error) {
-          this.options.log(`No se pudo desactivar el renombrado retroactivo: ${error}`);
+          this.options.log(`No se pudo desactivar el renombrado retroactivo: ${errorDetailForLog(error)}`);
         }
       };
 
@@ -219,7 +226,7 @@ export class LibraryPreloadService {
             try {
               await this.options.normalizeEpisodeFiles(folder.folderPath);
             } catch (e) {
-              this.options.scopedLogError(`preload rename: ${e}`);
+              this.options.scopedLogError(`preload rename: ${errorDetailForLog(e)}`);
             }
           }
           if (folder.localMeta?.slug && (folder.localPoster || folder.localBanner)) {
@@ -356,7 +363,9 @@ export class LibraryPreloadService {
           try {
             details = await matchingProvider.getDetails(String(best.slug || ''));
           } catch (error) {
-            this.options.log(`No se pudieron obtener detalles de ${String(best.slug || '')}: ${error}`);
+            this.options.log(
+              `No se pudieron obtener detalles de ${String(best.slug || '')}: ${safeErrorMessage(error)}`,
+            );
           }
 
           const posterUrl = details?.poster || best.poster || null;

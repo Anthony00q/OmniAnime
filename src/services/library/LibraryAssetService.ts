@@ -6,6 +6,7 @@ import * as path from 'path';
 import { pathToFileURL } from 'url';
 import { safeWriteFileSync } from '../../utils/fsUtils';
 import { normalizeFolderAlternativeTitles } from '../../utils/titleUtils';
+import { errorDetailForLog } from '../../utils/logging/redactLog';
 import type { FolderLibraryMeta } from '../../types/library';
 import { assertAllowedImageRedirect, isAllowedImageUrl } from '../../utils/security/networkSecurity';
 import { isPathWithinAnyDirectory } from '../../utils/security/pathSecurity';
@@ -267,7 +268,9 @@ export class LibraryAssetService {
       const assetMetaPath = path.join(this.getFolderAssetDir(folderPath), 'library-meta.json');
       safeWriteFileSync(assetMetaPath, JSON.stringify({ ...normalized, folderPath, updatedAt: Date.now() }, null, 2));
     } catch (error) {
-      this.options.log(`Error guardando metadata de biblioteca en ${folderPath}: ${error}`);
+      this.options.log(
+        `Error guardando metadata de biblioteca en ${path.basename(folderPath)}: ${errorDetailForLog(error)}`,
+      );
     }
   }
 
@@ -280,7 +283,7 @@ export class LibraryAssetService {
       this.options.database.setFolderMeta(newPath, { ...meta, folderPath: newPath });
       this.options.database.deleteFolderMeta?.(oldPath);
     } catch (error) {
-      this.options.log(`No se pudo actualizar metadata de ${newPath}: ${error}`);
+      this.options.log(`No se pudo actualizar metadata de ${path.basename(newPath)}: ${errorDetailForLog(error)}`);
     }
   }
 
@@ -290,7 +293,7 @@ export class LibraryAssetService {
         this.options.database.deleteFolderMeta?.(folderPath);
       }
     } catch (error) {
-      this.options.log(`No se pudo eliminar metadata de ${folderPath}: ${error}`);
+      this.options.log(`No se pudo eliminar metadata de ${path.basename(folderPath)}: ${errorDetailForLog(error)}`);
     }
   }
 
@@ -378,7 +381,7 @@ export class LibraryAssetService {
         await this.ensureFolderBanner(folderPath, meta.bannerUrl);
       }
     } catch (error) {
-      this.options.log(`No se pudieron restaurar assets de ${folderPath}: ${error}`);
+      this.options.log(`No se pudieron restaurar assets de ${path.basename(folderPath)}: ${errorDetailForLog(error)}`);
     } finally {
       this.inFlightDownloads.delete(key);
     }

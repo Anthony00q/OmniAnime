@@ -5,6 +5,7 @@ import * as path from 'path';
 import type { LibraryAssetService } from './LibraryAssetService';
 import { anilistBannerInputFromDetails, type AniListBannerInput } from '../providers/AniListService';
 import { normalizeDisplayAnimeTitle, normalizeFolderAlternativeTitles } from '../../utils/titleUtils';
+import { errorDetailForLog, safeErrorMessage } from '../../utils/logging/redactLog';
 import {
   isPathWithinAnyDirectory,
   isPathSafeForDestructiveOperation,
@@ -79,7 +80,9 @@ export class LibraryFileService {
               try {
                 stats = await fs.promises.stat(folderPath);
               } catch (error) {
-                this.options.log(`No se pudo inspeccionar la carpeta de biblioteca ${folderPath}: ${error}`);
+                this.options.log(
+                  `No se pudo inspeccionar la carpeta de biblioteca ${path.basename(folderPath)}: ${errorDetailForLog(error)}`,
+                );
                 return null;
               }
 
@@ -92,7 +95,9 @@ export class LibraryFileService {
                   return VIDEO_EXTENSIONS.has(path.extname(entry.name).toLowerCase()) ? acc + 1 : acc;
                 }, 0);
               } catch (error) {
-                this.options.log(`No se pudo leer la carpeta de biblioteca ${folderPath}: ${error}`);
+                this.options.log(
+                  `No se pudo leer la carpeta de biblioteca ${path.basename(folderPath)}: ${errorDetailForLog(error)}`,
+                );
                 return null;
               }
 
@@ -104,7 +109,9 @@ export class LibraryFileService {
                   try {
                     await fs.promises.rm(folderPath, { recursive: true, force: true });
                   } catch (error) {
-                    this.options.log(`No se pudo eliminar la carpeta vacia ${folderPath}: ${error}`);
+                    this.options.log(
+                      `No se pudo eliminar la carpeta vacia ${path.basename(folderPath)}: ${errorDetailForLog(error)}`,
+                    );
                   }
                 }
                 return null;
@@ -167,7 +174,9 @@ export class LibraryFileService {
                   await fsp.rm(cacheDir, { recursive: true, force: true });
                 }
               } catch (error) {
-                this.options.log(`No se pudo limpiar la cache de ${folderPath}: ${error}`);
+                this.options.log(
+                  `No se pudo limpiar la cache de ${path.basename(folderPath)}: ${errorDetailForLog(error)}`,
+                );
               }
 
               // Fetch poster/banner URLs async to avoid sync scan
@@ -265,7 +274,9 @@ export class LibraryFileService {
           fs.renameSync(oldAssetDir, newAssetDir);
         }
       } catch (error) {
-        this.options.log(`No se pudieron mover los assets de ${oldPath} a ${newPath}: ${error}`);
+        this.options.log(
+          `No se pudieron mover los assets de ${path.basename(oldPath)} a ${path.basename(newPath)}: ${errorDetailForLog(error)}`,
+        );
       }
       this.options.assetService.renameFolderLibraryMeta(oldPath, newPath);
       return { success: true, newPath };
@@ -288,7 +299,9 @@ export class LibraryFileService {
       try {
         if (fs.existsSync(assetDir)) fs.rmSync(assetDir, { recursive: true, force: true });
       } catch (error) {
-        this.options.log(`No se pudieron eliminar los assets de ${folderPath}: ${error}`);
+        this.options.log(
+          `No se pudieron eliminar los assets de ${path.basename(folderPath)}: ${errorDetailForLog(error)}`,
+        );
       }
       this.options.assetService.deleteFolderLibraryMeta(folderPath);
       return true;
@@ -313,7 +326,7 @@ export class LibraryFileService {
           if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
         }
       } catch (error) {
-        this.options.log(`Error limpiando assets anteriores en relink: ${error}`);
+        this.options.log(`Error limpiando assets anteriores en relink: ${errorDetailForLog(error)}`);
       }
 
       // Banner como en la ficha: solo AniList validado, sin fallback al
@@ -342,13 +355,13 @@ export class LibraryFileService {
           await this.options.assetService.ensureFolderPoster(folderPath, details.poster || null);
           if (anilistBannerUrl) await this.options.assetService.ensureFolderBanner(folderPath, anilistBannerUrl);
         } catch (error) {
-          this.options.log(`Error descargando assets en relink: ${error}`);
+          this.options.log(`Error descargando assets en relink: ${safeErrorMessage(error)}`);
         }
       });
 
       return true;
     } catch (error) {
-      this.options.log(`Relink error: ${error}`);
+      this.options.log(`Relink error: ${errorDetailForLog(error)}`);
       return false;
     }
   }
@@ -387,7 +400,9 @@ export class LibraryFileService {
           if (!remaining) fs.rmSync(parentDir, { recursive: true, force: true });
         }
       } catch (error) {
-        this.options.log(`No se pudo limpiar la carpeta contenedora de ${videoPath}: ${error}`);
+        this.options.log(
+          `No se pudo limpiar la carpeta contenedora de ${path.basename(videoPath)}: ${errorDetailForLog(error)}`,
+        );
       }
 
       const thumbDir = path.join(this.options.userDataDir, 'thumbnails_v3');
@@ -397,7 +412,9 @@ export class LibraryFileService {
         try {
           fs.unlinkSync(thumbPath);
         } catch (error) {
-          this.options.log(`No se pudo eliminar el thumbnail de ${videoPath}: ${error}`);
+          this.options.log(
+            `No se pudo eliminar el thumbnail de ${path.basename(videoPath)}: ${errorDetailForLog(error)}`,
+          );
         }
       }
 
