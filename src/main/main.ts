@@ -43,7 +43,11 @@ import type { DownloadAnimeDetails } from '../types/anime';
 import type { HistoryWriteRecord } from '../types/history';
 import type { DownloadProvider, QueueItem } from '../types/queue';
 import { buildCanonicalEpisodeFileName as buildCanonicalEpisodeFileNameUtil } from '../utils/episodeUtils';
-import { detectFreshInstall, normalizeDownloadSettings } from '../utils/downloads/downloadSettings';
+import {
+  adaptiveConnectionsAll,
+  detectFreshInstall,
+  normalizeDownloadSettings,
+} from '../utils/downloads/downloadSettings';
 import { USER_AGENT } from '../utils/windowUtils';
 import { WindowLifecycleService, type PreloadedData } from './WindowLifecycleService';
 import { registerIpcHandlers } from './IpcRegistry';
@@ -90,7 +94,10 @@ applyLoggingSettings();
 if (isFreshInstall) {
   try {
     const seeded = SettingsManager.get();
-    seeded.download = { ...normalizeDownloadSettings(seeded.download), adaptiveConnections: true };
+    seeded.download = {
+      ...normalizeDownloadSettings(seeded.download),
+      adaptiveConnections: adaptiveConnectionsAll(true),
+    };
     SettingsManager.save(seeded);
   } catch {}
 }

@@ -545,6 +545,9 @@ export class AdaptiveConcurrencyController {
   ): boolean {
     if (this.disposed || to === this.level) return false;
     if (this.handle.isDisposed()) return false;
+    // Capacidad not-applicable: ningún cambio puede aplicarse por ninguna vía
+    // (probes, señales vivas ni backoff). La declara el downloader, no el servidor.
+    if (this.effectiveApplicationMode() === 'not-applicable') return false;
     if (!this.handle.setTarget(to)) return false;
     this.pushDecision(kind, cause, baselineBps, observedBps, this.level, to);
     this.level = to;

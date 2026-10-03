@@ -6,9 +6,10 @@ interface CustomSwitchProps {
   onChange: (v: boolean) => void;
   label?: string;
   ariaLabel?: string;
+  disabled?: boolean;
 }
 
-export function CustomSwitch({ checked, onChange, label, ariaLabel }: CustomSwitchProps) {
+export function CustomSwitch({ checked, onChange, label, ariaLabel, disabled = false }: CustomSwitchProps) {
   const id = useId();
 
   return (
@@ -22,8 +23,11 @@ export function CustomSwitch({ checked, onChange, label, ariaLabel }: CustomSwit
         id={id}
         checked={checked}
         onCheckedChange={onChange}
+        disabled={disabled}
         aria-label={ariaLabel || label || 'Cambiar opción'}
-        className="relative h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors bg-muted-foreground/20 data-[state=checked]:bg-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        className={`relative h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors bg-muted-foreground/20 data-[state=checked]:bg-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
+          disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
+        }`}
       >
         <SwitchPrimitive.Thumb className="block h-5 w-5 rounded-full bg-white shadow-sm transition-[transform,background-color] duration-150 motion-reduce:transition-none translate-x-0.5 data-[state=checked]:translate-x-5 data-[state=checked]:bg-primary-foreground" />
       </SwitchPrimitive.Root>

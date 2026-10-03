@@ -83,6 +83,64 @@ export function classifyMegaError(error: unknown): MegaFailureKind {
 
 const MAX_MEGA_ATTEMPTS = 3;
 
+// Watchdog del single-stream: sin datos en este tiempo, retry con resume. 60 s
+// conservador a propósito: sobre el stall del downloader directo (30 s) y bajo el start timeout (90 s).
+export const MEGA_STALL_TIMEOUT_MS = 60_000;
+
+// La cadena de lectura de megajs single-stream va sin catch: AbortError → EOF;
+// error real → EOF controlado solo con `convertBodyErrors` armado y la causa ya
+// registrada. La absorción vive en el fetch inyectado, no en megajs.
+// El hook solo registra la causa: nunca clasifica ni reintenta (el retry es del
+// pipeline de DownloadService).
+export interface MegaBodyErrorHooks {
+  convertBodyErrors: boolean;
+  onBodyError?: (error: unknown) => void;
+}
+
+function wrapAbortTolerantBody(res: Response, hooks: MegaBodyErrorHooks): Response {
+  const body = res.body as ReadableStream<Uint8Array> | null;
+  if (!body || typeof body.getReader !== 'function') return res;
+  const proxyBody = {
+    getReader() {
+      const reader = body.getReader();
+      return {
+        read(): Promise<{ done: boolean; value?: Uint8Array }> {
+          return reader.read().then(
+            (r) => r as { done: boolean; value?: Uint8Array },
+            (error: unknown) => {
+              // AbortError = cancelación intencionada: EOF silencioso.
+              if ((error as { name?: string } | null)?.name === 'AbortError') return { done: true };
+              if (hooks.convertBodyErrors) {
+                // Error real del body: se registra la causa y se termina el stream
+                // para que el pipeline (MAC o tamaño) decida el retry.
+                try {
+                  hooks.onBodyError?.(error);
+                } catch {}
+                return { done: true };
+              }
+              throw error;
+            },
+          );
+        },
+        cancel: (reason?: unknown) => reader.cancel(reason),
+      };
+    },
+  };
+  return new Proxy(res, {
+    get(target, prop) {
+      if (prop === 'body') return proxyBody;
+      const value = (target as unknown as Record<PropertyKey, unknown>)[prop];
+      return typeof value === 'function' ? (value as (...args: unknown[]) => unknown).bind(target) : value;
+    },
+  }) as Response;
+}
+
+function createMegaFetch(hooks: MegaBodyErrorHooks): typeof globalThis.fetch {
+  const original = globalThis.fetch.bind(globalThis);
+  return ((input: RequestInfo | URL, init?: RequestInit) =>
+    original(input, init).then((res) => wrapAbortTolerantBody(res, hooks))) as typeof globalThis.fetch;
+}
+
 export interface AttemptProbe {
   onRetry?: () => void;
   onFirstByte?: () => void;
@@ -98,9 +156,28 @@ export class DownloadService {
   private readonly logger: ScopedLogger;
   // Permite el pool ranged con 1 worker (medición simple-1 vs ranged-1).
   private readonly rangedFromOne: boolean;
-  constructor(options?: { logger?: ScopedLogger; rangedFromOne?: boolean }) {
+  // Umbral del watchdog de stall del single-stream de Mega (solo tests lo cambian).
+  private readonly megaStallTimeoutMs: number;
+
+  constructor(options?: { logger?: ScopedLogger; rangedFromOne?: boolean; megaStallTimeoutMs?: number }) {
     this.logger = options?.logger ?? noopScopedLogger;
     this.rangedFromOne = options?.rangedFromOne === true;
+    this.megaStallTimeoutMs = options?.megaStallTimeoutMs ?? MEGA_STALL_TIMEOUT_MS;
+  }
+
+  // API de megajs POR INTENTO: cada downloadMega lleva su fetch con sus hooks, de
+  // modo que dos intentos Mega en paralelo nunca comparten estado mutable.
+  private createMegaApi(hooks: MegaBodyErrorHooks): megajs.API | null {
+    try {
+      const ApiClass = megajs.API as unknown as new (
+        keepalive: boolean,
+        opt: { fetch: typeof globalThis.fetch },
+      ) => megajs.API;
+      return new ApiClass(false, { fetch: createMegaFetch(hooks) });
+    } catch {
+      // Sin API propia, megajs usa el global (sin absorción del AbortError).
+      return null;
+    }
   }
 
   abort() {
@@ -518,7 +595,18 @@ export class DownloadService {
     megaFileFactory?: MegaFileFactory,
     connections?: ConcurrencySource,
   ): Promise<boolean> {
-    const factory = megaFileFactory ?? ((u: string) => megajs.File.fromURL(u) as unknown as MegaFileLike);
+    // Hooks e API propios de ESTE intento (routing exacto con Mega en paralelo).
+    const bodyHooks: MegaBodyErrorHooks = {
+      convertBodyErrors: false,
+      onBodyError: (error: unknown) => {
+        this.logger.warn(`mega: corte de red en el stream (${path.basename(dest)}): ${errorDetailForLog(error)}`);
+      },
+    };
+    const attemptApi = this.createMegaApi(bodyHooks);
+    const factory =
+      megaFileFactory ??
+      ((u: string) =>
+        (attemptApi ? megajs.File.fromURL(u, { api: attemptApi }) : megajs.File.fromURL(u)) as unknown as MegaFileLike);
     const normalizedUrl = normalizeMegaUrl(String(url || '').trim());
 
     const destDir = path.dirname(dest);
@@ -558,8 +646,9 @@ export class DownloadService {
     for (let attempt = 1; attempt <= MAX_MEGA_ATTEMPTS; attempt += 1) {
       if (signal?.aborted) return false;
       if (attempt > 1) probe?.onRetry?.();
-      // El cambio se aplica al crearse el stream que está a punto de nacer.
-      reportApplicationMode(connections, 'deferred');
+      // Mega declara capacidad not-applicable: el controller no sonda ni mueve su
+      // target (decisión A/D: el paralelismo de Mega no sigue la ladder global).
+      reportApplicationMode(connections, 'not-applicable');
       try {
         let file: MegaFileLike;
         try {
@@ -609,9 +698,7 @@ export class DownloadService {
           // con su valor.
           const megaConnections = clampDirectConnections(readConcurrency(connections, 6));
           reportActualConcurrency(connections, megaConnections);
-          // Ya congelado: el siguiente punto de aplicación sería el stream de un
-          // reintento, si queda alguno.
-          reportApplicationMode(connections, attempt < MAX_MEGA_ATTEMPTS ? 'deferred' : 'not-applicable');
+          reportApplicationMode(connections, 'not-applicable');
           const outcome = await this.downloadMegaSlice(
             file,
             tempDest,
@@ -623,6 +710,7 @@ export class DownloadService {
             signal,
             probe,
             megaConnections,
+            bodyHooks,
           );
           reportActualConcurrency(connections, 0);
           if (outcome === 'completed') return !signal?.aborted;
@@ -659,17 +747,27 @@ export class DownloadService {
     signal?: AbortSignal,
     probe?: AttemptProbe,
     maxConnections = 6,
+    bodyHooks?: MegaBodyErrorHooks,
   ): Promise<'completed' | 'retry' | 'fatal'> {
     const internalController = new AbortController();
     this.trackController(internalController);
     let writer: fs.WriteStream | null = null;
     let readable: MegaDownloadStream | null = null;
+    let stallTimer: ReturnType<typeof setTimeout> | null = null;
 
     return await new Promise((resolve) => {
       let settled = false;
+      const clearStallTimer = (): void => {
+        if (stallTimer) {
+          clearTimeout(stallTimer);
+          stallTimer = null;
+        }
+      };
       const finish = (outcome: 'completed' | 'retry' | 'fatal') => {
         if (settled) return;
         settled = true;
+        clearStallTimer();
+        if (bodyHooks) bodyHooks.convertBodyErrors = false;
         if (signal) signal.removeEventListener('abort', onExternalAbort);
         internalController.signal.removeEventListener('abort', onGlobalAbort);
         this.untrackController(internalController);
@@ -713,6 +811,26 @@ export class DownloadService {
         finish(kind === 'transient' ? 'retry' : 'fatal');
       };
 
+      // Watchdog solo del single-stream (el chunked se conserva tal cual):
+      // sin datos → destroy + retry con resume.
+      const armStallWatchdog = (): void => {
+        if (maxConnections > 1) return;
+        clearStallTimer();
+        stallTimer = setTimeout(() => {
+          this.logger.warn(
+            `mega: stream sin datos en ${Math.round(this.megaStallTimeoutMs / 1000)}s (stall), se reintenta con resume (${path.basename(dest)})`,
+          );
+          try {
+            readable?.destroy();
+          } catch {}
+          try {
+            writer?.destroy();
+          } catch {}
+          finish('retry');
+        }, this.megaStallTimeoutMs);
+        (stallTimer as unknown as { unref?: () => void }).unref?.();
+      };
+
       let activeWriter: fs.WriteStream;
       try {
         activeWriter = fs.createWriteStream(tempDest, { flags: 'a', highWaterMark: 1024 * 1024 });
@@ -737,6 +855,8 @@ export class DownloadService {
             finish('retry');
             return;
           }
+          // La conversión de errores de body solo se arma en el single-stream.
+          if (bodyHooks) bodyHooks.convertBodyErrors = maxConnections <= 1;
           let readableInstance: MegaDownloadStream;
           try {
             readableInstance = file.download({
@@ -751,8 +871,10 @@ export class DownloadService {
           }
           readable = readableInstance;
           let downloadedLength = 0;
+          armStallWatchdog();
           readable.on('data', (chunk: Buffer) => {
             downloadedLength += chunk.length;
+            armStallWatchdog();
             probe?.onFirstByte?.();
             const fraction = Math.min(1, (startOffset + downloadedLength) / totalLength);
             if (onProgress) onProgress(fraction, startOffset + downloadedLength);

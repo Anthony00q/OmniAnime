@@ -9,17 +9,29 @@ export interface LoggingSettingsInput {
   verbose?: boolean;
 }
 
+// Identidad de servidores Adaptive (minúsculas, como `connectionLevelForServer`).
+// `mega` solo es clave legacy de lectura: Mega es single-stream fijo, nunca Adaptive.
+export type AdaptiveServerId = 'mediafire' | 'mp4upload' | 'voe' | 'mega';
+
+// Conexiones adaptativas: interruptor global + elección por servidor.
+export interface AdaptiveConnectionsSettings {
+  enabled: boolean;
+  servers: Record<AdaptiveServerId, boolean>;
+}
+
 export interface DownloadSettings {
   maxParallelEpisodes: number;
   retries: number;
   startTimeoutSec: number;
   allowContinue: boolean;
   cleanCacheOnComplete: boolean;
-  // Ajusta las conexiones internas del episodio según rendimiento.
-  adaptiveConnections: boolean;
+  // Ajusta las conexiones internas del episodio según rendimiento (global + por servidor).
+  adaptiveConnections: AdaptiveConnectionsSettings;
   mediafireConnections: number;
   mp4uploadConnections: number;
   voeConnections: number;
+  // Mega: single-stream fijo de 1 conexión (los valores legacy 2/4/6/8 se
+  // normalizan a 1; el camino chunked es legacy interno, no opción pública).
   megaConnections: number;
   hlsConnections: number;
   serverOrderAnimeav1: string[];

@@ -16,9 +16,9 @@ function handles(serverId: string, source: DownloadSource): boolean {
 
 export class MegaDownloadEngine implements DownloadEngine {
   readonly id = 'Mega';
-  // megajs fija maxConnections al crear el stream: el cambio se aplica en el
-  // siguiente slice.
-  readonly concurrencyApplication = 'deferred' as const;
+  // Mega no sigue la ladder global: su concurrencia se congela por stream y el
+  // controller no debe sondearla ni moverla (capacidad not-applicable).
+  readonly concurrencyApplication = 'not-applicable' as const;
 
   constructor(private readonly downloadService: DownloadService) {}
 

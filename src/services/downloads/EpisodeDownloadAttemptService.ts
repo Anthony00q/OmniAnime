@@ -5,7 +5,7 @@ import type { DownloadService, FfmpegRuntimeTools } from './DownloadService';
 import { megaResumeFiles } from './DownloadService';
 import type { ProviderDownloadLink, QueueItem } from '../../types/queue';
 import type { DownloadSettings } from '../../types/settings';
-import { normalizeDownloadSettings } from '../../utils/downloads/downloadSettings';
+import { normalizeDownloadSettings, isAdaptiveEnabledForServer } from '../../utils/downloads/downloadSettings';
 import { errorDetailForLog } from '../../utils/logging/redactLog';
 import type { DownloadEngine, EngineProgress } from './downloadContracts';
 import {
@@ -361,19 +361,26 @@ export class EpisodeDownloadAttemptService {
     const dl = normalizeDownloadSettings(this.options.getDownloadSettings?.());
     // Handle por intento (EP+servidor): el fallback y los EPs nunca lo comparten.
     const manualLevel = connectionLevelForServer(link.server, dl) ?? dl.hlsConnections;
-    // La setting decide por intento (admite cambio en caliente);
+    // La setting decide por servidor y por intento (admite cambio en caliente);
     // `options.adaptiveConcurrency` es solo un override para tests.
-    const adaptiveOn = this.options.adaptiveConcurrency ?? dl.adaptiveConnections === true;
+    const adaptiveOn =
+      this.options.adaptiveConcurrency ?? isAdaptiveEnabledForServer(dl.adaptiveConnections, link.server);
     // Semilla: la manual siempre vale; con aprendizaje, preferred recortado al
     // safeMax. Solo en modo adaptativo.
     const learning = adaptiveOn
       ? (this.options.getConcurrencyLearning?.(String(item.providerId ?? ''), link.server) ?? null)
       : null;
     const experiment = this.options.experiment;
-    // coldStart ignora el aprendizaje como semilla.
-    const seed = experiment?.coldStart ? manualLevel : resolveConcurrencySeed(manualLevel, learning);
     // El engine se resuelve antes: la política necesita su capacidad de aplicación.
     const engine = findDownloadEngine(this.engines, link);
+    // Capacidad fija (not-applicable): la configuración explícita manda sobre el
+    // learning — un single-stream declarado nunca arranca en otro nivel.
+    const fixedStrategy = (engine?.concurrencyApplication ?? 'hot') === 'not-applicable';
+    // coldStart ignora el aprendizaje como semilla.
+    const seed =
+      experiment?.coldStart || (fixedStrategy && manualLevel === 1)
+        ? manualLevel
+        : resolveConcurrencySeed(manualLevel, learning);
     const concurrency = createAttemptConcurrencyHandle(seed);
     // Quien descarga refina esta capacidad según el camino real.
     reportApplicationMode(concurrency, engine?.concurrencyApplication ?? 'hot');

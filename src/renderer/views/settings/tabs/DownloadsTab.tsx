@@ -6,11 +6,12 @@ import { ServerOrderCard } from '@/renderer/views/settings/components/ServerOrde
 import { applyServerMove, applyServerToggle, splitServerOrder } from '@/renderer/views/settings/utils/serverOrder';
 import {
   ADAPTIVE_MANAGED_HINT,
+  ADAPTIVE_SERVER_ROWS,
   isConnectionControlLocked,
   managedHintId,
 } from '@/renderer/views/settings/utils/adaptiveConnections';
 import { AppTooltip } from '@/renderer/components/ui/AppTooltip';
-import { DEFAULT_DOWNLOAD_SETTINGS } from '@/utils/downloads/downloadSettings';
+import { DEFAULT_DOWNLOAD_SETTINGS, normalizeAdaptiveConnections } from '@/utils/downloads/downloadSettings';
 import { snapToClosestOption } from '@/renderer/views/settings/utils/settingsHelpers';
 import animeav1Icon from '../../../../../assets/provider-icons/animeav1-32.png';
 import jkanimeIcon from '../../../../../assets/provider-icons/jkanime-32.png';
@@ -37,14 +38,18 @@ interface DownloadsTabProps {
 export const DownloadsTab = memo(function DownloadsTab({ settings, namingPreview, onChange }: DownloadsTabProps) {
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const dl = { ...DEFAULT_DOWNLOAD_SETTINGS, ...(settings.download || {}) };
+  // La configuración Adaptive puede llegar como boolean legacy: siempre objeto.
+  const adaptive = normalizeAdaptiveConnections(dl.adaptiveConnections);
   const onDlChange = (key: string, value: any) => onChange(key, value, 'download');
-  // Con Adaptive activo, los controles que él gobierna quedan visibles pero
-  // bloqueados: muestran el valor guardado y no se pueden tocar. HLS no entra.
+  const setAdaptiveEnabled = (enabled: boolean) => onDlChange('adaptiveConnections', { ...adaptive, enabled });
+  const setAdaptiveServer = (server: keyof typeof adaptive.servers, on: boolean) =>
+    onDlChange('adaptiveConnections', { ...adaptive, servers: { ...adaptive.servers, [server]: on } });
+  // Con Adaptive activo para un servidor, su control manual queda visible pero
+  // bloqueado: muestra el valor guardado sin tocarlo. HLS no entra.
   const locked = {
-    mediafireConnections: isConnectionControlLocked('mediafireConnections', dl.adaptiveConnections),
-    mp4uploadConnections: isConnectionControlLocked('mp4uploadConnections', dl.adaptiveConnections),
-    voeConnections: isConnectionControlLocked('voeConnections', dl.adaptiveConnections),
-    megaConnections: isConnectionControlLocked('megaConnections', dl.adaptiveConnections),
+    mediafireConnections: isConnectionControlLocked('mediafireConnections', adaptive),
+    mp4uploadConnections: isConnectionControlLocked('mp4uploadConnections', adaptive),
+    voeConnections: isConnectionControlLocked('voeConnections', adaptive),
   };
 
   return (
@@ -185,30 +190,25 @@ export const DownloadsTab = memo(function DownloadsTab({ settings, namingPreview
           <div className="rounded-xl border border-border/60 bg-background p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 mt-3">
             <div className="min-w-0">
               <span className="flex items-center gap-1.5 text-sm font-semibold select-none">
-                Mega: conexiones por archivo
-                <AppTooltip content="Divide cada descarga de Mega en partes en paralelo. Más conexiones no siempre es más rápido.">
+                Mega: single-stream
+                <AppTooltip content="MEGA se descarga en una sola conexión continua, sin dividir el archivo en partes. Es la configuración más rápida probada y no depende de Conexiones adaptativas.">
                   <span aria-hidden="true" className="inline-flex text-muted-foreground">
                     <Info className="w-3.5 h-3.5" />
                   </span>
                 </AppTooltip>
               </span>
-              {locked.megaConnections && (
-                <p id={managedHintId('megaConnections')} className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                  {ADAPTIVE_MANAGED_HINT}
-                </p>
-              )}
+              <p id="mega-fixed-hint" className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                Configuración optimizada automáticamente para MEGA.
+              </p>
             </div>
             <CustomSelect
-              value={snapToClosestOption(
-                dl.megaConnections ?? 6,
-                DOWNLOAD_DIRECT_CONNECTIONS_OPTIONS.map((o) => o.value),
-              )}
-              onChange={(v) => onDlChange('megaConnections', Number(v))}
-              ariaLabel="Conexiones por archivo en Mega"
+              value="1"
+              onChange={() => undefined}
+              ariaLabel="Conexiones de Mega (fijas)"
               className="w-full sm:w-60 shrink-0"
-              options={DOWNLOAD_DIRECT_CONNECTIONS_OPTIONS.map((o) => ({ ...o }))}
-              disabled={locked.megaConnections}
-              describedBy={locked.megaConnections ? managedHintId('megaConnections') : undefined}
+              options={[{ value: '1', label: '1 conexión' }]}
+              disabled
+              describedBy="mega-fixed-hint"
             />
           </div>
 
@@ -442,10 +442,28 @@ export const DownloadsTab = memo(function DownloadsTab({ settings, namingPreview
                   </p>
                 </div>
                 <CustomSwitch
-                  checked={dl.adaptiveConnections}
-                  onChange={(c) => onDlChange('adaptiveConnections', c)}
+                  checked={adaptive.enabled}
+                  onChange={setAdaptiveEnabled}
                   ariaLabel="Conexiones adaptativas (experimental)"
                 />
+              </div>
+              <div className="rounded-xl border border-border/60 bg-background p-4 mt-3">
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Servidores con Adaptive. El resto usa su número de conexiones manual.
+                </p>
+                <div className="mt-1">
+                  {ADAPTIVE_SERVER_ROWS.map((row) => (
+                    <div key={row.id} className="flex items-center justify-between gap-3">
+                      <span className="text-sm font-medium select-none">{row.label}</span>
+                      <CustomSwitch
+                        checked={adaptive.servers[row.id]}
+                        disabled={!adaptive.enabled}
+                        onChange={(c) => setAdaptiveServer(row.id, c)}
+                        ariaLabel={`Conexiones adaptativas en ${row.label}`}
+                      />
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>

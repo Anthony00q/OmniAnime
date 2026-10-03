@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import type { DownloadSettings } from '../../types/settings';
+import type { AdaptiveConnectionsSettings, AdaptiveServerId, DownloadSettings } from '../../types/settings';
 import {
   SERVER_CANDIDATES_ANIMEAV1,
   SERVER_CANDIDATES_JKANIME,
@@ -9,6 +9,45 @@ import {
   resolveServerOrderList,
 } from '../serverUtils';
 
+// Servidores configurables de Adaptive (minúsculas, como `connectionLevelForServer`).
+// HLS y Mega quedan fuera: manual y single-stream fijo.
+export const ADAPTIVE_SERVER_IDS = ['mediafire', 'mp4upload', 'voe'] as const;
+
+// Configuración clásica (boolean legacy, defaults y siembra): el global decide y
+// los servidores a su bola. `mega` siempre false: la clave es solo de lectura.
+export function adaptiveConnectionsAll(enabled: boolean): AdaptiveConnectionsSettings {
+  return {
+    enabled: enabled === true,
+    servers: { mediafire: true, mp4upload: true, voe: true, mega: false },
+  };
+}
+
+// Única conversión desde lo persistido (legacy boolean u objeto nuevo): cada
+// servidor explícito; lo inválido/ausente queda OFF, y el `mega` legacy se fuerza a OFF.
+export function normalizeAdaptiveConnections(raw: unknown): AdaptiveConnectionsSettings {
+  if (raw === true) return adaptiveConnectionsAll(true);
+  if (raw === false || !raw || typeof raw !== 'object' || Array.isArray(raw)) return adaptiveConnectionsAll(false);
+  const record = raw as Record<string, unknown>;
+  const serversRaw = record.servers;
+  const hasServers = !!serversRaw && typeof serversRaw === 'object' && !Array.isArray(serversRaw);
+  const servers = {} as AdaptiveConnectionsSettings['servers'];
+  for (const id of ADAPTIVE_SERVER_IDS) {
+    servers[id] = hasServers ? (serversRaw as Record<string, unknown>)[id] === true : false;
+  }
+  servers.mega = false;
+  return { enabled: record.enabled === true, servers };
+}
+
+// ¿Este servidor concreto corre con Adaptive? Global OFF manda sobre todo; HLS,
+// Mega y servidores desconocidos nunca.
+export function isAdaptiveEnabledForServer(config: AdaptiveConnectionsSettings, server: string | undefined): boolean {
+  if (!config || config.enabled !== true) return false;
+  const id = String(server ?? '')
+    .trim()
+    .toLowerCase();
+  return (ADAPTIVE_SERVER_IDS as readonly string[]).includes(id) && config.servers[id as AdaptiveServerId] === true;
+}
+
 export const DEFAULT_DOWNLOAD_SETTINGS: DownloadSettings = {
   maxParallelEpisodes: 1,
   retries: 10,
@@ -16,11 +55,12 @@ export const DEFAULT_DOWNLOAD_SETTINGS: DownloadSettings = {
   allowContinue: true,
   cleanCacheOnComplete: false,
   // Instalaciones nuevas se siembran con ON desde main; sin clave, OFF.
-  adaptiveConnections: false,
+  adaptiveConnections: adaptiveConnectionsAll(false),
   mediafireConnections: 1,
   mp4uploadConnections: 1,
   voeConnections: 4,
-  megaConnections: 6,
+  // Mega: single-stream fijo de 1 conexión (decisiones de arquitectura cerradas).
+  megaConnections: 1,
   hlsConnections: 10,
   serverOrderAnimeav1: [...SERVER_ORDER_ANIMEAV1_DEFAULT],
   serverOrderJkanime: [...SERVER_ORDER_JKANIME_DEFAULT],
@@ -64,11 +104,13 @@ export function normalizeDownloadSettings(input: unknown): DownloadSettings {
     startTimeoutSec: clampInt(raw.startTimeoutSec, 30, 120, DEFAULT_DOWNLOAD_SETTINGS.startTimeoutSec),
     allowContinue: toBoolean(raw.allowContinue, DEFAULT_DOWNLOAD_SETTINGS.allowContinue),
     cleanCacheOnComplete: toBoolean(raw.cleanCacheOnComplete, DEFAULT_DOWNLOAD_SETTINGS.cleanCacheOnComplete),
-    adaptiveConnections: toBoolean(raw.adaptiveConnections, DEFAULT_DOWNLOAD_SETTINGS.adaptiveConnections),
+    adaptiveConnections: normalizeAdaptiveConnections(raw.adaptiveConnections),
     mediafireConnections: clampInt(raw.mediafireConnections, 1, 8, DEFAULT_DOWNLOAD_SETTINGS.mediafireConnections),
     mp4uploadConnections: clampInt(raw.mp4uploadConnections, 1, 8, DEFAULT_DOWNLOAD_SETTINGS.mp4uploadConnections),
     voeConnections: clampInt(raw.voeConnections, 1, 8, DEFAULT_DOWNLOAD_SETTINGS.voeConnections),
-    megaConnections: clampInt(raw.megaConnections, 1, 8, DEFAULT_DOWNLOAD_SETTINGS.megaConnections),
+    // Mega es single-stream fijo: cualquier valor heredado (2/4/6/8) o inválido
+    // migra a 1 aquí, en el único punto. El chunked queda como legacy interno.
+    megaConnections: 1,
     hlsConnections: clampInt(raw.hlsConnections, 1, 16, DEFAULT_DOWNLOAD_SETTINGS.hlsConnections),
     serverOrderAnimeav1: resolveServerOrderList(
       raw.serverOrderAnimeav1,
