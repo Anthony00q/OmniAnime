@@ -1,5 +1,6 @@
 import type { AppSettings, ThemeId } from '@/types/settings';
 import { normalizeDownloadSettings } from '@/utils/downloads/downloadSettings';
+import { buildFolderName, type FolderNameSource } from '@/utils/downloads/folderNaming';
 import { normalizeLoggingSettings } from '@/utils/logging/loggingSettings';
 import { normalizeSoundPack } from '@/utils/sounds/soundPacks';
 import { sanitizeCustomSoundFiles, sanitizeSoundCustomMap } from '@/utils/sounds/soundCatalog';
@@ -33,6 +34,35 @@ export function isActiveTheme(theme: unknown, candidate: ThemeId): boolean {
 export function buildNamingPreview(style: string, title = 'Sousou no Frieren') {
   if (style === 'minimal') return 'EP_01.mp4 · EP_12.mp4';
   return `${title} EP_01.mp4`;
+}
+
+const FOLDER_NAMING_SAMPLE = {
+  providerTitle: 'Shingeki no Kyojin Sub Español',
+  providerAlternativeTitles: ['Ataque a los Titanes'],
+  japaneseTitle: '進撃の巨人',
+  anilist: { romaji: 'Shingeki no Kyojin', english: 'Attack on Titan', native: '進撃の巨人', synonyms: ['SnK'] },
+  year: '2013',
+};
+
+export function buildFolderNamingPreview(source: FolderNameSource): string {
+  return buildFolderName(FOLDER_NAMING_SAMPLE, source);
+}
+
+export function folderNameSourceHint(source: FolderNameSource): string {
+  switch (source) {
+    case 'anilist-english':
+      return 'Usa el título en inglés de AniList; es el que suelen reconocer las apps externas.';
+    case 'anilist-native':
+      return 'Usa el título japonés de AniList tal cual.';
+    case 'anilist-synonym':
+      return 'Usa el primer sinónimo que AniList guarde para el anime (abreviaturas, títulos locales).';
+    case 'provider':
+      return 'Usa el título exacto que publica la fuente activa (AnimeAV1 o JkAnime).';
+    case 'provider-alt':
+      return 'Usa el primer nombre alternativo que publica la fuente activa.';
+    default:
+      return 'Usa el título principal de AniList; ideal para apps que vinculan por AniList.';
+  }
 }
 
 export function formatBytes(bytes: number): string {

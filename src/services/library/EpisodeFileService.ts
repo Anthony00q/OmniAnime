@@ -6,7 +6,6 @@ import type { LibraryAssetService } from './LibraryAssetService';
 
 export interface EpisodeFileSettings {
   namingStyle?: 'minimal' | 'descriptive';
-  autoRenameRetroactive?: boolean;
 }
 
 export interface EpisodeFileServiceOptions {
@@ -215,19 +214,9 @@ export class EpisodeFileService {
 
   async normalizeEpisodeFilesInFolder(
     animePath: string,
-    forceRename = false,
     overrideStyle?: 'minimal' | 'descriptive',
   ): Promise<RenameResult | void> {
     if (!(await pathExists(animePath))) return { success: false, error: 'La carpeta no existe.' } as RenameResult;
-    const settings = this.options.getSettings();
-    if (!forceRename && settings.autoRenameRetroactive !== true)
-      return {
-        success: true,
-        renamed: 0,
-        skippedConflicts: 0,
-        skippedNoNumber: 0,
-        total: 0,
-      } as RenameResult;
 
     const preview = await this.previewRename(animePath, overrideStyle);
     if (!preview.success) return { success: false, error: preview.error || 'No se pudo inspeccionar la carpeta.' };
@@ -288,7 +277,6 @@ export class EpisodeFileService {
   async scanEpisodes(animePath: string): Promise<EpisodeFileRecord[]> {
     if (!(await pathExists(animePath))) return [];
 
-    await this.normalizeEpisodeFilesInFolder(animePath);
     const dirents = (await fsp.readdir(animePath, { withFileTypes: true })).filter(
       (dirent) => dirent.isFile() && VIDEO_EXTENSIONS.has(path.extname(dirent.name).toLowerCase()),
     );

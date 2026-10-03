@@ -51,7 +51,12 @@ export function registerAniListHandlers({ writeGlobalLog, scopedLog }: IpcRegist
           },
         );
         if (!resolved) return null;
-        return { anilistId: resolved.anilistId, banner: resolved.banner, studio: resolved.studio ?? null };
+        return {
+          anilistId: resolved.anilistId,
+          banner: resolved.banner,
+          studio: resolved.studio ?? null,
+          titles: resolved.titles,
+        };
       } catch (error) {
         writeGlobalLog(`AniList banner error: ${safeErrorMessage(error)}`);
         return null;

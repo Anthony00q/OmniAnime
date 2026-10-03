@@ -1,6 +1,7 @@
 import type { LogLevel } from '../services/logging/AppLogger';
 import type { SoundPackId, NotificationSoundType } from '../utils/sounds/soundPacks';
 import type { CustomSoundFileMeta } from '../utils/sounds/soundCatalog';
+import type { FolderNameSource } from '../utils/downloads/folderNaming';
 
 export type ThemeId = 'dark' | 'quantum' | 'oled' | 'tinta';
 
@@ -36,6 +37,7 @@ export interface DownloadSettings {
   hlsConnections: number;
   serverOrderAnimeav1: string[];
   serverOrderJkanime: string[];
+  folderNameSource: FolderNameSource;
 }
 
 export interface AppSettings {
@@ -44,7 +46,6 @@ export interface AppSettings {
   notifyOnComplete: boolean;
   minimizeToTrayOnClose: boolean;
   namingStyle?: 'minimal' | 'descriptive';
-  autoRenameRetroactive?: boolean;
   // Apariencia
   theme: ThemeId;
   accentColor: string;

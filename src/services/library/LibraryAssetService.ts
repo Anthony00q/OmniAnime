@@ -251,6 +251,7 @@ export class LibraryAssetService {
           secondaryTitle: normalized.secondaryTitle,
           alternativeTitles: normalized.alternativeTitles,
           providerId: normalized.providerId || null,
+          anilistId: Number.isInteger(normalized.anilistId) ? normalized.anilistId : null,
           updatedAt: Date.now(),
         },
         null,

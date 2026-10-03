@@ -1,8 +1,10 @@
 import { memo, useState } from 'react';
-import { Gauge, Server, Layers, Eye, SlidersHorizontal, Info, ChevronDown, FolderDown } from 'lucide-react';
+import { Gauge, Server, Layers, Eye, SlidersHorizontal, Info, ChevronDown, FolderDown, FileText } from 'lucide-react';
 import { CustomSelect } from '@/renderer/components/CustomSelect';
 import { CustomSwitch } from '@/renderer/components/CustomSwitch';
 import { ServerOrderCard } from '@/renderer/views/settings/components/ServerOrderCard';
+import { RenameFoldersDialog } from '@/renderer/views/settings/components/RenameFoldersDialog';
+import { RenameLibraryFilesDialog } from '@/renderer/views/settings/components/RenameLibraryFilesDialog';
 import { applyServerMove, applyServerToggle, splitServerOrder } from '@/renderer/views/settings/utils/serverOrder';
 import {
   ADAPTIVE_MANAGED_HINT,
@@ -12,7 +14,8 @@ import {
 } from '@/renderer/views/settings/utils/adaptiveConnections';
 import { AppTooltip } from '@/renderer/components/ui/AppTooltip';
 import { DEFAULT_DOWNLOAD_SETTINGS, normalizeAdaptiveConnections } from '@/utils/downloads/downloadSettings';
-import { snapToClosestOption } from '@/renderer/views/settings/utils/settingsHelpers';
+import { normalizeFolderNameSource } from '@/utils/downloads/folderNaming';
+import { folderNameSourceHint, snapToClosestOption } from '@/renderer/views/settings/utils/settingsHelpers';
 import animeav1Icon from '../../../../../assets/provider-icons/animeav1-32.png';
 import jkanimeIcon from '../../../../../assets/provider-icons/jkanime-32.png';
 import {
@@ -21,6 +24,7 @@ import {
   DOWNLOAD_HLS_CONNECTIONS_OPTIONS,
   DOWNLOAD_RETRIES_OPTIONS,
   DOWNLOAD_START_TIMEOUT_OPTIONS,
+  FOLDER_NAME_SOURCE_OPTIONS,
   PROVIDER_SERVERS,
 } from '@/renderer/views/settings/constants';
 
@@ -32,12 +36,25 @@ const PROVIDER_ICONS: Record<string, string> = {
 interface DownloadsTabProps {
   settings: any;
   namingPreview: string;
+  folderNamingPreview: string;
   onChange: (key: string, value: any, category?: string) => void;
 }
 
-export const DownloadsTab = memo(function DownloadsTab({ settings, namingPreview, onChange }: DownloadsTabProps) {
+export const DownloadsTab = memo(function DownloadsTab({
+  settings,
+  namingPreview,
+  folderNamingPreview,
+  onChange,
+}: DownloadsTabProps) {
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [renameOpen, setRenameOpen] = useState(false);
+  const [filesRenameOpen, setFilesRenameOpen] = useState(false);
   const dl = { ...DEFAULT_DOWNLOAD_SETTINGS, ...(settings.download || {}) };
+  const folderSource = normalizeFolderNameSource(dl.folderNameSource);
+  const outputDirs: string[] =
+    Array.isArray(settings.outputDirs) && settings.outputDirs.length
+      ? settings.outputDirs
+      : [settings.defaultOutputDir].filter(Boolean);
   // La configuración Adaptive puede llegar como boolean legacy: siempre objeto.
   const adaptive = normalizeAdaptiveConnections(dl.adaptiveConnections);
   const onDlChange = (key: string, value: any) => onChange(key, value, 'download');
@@ -295,7 +312,7 @@ export const DownloadsTab = memo(function DownloadsTab({ settings, namingPreview
           <div className="p-1.5 bg-primary/10 rounded-lg">
             <Layers className="w-4 h-4 text-primary" />
           </div>
-          <h3 className="text-sm font-bold tracking-tight">Nombrado de archivos</h3>
+          <h3 className="text-sm font-bold tracking-tight">Nombrado de archivos y carpetas</h3>
         </div>
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
           <div className="space-y-2">
@@ -310,7 +327,7 @@ export const DownloadsTab = memo(function DownloadsTab({ settings, namingPreview
                 { value: 'descriptive', label: 'Descriptivo (Título + EP)' },
               ]}
             />
-            <p className="text-[11px] text-muted-foreground leading-relaxed">
+            <p className="min-h-[36px] text-[11px] text-muted-foreground leading-relaxed">
               {settings.namingStyle === 'minimal'
                 ? 'Solo el número de episodio, ideal para una biblioteca limpia.'
                 : 'Incluye el título del anime para identificar archivos rápidamente.'}
@@ -327,6 +344,68 @@ export const DownloadsTab = memo(function DownloadsTab({ settings, namingPreview
             </AppTooltip>
           </div>
         </div>
+        <div className="mt-5 pt-5 border-t border-border/40 grid grid-cols-1 gap-5 sm:grid-cols-2">
+          <div className="space-y-2">
+            <span className="block text-sm font-semibold">Carpeta de descarga</span>
+            <CustomSelect
+              value={folderSource}
+              onChange={(v) => onDlChange('folderNameSource', v)}
+              ariaLabel="Nombre de la carpeta de descarga"
+              className="w-full"
+              options={FOLDER_NAME_SOURCE_OPTIONS.map((o) => ({ ...o }))}
+            />
+            <p className="min-h-[36px] text-[11px] text-muted-foreground leading-relaxed">
+              {folderNameSourceHint(folderSource)}
+            </p>
+          </div>
+          <div className="rounded-xl bg-background border border-border/60 p-3">
+            <div className="text-[11px] font-semibold tracking-widest uppercase text-muted-foreground mb-1.5 flex items-center gap-1">
+              <FolderDown className="w-3 h-3" /> Vista previa
+            </div>
+            <AppTooltip content={folderNamingPreview}>
+              <div className="font-mono text-xs bg-secondary/50 border border-border/40 rounded-lg px-3 py-2 text-foreground truncate">
+                {folderNamingPreview}
+              </div>
+            </AppTooltip>
+          </div>
+        </div>
+        <div className="mt-4 rounded-xl bg-background border border-border/60 px-3 py-2.5 flex items-center gap-2 text-xs text-muted-foreground">
+          <AppTooltip content="Si AniList no vincula el anime, se usa el nombre del proveedor. El cambio solo afecta a las descargas nuevas.">
+            <span aria-hidden="true" className="inline-flex shrink-0">
+              <Info className="w-3.5 h-3.5" />
+            </span>
+          </AppTooltip>
+          <span>Si AniList no vincula el anime se usa el nombre del proveedor. Solo afecta a descargas nuevas.</span>
+        </div>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setFilesRenameOpen(true)}
+            className="inline-flex items-center gap-2 rounded-lg border border-border/60 bg-surface-elevada px-4 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-secondary/60"
+          >
+            <FileText className="w-3.5 h-3.5" />
+            Renombrar archivos de la librería…
+          </button>
+          <button
+            type="button"
+            onClick={() => setRenameOpen(true)}
+            className="inline-flex items-center gap-2 rounded-lg border border-border/60 bg-surface-elevada px-4 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-secondary/60"
+          >
+            <FolderDown className="w-3.5 h-3.5" />
+            Renombrar carpetas de la librería…
+          </button>
+        </div>
+        {filesRenameOpen && (
+          <RenameLibraryFilesDialog
+            open
+            onOpenChange={setFilesRenameOpen}
+            dirs={outputDirs}
+            style={settings.namingStyle === 'minimal' ? 'minimal' : 'descriptive'}
+          />
+        )}
+        {renameOpen && (
+          <RenameFoldersDialog open onOpenChange={setRenameOpen} dirs={outputDirs} source={folderSource} />
+        )}
       </section>
 
       <section className="rounded-2xl border border-border/50 bg-card shadow-sm overflow-hidden">

@@ -18,7 +18,6 @@ export const DEFAULT_SETTINGS: AppSettings = {
   notifyOnComplete: true,
   minimizeToTrayOnClose: false,
   namingStyle: 'descriptive',
-  autoRenameRetroactive: false,
   theme: 'dark',
   accentColor: 'hsl(35 78% 57%)',
   toastPosition: 'top-center',
@@ -73,7 +72,7 @@ export class SettingsManager {
     return { ...DEFAULT_SETTINGS };
   }
 
-  // Memo sin TTL: save()/clearAutoRenameRetroactiveOnce() invalidan.
+  // Memo sin TTL: save() lo invalida.
   private static cachedSettings: AppSettings | null = null;
   private static logger: ScopedLogger | null = null;
 
@@ -123,25 +122,6 @@ export class SettingsManager {
       SettingsManager.logger?.error(`Error saving settings: ${e}`);
       return false;
     }
-  }
-
-  static clearAutoRenameRetroactiveOnce(): void {
-    SettingsManager.cachedSettings = null;
-    try {
-      DatabaseManager.getInstance().clearAutoRenameRetroactiveOnce();
-    } catch {}
-    try {
-      if (fs.existsSync(LEGACY_SETTINGS_FILE)) {
-        const raw = fs.readFileSync(LEGACY_SETTINGS_FILE, 'utf-8');
-        const parsed = JSON.parse(raw);
-        if (parsed && typeof parsed === 'object' && (parsed as any).autoRenameRetroactive === true) {
-          (parsed as any).autoRenameRetroactive = false;
-          const tempPath = LEGACY_SETTINGS_FILE + '.tmp';
-          fs.writeFileSync(tempPath, JSON.stringify(parsed, null, 4), 'utf-8');
-          fs.renameSync(tempPath, LEGACY_SETTINGS_FILE);
-        }
-      }
-    } catch {}
   }
 
   private static readFromLegacyJson(): AppSettings {

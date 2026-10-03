@@ -62,10 +62,18 @@ export interface AniListCandidate {
   popularity?: number | null;
 }
 
+export interface AniListTitles {
+  romaji: string | null;
+  english: string | null;
+  native: string | null;
+  synonyms: string[];
+}
+
 export interface AniListBannerResult {
   anilistId: number;
   banner: string | null;
   studio: string | null;
+  titles: AniListTitles;
 }
 
 export interface AniListBannerInput {
@@ -455,13 +463,27 @@ export async function fetchAniListByMalId(malId: number, post: AniListPost): Pro
   }
 }
 
+// Títulos del match, para que el llamador nombre carpetas sin una segunda consulta.
+function titlesFrom(candidate: AniListCandidate): AniListTitles {
+  const text = (value: string | null | undefined): string | null => {
+    const clean = String(value ?? '').trim();
+    return clean || null;
+  };
+  return {
+    romaji: text(candidate.romaji),
+    english: text(candidate.english),
+    native: text(candidate.native),
+    synonyms: (candidate.synonyms || []).map((s) => String(s ?? '').trim()).filter(Boolean),
+  };
+}
+
 function bannerFrom(candidate: AniListCandidate | null): AniListBannerResult | null {
   if (!candidate || Number(candidate.id) <= 0) return null;
   const rawBanner = String(candidate.bannerImage || '').trim();
   const banner = rawBanner && isAniListBannerHost(rawBanner) ? rawBanner : null;
   const studio = typeof candidate.studio === 'string' && candidate.studio.trim() ? candidate.studio : null;
   if (!banner && !studio) return null;
-  return { anilistId: candidate.id, banner, studio };
+  return { anilistId: candidate.id, banner, studio, titles: titlesFrom(candidate) };
 }
 
 // Orden: malId directo primero; fallback al matcher por título cuando no hay

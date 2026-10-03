@@ -40,7 +40,7 @@ export function registerLibraryHandlers({
     try {
       if (!isPathWithinAnyDirectory(data.animePath, getAllowedBaseDirs(), false))
         return { success: false, error: 'La carpeta está fuera de la librería configurada.' };
-      const result: any = await normalizeEpisodeFilesInFolder(data.animePath, true, data.style);
+      const result: any = await normalizeEpisodeFilesInFolder(data.animePath, data.style);
       if (result && typeof result === 'object' && 'success' in result) return result;
       return { success: true, renamed: 0, skippedConflicts: 0, skippedNoNumber: 0, total: 0 };
     } catch (error) {

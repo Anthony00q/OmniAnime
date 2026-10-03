@@ -10,7 +10,6 @@ import {
   X,
   Monitor,
   Cpu,
-  Wand2,
   ArrowUp,
   ArrowDown,
 } from 'lucide-react';
@@ -330,42 +329,6 @@ export const SystemTab = memo(function SystemTab({
               onChange={(checked) => {
                 onChange('hardwareAcceleration', checked);
               }}
-            />
-          </div>
-        </div>
-
-        <div className="mt-4 rounded-xl border border-border/60 bg-background p-4">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex gap-3 min-w-0 items-start">
-              <div className="w-8 h-8 flex items-center justify-center bg-secondary rounded-lg border border-border/50 shrink-0 self-start">
-                <Wand2 className="w-4 h-4 text-muted-foreground" />
-              </div>
-              <div className="min-w-0">
-                <div className="text-sm font-semibold leading-tight flex items-center gap-1.5">
-                  Renombrado retroactivo
-                  <span className="text-[10px] font-semibold tracking-wider uppercase leading-none bg-secondary text-muted-foreground border border-border/60 px-1 py-px rounded">
-                    Reinicio
-                  </span>
-                  <AppTooltip content="Se aplica una vez en el próximo inicio y luego se desactiva sola. Ordena los vídeos de tus carpetas según el estilo elegido. Puedes volver a activarla cuando quieras.">
-                    <span aria-hidden="true" className="inline-flex text-muted-foreground">
-                      <Info className="w-3.5 h-3.5" />
-                    </span>
-                  </AppTooltip>
-                  {settings.autoRenameRetroactive && (
-                    <span className="text-[10px] font-semibold tracking-wider uppercase leading-none bg-warning/10 text-warning border border-warning/20 px-1 py-px rounded">
-                      Pendiente
-                    </span>
-                  )}
-                </div>
-                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                  En el próximo inicio ordena los archivos según el estilo elegido. Se desactiva sola al terminar.
-                </p>
-              </div>
-            </div>
-            <CustomSwitch
-              checked={settings.autoRenameRetroactive || false}
-              onChange={(c) => onChange('autoRenameRetroactive', c)}
-              ariaLabel="Renombrado retroactivo"
             />
           </div>
         </div>

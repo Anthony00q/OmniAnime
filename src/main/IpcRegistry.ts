@@ -50,11 +50,7 @@ export interface IpcRegistryDependencies {
   getAllowedBaseDirs: () => string[];
   getConnectivityStatus: () => boolean;
   getAnimeDetailsBySlug: (slug: string, providerId?: DownloadProvider) => Promise<DownloadAnimeDetails | null>;
-  normalizeEpisodeFilesInFolder: (
-    animePath: string,
-    forceRename?: boolean,
-    overrideStyle?: 'minimal' | 'descriptive',
-  ) => unknown;
+  normalizeEpisodeFilesInFolder: (animePath: string, overrideStyle?: 'minimal' | 'descriptive') => unknown;
   processQueue: () => Promise<void>;
   sendQueueUpdate: () => void;
   createTray: () => void;

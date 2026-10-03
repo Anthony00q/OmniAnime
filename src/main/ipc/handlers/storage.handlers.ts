@@ -235,8 +235,6 @@ export function registerStorageHandlers(dependencies: IpcRegistryDependencies): 
         merged.notificationsSound = (parsed as any).notificationsSound;
       if (typeof (parsed as any).hardwareAcceleration === 'boolean')
         merged.hardwareAcceleration = (parsed as any).hardwareAcceleration;
-      if (typeof (parsed as any).autoRenameRetroactive === 'boolean')
-        merged.autoRenameRetroactive = (parsed as any).autoRenameRetroactive;
       if (
         typeof (parsed as any).soundVolume === 'number' &&
         (parsed as any).soundVolume >= 0 &&

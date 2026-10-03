@@ -328,7 +328,6 @@ export class DatabaseManager {
                 notify_on_complete INTEGER NOT NULL DEFAULT 1,
                 minimize_to_tray_on_close INTEGER NOT NULL DEFAULT 0,
                 naming_style TEXT NOT NULL DEFAULT 'descriptive',
-                auto_rename_retroactive INTEGER NOT NULL DEFAULT 0,
                 theme TEXT NOT NULL DEFAULT 'dark',
                 accent_color TEXT NOT NULL DEFAULT 'hsl(35 78% 57%)',
                 toast_position TEXT NOT NULL DEFAULT 'top-center',
@@ -467,6 +466,11 @@ export class DatabaseManager {
         this.db!.exec(`ALTER TABLE folder_meta ADD COLUMN secondary_title TEXT`);
       }
     } catch {}
+    try {
+      if (!this.tableHasColumn('folder_meta', 'anilist_id')) {
+        this.db!.exec(`ALTER TABLE folder_meta ADD COLUMN anilist_id INTEGER`);
+      }
+    } catch {}
   }
 
   private runSchemaMigrations(currentVersion: number): void {
@@ -550,18 +554,17 @@ export class DatabaseManager {
           this.db!.prepare(
             `INSERT OR REPLACE INTO settings
                    (id, default_output_dir, output_dirs, notify_on_complete, minimize_to_tray_on_close,
-                    naming_style, auto_rename_retroactive, theme, accent_color, toast_position,
+                    naming_style, theme, accent_color, toast_position,
                     notifications_sound, sound_volume, sound_pack, sound_enabled, sound_profiles,
                     notification_settings, shortcuts, default_provider, hardware_acceleration,
                     download_settings)
-                   VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                   VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           ).run(
             settings.defaultOutputDir || '',
             JSON.stringify(settings.outputDirs || []),
             settings.notifyOnComplete ? 1 : 0,
             settings.minimizeToTrayOnClose ? 1 : 0,
             settings.namingStyle || 'descriptive',
-            settings.autoRenameRetroactive ? 1 : 0,
             settings.theme || 'dark',
             settings.accentColor || 'hsl(35 78% 57%)',
             settings.toastPosition || 'top-center',
@@ -580,17 +583,16 @@ export class DatabaseManager {
           this.db!.prepare(
             `INSERT OR REPLACE INTO settings
                    (id, default_output_dir, output_dirs, notify_on_complete, minimize_to_tray_on_close,
-                    naming_style, auto_rename_retroactive, theme, accent_color, toast_position,
+                    naming_style, theme, accent_color, toast_position,
                     notifications_sound, sound_volume, sound_pack, sound_enabled, sound_profiles,
                     notification_settings, shortcuts, default_provider, hardware_acceleration)
-                   VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                   VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           ).run(
             settings.defaultOutputDir || '',
             JSON.stringify(settings.outputDirs || []),
             settings.notifyOnComplete ? 1 : 0,
             settings.minimizeToTrayOnClose ? 1 : 0,
             settings.namingStyle || 'descriptive',
-            settings.autoRenameRetroactive ? 1 : 0,
             settings.theme || 'dark',
             settings.accentColor || 'hsl(35 78% 57%)',
             settings.toastPosition || 'top-center',
@@ -843,19 +845,18 @@ export class DatabaseManager {
       this.db!.prepare(
         `INSERT OR REPLACE INTO settings
                (id, default_output_dir, output_dirs, notify_on_complete, minimize_to_tray_on_close,
-                naming_style, auto_rename_retroactive, theme, accent_color, toast_position,
+                naming_style, theme, accent_color, toast_position,
                 notifications_sound, sound_volume, sound_pack, sound_custom, custom_sound_files,
                 sound_enabled, sound_profiles,
                 notification_settings, shortcuts, default_provider, hardware_acceleration,
                 download_settings)
-               VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+               VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       ).run(
         settings.defaultOutputDir,
         JSON.stringify(settings.outputDirs || []),
         settings.notifyOnComplete ? 1 : 0,
         settings.minimizeToTrayOnClose ? 1 : 0,
         settings.namingStyle || 'descriptive',
-        settings.autoRenameRetroactive ? 1 : 0,
         settings.theme || 'dark',
         settings.accentColor || 'hsl(35 78% 57%)',
         settings.toastPosition || 'top-center',
@@ -873,16 +874,6 @@ export class DatabaseManager {
         JSON.stringify(settings.download || {}),
       );
     });
-  }
-
-  clearAutoRenameRetroactiveOnce(): boolean {
-    if (!this.db) return false;
-    try {
-      this.db.prepare(`UPDATE settings SET auto_rename_retroactive = 0 WHERE id = 1`).run();
-      return true;
-    } catch {
-      return false;
-    }
   }
 
   private rowToSettings(row: Record<string, unknown>): AppSettings {
@@ -905,7 +896,6 @@ export class DatabaseManager {
       notifyOnComplete: Boolean(row.notify_on_complete),
       minimizeToTrayOnClose: Boolean(row.minimize_to_tray_on_close),
       namingStyle: String(row.naming_style || 'descriptive') as 'minimal' | 'descriptive',
-      autoRenameRetroactive: Boolean(row.auto_rename_retroactive),
       theme: String(row.theme || 'dark') as 'dark' | 'quantum' | 'oled',
       accentColor: String(row.accent_color || 'hsl(35 78% 57%)'),
       toastPosition: String(row.toast_position || 'top-center') as AppSettings['toastPosition'],
@@ -1134,6 +1124,7 @@ export class DatabaseManager {
         posterUrl: row.poster_url || undefined,
         bannerUrl: row.banner_url || undefined,
         providerId: row.provider_id || null,
+        anilistId: typeof row.anilist_id === 'number' ? row.anilist_id : null,
         folderPath: row.folder_path || folderPath,
       };
     });
@@ -1147,8 +1138,8 @@ export class DatabaseManager {
       this.db!.prepare(
         `INSERT OR REPLACE INTO folder_meta
                (folder_path_hash, folder_path, slug, title, secondary_title, alternative_titles, category, year,
-                status, season, poster_url, banner_url, provider_id, updated_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                status, season, poster_url, banner_url, provider_id, anilist_id, updated_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       ).run(
         hash,
         folderPath,
@@ -1163,6 +1154,7 @@ export class DatabaseManager {
         (data.posterUrl as string) || null,
         (data.bannerUrl as string) || null,
         (data.providerId as string) || null,
+        Number.isInteger(data.anilistId) ? (data.anilistId as number) : null,
         Date.now(),
       );
     });

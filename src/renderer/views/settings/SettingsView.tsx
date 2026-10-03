@@ -8,6 +8,7 @@ import { SettingsTabNav } from './components/SettingsTabNav';
 import { SettingsFooter } from './components/SettingsFooter';
 import { playNotificationSound, type NotificationSoundType, type SoundPackId } from '@/renderer/utils/sound';
 import { DEFAULT_ACCENT_HEX, getAccentHex, isValidAccentColor } from '@/renderer/utils/color';
+import { normalizeFolderNameSource } from '@/utils/downloads/folderNaming';
 import { settingsAtom } from '@/renderer/store/atoms';
 import type { AppSettings, ThemeId } from '@/types/settings';
 import {
@@ -28,6 +29,7 @@ import { SystemTab } from './tabs/SystemTab';
 import {
   normalizeSettings,
   buildNamingPreview,
+  buildFolderNamingPreview,
   formatBytes,
   formatDiskPercent,
   reorderOutputDirs,
@@ -222,7 +224,6 @@ export function SettingsView({ isActive = true }: { isActive?: boolean }) {
     }
     const hwChanged = (nextSettings?.hardwareAcceleration !== false) !== prevHwAccelRef.current;
     const providerChanged = (nextSettings?.defaultProvider || 'animeav1') !== (prevProviderRef.current || 'animeav1');
-    const retroArmed = nextSettings?.autoRenameRetroactive === true;
 
     const committedEpView = pendingEpView;
     saveSettings.mutate(nextSettings as unknown as Record<string, unknown>, {
@@ -250,7 +251,6 @@ export function SettingsView({ isActive = true }: { isActive?: boolean }) {
         const items: string[] = [];
         if (hwChanged) items.push('Aceleración por hardware');
         if (providerChanged) items.push('Proveedor por defecto');
-        if (retroArmed) items.push('Renombrado retroactivo');
         if (items.length > 0) void openRestartDialog(items);
       },
       onError: () => {
@@ -269,7 +269,6 @@ export function SettingsView({ isActive = true }: { isActive?: boolean }) {
       const nextSettings = normalizeSettings(defaultSettings) as AppSettings;
       const hwChanged = (nextSettings?.hardwareAcceleration !== false) !== prevHwAccelRef.current;
       const providerChanged = (nextSettings?.defaultProvider || 'animeav1') !== (prevProviderRef.current || 'animeav1');
-      const retroArmed = nextSettings?.autoRenameRetroactive === true;
 
       saveSettings.mutate(nextSettings as unknown as Record<string, unknown>, {
         onSuccess: () => {
@@ -289,7 +288,6 @@ export function SettingsView({ isActive = true }: { isActive?: boolean }) {
           const items: string[] = [];
           if (hwChanged) items.push('Aceleración por hardware');
           if (providerChanged) items.push('Proveedor por defecto');
-          if (retroArmed) items.push('Renombrado retroactivo');
           if (items.length > 0) void openRestartDialog(items);
         },
         onError: () => {
@@ -452,6 +450,7 @@ export function SettingsView({ isActive = true }: { isActive?: boolean }) {
 
   const outputDirs: string[] = settings.outputDirs || [settings.defaultOutputDir];
   const namingPreview = buildNamingPreview(settings.namingStyle || 'descriptive');
+  const folderNamingPreview = buildFolderNamingPreview(normalizeFolderNameSource(settings.download?.folderNameSource));
 
   return (
     <div className="flex h-full min-w-0 flex-col bg-background text-foreground">
@@ -482,7 +481,12 @@ export function SettingsView({ isActive = true }: { isActive?: boolean }) {
             )}
 
             {activeTab === 'descargas' && (
-              <DownloadsTab settings={settings} namingPreview={namingPreview} onChange={handleChange} />
+              <DownloadsTab
+                settings={settings}
+                namingPreview={namingPreview}
+                folderNamingPreview={folderNamingPreview}
+                onChange={handleChange}
+              />
             )}
 
             {activeTab === 'almacenamiento' && (

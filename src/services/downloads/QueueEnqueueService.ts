@@ -9,7 +9,17 @@ import {
   normalizeFolderAlternativeTitles,
 } from '../../utils/titleUtils';
 import { errorDetailForLog } from '../../utils/logging/redactLog';
-import { anilistBannerInputFromDetails, type AniListBannerInput } from '../providers/AniListService';
+import {
+  anilistBannerInputFromDetails,
+  type AniListBannerInput,
+  type AniListBannerResult,
+} from '../providers/AniListService';
+import {
+  buildFolderName,
+  extractFolderNameYear,
+  nextAvailableFolderName,
+  type FolderNameSource,
+} from '../../utils/downloads/folderNaming';
 
 export type AniListBannerFailureKind = 'ratelimit' | 'network' | 'nomatch';
 
@@ -41,10 +51,12 @@ export interface QueueEnqueueServiceOptions {
   listQueueItems: () => QueueItem[];
   ensureFolderPoster: (folderPath: string, posterUrl: string | null | undefined) => Promise<string | null>;
   ensureFolderBanner: (folderPath: string, bannerUrl: string | null | undefined) => Promise<string | null>;
-  resolveAniListBannerUrl: (
+  resolveAniListMeta: (
     input: AniListBannerInput,
     onFailure?: (kind: AniListBannerFailureKind) => void,
-  ) => Promise<string | null>;
+  ) => Promise<AniListBannerResult | null>;
+  getFolderNameSource: () => FolderNameSource;
+  getFolderMetaSlug: (folderPath: string) => string | null;
   urlToFilePath: (url: string) => string | null;
   writeFolderLibraryMeta: (folderPath: string, data: FolderLibraryMeta) => void;
   addItem: (item: QueueItem) => void;
@@ -78,10 +90,27 @@ export class QueueEnqueueService {
     const dirs = outputDirs || [defaultOutputDir];
     const resolvedIndex = outputDirIndex ?? 0;
     const baseDir = dirs[resolvedIndex] || defaultOutputDir;
-    const folderName = details.title.replace(/[^a-z0-9\s]/gi, '_').trim();
-    const targetPath = path.join(baseDir, folderName);
     const normalizedEpisodes = Array.from(new Set(episodes)).sort((a, b) => a - b);
     if (normalizedEpisodes.length === 0) return false;
+
+    // AniList primero: sus títulos pueden dar nombre a la carpeta.
+    let anilist: AniListBannerResult | null = null;
+    try {
+      anilist = await this.options.resolveAniListMeta(anilistBannerInputFromDetails(details), (kind) => {
+        if (kind !== 'nomatch') this.options.logAnilistWarn(`banner no resuelto (${kind})`);
+      });
+    } catch (error) {
+      this.options.logError(`Error resolviendo AniList para ${slug}: ${errorDetailForLog(error)}`);
+    }
+
+    let folderName: string;
+    try {
+      folderName = this.resolveFolderName(details, slug, anilist, baseDir);
+    } catch (error) {
+      this.options.logError(`Error resolviendo carpeta para ${slug}: ${errorDetailForLog(error)}`);
+      return false;
+    }
+    const targetPath = path.join(baseDir, folderName);
     const duplicateQueueItem = this.options
       .listQueueItems()
       .find(
@@ -100,20 +129,12 @@ export class QueueEnqueueService {
     } catch {}
     let localPosterUrl: string | null = null;
     let localBannerUrl: string | null = null;
-    let anilistBannerUrl: string | null = null;
+    const anilistBannerUrl = anilist?.banner ?? null;
     try {
-      // Banner como en la ficha: solo AniList validado, sin fallback al
-      // póster. En paralelo al póster para no sumar latencia.
-      const anilistInput = anilistBannerInputFromDetails(details);
+      // Banner como en la ficha: solo AniList validado, sin fallback al póster.
       [localPosterUrl, localBannerUrl] = await Promise.all([
         this.options.ensureFolderPoster(targetPath, details.poster || null),
-        (async () => {
-          const resolvedBanner = await this.options.resolveAniListBannerUrl(anilistInput, (kind) => {
-            if (kind !== 'nomatch') this.options.logAnilistWarn(`banner no resuelto (${kind})`);
-          });
-          anilistBannerUrl = resolvedBanner ?? null;
-          return anilistBannerUrl ? this.options.ensureFolderBanner(targetPath, anilistBannerUrl) : null;
-        })(),
+        anilistBannerUrl ? this.options.ensureFolderBanner(targetPath, anilistBannerUrl) : Promise.resolve(null),
       ]);
     } catch (error) {
       this.options.logError(`Error descargando portada para ${slug}: ${errorDetailForLog(error)}`);
@@ -141,6 +162,7 @@ export class QueueEnqueueService {
       posterUrl: details.poster || null,
       bannerUrl: anilistBannerUrl,
       providerId: queueProvider,
+      anilistId: anilist?.anilistId ?? null,
     });
 
     const item: QueueItem = {
@@ -185,5 +207,35 @@ export class QueueEnqueueService {
         banner: localBannerUrl || null,
       },
     };
+  }
+
+  private resolveFolderName(
+    details: DownloadAnimeDetails,
+    payloadSlug: string,
+    anilist: AniListBannerResult | null,
+    baseDir: string,
+  ): string {
+    const base = buildFolderName(
+      {
+        providerTitle: details.title,
+        providerAlternativeTitles: details.alternativeTitles,
+        japaneseTitle: details.japaneseTitle,
+        anilist: anilist?.titles ?? null,
+        year: details.year,
+      },
+      this.options.getFolderNameSource(),
+    );
+    const animeSlug = String(details.slug || payloadSlug || '').trim();
+    return nextAvailableFolderName(base, extractFolderNameYear(details.year), (name) => {
+      const candidatePath = path.join(baseDir, name);
+      try {
+        if (!fs.existsSync(candidatePath)) return false;
+      } catch {
+        return false;
+      }
+      const ownerSlug = String(this.options.getFolderMetaSlug(candidatePath) || '').trim();
+      // Sin meta se comparte carpeta: solo otro anime empuja el nombre.
+      return ownerSlug !== '' && ownerSlug !== animeSlug;
+    });
   }
 }

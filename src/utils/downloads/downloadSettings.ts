@@ -8,6 +8,7 @@ import {
   SERVER_ORDER_JKANIME_DEFAULT,
   resolveServerOrderList,
 } from '../serverUtils';
+import { DEFAULT_FOLDER_NAME_SOURCE, normalizeFolderNameSource } from './folderNaming';
 
 // Servidores configurables de Adaptive (minúsculas, como `connectionLevelForServer`).
 // HLS y Mega quedan fuera: manual y single-stream fijo.
@@ -64,6 +65,7 @@ export const DEFAULT_DOWNLOAD_SETTINGS: DownloadSettings = {
   hlsConnections: 10,
   serverOrderAnimeav1: [...SERVER_ORDER_ANIMEAV1_DEFAULT],
   serverOrderJkanime: [...SERVER_ORDER_JKANIME_DEFAULT],
+  folderNameSource: DEFAULT_FOLDER_NAME_SOURCE,
 };
 
 function clampInt(value: unknown, min: number, max: number, fallback: number): number {
@@ -122,5 +124,6 @@ export function normalizeDownloadSettings(input: unknown): DownloadSettings {
       DEFAULT_DOWNLOAD_SETTINGS.serverOrderJkanime,
       SERVER_CANDIDATES_JKANIME,
     ),
+    folderNameSource: normalizeFolderNameSource(raw.folderNameSource),
   };
 }

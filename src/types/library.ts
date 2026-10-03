@@ -32,5 +32,6 @@ export interface FolderLibraryMeta {
   posterUrl?: string | null;
   bannerUrl?: string | null;
   providerId?: string | null;
+  anilistId?: number | null;
   folderPath?: string;
 }

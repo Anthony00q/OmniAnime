@@ -5,10 +5,18 @@ import { useQuery } from '@tanstack/react-query';
 export const ANILIST_BANNER_STALE_MS = 24 * 60 * 60 * 1000;
 export const ANILIST_FAILURE_STALE_MS = 2 * 60 * 1000;
 
+export interface AniListMetaTitles {
+  romaji: string | null;
+  english: string | null;
+  native: string | null;
+  synonyms: string[];
+}
+
 export interface AniListMeta {
   anilistId: number;
   banner: string | null;
   studio: string | null;
+  titles: AniListMetaTitles;
 }
 
 export interface AniListBannerRequest {
@@ -76,6 +84,7 @@ export async function fetchAniListMeta(
     anilistId: number;
     banner?: string | null;
     studio?: string | null;
+    titles?: Partial<AniListMetaTitles> | null;
     transientFailure?: boolean;
   } | null;
   if (!res || typeof res.anilistId !== 'number') return null;
@@ -83,7 +92,16 @@ export async function fetchAniListMeta(
   const banner = typeof res.banner === 'string' && res.banner.trim() ? res.banner : null;
   const studio = typeof res.studio === 'string' && res.studio.trim() ? res.studio.trim() : null;
   if (!banner && !studio) return null;
-  return { anilistId: res.anilistId, banner, studio };
+  return { anilistId: res.anilistId, banner, studio, titles: normalizeAniListTitles(res.titles) };
+}
+
+function normalizeAniListTitles(raw: Partial<AniListMetaTitles> | null | undefined): AniListMetaTitles {
+  return {
+    romaji: asOptionalText(raw?.romaji),
+    english: asOptionalText(raw?.english),
+    native: asOptionalText(raw?.native),
+    synonyms: Array.isArray(raw?.synonyms) ? raw.synonyms.map((s) => String(s ?? '').trim()).filter(Boolean) : [],
+  };
 }
 
 export async function fetchAniListBanner(

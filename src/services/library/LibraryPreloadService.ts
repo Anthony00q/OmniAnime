@@ -26,9 +26,6 @@ export interface LibraryPreloadServiceOptions {
   assetService: LibraryPreloadAssetPort;
   getMatchingProvider: () => LibraryPreloadProviderPort;
   resolveAniListBannerUrl?: (input: AniListBannerInput) => Promise<string | null>;
-  isAutoRenameRetroactive: () => boolean;
-  clearAutoRenameRetroactiveOnce: () => void;
-  normalizeEpisodeFiles: (folderPath: string) => Promise<unknown>;
   checkConnectivity: () => Promise<boolean>;
   log: (error: unknown) => void;
   scopedLogError: (message: string) => void;
@@ -187,32 +184,17 @@ export class LibraryPreloadService {
         }
       }
 
-      let runRetro = false;
-      try {
-        runRetro = this.options.isAutoRenameRetroactive();
-      } catch {}
-      const resetRetroOnce = (): void => {
-        if (!runRetro) return;
-        try {
-          this.options.clearAutoRenameRetroactiveOnce();
-        } catch (error) {
-          this.options.log(`No se pudo desactivar el renombrado retroactivo: ${errorDetailForLog(error)}`);
-        }
-      };
-
       if (allFolders.length === 0) {
-        resetRetroOnce();
         return [];
       }
 
       const sorted = allFolders.sort((a, b) => b.birthtime - a.birthtime);
       const targets = maxFolders > 0 ? sorted.slice(0, maxFolders) : sorted;
       if (!targets.length) {
-        resetRetroOnce();
         return [];
       }
 
-      const searchCache = new Map<string, AnimeSearchResult[]>();
+      const searchCache = new Map<string, Promise<AnimeSearchResult[]>>();
       let processed = 0;
       let matched = 0;
       let lastProgressEmit = 0;
@@ -222,13 +204,6 @@ export class LibraryPreloadService {
         targets,
         3,
         async (folder) => {
-          if (runRetro) {
-            try {
-              await this.options.normalizeEpisodeFiles(folder.folderPath);
-            } catch (e) {
-              this.options.scopedLogError(`preload rename: ${errorDetailForLog(e)}`);
-            }
-          }
           if (folder.localMeta?.slug && (folder.localPoster || folder.localBanner)) {
             processed += 1;
             matched += 1;
@@ -329,16 +304,17 @@ export class LibraryPreloadService {
           for (const q of variants) {
             if (!q) continue;
             const searchCacheKey = `${matchingProviderId}:${q}`;
-            if (!searchCache.has(searchCacheKey)) {
-              try {
-                const found = await matchingProvider.search(q);
-                searchCache.set(searchCacheKey, found || []);
-              } catch {
-                searchCache.set(searchCacheKey, []);
-              }
+            let pending = searchCache.get(searchCacheKey);
+            if (!pending) {
+              // La promesa se comparte: dos carpetas iguales en paralelo hacen una sola búsqueda.
+              pending = matchingProvider
+                .search(q)
+                .then((found) => found || [])
+                .catch(() => [] as AnimeSearchResult[]);
+              searchCache.set(searchCacheKey, pending);
             }
 
-            const list = searchCache.get(searchCacheKey) || [];
+            const list = (await pending) || [];
             for (const item of list.slice(0, 10)) {
               const title = String(item.title || '').trim();
               const score = computeTitleMatchScore(q, title || '');
@@ -420,7 +396,6 @@ export class LibraryPreloadService {
         this.options.log,
       );
 
-      resetRetroOnce();
       return rows.filter(Boolean) as LibraryMetaPreloadRow[];
     } catch {
       return [];

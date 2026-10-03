@@ -64,6 +64,15 @@ export const DOWNLOAD_START_TIMEOUT_OPTIONS = [
   { value: '120', label: '120 s' },
 ] as const;
 
+export const FOLDER_NAME_SOURCE_OPTIONS = [
+  { value: 'anilist-romaji', label: 'AniList (romaji)' },
+  { value: 'anilist-english', label: 'AniList (inglés)' },
+  { value: 'anilist-native', label: 'AniList (japonés)' },
+  { value: 'anilist-synonym', label: 'AniList (sinónimo)' },
+  { value: 'provider', label: 'Proveedor (título)' },
+  { value: 'provider-alt', label: 'Proveedor (alternativo)' },
+] as const;
+
 export interface ProviderServersEntry {
   id: 'animeav1' | 'jkanime';
   label: string;

@@ -23,6 +23,7 @@ export interface LibraryFolder {
   metaTitle?: string | null;
   secondaryTitle?: string | null;
   alternativeTitles?: string[];
+  year?: string | null;
   providerId?: string | null;
   sourceDir: string;
 }
@@ -211,6 +212,7 @@ export class LibraryFileService {
                 metaTitle: (meta as any)?.title || null,
                 secondaryTitle: typeof (meta as any)?.secondaryTitle === 'string' ? (meta as any).secondaryTitle : null,
                 alternativeTitles: metaAlts,
+                year: (meta as any)?.year || null,
                 providerId: (meta as any)?.providerId || 'animeav1',
                 sourceDir: baseDir,
               };

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback, type MouseEvent as ReactMouseEvent } from 'react';
 import { HERO_DIM_MAX, HERO_DIM_DISTANCE } from '@/renderer/utils/heroDim';
-import { ArrowLeft, FolderOpen, Settings, Wand2, ListOrdered, Info, FileText, Hash } from 'lucide-react';
+import { ArrowLeft, FolderOpen, Settings, Wand2, ListOrdered, Info, FileText, Hash, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 import { Dialog } from '@/renderer/components/Dialog';
 import {
@@ -19,6 +19,7 @@ import { LibraryFolderMenu } from './components/LibraryFolderMenu';
 import { LibraryFolderDetailsDialog } from './components/LibraryFolderDetailsDialog';
 import { RenameDialog } from './components/RenameDialog';
 import { ReorderDialog } from './components/ReorderDialog';
+import { RenameFolderDialog } from './components/RenameFolderDialog';
 
 interface LibraryAnimeDetailsProps {
   folderData: any;
@@ -42,6 +43,7 @@ export function LibraryAnimeDetails({
   const [showMenu, setShowMenu] = useState(false);
   const [showReorderModal, setShowReorderModal] = useState(false);
   const [showRenameModal, setShowRenameModal] = useState(false);
+  const [showFolderRename, setShowFolderRename] = useState(false);
   const [heroMenu, setHeroMenu] = useState<{ x: number; y: number } | null>(null);
   const [showFolderDetails, setShowFolderDetails] = useState(false);
 
@@ -126,7 +128,6 @@ export function LibraryAnimeDetails({
     return () => clearTimeout(t);
   }, [reorderStart]);
 
-  const autoRename = settings?.autoRenameRetroactive === true;
   const globalStyle: 'minimal' | 'descriptive' = settings?.namingStyle === 'minimal' ? 'minimal' : 'descriptive';
 
   const renamePreviewEnabled = showRenameModal && !!folderData.path;
@@ -317,11 +318,6 @@ export function LibraryAnimeDetails({
                       <span className="min-w-0 flex-1">
                         <span className="text-sm font-semibold text-foreground flex items-center gap-2">
                           Forzar renombrado de archivos
-                          {autoRename && (
-                            <span className="text-[11px] font-bold tracking-widest uppercase bg-warning/10 text-warning border border-warning/20 px-1.5 py-0.5 rounded-full">
-                              Auto activo
-                            </span>
-                          )}
                         </span>
                         <span className="text-xs text-muted-foreground leading-relaxed block mt-0.5">
                           Aplica estilo Minimalista o Descriptivo a todos. Respeta Ajustes como base, pero fuerza aquí.
@@ -349,6 +345,24 @@ export function LibraryAnimeDetails({
                         </span>
                         <span className="text-[11px] text-muted-foreground mt-1 inline-flex items-center gap-1">
                           <Hash className="w-3 h-3" /> Inicio sugerido: 1 · 13 · 25
+                        </span>
+                      </span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setShowMenu(false);
+                        setShowFolderRename(true);
+                      }}
+                      className="w-full text-left flex items-start gap-3 p-3 rounded-xl hover:bg-secondary transition-colors group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 mt-1"
+                    >
+                      <span className="w-9 h-9 rounded-xl bg-secondary border border-border/60 flex items-center justify-center shrink-0 group-hover:bg-secondary/80 transition-colors">
+                        <Pencil className="w-4 h-4 text-foreground" />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="text-sm font-semibold text-foreground">Cambiar nombre de la carpeta</span>
+                        <span className="text-xs text-muted-foreground leading-relaxed block mt-0.5">
+                          Elige entre los nombres del proveedor y de AniList, o escribe uno propio.
                         </span>
                       </span>
                     </button>
@@ -459,13 +473,26 @@ export function LibraryAnimeDetails({
         folderName={folderData.name}
         renameStyle={renameStyle}
         onStyleChange={setRenameStyle}
-        autoRename={autoRename}
         globalStyle={globalStyle}
         renamePreview={renamePreview}
         isFetching={isRenamePreviewFetching}
         isError={isRenamePreviewError}
         isPending={libActions.renameFiles.isPending}
         onConfirm={submitRename}
+      />
+
+      <RenameFolderDialog
+        open={showFolderRename}
+        onOpenChange={setShowFolderRename}
+        folderPath={folderData.path}
+        folderName={folderData.name}
+        meta={{
+          title: folderData.metaTitle ?? null,
+          secondaryTitle: folderData.secondaryTitle ?? null,
+          alternativeTitles: folderData.alternativeTitles ?? null,
+          year: folderData.year ?? null,
+        }}
+        onRenamed={onBack}
       />
 
       <ReorderDialog

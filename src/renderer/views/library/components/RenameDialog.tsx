@@ -1,6 +1,7 @@
-import { AlertTriangle, Check, ArrowRight, Eye, Wand2, Sparkles, Loader2 } from 'lucide-react';
+import { AlertTriangle, Check, ArrowRight, Eye, Wand2, Loader2 } from 'lucide-react';
 import { Dialog } from '@/renderer/components/Dialog';
 import { AppTooltip } from '@/renderer/components/ui/AppTooltip';
+import { CustomRadio, CustomRadioGroup } from '@/renderer/components/CustomRadioGroup';
 
 interface RenameDialogProps {
   open: boolean;
@@ -9,7 +10,6 @@ interface RenameDialogProps {
   folderName?: string; // kept for compatibility, used as fallback for preview
   renameStyle: 'minimal' | 'descriptive';
   onStyleChange: (style: 'minimal' | 'descriptive') => void;
-  autoRename: boolean;
   globalStyle: 'minimal' | 'descriptive';
   renamePreview: any;
   isFetching: boolean;
@@ -25,7 +25,6 @@ export function RenameDialog({
   folderName,
   renameStyle,
   onStyleChange,
-  autoRename,
   globalStyle,
   renamePreview,
   isFetching,
@@ -53,21 +52,6 @@ export function RenameDialog({
       onConfirm={onConfirm}
     >
       <div className="space-y-4">
-        {autoRename && (
-          <div className="rounded-xl border border-warning/20 bg-warning/[0.06] px-3 py-2.5 flex gap-2.5">
-            <span className="w-7 h-7 rounded-lg bg-warning/15 border border-warning/20 flex items-center justify-center shrink-0 mt-0.5">
-              <Sparkles className="w-4 h-4 text-warning" />
-            </span>
-            <div className="min-w-0">
-              <p className="text-xs font-semibold text-warning leading-none">Auto-renombrado activo en Ajustes</p>
-              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                Normalmente los archivos se normalizan solos al abrir la carpeta. Este forzado aplica el estilo elegido
-                <span className="font-medium text-foreground"> solo aquí y ahora</span>, sin cambiar el ajuste global.
-              </p>
-            </div>
-          </div>
-        )}
-
         <div className="flex flex-wrap items-center gap-2 text-xs">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-secondary border border-border px-2.5 py-1">
             <span className="w-2 h-2 rounded-full bg-primary" />
@@ -80,7 +64,12 @@ export function RenameDialog({
           </span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <CustomRadioGroup
+          value={renameStyle}
+          onChange={(v) => onStyleChange(v as 'minimal' | 'descriptive')}
+          ariaLabel="Estilo de nombramiento"
+          className="grid grid-cols-1 sm:grid-cols-2 gap-3"
+        >
           {[
             {
               id: 'descriptive' as const,
@@ -103,19 +92,8 @@ export function RenameDialog({
                   : 'border-border bg-secondary/20 hover:bg-secondary/40 hover:border-border-strong'
               }`}
             >
-              <input
-                type="radio"
-                name="renameStyle"
-                checked={renameStyle === opt.id}
-                onChange={() => onStyleChange(opt.id)}
-                className="sr-only"
-              />
               <span className="flex items-center gap-2">
-                <span
-                  className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${renameStyle === opt.id ? 'border-primary bg-primary' : 'border-border bg-background'}`}
-                >
-                  {renameStyle === opt.id && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
-                </span>
+                <CustomRadio value={opt.id} />
                 <span className="text-sm font-bold">{opt.title}</span>
                 {renameStyle === opt.id && (
                   <span className="ml-auto inline-flex items-center gap-1 text-[11px] font-bold tracking-widest uppercase bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full">
@@ -123,15 +101,13 @@ export function RenameDialog({
                   </span>
                 )}
               </span>
-              <AppTooltip content={opt.mono}>
-                <span className="font-mono text-xs bg-background border border-border/60 rounded-lg px-2.5 py-1.5 truncate w-fit max-w-full">
-                  {opt.mono}
-                </span>
-              </AppTooltip>
+              <span className="font-mono text-xs bg-background border border-border/60 rounded-lg px-2.5 py-1.5 truncate w-fit max-w-full">
+                {opt.mono}
+              </span>
               <span className="text-[11px] text-muted-foreground leading-relaxed">{opt.desc}</span>
             </label>
           ))}
-        </div>
+        </CustomRadioGroup>
 
         <div className="rounded-xl border border-border/60 bg-background overflow-hidden flex flex-col min-h-[280px]">
           <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-border/50 bg-secondary/20 shrink-0">
@@ -232,21 +208,17 @@ export function RenameDialog({
                         </span>
                       </AppTooltip>
                       <span className="flex-1 min-w-0 grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-                        <AppTooltip content={item.from}>
-                          <span
-                            className={`truncate w-fit max-w-full font-mono text-xs px-1.5 py-1 rounded bg-secondary/50 border border-border/40 ${item.status === 'will_rename' ? 'line-through opacity-60' : ''}`}
-                          >
-                            {item.from}
-                          </span>
-                        </AppTooltip>
+                        <span
+                          className={`truncate w-fit max-w-full font-mono text-xs px-1.5 py-1 rounded bg-secondary/50 border border-border/40 ${item.status === 'will_rename' ? 'line-through opacity-60' : ''}`}
+                        >
+                          {item.from}
+                        </span>
                         <ArrowRight className="w-3 h-3 text-muted-foreground shrink-0" />
-                        <AppTooltip content={item.to}>
-                          <span
-                            className={`truncate w-fit max-w-full font-mono text-xs px-1.5 py-1 rounded border ${item.status === 'will_rename' ? 'bg-primary/10 border-primary/20 text-foreground font-medium' : item.status === 'conflict' ? 'bg-warning/10 border-warning/20' : 'bg-secondary/30 border-border/30'}`}
-                          >
-                            {item.to}
-                          </span>
-                        </AppTooltip>
+                        <span
+                          className={`truncate w-fit max-w-full font-mono text-xs px-1.5 py-1 rounded border ${item.status === 'will_rename' ? 'bg-primary/10 border-primary/20 text-foreground font-medium' : item.status === 'conflict' ? 'bg-warning/10 border-warning/20' : 'bg-secondary/30 border-border/30'}`}
+                        >
+                          {item.to}
+                        </span>
                       </span>
                       <span className="hidden sm:inline-flex text-[11px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-secondary border border-border shrink-0">
                         {item.ext || 'mp4'}

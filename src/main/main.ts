@@ -43,6 +43,7 @@ import type { DownloadAnimeDetails } from '../types/anime';
 import type { HistoryWriteRecord } from '../types/history';
 import type { DownloadProvider, QueueItem } from '../types/queue';
 import { buildCanonicalEpisodeFileName as buildCanonicalEpisodeFileNameUtil } from '../utils/episodeUtils';
+import { normalizeFolderNameSource } from '../utils/downloads/folderNaming';
 import {
   adaptiveConnectionsAll,
   detectFreshInstall,
@@ -343,15 +344,6 @@ const libraryPreloadService = new LibraryPreloadService({
   assetService: libraryAssetService,
   getMatchingProvider: () => providerGateway.activeProvider,
   resolveAniListBannerUrl: (input) => resolveAniListBannerResult(input).then((resolved) => resolved?.banner ?? null),
-  isAutoRenameRetroactive: () => {
-    try {
-      return SettingsManager.get().autoRenameRetroactive === true;
-    } catch {
-      return false;
-    }
-  },
-  clearAutoRenameRetroactiveOnce: () => SettingsManager.clearAutoRenameRetroactiveOnce(),
-  normalizeEpisodeFiles: (folderPath) => normalizeEpisodeFilesInFolder(folderPath),
   checkConnectivity,
   log: writeGlobalLog,
   scopedLogError: (message) => scopedLog('app').error(message),
@@ -574,8 +566,9 @@ const queueEnqueueService = new QueueEnqueueService({
   listQueueItems: () => downloadQueue,
   ensureFolderPoster: (folderPath, posterUrl) => libraryAssetService.ensureFolderPoster(folderPath, posterUrl),
   ensureFolderBanner: (folderPath, bannerUrl) => libraryAssetService.ensureFolderBanner(folderPath, bannerUrl),
-  resolveAniListBannerUrl: (input, onFailure) =>
-    resolveAniListBannerResult(input, undefined, onFailure).then((resolved) => resolved?.banner ?? null),
+  resolveAniListMeta: (input, onFailure) => resolveAniListBannerResult(input, undefined, onFailure),
+  getFolderNameSource: () => normalizeFolderNameSource(SettingsManager.get().download?.folderNameSource),
+  getFolderMetaSlug: (folderPath) => libraryAssetService.readFolderLibraryMeta(folderPath)?.slug ?? null,
   urlToFilePath: (url) => LibraryAssetService.urlToFilePath(url),
   writeFolderLibraryMeta: (folderPath, data) => libraryAssetService.writeFolderLibraryMeta(folderPath, data),
   addItem: (item) => queueStore.add(item),
@@ -795,10 +788,6 @@ function buildCanonicalEpisodeFileName(
   return buildCanonicalEpisodeFileNameUtil(episodeNumber, ext, folderName, style, normalizedLang as 'SUB' | 'DUB');
 }
 
-function normalizeEpisodeFilesInFolder(
-  animePath: string,
-  forceRename = false,
-  overrideStyle?: 'minimal' | 'descriptive',
-) {
-  return episodeFileService.normalizeEpisodeFilesInFolder(animePath, forceRename, overrideStyle);
+function normalizeEpisodeFilesInFolder(animePath: string, overrideStyle?: 'minimal' | 'descriptive') {
+  return episodeFileService.normalizeEpisodeFilesInFolder(animePath, overrideStyle);
 }
