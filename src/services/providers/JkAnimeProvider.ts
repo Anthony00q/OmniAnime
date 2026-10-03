@@ -192,6 +192,19 @@ export function extractJkMalId($: ReturnType<typeof cheerio.load>): number | nul
   }
 }
 
+// Cada sinónimo vale como variante propia; JK los publica en una sola línea.
+export function splitJkSynonyms(raw: string): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const piece of String(raw || '').split(/[,;·|/]+/)) {
+    const clean = piece.replace(/\s+/g, ' ').trim();
+    if (!clean || seen.has(clean)) continue;
+    seen.add(clean);
+    out.push(clean);
+  }
+  return out;
+}
+
 // Temporada de la ficha: valor directo del li 'Temporada:'; si falta se
 // deriva del mes de 'Emitido:'. Vacío = la fila se oculta en la UI.
 export function resolveJkSeasonFromTexts(temporadaValue: unknown, emitidoText: unknown, year: unknown): string {
@@ -872,7 +885,12 @@ export class JkAnimeProvider implements AnimeProvider {
         category,
         japaneseTitle: alternativeTitle || '',
         malId: extractJkMalId($),
-        alternativeTitles: [altTitles.english, alternativeTitle, altTitles.synonyms, altTitles.japanese]
+        alternativeTitles: [
+          altTitles.english,
+          alternativeTitle,
+          ...splitJkSynonyms(altTitles.synonyms),
+          altTitles.japanese,
+        ]
           .map((t) => String(t || '').trim())
           .filter((t, index, arr) => !!t && t !== title && arr.indexOf(t) === index),
         season,

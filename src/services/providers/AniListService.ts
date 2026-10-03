@@ -237,7 +237,7 @@ export function mapProviderFormat(rawFormat: string | null | undefined): string 
   if (/\bova\b/.test(text)) return 'OVA';
   if (/\bona\b/.test(text)) return 'ONA';
   if (/\bespecial\b|\bspecial\b/.test(text)) return 'SPECIAL';
-  if (/\bserie\b|\btv\b/.test(text)) return 'TV';
+  if (/\bserie\b|\btv\b|\banime\b/.test(text)) return 'TV';
   return null;
 }
 
