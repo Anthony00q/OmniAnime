@@ -503,45 +503,47 @@ export const DownloadsTab = memo(function DownloadsTab({
                   ariaLabel="Limpiar temporales al terminar"
                 />
               </div>
-              <div className="rounded-xl border border-border/60 bg-background p-4 flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="text-sm font-semibold leading-tight">
-                    Conexiones adaptativas{' '}
-                    <span className="inline-flex items-center rounded border border-primary/30 bg-primary/10 px-1 py-px align-middle text-[10px] font-semibold uppercase leading-none tracking-wider text-primary">
-                      Experimental
-                    </span>{' '}
-                    <AppTooltip content="Ajusta automáticamente las conexiones internas del episodio según el rendimiento de tu conexión. El número de conexiones sigue siendo el punto de partida; el resto lo gestiona la app. Función experimental: puede cambiar o desactivarse en próximas versiones.">
-                      <span aria-hidden="true" className="inline-flex align-middle text-muted-foreground">
-                        <Info className="w-3.5 h-3.5" />
-                      </span>
-                    </AppTooltip>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                    Ajusta las conexiones internas del episodio según rendimiento.
-                  </p>
-                </div>
-                <CustomSwitch
-                  checked={adaptive.enabled}
-                  onChange={setAdaptiveEnabled}
-                  ariaLabel="Conexiones adaptativas (experimental)"
-                />
-              </div>
-              <div className="rounded-xl border border-border/60 bg-background p-4 mt-3">
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  Servidores con Adaptive. El resto usa su número de conexiones manual.
-                </p>
-                <div className="mt-1">
-                  {ADAPTIVE_SERVER_ROWS.map((row) => (
-                    <div key={row.id} className="flex items-center justify-between gap-3">
-                      <span className="text-sm font-medium select-none">{row.label}</span>
-                      <CustomSwitch
-                        checked={adaptive.servers[row.id]}
-                        disabled={!adaptive.enabled}
-                        onChange={(c) => setAdaptiveServer(row.id, c)}
-                        ariaLabel={`Conexiones adaptativas en ${row.label}`}
-                      />
+              <div className="rounded-xl border border-border/60 bg-background p-4 sm:col-span-2">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold leading-tight">
+                      Conexiones adaptativas{' '}
+                      <span className="inline-flex items-center rounded border border-primary/30 bg-primary/10 px-1 py-px align-middle text-[10px] font-semibold uppercase leading-none tracking-wider text-primary">
+                        Experimental
+                      </span>{' '}
+                      <AppTooltip content="Ajusta automáticamente las conexiones internas del episodio según el rendimiento de tu conexión. El número de conexiones sigue siendo el punto de partida; el resto lo gestiona la app. Función experimental: puede cambiar o desactivarse en próximas versiones.">
+                        <span aria-hidden="true" className="inline-flex align-middle text-muted-foreground">
+                          <Info className="w-3.5 h-3.5" />
+                        </span>
+                      </AppTooltip>
                     </div>
-                  ))}
+                    <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                      Ajusta las conexiones internas del episodio según rendimiento.
+                    </p>
+                  </div>
+                  <CustomSwitch
+                    checked={adaptive.enabled}
+                    onChange={setAdaptiveEnabled}
+                    ariaLabel="Conexiones adaptativas (experimental)"
+                  />
+                </div>
+                <div className="mt-3 border-t border-border/40 pt-3">
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Servidores con Adaptive. El resto usa su número de conexiones manual.
+                  </p>
+                  <div className="mt-1 grid gap-x-6 gap-y-1 sm:grid-cols-3">
+                    {ADAPTIVE_SERVER_ROWS.map((row) => (
+                      <div key={row.id} className="flex items-center justify-between gap-3">
+                        <span className="text-sm font-medium select-none">{row.label}</span>
+                        <CustomSwitch
+                          checked={adaptive.servers[row.id]}
+                          disabled={!adaptive.enabled}
+                          onChange={(c) => setAdaptiveServer(row.id, c)}
+                          ariaLabel={`Conexiones adaptativas en ${row.label}`}
+                        />
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
