@@ -1,7 +1,7 @@
 import { app, ipcMain, shell } from 'electron';
 import * as fs from 'fs';
 import * as path from 'path';
-import { isAllowedExternalUrl } from '../../../utils/security/externalUrl';
+import { isAllowedChangelogUrl, isAllowedExternalUrl } from '../../../utils/security/externalUrl';
 import type { IpcRegistryDependencies } from '../../IpcRegistry';
 
 export function registerWindowHandlers({ getMainWindow, setIsQuitting }: IpcRegistryDependencies): void {
@@ -72,10 +72,12 @@ export function registerWindowHandlers({ getMainWindow, setIsQuitting }: IpcRegi
     }
   });
 
-  ipcMain.handle('open-external-url', async (_, rawUrl: string) => {
+  // `policy` elige la allowlist: proveedores por defecto, changelog para las notas.
+  ipcMain.handle('open-external-url', async (_, rawUrl: string, options?: { policy?: 'provider' | 'changelog' }) => {
     try {
       const url = String(rawUrl || '').trim();
-      if (!isAllowedExternalUrl(url)) return false;
+      const allowed = options?.policy === 'changelog' ? isAllowedChangelogUrl(url) : isAllowedExternalUrl(url);
+      if (!allowed) return false;
       await shell.openExternal(url);
       return true;
     } catch {

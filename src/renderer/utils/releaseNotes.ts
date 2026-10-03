@@ -1,15 +1,19 @@
 export interface ReleaseNotesInline {
   text: string;
   bold: boolean;
+  code?: boolean;
+  href?: string;
 }
 
+export type ReleaseNotesHeadingRole = 'version' | 'zone' | 'free';
+
 export type ReleaseNotesBlock =
-  | { kind: 'heading'; content: ReleaseNotesInline[] }
+  | { kind: 'heading'; content: ReleaseNotesInline[]; role: ReleaseNotesHeadingRole }
   | { kind: 'list'; items: ReleaseNotesInline[][] }
   | { kind: 'paragraph'; content: ReleaseNotesInline[] };
 
-// Subconjunto mínimo del CHANGELOG: `### Etiqueta` o `Etiqueta:` agrupa,
-// `- ` viñeta, `**texto**` en negrita. Lo no reconocido cae a párrafo tal cual.
+// Subconjunto del CHANGELOG: `### Etiqueta` o `Etiqueta:` agrupa, `- ` viñeta,
+// y en línea `**negrita**`, `` `código` `` y `[texto](url)`. Lo demás, párrafo.
 export function parseReleaseNotes(input: unknown): ReleaseNotesBlock[] {
   if (typeof input !== 'string') return [];
   const blocks: ReleaseNotesBlock[] = [];
@@ -38,19 +42,25 @@ export function parseReleaseNotes(input: unknown): ReleaseNotesBlock[] {
       list.push(parseInline(bullet[1].trim()));
       continue;
     }
-    if (/^[^:\n]{1,80}:$/.test(line)) {
-      flushParagraph();
-      flushList();
-      blocks.push({ kind: 'heading', content: parseInline(line.slice(0, -1)) });
-      continue;
-    }
     // Encabezado Markdown (`### Zona`): misma agrupación en el modal y
     // encabezado real en la web de GitHub. Solo dentro de la sección.
-    const mdHeading = line.match(/^#{1,6}\s+(.+?)\s*$/);
+    const mdHeading = line.match(/^(#{1,6})\s+(.+?)\s*$/);
     if (mdHeading) {
       flushParagraph();
       flushList();
-      blocks.push({ kind: 'heading', content: parseInline(mdHeading[1].trim()) });
+      const text = mdHeading[2].trim();
+      blocks.push({
+        kind: 'heading',
+        content: parseInline(text),
+        role: isVersionLine(text) ? 'version' : mdHeading[1].length <= 3 ? 'zone' : 'free',
+      });
+      continue;
+    }
+    if (/^[^:\n]{1,80}:$/.test(line)) {
+      flushParagraph();
+      flushList();
+      const text = line.slice(0, -1);
+      blocks.push({ kind: 'heading', content: parseInline(text), role: isVersionLine(text) ? 'version' : 'zone' });
       continue;
     }
     flushList();
@@ -61,22 +71,49 @@ export function parseReleaseNotes(input: unknown): ReleaseNotesBlock[] {
   return blocks;
 }
 
+// Cada llamada monta su propio RegExp: el patrón es global y la recursión
+// (etiquetas de enlace, negrita) compartiría el lastIndex si fuese común.
+const INLINE_PATTERN =
+  '`([^`\\n]+)`|\\[([^\\]\\n]*)\\]\\(\\s*([^)\\s]+)\\s*\\)|\\*\\*(.+?)\\*\\*|(https?:\\/\\/[^\\s<>"\']+)';
+
 export function parseInline(input: string): ReleaseNotesInline[] {
   const parts: ReleaseNotesInline[] = [];
-  const pattern = /\*\*(.+?)\*\*/g;
+  const pattern = new RegExp(INLINE_PATTERN, 'g');
   let last = 0;
   let match: RegExpExecArray | null;
   while ((match = pattern.exec(input)) !== null) {
     if (match.index > last) parts.push({ text: input.slice(last, match.index), bold: false });
-    parts.push({ text: match[1], bold: true });
-    last = match.index + match[0].length;
+    const [full, code, label, href, boldText, bareUrl] = match;
+    if (code !== undefined) {
+      parts.push({ text: code, bold: false, code: true });
+    } else if (label !== undefined && href !== undefined) {
+      parts.push(...parseInline(label).map((node) => ({ ...node, href })));
+    } else if (boldText !== undefined) {
+      parts.push(...parseInline(boldText).map((node) => ({ ...node, bold: true })));
+    } else {
+      const url = trimUrlTail(bareUrl);
+      parts.push({ text: url, bold: false, href: url });
+      if (url.length < bareUrl.length) parts.push({ text: bareUrl.slice(url.length), bold: false });
+    }
+    last = match.index + full.length;
   }
   if (last < input.length) parts.push({ text: input.slice(last), bold: false });
   return parts;
 }
 
+// La puntuación que cierra la frase no forma parte de la URL: `page.)` deja
+// fuera el punto y, si el paréntesis no cierra ninguno, también él.
+function trimUrlTail(rawUrl: string): string {
+  let url = rawUrl.replace(/[.,;:!?]+$/, '');
+  while (url.endsWith(')') && (url.match(/\(/g)?.length ?? 0) < (url.match(/\)/g)?.length ?? 0)) {
+    url = url.slice(0, -1);
+  }
+  return url;
+}
+
 export interface ReleaseNotesSection {
   heading: ReleaseNotesInline[] | null;
+  headingRole: ReleaseNotesHeadingRole | null;
   blocks: Exclude<ReleaseNotesBlock, { kind: 'heading' }>[];
 }
 
@@ -134,17 +171,17 @@ export function groupReleaseSections(blocks: ReleaseNotesBlock[]): ReleaseNotesS
   const sections: ReleaseNotesSection[] = [];
   let current: ReleaseNotesSection | null = null;
   const pushCurrent = () => {
-    const isVersionDivider = current?.heading ? isVersionLine(inlineText(current.heading)) : false;
+    const isVersionDivider = current?.headingRole === 'version';
     if (current && (current.blocks.length > 0 || isVersionDivider)) sections.push(current);
     current = null;
   };
   for (const block of blocks) {
     if (block.kind === 'heading') {
       pushCurrent();
-      current = { heading: block.content, blocks: [] };
+      current = { heading: block.content, headingRole: block.role, blocks: [] };
       continue;
     }
-    if (!current) current = { heading: null, blocks: [] };
+    if (!current) current = { heading: null, headingRole: null, blocks: [] };
     current.blocks.push(block);
   }
   pushCurrent();

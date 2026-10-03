@@ -75,11 +75,13 @@ el auto-update) y muestran el modal con esas notas.
 
 La sección `## [X.Y.Z] - fecha` admite un formato mínimo que el modal de
 actualización renderiza: líneas `### Zona` como grupos, líneas `- ...`
-como viñetas y `**negrita**` en línea (la forma legacy `Etiqueta:` en
-línea suelta aún renderiza en el modal, pero no la uses en secciones
-nuevas). Todo lo demás se muestra como texto tal cual, así que sin
-enlaces, cursiva ni código: el modal solo pinta encabezados, viñetas y
-negrita. El extractor y `latest.yml` pasan el texto sin tocarlo, así que
+como viñetas y, en línea, `**negrita**`, `` `código` `` y enlaces
+`[texto](url)` o URL sueltas (se abren en el navegador del sistema; la
+forma legacy `Etiqueta:` en línea suelta aún renderiza en el modal, pero
+no la uses en secciones nuevas). Las entidades HTML comunes
+(`&amp;`, `&#8217;`...) se muestran ya como su carácter. Lo demás se ve
+como texto tal cual: sin cursiva, tablas, imágenes, checkboxes ni HTML
+crudo. El extractor y `latest.yml` pasan el texto sin tocarlo, así que
 la web de GitHub lo renderiza sola desde el mismo origen (ahí `###` se ve
 como encabezado).
 

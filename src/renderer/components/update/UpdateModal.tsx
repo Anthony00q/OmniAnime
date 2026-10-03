@@ -6,6 +6,7 @@ import { ProgressBar } from '@/renderer/components/ui/ProgressBar';
 import { ReleaseNotesView } from './ReleaseNotesView';
 import { useAppUpdate } from '@/renderer/hooks/useAppUpdate';
 import { releaseNotesForVersion } from '@/renderer/utils/releaseNotes';
+import { buildReleasePageUrl } from '@/utils/security/externalUrl';
 import {
   appUpdateAvailableAtom,
   appUpdateErrorAtom,
@@ -64,6 +65,8 @@ export function UpdateModal() {
   const hasCompare = !loadingVersion && currentVersion !== '' && currentVersion !== available.version;
   const trimmedNotes = available.notes?.trim() ? releaseNotesForVersion(available.notes, available.version) : null;
   const notes = trimmedNotes?.trim() ? trimmedNotes : null;
+  // Sin notas, al menos un camino a la release publicada.
+  const releaseUrl = notes ? null : buildReleasePageUrl(available.version);
 
   return (
     <Dialog
@@ -118,6 +121,18 @@ export function UpdateModal() {
             <div className="flex flex-col items-center gap-2 py-8 text-center">
               <FileText className="w-5 h-5 text-text-tertiary" aria-hidden="true" />
               <p className="text-[13px] text-muted-foreground">{FALLBACK_NOTES}</p>
+              {releaseUrl && (
+                <a
+                  href={releaseUrl}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    void window.api.invoke('open-external-url', releaseUrl, { policy: 'changelog' });
+                  }}
+                  className="mt-1 text-[13px] font-medium text-primary underline underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/50"
+                >
+                  Ver la release en GitHub
+                </a>
+              )}
             </div>
           )}
         </div>
