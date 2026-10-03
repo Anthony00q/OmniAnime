@@ -57,6 +57,7 @@ import {
 } from '@/renderer/hooks/useQueries';
 import { shouldShowOfflineEmpty } from '@/renderer/utils/offlineEmpty';
 import { Dialog } from '@/renderer/components/Dialog';
+import { CustomNumberInput } from '@/renderer/components/CustomNumberInput';
 import { AppTooltip } from '@/renderer/components/ui/AppTooltip';
 import { ErrorState } from '@/renderer/components/ui/ErrorState';
 import { LoadingState } from '@/renderer/components/ui/LoadingState';
@@ -1046,23 +1047,23 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
         <div className="flex items-center gap-3 -mt-1">
           <div className="flex-1">
             <label className="text-xs font-semibold text-muted-foreground block mb-1">Desde</label>
-            <input
-              type="number"
-              min="1"
+            <CustomNumberInput
               value={rangeFrom}
-              onChange={(e) => setRangeFrom(e.target.value)}
-              className="w-full bg-secondary/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none"
+              onChange={(v) => setRangeFrom(v)}
+              min={1}
+              ariaLabel="Desde"
+              inputClassName="bg-secondary/50 py-2 pl-3 text-sm"
             />
           </div>
           <span className="text-muted-foreground mt-5">—</span>
           <div className="flex-1">
             <label className="text-xs font-semibold text-muted-foreground block mb-1">Hasta</label>
-            <input
-              type="number"
-              min="1"
+            <CustomNumberInput
               value={rangeTo}
-              onChange={(e) => setRangeTo(e.target.value)}
-              className="w-full bg-secondary/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none"
+              onChange={(v) => setRangeTo(v)}
+              min={1}
+              ariaLabel="Hasta"
+              inputClassName="bg-secondary/50 py-2 pl-3 text-sm"
             />
           </div>
         </div>

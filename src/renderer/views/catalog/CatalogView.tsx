@@ -275,7 +275,7 @@ export function CatalogView() {
             inputRef={searchInputRef}
             placeholder="Buscar en el catálogo..."
             ariaLabel="Buscar en el catálogo"
-            onChange={(event) => setSearchInput(event.target.value)}
+            onChange={setSearchInput}
             onSubmit={() => setActiveFilters((prev) => ({ ...prev, search: searchInput }))}
             onClear={() => {
               setSearchInput('');

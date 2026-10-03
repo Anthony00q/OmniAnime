@@ -1,6 +1,6 @@
-import { AlertTriangle, Check, ArrowRight, Eye, ListOrdered, Minus, Plus, Hash, Info, Loader2 } from 'lucide-react';
+import { AlertTriangle, Check, ArrowRight, Eye, ListOrdered, Hash, Info, Loader2 } from 'lucide-react';
 import { Dialog } from '@/renderer/components/Dialog';
-import { AppTooltip } from '@/renderer/components/ui/AppTooltip';
+import { CustomNumberInput } from '@/renderer/components/CustomNumberInput';
 
 interface ReorderDialogProps {
   open: boolean;
@@ -57,44 +57,15 @@ export function ReorderDialog({
           <label className="block text-xs font-bold tracking-widest uppercase text-muted-foreground mb-2.5">
             Número inicial
           </label>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                const n = parseInt(reorderStart, 10);
-                const next = isNaN(n) ? 1 : Math.max(0, n - 1);
-                onReorderStartChange(String(next));
-              }}
-              className="w-11 h-11 rounded-xl bg-background border border-border flex items-center justify-center hover:bg-secondary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 shrink-0"
-              aria-label="Decrementar"
-            >
-              <Minus className="w-4 h-4" />
-            </button>
-
-            <div className="flex-1 relative">
-              <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <input
-                type="number"
-                min={0}
-                value={reorderStart}
-                onChange={(e) => onReorderStartChange(e.target.value)}
-                className="w-full bg-background border border-border rounded-xl pl-9 pr-4 py-3 text-base font-mono font-semibold text-foreground placeholder-muted-foreground focus:outline-none text-center"
-              />
-            </div>
-
-            <button
-              type="button"
-              onClick={() => {
-                const n = parseInt(reorderStart, 10);
-                const next = isNaN(n) ? 1 : n + 1;
-                onReorderStartChange(String(next));
-              }}
-              className="w-11 h-11 rounded-xl bg-primary text-primary-foreground border border-primary flex items-center justify-center hover:bg-[color-mix(in_srgb,var(--color-primary)_88%,black)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 shrink-0 shadow-sm"
-              aria-label="Incrementar"
-            >
-              <Plus className="w-4 h-4" />
-            </button>
-          </div>
+          <CustomNumberInput
+            value={reorderStart}
+            onChange={onReorderStartChange}
+            min={0}
+            icon={<Hash className="w-4 h-4" />}
+            ariaLabel="Número inicial"
+            className="mx-auto max-w-md"
+            inputClassName="bg-background py-3 text-base font-mono font-semibold text-center"
+          />
 
           <div className="flex flex-wrap gap-1.5 mt-3">
             <span className="text-xs text-muted-foreground py-1 pr-1">Atajos:</span>
@@ -203,21 +174,17 @@ export function ReorderDialog({
                         {idx + 1}
                       </span>
                       <span className="flex-1 min-w-0 grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-                        <AppTooltip content={item.from}>
-                          <span
-                            className={`truncate w-fit max-w-full font-mono text-xs px-1.5 py-1 rounded border ${item.status === 'will_rename' ? 'bg-secondary/50 border-border/40 line-through opacity-60' : 'bg-secondary/40 border-border/30'}`}
-                          >
-                            {item.from}
-                          </span>
-                        </AppTooltip>
+                        <span
+                          className={`truncate w-fit max-w-full font-mono text-xs px-1.5 py-1 rounded border ${item.status === 'will_rename' ? 'bg-secondary/50 border-border/40 line-through opacity-60' : 'bg-secondary/40 border-border/30'}`}
+                        >
+                          {item.from}
+                        </span>
                         <ArrowRight className="w-3 h-3 text-muted-foreground shrink-0" />
-                        <AppTooltip content={item.to}>
-                          <span
-                            className={`truncate w-fit max-w-full font-mono text-xs px-1.5 py-1 rounded border font-medium ${item.status === 'will_rename' ? 'bg-primary/10 border-primary/20 text-foreground' : 'bg-secondary/30 border-border/30'}`}
-                          >
-                            {item.to}
-                          </span>
-                        </AppTooltip>
+                        <span
+                          className={`truncate w-fit max-w-full font-mono text-xs px-1.5 py-1 rounded border font-medium ${item.status === 'will_rename' ? 'bg-primary/10 border-primary/20 text-foreground' : 'bg-secondary/30 border-border/30'}`}
+                        >
+                          {item.to}
+                        </span>
                       </span>
                       <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-mono bg-secondary border border-border px-1.5 py-0.5 rounded shrink-0">
                         EP_{item.toEpisodeNumber}

@@ -182,8 +182,8 @@ export function HomeView({ isActive }: { isActive?: boolean }) {
             role="combobox"
             ariaHasPopup="listbox"
             ariaAutoComplete="list"
-            onChange={(event) => {
-              setSearchQuery(event.target.value);
+            onChange={(v) => {
+              setSearchQuery(v);
               setShowDropdown(true);
             }}
             onKeyDown={handleSearchKeyDown}

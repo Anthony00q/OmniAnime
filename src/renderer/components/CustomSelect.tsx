@@ -113,7 +113,6 @@ export function CustomSelect({
                   className={clsx(
                     'relative flex items-center gap-2 rounded-lg px-3 pr-8 py-2.5 text-sm outline-none cursor-pointer select-none',
                     'text-muted-foreground hover:bg-secondary hover:text-foreground',
-                    isCurrentlySelected && 'text-primary bg-primary/10',
                     'focus:bg-secondary focus:text-foreground',
                   )}
                 >

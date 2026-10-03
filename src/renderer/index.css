@@ -219,9 +219,9 @@ body :focus-visible:not(input):not(textarea):not(select):not([contenteditable='t
   box-shadow: none;
 }
 
-input:not(.search-input):not([type='range']):not([type='color']):not([type='checkbox']):not([type='radio']):not(
-    [type='hidden']
-  ):focus-visible,
+input:not(.search-input):not(.field-input):not([type='range']):not([type='color']):not([type='checkbox']):not(
+    [type='radio']
+  ):not([type='hidden']):focus-visible,
 textarea:focus-visible,
 select:focus-visible,
 [role='dialog'] :focus-visible,
@@ -242,14 +242,16 @@ select:focus-visible,
   outline-offset: 2px;
 }
 
-/* Búsquedas: foco in-place (borde + anillo plano); el outline global con offset
-   se despegaba en píldoras. */
-input.search-input {
+/* Campos de texto/búsqueda: foco in-place porque el outline global con offset se despegaba. */
+input.search-input,
+input.field-input {
   box-shadow: 0 0 0 0 transparent;
 }
 
 input.search-input:focus,
-input.search-input:focus-visible {
+input.search-input:focus-visible,
+input.field-input:focus,
+input.field-input:focus-visible {
   outline: none;
   outline-offset: 0;
   border-color: color-mix(in srgb, var(--color-primary) 60%, transparent);
@@ -258,7 +260,9 @@ input.search-input:focus-visible {
 
 @media (forced-colors: active) {
   input.search-input:focus,
-  input.search-input:focus-visible {
+  input.search-input:focus-visible,
+  input.field-input:focus,
+  input.field-input:focus-visible {
     box-shadow: none;
     outline: 2px solid CanvasText;
     outline-offset: 1px;

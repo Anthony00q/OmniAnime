@@ -333,7 +333,7 @@ export function ScannerView({ isActive = true }: { isActive?: boolean }) {
               value={relinkQuery}
               onChange={(e) => setRelinkQuery(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && executeSearch()}
-              className="search-input w-full bg-background border border-border rounded-lg py-2.5 pl-9 pr-4 text-sm focus:outline-none transition-[border-color,box-shadow]"
+              className="search-input w-full bg-background border border-border rounded-lg py-2.5 pl-9 pr-4 text-sm focus:outline-none transition-[border-color,box-shadow] hover:border-border-strong"
             />
           </div>
           <button

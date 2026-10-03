@@ -239,7 +239,7 @@ export function LibraryView({ onSelectAnime, activeProvider, isActive }: Library
             inputRef={searchInputRef}
             placeholder="Buscar en tu librería…"
             ariaLabel="Buscar en la librería"
-            onChange={(event) => setSearchQuery(event.target.value)}
+            onChange={setSearchQuery}
             onClear={() => setSearchQuery('')}
           />
           <CustomSelect
