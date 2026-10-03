@@ -1,5 +1,30 @@
 # Changelog
 
+## [1.1.3] - 2026-10-03
+
+### Descargas
+
+- El nombre de la carpeta de descarga se elige entre los títulos de AniList o del proveedor en Ajustes → Descargas, con vista previa.
+- Si dos animes comparten nombre, la carpeta se distingue con el año o un número.
+- Las **Conexiones adaptativas** se activan por servidor (MediaFire, MP4Upload y Voe); el resto utiliza sus conexiones manuales.
+- Las descargas de **Mega** se realizan en una sola conexión continua, sin dividir el archivo en partes.
+- Los **Registros** detallan cómo se ajustan las conexiones adaptativas durante cada descarga.
+
+### Librería
+
+- Desde Ajustes → Descargas, **Renombrar carpetas de la librería** y **Renombrar archivos de la librería** renombran en bloque lo ya descargado, con selección y vista previa.
+- El renombrado retroactivo automático ya no se aplica: lo existente solo cambia de nombre cuando se pide.
+- En la ficha de la librería, el menú incorpora **Cambiar nombre de la carpeta**, con los nombres conocidos del anime o uno propio.
+
+### Interfaz
+
+- Los campos de texto y controles de formulario se muestran uniformes, con el foco resaltado dentro del propio campo.
+
+### Actualizaciones
+
+- Las novedades de la actualización admiten enlaces que se abren en el navegador del sistema y texto en código.
+- Cuando la versión nueva no incluye novedades, el aviso ofrece un enlace a la release en GitHub.
+
 ## [1.1.2] - 2026-10-01
 
 ### Catálogo
