@@ -41,7 +41,7 @@ import { StorageService } from '../services/library/StorageService';
 import { terminateChildProcessTree } from '../utils/processUtils';
 import type { DownloadAnimeDetails } from '../types/anime';
 import type { HistoryWriteRecord } from '../types/history';
-import type { DownloadProvider, QueueItem } from '../types/queue';
+import type { QueueItem } from '../types/queue';
 import { buildCanonicalEpisodeFileName as buildCanonicalEpisodeFileNameUtil } from '../utils/episodeUtils';
 import { normalizeFolderNameSource } from '../utils/downloads/folderNaming';
 import {
@@ -195,11 +195,8 @@ const preloadedData: PreloadedData = {
   libraryMeta: null,
 };
 
-async function getAnimeDetailsBySlug(
-  slug: string,
-  providerId?: DownloadProvider,
-): Promise<DownloadAnimeDetails | null> {
-  const provider = providerId ? providerManager.getProvider(providerId) : providerGateway.activeProvider;
+async function getAnimeDetailsBySlug(slug: string, providerId?: string | null): Promise<DownloadAnimeDetails | null> {
+  const provider = (providerId ? providerManager.getProvider(providerId) : undefined) ?? providerGateway.activeProvider;
   if (!provider) return null;
   const details = await provider.getDetails(slug);
   if (!details) return null;
@@ -327,9 +324,9 @@ const libraryFileService = new LibraryFileService({
         (item.status === 'pending' || item.status === 'downloading' || item.status === 'paused') &&
         path.resolve(item.targetPath).toLowerCase() === path.resolve(folderPath).toLowerCase(),
     ),
-  getAnimeDetails: (slug) => getAnimeDetailsBySlug(slug),
+  getAnimeDetails: (slug, providerId) => getAnimeDetailsBySlug(slug, providerId),
   getActiveProviderId: () => providerGateway.activeProviderIdName,
-  resolveAniListBannerUrl: (input) => resolveAniListBannerResult(input).then((resolved) => resolved?.banner ?? null),
+  resolveAniListMeta: (input) => resolveAniListBannerResult(input),
   openPath: (targetPath) => shell.openPath(targetPath),
   userDataDir: app.getPath('userData'),
   log: writeGlobalLog,
@@ -342,8 +339,10 @@ const episodeFileService = new EpisodeFileService({
 });
 const libraryPreloadService = new LibraryPreloadService({
   assetService: libraryAssetService,
-  getMatchingProvider: () => providerGateway.activeProvider,
-  resolveAniListBannerUrl: (input) => resolveAniListBannerResult(input).then((resolved) => resolved?.banner ?? null),
+  getMatchingProvider: (preferredProviderId) =>
+    (preferredProviderId ? providerGateway.getProvider(preferredProviderId) : undefined) ??
+    providerGateway.activeProvider,
+  resolveAniListMeta: (input) => resolveAniListBannerResult(input),
   checkConnectivity,
   log: writeGlobalLog,
   scopedLogError: (message) => scopedLog('app').error(message),

@@ -3,7 +3,11 @@ import * as fs from 'fs';
 import * as fsp from 'fs/promises';
 import * as path from 'path';
 import type { LibraryAssetService } from './LibraryAssetService';
-import { anilistBannerInputFromDetails, type AniListBannerInput } from '../providers/AniListService';
+import {
+  anilistBannerInputFromDetails,
+  type AniListBannerInput,
+  type AniListBannerResult,
+} from '../providers/AniListService';
 import { normalizeDisplayAnimeTitle, normalizeFolderAlternativeTitles } from '../../utils/titleUtils';
 import { errorDetailForLog, safeErrorMessage } from '../../utils/logging/redactLog';
 import {
@@ -24,6 +28,8 @@ export interface LibraryFolder {
   secondaryTitle?: string | null;
   alternativeTitles?: string[];
   year?: string | null;
+  category?: string | null;
+  season?: string | null;
   providerId?: string | null;
   sourceDir: string;
 }
@@ -38,16 +44,18 @@ export interface LibraryAnimeDetails {
   year?: number | string | null;
   season?: string | null;
   type?: string | null;
+  category?: string | null;
+  status?: string | null;
 }
 
 export interface LibraryFileServiceOptions {
   assetService: LibraryAssetService;
   getAllowedBaseDirs: () => string[];
   queueOwnsFolder: (folderPath: string) => boolean;
-  getAnimeDetails: (slug: string) => Promise<LibraryAnimeDetails | null>;
+  getAnimeDetails: (slug: string, providerId?: string | null) => Promise<LibraryAnimeDetails | null>;
   getActiveProviderId: () => string;
-  // Banner AniList validado para la carpeta, o null. Sin fallback al póster.
-  resolveAniListBannerUrl?: (input: AniListBannerInput) => Promise<string | null>;
+  // Meta AniList validada para la carpeta, o null. Sin fallback al póster.
+  resolveAniListMeta?: (input: AniListBannerInput) => Promise<AniListBannerResult | null>;
   openPath: (targetPath: string) => Promise<string>;
   userDataDir: string;
   log: (error: unknown) => void;
@@ -213,6 +221,8 @@ export class LibraryFileService {
                 secondaryTitle: typeof (meta as any)?.secondaryTitle === 'string' ? (meta as any).secondaryTitle : null,
                 alternativeTitles: metaAlts,
                 year: (meta as any)?.year || null,
+                category: (meta as any)?.category || null,
+                season: (meta as any)?.season || null,
                 providerId: (meta as any)?.providerId || 'animeav1',
                 sourceDir: baseDir,
               };
@@ -313,11 +323,11 @@ export class LibraryFileService {
     }
   }
 
-  async relinkFolder(folderPath: string, targetSlug: string): Promise<boolean> {
+  async relinkFolder(folderPath: string, targetSlug: string, providerId?: string | null): Promise<boolean> {
     try {
       if (!isPathSafeForDestructiveOperation(folderPath, this.options.getAllowedBaseDirs(), false)) return false;
       if (!fs.existsSync(folderPath)) return false;
-      const details = await this.options.getAnimeDetails(targetSlug);
+      const details = await this.options.getAnimeDetails(targetSlug, providerId);
       if (!details) return false;
 
       try {
@@ -333,13 +343,13 @@ export class LibraryFileService {
 
       // Banner como en la ficha: solo AniList validado, sin fallback al
       // póster. Null ante error, offline o sin match.
-      let anilistBannerUrl: string | null = null;
+      let anilist: AniListBannerResult | null = null;
       try {
-        anilistBannerUrl =
-          (await this.options.resolveAniListBannerUrl?.(anilistBannerInputFromDetails(details))) ?? null;
+        anilist = (await this.options.resolveAniListMeta?.(anilistBannerInputFromDetails(details))) ?? null;
       } catch {
-        anilistBannerUrl = null;
+        anilist = null;
       }
+      const anilistBannerUrl = anilist?.banner ?? null;
 
       const relinkTitle = normalizeDisplayAnimeTitle(details.title || '') || targetSlug;
       this.options.assetService.writeFolderLibraryMeta(folderPath, {
@@ -347,9 +357,14 @@ export class LibraryFileService {
         title: relinkTitle,
         secondaryTitle: String(details.japaneseTitle || '').trim(),
         alternativeTitles: normalizeFolderAlternativeTitles(details.alternativeTitles, relinkTitle),
+        category: details.category || '',
+        year: details.year ? String(details.year) : '',
+        status: details.status || '',
+        season: details.season || '',
         posterUrl: details.poster,
         bannerUrl: anilistBannerUrl,
-        providerId: this.options.getActiveProviderId(),
+        providerId: providerId ?? this.options.getActiveProviderId(),
+        anilistId: anilist?.anilistId ?? null,
       });
 
       setImmediate(async () => {

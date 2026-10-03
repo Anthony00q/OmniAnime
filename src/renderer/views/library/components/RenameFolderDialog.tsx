@@ -5,7 +5,11 @@ import { Dialog } from '@/renderer/components/Dialog';
 import { CustomInput } from '@/renderer/components/CustomInput';
 import { CustomRadio, CustomRadioGroup } from '@/renderer/components/CustomRadioGroup';
 import { ANILIST_BANNER_STALE_MS, getAniListBannerQuery } from '@/renderer/hooks/useQueries';
-import { folderRenameCandidates, type FolderRenameMeta } from '@/renderer/utils/folderRename';
+import {
+  folderRenameCandidates,
+  anilistInputFromFolderMeta,
+  type FolderRenameMeta,
+} from '@/renderer/utils/folderRename';
 import type { AniListFolderTitles } from '@/utils/downloads/folderNaming';
 
 interface RenameFolderDialogProps {
@@ -41,11 +45,7 @@ export function RenameFolderDialog({
     (async () => {
       try {
         const metaResult = await queryClient.fetchQuery({
-          ...getAniListBannerQuery({
-            title: meta?.title ?? '',
-            alternativeTitles: meta?.alternativeTitles ?? null,
-            providerYear: meta?.year ?? null,
-          }),
+          ...getAniListBannerQuery(anilistInputFromFolderMeta(meta)),
           staleTime: ANILIST_BANNER_STALE_MS,
         });
         if (!cancelled) setTitles(metaResult?.titles ?? null);

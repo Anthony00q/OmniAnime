@@ -777,6 +777,7 @@ export class DatabaseManager {
               secondaryTitle: assetMeta.secondaryTitle || marker.secondaryTitle,
               alternativeTitles: assetMeta.alternativeTitles || marker.alternativeTitles,
               providerId: assetMeta.providerId || marker.providerId,
+              anilistId: assetMeta.anilistId ?? marker.anilistId,
               updatedAt: assetMeta.updatedAt || marker.updatedAt,
             };
 
@@ -793,8 +794,8 @@ export class DatabaseManager {
             this.db!.prepare(
               `INSERT OR REPLACE INTO folder_meta
                              (folder_path_hash, folder_path, slug, title, secondary_title, alternative_titles, category, year,
-                              status, season, poster_url, banner_url, provider_id, updated_at)
-                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                              status, season, poster_url, banner_url, provider_id, anilist_id, updated_at)
+                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             ).run(
               hash,
               folderPath,
@@ -809,6 +810,7 @@ export class DatabaseManager {
               asText(meta.posterUrl),
               asText(meta.bannerUrl),
               asText(meta.providerId),
+              Number.isInteger(meta.anilistId) ? (meta.anilistId as number) : null,
               asTimestamp(meta.updatedAt),
             );
           } catch {

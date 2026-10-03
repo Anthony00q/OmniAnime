@@ -491,6 +491,8 @@ export function LibraryAnimeDetails({
           secondaryTitle: folderData.secondaryTitle ?? null,
           alternativeTitles: folderData.alternativeTitles ?? null,
           year: folderData.year ?? null,
+          category: folderData.category ?? null,
+          season: folderData.season ?? null,
         }}
         onRenamed={onBack}
       />

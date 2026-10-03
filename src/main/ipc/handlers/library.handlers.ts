@@ -55,8 +55,8 @@ export function registerLibraryHandlers({
     libraryFileService.renameFolder(oldPath, newName),
   );
   ipcMain.handle('delete-folder', (_, folderPath: string) => libraryFileService.deleteFolder(folderPath));
-  ipcMain.handle('relink-folder', (_, folderPath: string, targetSlug: string) =>
-    libraryFileService.relinkFolder(folderPath, targetSlug),
+  ipcMain.handle('relink-folder', (_, folderPath: string, targetSlug: string, providerId?: string | null) =>
+    libraryFileService.relinkFolder(folderPath, targetSlug, providerId),
   );
   ipcMain.handle('scan-episodes', async (_, animePath: string) => {
     try {

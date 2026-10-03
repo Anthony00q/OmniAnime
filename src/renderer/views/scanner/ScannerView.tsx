@@ -28,7 +28,7 @@ const ScannerPosterItem = memo(
     onRelink,
   }: {
     folder: any;
-    onRelink: (folderPath: string, folderName: string) => void;
+    onRelink: (folderPath: string, folderName: string, providerId?: string | null) => void;
   }) {
     const isOrphan = !folder.metaSlug;
     // Jerarquía: título limpio primero, carpeta cruda en tenue. La pastilla
@@ -73,7 +73,7 @@ const ScannerPosterItem = memo(
             </span>
           ) : undefined
         }
-        onClick={() => onRelink(folder.path, folder.name)}
+        onClick={() => onRelink(folder.path, folder.name, folder.providerId ?? null)}
       />
     );
   },
@@ -131,15 +131,19 @@ export function ScannerView({ isActive = true }: { isActive?: boolean }) {
     return last.length > 20 ? last.slice(0, 17) + '...' : last;
   };
 
-  const [relinkFolder, setRelinkFolder] = useState<{ path: string; name: string } | null>(null);
+  const [relinkFolder, setRelinkFolder] = useState<{ path: string; name: string; providerId?: string | null } | null>(
+    null,
+  );
   const [relinkQuery, setRelinkQuery] = useState('');
   const [submittedSearch, setSubmittedSearch] = useState('');
   const [relinkResults, setRelinkResults] = useState<any[]>([]);
   const isActiveRef = useRef(isActive);
 
+  // La búsqueda de vínculo va contra el proveedor de la carpeta, no el activo.
   const { data: searchData, isFetching: isSearching } = useSearchAnime(
     submittedSearch,
     Boolean(relinkFolder && submittedSearch.trim().length >= 3),
+    relinkFolder?.providerId ?? null,
   );
 
   useEffect(() => {
@@ -186,8 +190,8 @@ export function ScannerView({ isActive = true }: { isActive?: boolean }) {
     return () => window.removeEventListener('close-modals', handleClose);
   }, [relinkFolder]);
 
-  const openRelinkModal = useCallback((folderPath: string, folderName: string) => {
-    setRelinkFolder({ path: folderPath, name: folderName });
+  const openRelinkModal = useCallback((folderPath: string, folderName: string, providerId?: string | null) => {
+    setRelinkFolder({ path: folderPath, name: folderName, providerId: providerId ?? null });
     const cleanName = folderName
       .replace(/\[.*?\]|\(.*?\)/g, '')
       .replace(/[_-]/g, ' ')
@@ -217,7 +221,7 @@ export function ScannerView({ isActive = true }: { isActive?: boolean }) {
   const confirmRelink = async (slug: string) => {
     if (!relinkFolder) return;
     libActions.relinkFolder.mutate(
-      { folderPath: relinkFolder.path, slug },
+      { folderPath: relinkFolder.path, slug, providerId: relinkFolder.providerId ?? null },
       {
         onSuccess: () => {
           toast.success('Carpeta vinculada exitosamente');

@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { Dialog } from '@/renderer/components/Dialog';
 import { CustomCheckbox } from '@/renderer/components/CustomCheckbox';
 import { ANILIST_BANNER_STALE_MS, getAniListBannerQuery, useLibrary } from '@/renderer/hooks/useQueries';
-import { computeFolderRenamePlan } from '@/renderer/utils/folderRename';
+import { computeFolderRenamePlan, anilistInputFromFolderMeta } from '@/renderer/utils/folderRename';
 import { FOLDER_NAME_SOURCE_OPTIONS } from '@/renderer/views/settings/constants';
 import type { AniListFolderTitles, FolderNameSource } from '@/utils/downloads/folderNaming';
 
@@ -16,6 +16,8 @@ interface FolderRow {
   secondaryTitle?: string | null;
   alternativeTitles?: string[];
   year?: string | null;
+  category?: string | null;
+  season?: string | null;
 }
 
 interface RenameFoldersDialogProps {
@@ -49,6 +51,8 @@ export function RenameFoldersDialog({ open, onOpenChange, dirs, source }: Rename
         secondaryTitle: row.secondaryTitle ?? null,
         alternativeTitles: row.alternativeTitles ?? null,
         year: row.year ?? null,
+        category: row.category ?? null,
+        season: row.season ?? null,
       },
     }));
   }, [rows]);
@@ -77,11 +81,7 @@ export function RenameFoldersDialog({ open, onOpenChange, dirs, source }: Rename
         let titles: AniListFolderTitles | null = null;
         try {
           const meta = await queryClient.fetchQuery({
-            ...getAniListBannerQuery({
-              title: entry.meta?.title ?? '',
-              alternativeTitles: entry.meta?.alternativeTitles ?? null,
-              providerYear: entry.meta?.year ?? null,
-            }),
+            ...getAniListBannerQuery(anilistInputFromFolderMeta(entry.meta)),
             staleTime: ANILIST_BANNER_STALE_MS,
           });
           titles = meta?.titles ?? null;

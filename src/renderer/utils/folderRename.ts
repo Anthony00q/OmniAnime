@@ -13,6 +13,27 @@ export interface FolderRenameMeta {
   secondaryTitle?: string | null;
   alternativeTitles?: Array<string | null | undefined> | null;
   year?: string | number | null;
+  category?: string | null;
+  season?: string | null;
+}
+
+// Input de AniList para el rename; formato y temporada de la meta ayudan a desempatar.
+export interface FolderAniListInput {
+  title: string;
+  alternativeTitles: Array<string | null | undefined> | null;
+  providerYear: string | number | null;
+  providerFormat: string | null;
+  providerSeason: string | null;
+}
+
+export function anilistInputFromFolderMeta(meta: FolderRenameMeta | null): FolderAniListInput {
+  return {
+    title: meta?.title ?? '',
+    alternativeTitles: meta?.alternativeTitles ?? null,
+    providerYear: meta?.year ?? null,
+    providerFormat: meta?.category ?? null,
+    providerSeason: meta?.season ?? null,
+  };
 }
 
 export interface FolderRenameEntry {

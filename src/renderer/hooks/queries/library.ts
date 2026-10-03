@@ -90,8 +90,10 @@ export function useLibraryActions() {
       },
     }),
     relinkFolder: useMutation({
-      mutationFn: async (params: { folderPath: string; slug: string }) =>
-        ensureIpcSuccess(await window.api.invoke('relink-folder', params.folderPath, params.slug)),
+      mutationFn: async (params: { folderPath: string; slug: string; providerId?: string | null }) =>
+        ensureIpcSuccess(
+          await window.api.invoke('relink-folder', params.folderPath, params.slug, params.providerId ?? null),
+        ),
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: ['library'] });
       },

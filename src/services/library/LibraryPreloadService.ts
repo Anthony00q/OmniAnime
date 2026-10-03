@@ -4,7 +4,11 @@ import anitomy from 'anitomy';
 import type { AnimeDetails, AnimeSearchResult } from '../../types/anime';
 import type { FolderLibraryMeta, LibraryMetaPreloadRow } from '../../types/library';
 import { computeTitleMatchScore, normalizeFolderAlternativeTitles } from '../../utils/titleUtils';
-import { anilistBannerInputFromDetails, type AniListBannerInput } from '../providers/AniListService';
+import {
+  anilistBannerInputFromDetails,
+  type AniListBannerInput,
+  type AniListBannerResult,
+} from '../providers/AniListService';
 import { errorDetailForLog, safeErrorMessage } from '../../utils/logging/redactLog';
 
 export interface LibraryPreloadAssetPort {
@@ -24,8 +28,9 @@ export interface LibraryPreloadProviderPort {
 
 export interface LibraryPreloadServiceOptions {
   assetService: LibraryPreloadAssetPort;
-  getMatchingProvider: () => LibraryPreloadProviderPort;
-  resolveAniListBannerUrl?: (input: AniListBannerInput) => Promise<string | null>;
+  // El proveedor de la carpeta manda; el activo solo es fallback si no hay id o no existe.
+  getMatchingProvider: (preferredProviderId?: string | null) => LibraryPreloadProviderPort;
+  resolveAniListMeta?: (input: AniListBannerInput) => Promise<AniListBannerResult | null>;
   checkConnectivity: () => Promise<boolean>;
   log: (error: unknown) => void;
   scopedLogError: (message: string) => void;
@@ -296,7 +301,7 @@ export class LibraryPreloadService {
           }
 
           const variants = buildLibrarySearchVariants(folder.name);
-          const matchingProvider = this.options.getMatchingProvider();
+          const matchingProvider = this.options.getMatchingProvider(folder.localMeta?.providerId ?? null);
           const matchingProviderId = matchingProvider.id;
           let best: AnimeSearchResult | null = null;
           let bestScore = -1;
@@ -347,9 +352,10 @@ export class LibraryPreloadService {
           const posterUrl = details?.poster || best.poster || null;
           const localPoster = await this.options.assetService.ensureFolderPoster(folder.folderPath, posterUrl);
           // Banner como en la ficha: solo AniList validado, sin fallback al póster.
-          const anilistBannerUrl = details
-            ? ((await this.options.resolveAniListBannerUrl?.(anilistBannerInputFromDetails(details))) ?? null)
+          const anilist = details
+            ? ((await this.options.resolveAniListMeta?.(anilistBannerInputFromDetails(details))) ?? null)
             : null;
+          const anilistBannerUrl = anilist?.banner ?? null;
           const localBanner = anilistBannerUrl
             ? await this.options.assetService.ensureFolderBanner(folder.folderPath, anilistBannerUrl)
             : null;
@@ -364,7 +370,10 @@ export class LibraryPreloadService {
             year: details?.year || '',
             status: details?.status || '',
             season: details?.season || '',
+            posterUrl,
+            bannerUrl: anilistBannerUrl,
             providerId: matchingProviderId,
+            anilistId: anilist?.anilistId ?? null,
           });
 
           matched += 1;

@@ -2,8 +2,9 @@ import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
 import { hasNewCatalogItems } from '@/renderer/utils/catalogResults';
 import { useDeferredProvider } from './internal';
 
-export function useSearchAnime(query: string, enabled: boolean) {
-  const provider = useDeferredProvider();
+export function useSearchAnime(query: string, enabled: boolean, providerOverride?: string | null) {
+  const activeProvider = useDeferredProvider();
+  const provider = providerOverride ?? activeProvider;
 
   return useQuery({
     queryKey: ['search', provider, query],
