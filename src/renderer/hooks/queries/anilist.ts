@@ -87,8 +87,9 @@ export async function fetchAniListMeta(
     titles?: Partial<AniListMetaTitles> | null;
     transientFailure?: boolean;
   } | null;
+  // El fallo transitorio va antes que el shape: sin él la query lanza y reintenta.
+  if (res?.transientFailure) throw new Error('anilist-transient');
   if (!res || typeof res.anilistId !== 'number') return null;
-  if (res.transientFailure) throw new Error('anilist-transient');
   const banner = typeof res.banner === 'string' && res.banner.trim() ? res.banner : null;
   const studio = typeof res.studio === 'string' && res.studio.trim() ? res.studio.trim() : null;
   if (!banner && !studio) return null;

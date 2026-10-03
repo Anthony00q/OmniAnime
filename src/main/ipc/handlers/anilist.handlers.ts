@@ -1,5 +1,5 @@
 import { ipcMain } from 'electron';
-import { resolveAniListBannerResult } from '../../anilistBanner';
+import { aniListBannerResponse, resolveAniListBannerResult, type AniListFailureKind } from '../../anilistBanner';
 import { safeErrorMessage } from '../../../utils/logging/redactLog';
 import type { IpcRegistryDependencies } from '../../IpcRegistry';
 
@@ -36,6 +36,7 @@ export function registerAniListHandlers({ writeGlobalLog, scopedLog }: IpcRegist
           typeof raw.providerYear === 'number' || typeof raw.providerYear === 'string' ? raw.providerYear : undefined;
         const providerFormat = typeof raw.providerFormat === 'string' ? raw.providerFormat : undefined;
         const providerSeason = typeof raw.providerSeason === 'string' ? raw.providerSeason : undefined;
+        let failureKind: AniListFailureKind | null = null;
         const resolved = await resolveAniListBannerResult(
           {
             title,
@@ -46,17 +47,12 @@ export function registerAniListHandlers({ writeGlobalLog, scopedLog }: IpcRegist
             malId: hasMalId ? malId : null,
           },
           undefined,
-          (kind) => {
+          (kind: AniListFailureKind) => {
+            failureKind = kind;
             if (kind !== 'nomatch') fileLog.warn(`banner no resuelto (${kind})`);
           },
         );
-        if (!resolved) return null;
-        return {
-          anilistId: resolved.anilistId,
-          banner: resolved.banner,
-          studio: resolved.studio ?? null,
-          titles: resolved.titles,
-        };
+        return aniListBannerResponse(resolved, failureKind);
       } catch (error) {
         writeGlobalLog(`AniList banner error: ${safeErrorMessage(error)}`);
         return null;
