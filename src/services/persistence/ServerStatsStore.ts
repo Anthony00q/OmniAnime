@@ -106,7 +106,8 @@ export function categorizeAttemptFailure(flags: AttemptOutcomeFlags): ServerFail
 //   recencia  = 0.5^(días/14)
 //   confianza = ev / (ev + 2), con ev = observaciones × recencia
 //   score     = bps × recencia × confianza × (1 − 0.5 × tasaNegativa)
-//   preferred = mayor score con evidencia positiva y nivel seguro
+//   preferred = mayor score con evidencia positiva y nivel seguro; caduca si
+//               el nivel lleva más de una media vida sin compararse
 //   safeMax   = mayor nivel no inseguro (tasaNegativa ≥ 0.5); se recupera solo
 //               con la recencia y observaciones nuevas
 
@@ -121,6 +122,8 @@ export interface ConcurrencyObservation {
   bps: number;
   // Si el enlace se compartía con otros EPs, la observación no enseña. Ausente = elegible.
   learningEligible?: boolean;
+  // Medición del nivel que corrió sin compararlo: no renueva la frescura de la preferencia.
+  bootstrap?: boolean;
 }
 
 export interface ConcurrencyLevelStats {
@@ -134,6 +137,8 @@ export interface ConcurrencyLevelStats {
   bps: number;
   // Timestamp de la última observación (base de la recencia).
   seen: number;
+  // Timestamp de la última vez que el nivel se comparó contra otro. Ausente = seen.
+  lastComparedAt?: number;
 }
 
 export interface ConcurrencyLevelLearning {
@@ -175,6 +180,11 @@ function learningAlpha(previousObservations: number): number {
 function recencyFactor(lastSeen: number, now: number): number {
   const ageDays = Math.max(0, (now - lastSeen) / 86_400_000);
   return Math.pow(0.5, ageDays / LEARNING_HALF_LIFE_DAYS);
+}
+
+function isComparisonStale(lastComparedAt: number, now: number): boolean {
+  const ageDays = Math.max(0, (now - lastComparedAt) / 86_400_000);
+  return ageDays > LEARNING_HALF_LIFE_DAYS;
 }
 
 // Cálculo puro del aprendizaje a partir de los agregados guardados.
@@ -224,6 +234,8 @@ export function computeConcurrencyLearning(
     if (!entry.safe || entry.score <= 0) continue;
     const statsEntry = stats[String(entry.level)];
     if (!statsEntry || statsEntry.pos <= 0) continue;
+    // Sin comparaciones recientes la preferencia caduca y el mando vuelve al manual.
+    if (isComparisonStale(statsEntry.lastComparedAt ?? statsEntry.seen, now)) continue;
     if (!preferred || entry.score > preferred.score) preferred = entry;
   }
 
@@ -260,10 +272,13 @@ export function applyConcurrencyObservation(
     neg: previous.neg,
     bps: previous.bps,
     seen: sanitizeTimestamp(now),
+    lastComparedAt: previous.lastComparedAt ?? previous.seen,
   };
   if (observation.kind === 'positive') next.pos = Math.min(previous.pos + 1, LEARNING_MAX_COUNT);
   else if (observation.kind === 'neutral') next.neu = Math.min(previous.neu + 1, LEARNING_MAX_COUNT);
   else next.neg = Math.min(previous.neg + 1, LEARNING_MAX_COUNT);
+  // Medir sin comparar no renueva la frescura de la preferencia.
+  if (observation.bootstrap !== true) next.lastComparedAt = next.seen;
   // El EWMA solo aprende de positivas y neutras; las negativas penalizan aparte.
   if (observation.kind !== 'negative') {
     const bps = sanitizeBps(observation.bps);
@@ -283,6 +298,7 @@ function sanitizeConcurrencyLevelStats(raw: unknown): ConcurrencyLevelStats | nu
     neg: Math.min(sanitizeCount(record.neg), LEARNING_MAX_COUNT),
     bps: sanitizeBps(record.bps),
     seen: sanitizeTimestamp(record.seen),
+    lastComparedAt: sanitizeTimestamp(record.lastComparedAt ?? record.seen),
   };
 }
 

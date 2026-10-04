@@ -1,6 +1,6 @@
 import type { ConcurrencyObservationKind } from '../persistence/ServerStatsStore';
 import type { AdaptiveDecision, AdaptiveDecisionKind } from './adaptiveConcurrency';
-import type { ConcurrencyApplicationMode } from './attemptConcurrency';
+import { DIRECT_CONCURRENCY_LEVELS, type ConcurrencyApplicationMode } from './attemptConcurrency';
 
 // Observabilidad del modo adaptativo: describe en el log lo que ya ocurre (seed,
 // decisiones, workers reales, learning) sin decidir ni cambiar nada. Target es lo
@@ -13,6 +13,8 @@ const TARGET_CHANGE_KINDS: ReadonlySet<AdaptiveDecisionKind> = new Set<AdaptiveD
   'decrease',
   'strong-backoff',
 ]);
+
+const TOP_LEVEL = DIRECT_CONCURRENCY_LEVELS[DIRECT_CONCURRENCY_LEVELS.length - 1];
 
 export interface AttemptAdaptiveLogOptions {
   server: string;
@@ -130,6 +132,11 @@ export class AttemptAdaptiveLog {
     this.observe();
     for (const change of this.pending.splice(0)) {
       this.options.log(`[Adaptive] ${server} · ${change.from}→${change.to} · not-applied`);
+    }
+    // En el tope no hay nada que explorar: se avisa para que el silencio no
+    // parezca un fallo.
+    if (!this.anyChangeLogged && !this.simpleLogged && this.options.seed >= TOP_LEVEL) {
+      this.options.log(`[Adaptive] ${server} · seed=${this.options.seed} · tope de escalera · sin exploración`);
     }
   }
 

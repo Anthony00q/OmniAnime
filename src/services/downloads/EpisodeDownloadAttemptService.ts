@@ -644,11 +644,30 @@ export class EpisodeDownloadAttemptService {
     try {
       // Con el enlace compartido la observación no enseña.
       const learningEligible = this.isLearningEligible(telemetry);
-      const observations = concurrencyObservationsFromDecisions(controller.snapshot().decisions);
-      adaptiveLog?.learning(observations, learningEligible);
-      for (const observation of observations) {
-        record({ provider: String(item.providerId ?? ''), server, ...observation, learningEligible });
+      const provider = String(item.providerId ?? '');
+      const finalState = controller.snapshot();
+      const observations: ConcurrencyObservation[] = concurrencyObservationsFromDecisions(finalState.decisions).map(
+        (observation) => ({ provider, server, ...observation, learningEligible }),
+      );
+      // Sin medidas de la política (intentos cortos) el nivel que corrió deja
+      // su medición; nunca pisa lo que ya se midió.
+      const sample = telemetry.snapshot();
+      const measured = [sample.smoothedBps, sample.windowThroughputBps, sample.throughputBps].find(
+        (bps) => (bps ?? 0) > 0,
+      );
+      if (observations.length === 0 && measured) {
+        observations.push({
+          provider,
+          server,
+          level: finalState.level,
+          kind: 'neutral',
+          bps: measured,
+          learningEligible,
+          bootstrap: true,
+        });
       }
+      adaptiveLog?.learning(observations, learningEligible);
+      for (const observation of observations) record(observation);
     } catch {
       // El aprendizaje nunca debe romper una descarga.
     }
