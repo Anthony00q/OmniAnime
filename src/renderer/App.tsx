@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { memo, useCallback, useEffect, useMemo } from 'react';
 import { useAtom, useAtomValue } from 'jotai';
 import { useQueryClient } from '@tanstack/react-query';
 import { Toaster } from 'sonner';
@@ -46,6 +46,17 @@ function getViewPanelClass(currentView: string, view: string): string {
     currentView === view && 'view-enter',
   );
 }
+
+// Que App se re-renderice (toasts, ajustes, proveedor) no arrastra las vistas que nada repintan.
+const MemoHomeView = memo(HomeView);
+const MemoScheduleView = memo(ScheduleView);
+const MemoCatalogView = memo(CatalogView);
+const MemoAnimeDetailsView = memo(AnimeDetailsView);
+const MemoDownloaderView = memo(DownloaderView);
+const MemoHistoryView = memo(HistoryView);
+const MemoScannerView = memo(ScannerView);
+const MemoLibraryView = memo(LibraryView);
+const MemoSettingsView = memo(SettingsView);
 
 export default function App() {
   const [currentView, setCurrentView] = useAtom(currentViewAtom);
@@ -138,27 +149,33 @@ export default function App() {
     if (active?.closest?.('.omnianime-sidebar')) active.blur();
   }, [currentView]);
 
-  const handleSetView = (view: string) => {
-    if (currentView !== 'details' && currentView !== 'settings') {
-      setPreviousView(currentView);
-    }
-    setCurrentView(view);
-  };
+  const handleSetView = useCallback(
+    (view: string) => {
+      if (currentView !== 'details' && currentView !== 'settings') {
+        setPreviousView(currentView);
+      }
+      setCurrentView(view);
+    },
+    [currentView, setPreviousView, setCurrentView],
+  );
 
   const queryClient = useQueryClient();
-  const handleSelectAnime = (slug: string) => {
-    prefetchAnimeDetails(queryClient, activeProvider, slug);
-    if (currentView !== 'details') {
-      setPreviousView(currentView);
-    }
-    setSelectedAnime(slug);
-    setCurrentView('details');
-  };
+  const handleSelectAnime = useCallback(
+    (slug: string) => {
+      prefetchAnimeDetails(queryClient, activeProvider, slug);
+      if (currentView !== 'details') {
+        setPreviousView(currentView);
+      }
+      setSelectedAnime(slug);
+      setCurrentView('details');
+    },
+    [queryClient, activeProvider, currentView, setPreviousView, setSelectedAnime, setCurrentView],
+  );
 
-  const handleDetailsBack = () => {
+  const handleDetailsBack = useCallback(() => {
     setSelectedAnime(null);
     setCurrentView(previousView || 'home');
-  };
+  }, [previousView, setSelectedAnime, setCurrentView]);
 
   return (
     <AppTooltipProvider>
@@ -182,22 +199,22 @@ export default function App() {
           <main className="flex-1 min-w-0 overflow-hidden relative flex flex-col">
             <ErrorBoundary scope="ui:home">
               <div className={getViewPanelClass(currentView, 'home')}>
-                <HomeView isActive={currentView === 'home'} />
+                <MemoHomeView isActive={currentView === 'home'} />
               </div>
             </ErrorBoundary>
             <ErrorBoundary scope="ui:schedule">
               <div className={getViewPanelClass(currentView, 'schedule')}>
-                <ScheduleView isActive={currentView === 'schedule'} />
+                <MemoScheduleView isActive={currentView === 'schedule'} />
               </div>
             </ErrorBoundary>
             <ErrorBoundary scope="ui:catalog">
               <div className={getViewPanelClass(currentView, 'catalog')}>
-                <CatalogView />
+                <MemoCatalogView />
               </div>
             </ErrorBoundary>
             <ErrorBoundary scope="ui:details">
               <div className={getViewPanelClass(currentView, 'details')}>
-                <AnimeDetailsView
+                <MemoAnimeDetailsView
                   slug={selectedAnime || ''}
                   onBack={handleDetailsBack}
                   onSelectAnime={handleSelectAnime}
@@ -207,7 +224,7 @@ export default function App() {
             </ErrorBoundary>
             <ErrorBoundary scope="ui:downloader">
               <div className={getViewPanelClass(currentView, 'downloader')}>
-                <DownloaderView
+                <MemoDownloaderView
                   onSelectAnime={handleSelectAnime}
                   activeProvider={activeProvider}
                   isActive={currentView === 'downloader'}
@@ -216,7 +233,7 @@ export default function App() {
             </ErrorBoundary>
             <ErrorBoundary scope="ui:history">
               <div className={getViewPanelClass(currentView, 'history')}>
-                <HistoryView
+                <MemoHistoryView
                   isActive={currentView === 'history'}
                   activeProvider={activeProvider}
                   onSelectAnime={handleSelectAnime}
@@ -225,12 +242,12 @@ export default function App() {
             </ErrorBoundary>
             <ErrorBoundary scope="ui:scanner">
               <div className={getViewPanelClass(currentView, 'scanner')}>
-                <ScannerView isActive={currentView === 'scanner'} />
+                <MemoScannerView isActive={currentView === 'scanner'} />
               </div>
             </ErrorBoundary>
             <ErrorBoundary scope="ui:library">
               <div className={getViewPanelClass(currentView, 'player')}>
-                <LibraryView
+                <MemoLibraryView
                   onSelectAnime={handleSelectAnime}
                   activeProvider={activeProvider}
                   isActive={currentView === 'player'}
@@ -239,7 +256,7 @@ export default function App() {
             </ErrorBoundary>
             <ErrorBoundary scope="ui:settings">
               <div className={getViewPanelClass(currentView, 'settings')}>
-                <SettingsView isActive={currentView === 'settings'} />
+                <MemoSettingsView isActive={currentView === 'settings'} />
               </div>
             </ErrorBoundary>
           </main>

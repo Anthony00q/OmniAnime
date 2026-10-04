@@ -2,6 +2,7 @@ import { memo, useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Filter, Loader2, SearchX } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAtomValue, useSetAtom, useAtom } from 'jotai';
+import { useAtomCallback } from 'jotai/utils';
 import { CustomSelect } from '@/renderer/components/CustomSelect';
 import { EmptyState } from '@/renderer/components/ui/EmptyState';
 import {
@@ -27,7 +28,8 @@ import { ActiveFilterChips } from '@/renderer/components/catalog/ActiveFilterChi
 const CatalogPosterItem = memo(function CatalogPosterItem({ item, priority }: { item: any; priority: boolean }) {
   const setOpenAnime = useSetAtom(openAnimeAtom);
   const queryClient = useQueryClient();
-  const providerId = useAtomValue(activeProviderAtom);
+  // Sin suscripción al átomo: cada item se re-renderizaría con cada cambio de proveedor.
+  const getProviderId = useAtomCallback((get) => get(activeProviderAtom));
 
   return (
     <PosterCard
@@ -45,7 +47,7 @@ const CatalogPosterItem = memo(function CatalogPosterItem({ item, priority }: { 
         </>
       }
       onClick={() => {
-        prefetchAnimeDetails(queryClient, providerId, item.slug);
+        prefetchAnimeDetails(queryClient, getProviderId(), item.slug);
         setOpenAnime(item.slug);
       }}
     />

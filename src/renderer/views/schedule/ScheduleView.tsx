@@ -1,7 +1,8 @@
 import { CalendarDays, LayoutGrid, RefreshCcw, Rows3 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAtomValue, useSetAtom } from 'jotai';
+import { useAtomCallback } from 'jotai/utils';
 import { activeProviderAtom, navigateToCatalogAtom, openAnimeAtom } from '@/renderer/store/atoms';
 import { prefetchAnimeDetails, useConnectivityStatus, useSchedule } from '@/renderer/hooks/useQueries';
 import { shouldShowOfflineEmpty } from '@/renderer/utils/offlineEmpty';
@@ -69,7 +70,7 @@ function ScheduleLabelPill({ label, variant }: { label: ScheduleRowLabel; varian
   );
 }
 
-function ScheduleRow({ entry, nowMs, onSelect }: ScheduleRowProps) {
+const ScheduleRow = memo(function ScheduleRow({ entry, nowMs, onSelect }: ScheduleRowProps) {
   const label = scheduleRowLabel(entry, scheduleEntryState(entry, nowMs));
   const meta = scheduleMetaLine(entry);
 
@@ -94,9 +95,9 @@ function ScheduleRow({ entry, nowMs, onSelect }: ScheduleRowProps) {
       </span>
     </button>
   );
-}
+});
 
-function SchedulePosterCard({ entry, nowMs, onSelect }: ScheduleRowProps) {
+const SchedulePosterCard = memo(function SchedulePosterCard({ entry, nowMs, onSelect }: ScheduleRowProps) {
   const label = scheduleRowLabel(entry, scheduleEntryState(entry, nowMs));
   const meta = scheduleMetaLine(entry);
 
@@ -125,10 +126,11 @@ function SchedulePosterCard({ entry, nowMs, onSelect }: ScheduleRowProps) {
       </div>
     </button>
   );
-}
+});
 
 export function ScheduleView({ isActive }: { isActive?: boolean }) {
   const providerId = useAtomValue(activeProviderAtom);
+  const getProviderId = useAtomCallback((get) => get(activeProviderAtom));
   const providerName = providerId === 'jkanime' ? 'JkAnime' : 'AnimeAV1';
   const setOpenAnime = useSetAtom(openAnimeAtom);
   const navigateToCatalog = useSetAtom(navigateToCatalogAtom);
@@ -169,10 +171,15 @@ export function ScheduleView({ isActive }: { isActive?: boolean }) {
     [entries, selectedDay],
   );
 
-  const handleSelectAnime = (slug: string) => {
-    prefetchAnimeDetails(queryClient, providerId, slug);
-    setOpenAnime(slug);
-  };
+  const handleSelectAnime = useCallback(
+    (slug: string) => {
+      // El proveedor se lee al clic: si el handler lo cerrara, cambiaría con cada
+      // cambio de proveedor y el memo de las filas no surtiría efecto.
+      prefetchAnimeDetails(queryClient, getProviderId(), slug);
+      setOpenAnime(slug);
+    },
+    [queryClient, getProviderId, setOpenAnime],
+  );
 
   const isEmpty = !isLoading && !isError && entries.length === 0;
   const { data: isOnline } = useConnectivityStatus(isEmpty || isError);

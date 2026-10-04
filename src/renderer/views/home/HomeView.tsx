@@ -2,6 +2,7 @@ import { RefreshCcw, Clock, Loader2, Clapperboard } from 'lucide-react';
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAtomValue, useSetAtom } from 'jotai';
+import { useAtomCallback } from 'jotai/utils';
 import type { KeyboardEvent } from 'react';
 import { activeProviderAtom, openAnimeAtom, navigateToCatalogAtom } from '@/renderer/store/atoms';
 import { useConnectivityStatus, useHomeData, useSearchAnime, prefetchAnimeDetails } from '@/renderer/hooks/useQueries';
@@ -19,7 +20,8 @@ import { EmptyState } from '@/renderer/components/ui/EmptyState';
 const HomePosterItem = memo(function HomePosterItem({ item, priority }: { item: any; priority: boolean }) {
   const setOpenAnime = useSetAtom(openAnimeAtom);
   const queryClient = useQueryClient();
-  const providerId = useAtomValue(activeProviderAtom);
+  // Sin suscripción al átomo: cada item se re-renderizaría con cada cambio de proveedor.
+  const getProviderId = useAtomCallback((get) => get(activeProviderAtom));
 
   return (
     <PosterCard
@@ -41,7 +43,7 @@ const HomePosterItem = memo(function HomePosterItem({ item, priority }: { item: 
         </>
       }
       onClick={() => {
-        prefetchAnimeDetails(queryClient, providerId, item.slug);
+        prefetchAnimeDetails(queryClient, getProviderId(), item.slug);
         setOpenAnime(item.slug);
       }}
     />
