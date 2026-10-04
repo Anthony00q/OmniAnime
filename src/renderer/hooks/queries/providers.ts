@@ -39,30 +39,34 @@ export function useProviderSwitch(): (id: string) => void {
     (id: string) => {
       if (id === activeProvider) return;
       const prev = activeProvider;
-      setActiveProvider(id);
-      queryClient.setQueryData(['active-provider'], id);
-      setProviderChanged((c) => c + 1);
-      window.dispatchEvent(new Event('provider-changed'));
-      // Cancela peticiones en vuelo del proveedor anterior: con provider
-      // explícito por petición ya no contaminan, esto solo ahorra red.
-      // Sin await para no devolver la latencia al indicador (optimista).
-      void queryClient.cancelQueries({ queryKey: ['home'] }).catch(() => {});
-      void queryClient.cancelQueries({ queryKey: ['schedule'] }).catch(() => {});
-      void queryClient.cancelQueries({ queryKey: ['catalog'] }).catch(() => {});
-      void queryClient.cancelQueries({ queryKey: ['search'] }).catch(() => {});
-      void queryClient.cancelQueries({ queryKey: ['filters'] }).catch(() => {});
-      void queryClient.cancelQueries({ queryKey: ['details'] }).catch(() => {});
-      const rollbackIfStale = () => {
-        if (queryClient.getQueryData(['active-provider']) !== id) return;
-        setActiveProvider(prev);
-        queryClient.setQueryData(['active-provider'], prev);
+      const startFlow = () => {
+        setActiveProvider(id);
+        queryClient.setQueryData(['active-provider'], id);
+        setProviderChanged((c) => c + 1);
+        window.dispatchEvent(new Event('provider-changed'));
+        // Cancela peticiones en vuelo del proveedor anterior: con provider explícito ya
+        // no contaminan, solo ahorra red. Sin await: la latencia no vuelve al indicador.
+        void queryClient.cancelQueries({ queryKey: ['home'] }).catch(() => {});
+        void queryClient.cancelQueries({ queryKey: ['schedule'] }).catch(() => {});
+        void queryClient.cancelQueries({ queryKey: ['catalog'] }).catch(() => {});
+        void queryClient.cancelQueries({ queryKey: ['search'] }).catch(() => {});
+        void queryClient.cancelQueries({ queryKey: ['filters'] }).catch(() => {});
+        void queryClient.cancelQueries({ queryKey: ['details'] }).catch(() => {});
+        const rollbackIfStale = () => {
+          if (queryClient.getQueryData(['active-provider']) !== id) return;
+          setActiveProvider(prev);
+          queryClient.setQueryData(['active-provider'], prev);
+        };
+        void window.api
+          .invoke('set-active-provider', id)
+          .then((result) => {
+            if (result === false) rollbackIfStale();
+          })
+          .catch(rollbackIfStale);
       };
-      void window.api
-        .invoke('set-active-provider', id)
-        .then((result) => {
-          if (result === false) rollbackIfStale();
-        })
-        .catch(rollbackIfStale);
+      // El flujo arranca tras pintar el deslizamiento del indicador (160ms): el render
+      // pesado de las listas no debe comerse ese frame. Timer simple, corre aunque la ventana esté oculta.
+      setTimeout(startFlow, 250);
     },
     [activeProvider, queryClient, setActiveProvider, setProviderChanged],
   );

@@ -362,7 +362,9 @@ html[dir='ltr'] {
 }
 
 .sidebar-provider-button {
-  transition: color 150ms var(--ease-out);
+  transition:
+    color 150ms var(--ease-out),
+    background-color 150ms var(--ease-out);
 }
 
 .sidebar-provider-indicator {

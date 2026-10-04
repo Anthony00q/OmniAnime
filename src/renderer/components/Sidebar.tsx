@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { useAtomValue, useSetAtom } from 'jotai';
 import {
   Home,
@@ -16,16 +17,29 @@ import clsx from 'clsx';
 import { activeProviderAtom, appUpdateAvailableAtom, appUpdateModalOpenAtom } from '@/renderer/store/atoms';
 import { useProvidersList, useProviderSwitch } from '@/renderer/hooks/useQueries';
 import { AppTooltip } from './ui/AppTooltip';
+import animeav1Icon from '../../../assets/provider-icons/animeav1-32.png';
+import animeav1Icon2x from '../../../assets/provider-icons/animeav1-64.png';
+import jkanimeIcon from '../../../assets/provider-icons/jkanime-32.png';
+import jkanimeIcon2x from '../../../assets/provider-icons/jkanime-64.png';
 
 interface SidebarProps {
   currentView: string;
   setCurrentView: (v: string) => void;
 }
 
+const PROVIDER_ICONS: Record<string, { src: string; src2x: string }> = {
+  animeav1: { src: animeav1Icon, src2x: animeav1Icon2x },
+  jkanime: { src: jkanimeIcon, src2x: jkanimeIcon2x },
+};
+
 export function Sidebar({ currentView, setCurrentView }: SidebarProps) {
   const providers = useProvidersList();
   const handleProviderChange = useProviderSwitch();
   const activeProvider = useAtomValue(activeProviderAtom);
+  const [iconErrors, setIconErrors] = useState<Record<string, boolean>>({});
+  // El pill pinta urgente con estado local; el rollback de useProviderSwitch lo resincroniza.
+  const [shownProvider, setShownProvider] = useState(activeProvider);
+  useEffect(() => setShownProvider(activeProvider), [activeProvider]);
   const updateAvailable = useAtomValue(appUpdateAvailableAtom);
   const updateModalOpen = useAtomValue(appUpdateModalOpenAtom);
   const setUpdateModalOpen = useSetAtom(appUpdateModalOpenAtom);
@@ -48,7 +62,7 @@ export function Sidebar({ currentView, setCurrentView }: SidebarProps) {
           { id: 'animeav1', name: 'AnimeAV1' },
           { id: 'jkanime', name: 'JkAnime' },
         ];
-  const activeProviderIndex = providerOptions.findIndex((provider) => provider.id === activeProvider);
+  const activeProviderIndex = providerOptions.findIndex((provider) => provider.id === shownProvider);
 
   return (
     <nav
@@ -76,26 +90,54 @@ export function Sidebar({ currentView, setCurrentView }: SidebarProps) {
               />
             )}
 
-            {providerOptions.map((provider) => (
-              <button
-                key={provider.id}
-                type="button"
-                tabIndex={-1}
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => handleProviderChange(provider.id)}
-                aria-label={`Cambiar fuente a ${provider.name}`}
-                aria-pressed={activeProvider === provider.id}
-                className={clsx(
-                  'sidebar-provider-button relative z-10 min-h-7 cursor-pointer select-none rounded-lg border border-transparent bg-transparent text-center text-xs font-bold shadow-none outline-none focus:outline-none focus-visible:outline-none',
-                  activeProvider === provider.id ? 'text-foreground' : 'text-muted-foreground hover:text-foreground/80',
-                )}
-              >
-                <span className="sidebar-provider-full">{provider.name}</span>
-                <span className="sidebar-provider-short" aria-hidden="true">
-                  {provider.name.slice(0, 1).toUpperCase()}
-                </span>
-              </button>
-            ))}
+            {providerOptions.map((provider) => {
+              const icon = PROVIDER_ICONS[provider.id];
+              const showIcon = Boolean(icon) && !iconErrors[provider.id];
+              return (
+                <button
+                  key={provider.id}
+                  type="button"
+                  tabIndex={-1}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => {
+                    setShownProvider(provider.id);
+                    handleProviderChange(provider.id);
+                  }}
+                  aria-label={`Cambiar fuente a ${provider.name}`}
+                  aria-pressed={shownProvider === provider.id}
+                  className={clsx(
+                    'sidebar-provider-button relative z-10 inline-flex min-h-7 cursor-pointer select-none items-center justify-center gap-1.5 rounded-lg border border-transparent bg-transparent text-center text-xs font-bold shadow-none outline-none focus:outline-none focus-visible:outline-none',
+                    activeProvider === provider.id
+                      ? 'text-foreground'
+                      : 'text-muted-foreground hover:bg-secondary/40 hover:text-foreground/80',
+                  )}
+                >
+                  {showIcon && (
+                    <img
+                      src={icon.src}
+                      srcSet={`${icon.src2x} 2x`}
+                      width={16}
+                      height={16}
+                      alt=""
+                      aria-hidden="true"
+                      draggable={false}
+                      decoding="async"
+                      className={clsx(
+                        'h-4 w-4 shrink-0 rounded-[3px] object-contain transition-opacity duration-150 [transition-timing-function:var(--ease-out)]',
+                        shownProvider === provider.id ? 'opacity-100' : 'opacity-70',
+                      )}
+                      onError={() => setIconErrors((prev) => ({ ...prev, [provider.id]: true }))}
+                    />
+                  )}
+                  <span className="sidebar-provider-full">{provider.name}</span>
+                  {!showIcon && (
+                    <span className="sidebar-provider-short" aria-hidden="true">
+                      {provider.name.slice(0, 1).toUpperCase()}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
         </div>
         <div aria-hidden="true" className="mx-5 mt-5 h-px bg-border/30" />
