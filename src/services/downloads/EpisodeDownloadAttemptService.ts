@@ -398,8 +398,7 @@ export class EpisodeDownloadAttemptService {
     // `options.adaptiveConcurrency` es solo un override para tests.
     const adaptiveOn =
       this.options.adaptiveConcurrency ?? isAdaptiveEnabledForServer(dl.adaptiveConnections, link.server);
-    // Semilla: la manual siempre vale; con aprendizaje, preferred recortado al
-    // safeMax. Solo en modo adaptativo.
+    // Semilla: manda el aprendizaje; la manual solo cuenta sin él. Solo en modo adaptativo.
     const learning = adaptiveOn
       ? (this.options.getConcurrencyLearning?.(String(item.providerId ?? ''), link.server) ?? null)
       : null;
@@ -414,7 +413,7 @@ export class EpisodeDownloadAttemptService {
       experiment?.coldStart || (fixedStrategy && manualLevel === 1)
         ? manualLevel
         : resolveConcurrencySeed(manualLevel, learning);
-    const concurrency = createAttemptConcurrencyHandle(seed);
+    const concurrency = createAttemptConcurrencyHandle(seed, adaptiveOn && !fixedStrategy);
     // Quien descarga refina esta capacidad según el camino real.
     reportApplicationMode(concurrency, engine?.concurrencyApplication ?? 'hot');
     // Cadencia del perfil activo; solo se aplica con el controller en marcha.
@@ -465,6 +464,7 @@ export class EpisodeDownloadAttemptService {
             decisions: () => adaptive.snapshot().decisions,
             actual: () => concurrency.actual(),
             applicationMode: () => readApplicationMode(concurrency, engine?.concurrencyApplication ?? 'hot'),
+            probeCeiling: () => adaptive.snapshot().probeCeiling,
             log: (message) => {
               this.fileLog.info(message, this.attemptContext(item, episode, link.server));
             },
@@ -607,6 +607,10 @@ export class EpisodeDownloadAttemptService {
     }
 
     const counts = adaptive ? countAdaptiveDecisions(adaptive.snapshot().decisions) : null;
+    // Releído ya con lo que enseñó este intento: resume el final, no el arranque.
+    const finalLearning = adaptive
+      ? (this.options.getConcurrencyLearning?.(String(item.providerId ?? ''), link.server) ?? null)
+      : null;
     return {
       success,
       aborted: attemptAbort.signal.aborted,
@@ -625,8 +629,8 @@ export class EpisodeDownloadAttemptService {
         improved: counts ? counts.improved : 0,
         kept: counts ? counts.kept : 0,
         decreased: counts ? counts.decreased : 0,
-        preferred: adaptive ? (learning?.preferredConcurrency ?? null) : null,
-        safeMax: adaptive ? (learning?.safeMax ?? null) : null,
+        preferred: finalLearning?.preferredConcurrency ?? null,
+        safeMax: finalLearning?.safeMax ?? null,
       },
     };
   }
@@ -655,6 +659,9 @@ export class EpisodeDownloadAttemptService {
       const measured = [sample.smoothedBps, sample.windowThroughputBps, sample.throughputBps].find(
         (bps) => (bps ?? 0) > 0,
       );
+      // Un intento que llegó a comparar refresca la cadencia de re-verificación,
+      // aunque su probe no alcanzara a resolverse.
+      const attemptedComparison = finalState.decisions.some((decision) => decision.kind.startsWith('probe-'));
       if (observations.length === 0 && measured) {
         observations.push({
           provider,
@@ -663,7 +670,7 @@ export class EpisodeDownloadAttemptService {
           kind: 'neutral',
           bps: measured,
           learningEligible,
-          bootstrap: true,
+          bootstrap: !attemptedComparison,
         });
       }
       adaptiveLog?.learning(observations, learningEligible);

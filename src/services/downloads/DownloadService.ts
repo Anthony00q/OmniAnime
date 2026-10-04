@@ -11,6 +11,7 @@ import { noopScopedLogger, type ScopedLogger } from '../logging/AppLogger';
 import { errorDetailForLog } from '../../utils/logging/redactLog';
 import { clampDirectConnections, downloadDirectRanged, probeDirectRangeSupport } from './DirectRangedDownloader';
 import {
+  readAllowOneWorker,
   readConcurrency,
   reportActualConcurrency,
   reportApplicationMode,
@@ -265,9 +266,10 @@ export class DownloadService {
     connections?: ConcurrencySource,
   ): Promise<boolean> {
     const directReferer = typeof referer === 'string' && referer ? referer : DEFAULT_DOWNLOAD_REFERER;
-    // Rama multihilo si el objetivo supera 1 (o con rangedFromOne, también con 1);
-    // dentro, el pool escala y encoge en caliente según el handle.
-    if ((clampDirectConnections(readConcurrency(connections)) > 1 || this.rangedFromOne) && !signal?.aborted) {
+    // Rama multihilo si el objetivo supera 1; con 1 también si el handle lo permite
+    // (Adaptive) o se fuerza la medición. Dentro, el pool escala en caliente.
+    const allowOneWorker = this.rangedFromOne || readAllowOneWorker(connections);
+    if ((clampDirectConnections(readConcurrency(connections)) > 1 || allowOneWorker) && !signal?.aborted) {
       const rangedOk = await this.downloadDirectRangedOnce(url, dest, onProgress, signal, directReferer, connections);
       if (rangedOk || signal?.aborted) return rangedOk;
     }
@@ -303,7 +305,8 @@ export class DownloadService {
     connections?: ConcurrencySource,
   ): Promise<boolean> {
     const wanted = clampDirectConnections(readConcurrency(connections));
-    if ((wanted <= 1 && !this.rangedFromOne) || signal?.aborted) return false;
+    const allowOneWorker = this.rangedFromOne || readAllowOneWorker(connections);
+    if ((wanted <= 1 && !allowOneWorker) || signal?.aborted) return false;
     const destDir = path.dirname(dest);
     const cacheDir = path.join(destDir, '.cache');
     try {
@@ -332,7 +335,7 @@ export class DownloadService {
       referer: typeof referer === 'string' && referer ? referer : DEFAULT_DOWNLOAD_REFERER,
       signal,
       onProgress,
-      allowOneWorker: this.rangedFromOne,
+      allowOneWorker,
     });
     if (!ok || signal?.aborted) {
       if (!signal?.aborted) this.logger.debug('direct ranged falló, cae a descarga simple.');

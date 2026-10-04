@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { DIRECT_CONCURRENCY_LEVELS, isConcurrencyLevel } from '../downloads/attemptConcurrency';
+import { DIRECT_CONCURRENCY_LEVELS, isConcurrencyLevel, stepDownLevel } from '../downloads/attemptConcurrency';
 
 // Observabilidad por servidor: contadores sanitizados en su propio JSON bajo
 // userData, sin tocar SQLite. Sin URLs, tokens ni mensajes sensibles. La
@@ -106,8 +106,8 @@ export function categorizeAttemptFailure(flags: AttemptOutcomeFlags): ServerFail
 //   recencia  = 0.5^(días/14)
 //   confianza = ev / (ev + 2), con ev = observaciones × recencia
 //   score     = bps × recencia × confianza × (1 − 0.5 × tasaNegativa)
-//   preferred = mayor score con evidencia positiva y nivel seguro; caduca si
-//               el nivel lleva más de una media vida sin compararse
+//   preferred = mayor score con evidencia positiva y nivel seguro; sin compararse
+//               en LEARNING_REVERIFY_DAYS la semilla baja un peldaño y se re-mide
 //   safeMax   = mayor nivel no inseguro (tasaNegativa ≥ 0.5); se recupera solo
 //               con la recencia y observaciones nuevas
 
@@ -151,18 +151,23 @@ export interface ConcurrencyLevelLearning {
   score: number;
   safe: boolean;
   lastSeen: number;
+  lastComparedAt: number;
 }
 
 export interface ConcurrencyLearning {
   provider: string;
   server: string;
   preferredConcurrency: number | null;
+  // La preferencia lleva sin compararse demasiado: conviene volver a medirla.
+  preferredStale: boolean;
   safeMax: number | null;
   levels: ConcurrencyLevelLearning[];
 }
 
 // A los 14 días la evidencia vale la mitad: una mala racha antigua no domina para siempre.
 export const LEARNING_HALF_LIFE_DAYS = 14;
+// Sin compararse en 2 días la preferencia se re-verifica desde un peldaño por debajo.
+export const LEARNING_REVERIFY_DAYS = 2;
 // Penalización máxima por degradación sobre el score (hasta −50%).
 export const LEARNING_NEG_PENALTY = 0.5;
 // Con ≥50% de evidencia negativa el nivel se marca inseguro (se recupera solo).
@@ -184,7 +189,7 @@ function recencyFactor(lastSeen: number, now: number): number {
 
 function isComparisonStale(lastComparedAt: number, now: number): boolean {
   const ageDays = Math.max(0, (now - lastComparedAt) / 86_400_000);
-  return ageDays > LEARNING_HALF_LIFE_DAYS;
+  return ageDays > LEARNING_REVERIFY_DAYS;
 }
 
 // Cálculo puro del aprendizaje a partir de los agregados guardados.
@@ -205,7 +210,8 @@ export function computeConcurrencyLearning(
     const effectiveEvidence = observations * recency;
     const confidence = effectiveEvidence / (effectiveEvidence + 2);
     const negRate = entry.neg / observations;
-    const safe = !(negRate >= LEARNING_UNSAFE_NEG_RATE && entry.neg * recency >= 1);
+    // Una negativa castiga mientras pese media observación: con `>= 1` se perdía al instante.
+    const safe = !(negRate >= LEARNING_UNSAFE_NEG_RATE && entry.neg * recency >= 0.5);
     levels.push({
       level,
       observations,
@@ -217,6 +223,7 @@ export function computeConcurrencyLearning(
       score: entry.bps * recency * confidence * (1 - LEARNING_NEG_PENALTY * negRate),
       safe,
       lastSeen: entry.seen,
+      lastComparedAt: entry.lastComparedAt ?? entry.seen,
     });
   }
   if (levels.length === 0) return null;
@@ -234,8 +241,6 @@ export function computeConcurrencyLearning(
     if (!entry.safe || entry.score <= 0) continue;
     const statsEntry = stats[String(entry.level)];
     if (!statsEntry || statsEntry.pos <= 0) continue;
-    // Sin comparaciones recientes la preferencia caduca y el mando vuelve al manual.
-    if (isComparisonStale(statsEntry.lastComparedAt ?? statsEntry.seen, now)) continue;
     if (!preferred || entry.score > preferred.score) preferred = entry;
   }
 
@@ -243,15 +248,18 @@ export function computeConcurrencyLearning(
     provider,
     server,
     preferredConcurrency: preferred ? preferred.level : null,
+    preferredStale: preferred !== null && isComparisonStale(preferred.lastComparedAt, now),
     safeMax: safeMax > 0 ? safeMax : null,
     levels,
   };
 }
 
-// Semilla: la manual siempre vale como base; con aprendizaje, preferred recortado al safeMax.
+// Semilla: manda el aprendizaje (preferred recortado al safeMax); la manual solo
+// cuenta sin él. La preferencia sin comparar se re-mide desde un peldaño por debajo.
 export function resolveConcurrencySeed(manualSeed: number, learning: ConcurrencyLearning | null): number {
   if (!learning) return manualSeed;
-  const base = learning.preferredConcurrency ?? manualSeed;
+  const preferred = learning.preferredConcurrency;
+  const base = preferred === null ? manualSeed : learning.preferredStale ? stepDownLevel(preferred) : preferred;
   return learning.safeMax !== null ? Math.min(base, learning.safeMax) : base;
 }
 

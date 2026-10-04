@@ -25,6 +25,8 @@ export interface AttemptAdaptiveLogOptions {
   // Workers reales reportados al handle por quien descarga.
   actual(): number;
   applicationMode(): ConcurrencyApplicationMode;
+  // Techo de exploración del intento (safeMax aprendido o el tope de la escalera).
+  probeCeiling?(): number;
   log: (message: string) => void;
 }
 
@@ -66,6 +68,7 @@ export class AttemptAdaptiveLog {
   private readonly pending: PendingChange[] = [];
   private anyChangeLogged = false;
   private simpleLogged = false;
+  private progressed = false;
 
   constructor(options: AttemptAdaptiveLogOptions) {
     this.options = options;
@@ -79,6 +82,7 @@ export class AttemptAdaptiveLog {
   // Un paso de observación al ritmo del progreso del engine, nunca por tick.
   observe(): void {
     const { server } = this.options;
+    this.progressed = true;
     // Primero las aplicaciones pendientes: una decisión y su aplicación pueden
     // observarse en pasos distintos.
     this.closeAppliedChanges();
@@ -129,14 +133,20 @@ export class AttemptAdaptiveLog {
 
   finish(): void {
     const { server } = this.options;
+    const progressed = this.progressed;
     this.observe();
     for (const change of this.pending.splice(0)) {
       this.options.log(`[Adaptive] ${server} · ${change.from}→${change.to} · not-applied`);
     }
-    // En el tope no hay nada que explorar: se avisa para que el silencio no
-    // parezca un fallo.
-    if (!this.anyChangeLogged && !this.simpleLogged && this.options.seed >= TOP_LEVEL) {
+    // Sin progreso no hubo nada que explorar, y solo el margen agotado se explica.
+    if (this.anyChangeLogged || this.simpleLogged || !progressed) return;
+    const ceiling = this.options.probeCeiling?.() ?? TOP_LEVEL;
+    if (this.options.seed >= TOP_LEVEL) {
       this.options.log(`[Adaptive] ${server} · seed=${this.options.seed} · tope de escalera · sin exploración`);
+    } else if (this.options.seed >= ceiling) {
+      this.options.log(
+        `[Adaptive] ${server} · seed=${this.options.seed} · techo aprendido · sin exploración (safeMax=${ceiling})`,
+      );
     }
   }
 

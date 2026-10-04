@@ -58,6 +58,9 @@ export interface ConcurrencyTarget {
   // Opcional como `reportActual`: si la fuente no la lleva, vale la del engine.
   applicationMode?(): ConcurrencyApplicationMode;
   reportApplicationMode?(mode: ConcurrencyApplicationMode): void;
+  // Con Adaptive el pool se intenta también con 1 worker: así 1 es un peldaño
+  // real de la escalera y no un callejón sin medición.
+  allowOneWorker?: boolean;
 }
 
 // Handle de un intento. Tras dispose queda inerte.
@@ -76,6 +79,10 @@ export function readConcurrency(source: ConcurrencySource | undefined, fallback 
   if (typeof source === 'number') return source;
   const value = source?.current();
   return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+}
+
+export function readAllowOneWorker(source: ConcurrencySource | undefined): boolean {
+  return !!source && typeof source === 'object' && source.allowOneWorker === true;
 }
 
 export function subscribeConcurrency(
@@ -112,7 +119,7 @@ export function readApplicationMode(
   return fallback;
 }
 
-export function createAttemptConcurrencyHandle(initialLevel: number): AttemptConcurrencyHandle {
+export function createAttemptConcurrencyHandle(initialLevel: number, allowOneWorker = false): AttemptConcurrencyHandle {
   let target = typeof initialLevel === 'number' && Number.isFinite(initialLevel) ? initialLevel : 1;
   let actual = 0;
   let disposed = false;
@@ -120,6 +127,7 @@ export function createAttemptConcurrencyHandle(initialLevel: number): AttemptCon
   let applicationMode: ConcurrencyApplicationMode = 'hot';
   const listeners = new Set<(target: number) => void>();
   return {
+    allowOneWorker,
     current: () => target,
     setTarget(level: number): boolean {
       // Solo niveles de la escalera; un disposed no acepta nada.
