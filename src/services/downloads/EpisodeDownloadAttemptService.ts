@@ -318,32 +318,65 @@ export class EpisodeDownloadAttemptService {
     return this.isRegularFileWithContent(destPath);
   }
 
+  // Catálogo único de temporales del EP: los nombres siguen a megaResumeFiles y al descargador HLS.
+  private episodeCacheArtifacts(
+    cacheDir: string,
+    baseName: string,
+  ): {
+    directPartial: string;
+    legacyPart: string;
+    directSidecar: string;
+    megaPartial: string;
+    megaSidecar: string;
+    hlsSidecar: string;
+    hlsPrefix: string;
+  } {
+    const mega = megaResumeFiles(cacheDir, baseName);
+    return {
+      directPartial: path.join(cacheDir, baseName),
+      legacyPart: path.join(cacheDir, `${baseName}.part`),
+      directSidecar: path.join(cacheDir, `${baseName}.direct.json`),
+      megaPartial: mega.partial,
+      megaSidecar: mega.sidecar,
+      hlsSidecar: path.join(cacheDir, `${baseName}.hls.json`),
+      hlsPrefix: `${baseName}.hls-`,
+    };
+  }
+
   private async purgeMegaResumeFiles(destPath: string): Promise<void> {
-    const { partial, sidecar } = megaResumeFiles(path.join(path.dirname(destPath), '.cache'), path.basename(destPath));
-    await Promise.all([fsp.rm(partial, { force: true }), fsp.rm(sidecar, { force: true })]).catch(() => undefined);
+    const { megaPartial, megaSidecar } = this.episodeCacheArtifacts(
+      path.join(path.dirname(destPath), '.cache'),
+      path.basename(destPath),
+    );
+    await Promise.all([fsp.rm(megaPartial, { force: true }), fsp.rm(megaSidecar, { force: true })]).catch(
+      () => undefined,
+    );
   }
 
   private async purgeDirectResumeFiles(destPath: string): Promise<void> {
-    const base = path.join(path.dirname(destPath), '.cache', path.basename(destPath));
-    await Promise.all([fsp.rm(base, { force: true }), fsp.rm(`${base}.direct.json`, { force: true })]).catch(
+    const { directPartial, directSidecar } = this.episodeCacheArtifacts(
+      path.join(path.dirname(destPath), '.cache'),
+      path.basename(destPath),
+    );
+    await Promise.all([fsp.rm(directPartial, { force: true }), fsp.rm(directSidecar, { force: true })]).catch(
       () => undefined,
     );
   }
 
   private async purgeHlsResumeFiles(destPath: string): Promise<void> {
     const cacheDir = path.join(path.dirname(destPath), '.cache');
-    const prefix = `${path.basename(destPath)}.hls-`;
+    const { hlsPrefix, hlsSidecar } = this.episodeCacheArtifacts(cacheDir, path.basename(destPath));
     try {
       const names = await fsp.readdir(cacheDir);
       await Promise.all(
         names
-          .filter((name) => name.startsWith(prefix))
+          .filter((name) => name.startsWith(hlsPrefix))
           .map((name) => fsp.rm(path.join(cacheDir, name), { force: true }).catch(() => undefined)),
       );
     } catch {
       /* purga best-effort */
     }
-    await fsp.rm(path.join(cacheDir, `${path.basename(destPath)}.hls.json`), { force: true }).catch(() => undefined);
+    await fsp.rm(hlsSidecar, { force: true }).catch(() => undefined);
   }
 
   async attempt(
@@ -727,24 +760,24 @@ export class EpisodeDownloadAttemptService {
   }
 
   async cleanEpisodeTemps(destPath: string): Promise<void> {
-    const cacheBase = path.join(path.dirname(destPath), '.cache', path.basename(destPath));
+    const cacheDir = path.join(path.dirname(destPath), '.cache');
+    const art = this.episodeCacheArtifacts(cacheDir, path.basename(destPath));
     const results = await Promise.allSettled([
       fsp.rm(destPath, { force: true }),
       fsp.rm(destPath + '.part', { force: true }),
       fsp.rm(destPath + '.ytdl', { force: true }),
-      fsp.rm(cacheBase, { force: true }),
-      fsp.rm(cacheBase + '.part', { force: true }),
-      fsp.rm(cacheBase + '.direct.json', { force: true }),
-      fsp.rm(cacheBase + '.mega.part', { force: true }),
-      fsp.rm(cacheBase + '.mega.json', { force: true }),
+      fsp.rm(art.directPartial, { force: true }),
+      fsp.rm(art.legacyPart, { force: true }),
+      fsp.rm(art.directSidecar, { force: true }),
+      fsp.rm(art.megaPartial, { force: true }),
+      fsp.rm(art.megaSidecar, { force: true }),
+      fsp.rm(art.hlsSidecar, { force: true }),
     ]);
     try {
-      const cacheDir = path.dirname(cacheBase);
       const names = await fsp.readdir(cacheDir);
-      const prefix = `${path.basename(destPath)}.hls-`;
       await Promise.all(
         names
-          .filter((name) => name.startsWith(prefix))
+          .filter((name) => name.startsWith(art.hlsPrefix))
           .map((name) => fsp.rm(path.join(cacheDir, name), { force: true }).catch(() => undefined)),
       );
     } catch {
@@ -769,29 +802,29 @@ export class EpisodeDownloadAttemptService {
       return;
     }
     const baseName = path.basename(destPath);
+    const art = this.episodeCacheArtifacts(cacheDir, baseName);
     const files = [
-      baseName,
-      baseName + '.part',
-      baseName + '.direct.json',
-      baseName + '.mega.part',
-      baseName + '.mega.json',
+      art.directPartial,
+      art.legacyPart,
+      art.directSidecar,
+      art.megaPartial,
+      art.megaSidecar,
+      art.hlsSidecar,
     ];
     await Promise.all(
       files.map(async (file) => {
-        const filePath = path.join(cacheDir, file);
         try {
-          await fsp.rm(filePath, { force: true });
+          await fsp.rm(file, { force: true });
         } catch (error) {
-          this.options.logError(`No se pudo eliminar temporal ${path.basename(filePath)}: ${errorDetailForLog(error)}`);
+          this.options.logError(`No se pudo eliminar temporal ${path.basename(file)}: ${errorDetailForLog(error)}`);
         }
       }),
     );
     try {
       const names = await fsp.readdir(cacheDir);
-      const prefix = `${baseName}.hls-`;
       await Promise.all(
         names
-          .filter((name) => name.startsWith(prefix))
+          .filter((name) => name.startsWith(art.hlsPrefix))
           .map((name) => fsp.rm(path.join(cacheDir, name), { force: true }).catch(() => undefined)),
       );
     } catch (error) {
