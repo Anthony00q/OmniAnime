@@ -94,6 +94,21 @@ export function detectFreshInstall(userDataDir: string): boolean {
   }
 }
 
+// Nivel medio de la escalera: margen para explorar hacia arriba y hacia abajo.
+const FRESH_INSTALL_CONNECTIONS = 4;
+
+// Instalación nueva: Adaptive ON y conexiones que dejan explorar. Con 1 corre
+// el camino simple y el modo adaptativo se queda sin medir.
+export function seedFreshInstallDownloadSettings(download: unknown): DownloadSettings {
+  return {
+    ...normalizeDownloadSettings(download),
+    adaptiveConnections: adaptiveConnectionsAll(true),
+    mediafireConnections: FRESH_INSTALL_CONNECTIONS,
+    mp4uploadConnections: FRESH_INSTALL_CONNECTIONS,
+    voeConnections: FRESH_INSTALL_CONNECTIONS,
+  };
+}
+
 function toBoolean(value: unknown, fallback: boolean): boolean {
   return typeof value === 'boolean' ? value : fallback;
 }

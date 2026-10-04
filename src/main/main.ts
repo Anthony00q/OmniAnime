@@ -45,9 +45,9 @@ import type { QueueItem } from '../types/queue';
 import { buildCanonicalEpisodeFileName as buildCanonicalEpisodeFileNameUtil } from '../utils/episodeUtils';
 import { normalizeFolderNameSource } from '../utils/downloads/folderNaming';
 import {
-  adaptiveConnectionsAll,
   detectFreshInstall,
   normalizeDownloadSettings,
+  seedFreshInstallDownloadSettings,
 } from '../utils/downloads/downloadSettings';
 import { USER_AGENT } from '../utils/windowUtils';
 import { WindowLifecycleService, type PreloadedData } from './WindowLifecycleService';
@@ -95,10 +95,7 @@ applyLoggingSettings();
 if (isFreshInstall) {
   try {
     const seeded = SettingsManager.get();
-    seeded.download = {
-      ...normalizeDownloadSettings(seeded.download),
-      adaptiveConnections: adaptiveConnectionsAll(true),
-    };
+    seeded.download = seedFreshInstallDownloadSettings(seeded.download);
     SettingsManager.save(seeded);
   } catch {}
 }
