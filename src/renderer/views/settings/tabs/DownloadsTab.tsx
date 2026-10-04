@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Gauge, Server, Layers, Eye, SlidersHorizontal, Info, ChevronDown, FolderDown, FileText } from 'lucide-react';
 import { CustomSelect } from '@/renderer/components/CustomSelect';
 import { CustomSwitch } from '@/renderer/components/CustomSwitch';
@@ -13,7 +13,6 @@ import {
   managedHintId,
 } from '@/renderer/views/settings/utils/adaptiveConnections';
 import { AppTooltip } from '@/renderer/components/ui/AppTooltip';
-import { Skeleton } from '@/renderer/components/ui/Skeleton';
 import { DEFAULT_DOWNLOAD_SETTINGS, normalizeAdaptiveConnections } from '@/utils/downloads/downloadSettings';
 import { normalizeFolderNameSource } from '@/utils/downloads/folderNaming';
 import { folderNameSourceHint, snapToClosestOption } from '@/renderer/views/settings/utils/settingsHelpers';
@@ -571,118 +570,67 @@ const DescargasAvanzado = memo(function DescargasAvanzado({ settings, onChange }
   );
 });
 
-function DescargasSkeleton() {
+// Keep-alive oculto: sin este filtro, cualquier edición en otro tab re-renderiza Descargas entero.
+function downloadsTabPropsEqual(prev: DownloadsTabProps, next: DownloadsTabProps): boolean {
   return (
-    <>
-      <section className="rounded-2xl border border-border/50 bg-card shadow-sm">
-        <div className="p-5 sm:p-6">
-          <div className="flex items-center gap-3 mb-5">
-            <div className="p-2.5 bg-primary/10 rounded-xl border border-primary/10">
-              <Gauge className="w-5 h-5 text-primary" />
-            </div>
-            <div>
-              <h2 className="text-base font-bold tracking-tight">Concurrencia</h2>
-              <p className="text-xs text-muted-foreground mt-0.5">Cuántos episodios y conexiones se usan a la vez.</p>
-            </div>
-          </div>
-          {Array.from({ length: 6 }).map((_, idx) => (
-            <div
-              key={idx}
-              className="rounded-xl border border-border/60 bg-background p-4 mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
-            >
-              <Skeleton className="h-4 w-56" />
-              <Skeleton className="h-10 w-full sm:w-60 shrink-0" />
-            </div>
-          ))}
-          <Skeleton className="mt-4 h-10 w-full" />
-        </div>
-      </section>
-
-      <section className="rounded-2xl border border-border/50 bg-card shadow-sm p-5 sm:p-6">
-        <div className="flex items-center gap-2 mb-1">
-          <div className="p-1.5 bg-primary/10 rounded-lg">
-            <Server className="w-4 h-4 text-primary" />
-          </div>
-          <h3 className="text-sm font-bold tracking-tight">Servidores disponibles</h3>
-        </div>
-        <p className="mb-4 text-xs leading-relaxed text-muted-foreground">
-          Los servidores se prueban en este orden en cada episodio. Si uno falla o no está, sigue el siguiente.
-        </p>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {[0, 1].map((idx) => (
-            <div key={idx} className="rounded-xl border border-border/60 bg-background p-4">
-              <Skeleton className="mb-3 h-4 w-32" />
-              {Array.from({ length: 5 }).map((_, row) => (
-                <Skeleton key={row} className="mb-2 h-9 w-full" />
-              ))}
-            </div>
-          ))}
-        </div>
-        <Skeleton className="mt-4 h-10 w-full" />
-      </section>
-
-      <section className="rounded-2xl border border-border/50 bg-card shadow-sm p-5 sm:p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <div className="p-1.5 bg-primary/10 rounded-lg">
-            <Layers className="w-4 h-4 text-primary" />
-          </div>
-          <h3 className="text-sm font-bold tracking-tight">Nombrado de archivos y carpetas</h3>
-        </div>
-        <Skeleton className="mb-3 h-10 w-full" />
-        <Skeleton className="mb-4 h-16 w-full" />
-        <div className="flex flex-wrap gap-2">
-          <Skeleton className="h-9 w-64" />
-          <Skeleton className="h-9 w-72" />
-        </div>
-      </section>
-
-      <section className="rounded-2xl border border-border/50 bg-card shadow-sm overflow-hidden">
-        <Skeleton className="h-[76px] w-full rounded-none" />
-      </section>
-    </>
+    prev.visible === next.visible &&
+    prev.onChange === next.onChange &&
+    prev.namingPreview === next.namingPreview &&
+    prev.folderNamingPreview === next.folderNamingPreview &&
+    prev.settings?.download === next.settings?.download &&
+    prev.settings?.namingStyle === next.settings?.namingStyle &&
+    prev.settings?.outputDirs === next.settings?.outputDirs &&
+    prev.settings?.defaultOutputDir === next.settings?.defaultOutputDir
   );
 }
 
-// Montaje progresivo con revelado atómico: el contenido se monta oculto por bloques
-// (sin congelar la app) y se muestra entero de golpe; el skeleton da feedback mientras tanto.
+// Escalonado por bloques: los cuatro en un solo commit congelan la UI.
 export const DownloadsTab = memo(function DownloadsTab({ visible = true, ...props }: DownloadsTabProps) {
   const [mountedBlocks, setMountedBlocks] = useState(0);
-  const ready = mountedBlocks >= 4;
   const contentRef = useRef<HTMLDivElement | null>(null);
-  const wasHiddenRef = useRef(false);
+  const wasVisibleRef = useRef(false);
+  const animatedCountRef = useRef(0);
 
   useEffect(() => {
-    if (ready) return;
+    if (mountedBlocks >= 4) return;
     const timer = setTimeout(() => setMountedBlocks((n) => n + 1), 32);
     return () => clearTimeout(timer);
-  }, [mountedBlocks, ready]);
+  }, [mountedBlocks]);
 
-  // Al volver al tab cacheado se reproduce la animación de entrada (quitar la clase,
-  // forzar reflow y reponerla); la primera entrada ya la anima el revelado.
-  useEffect(() => {
+  // WAAPI desde useLayoutEffect: en useEffect se veía un frame en opacidad 0 al
+  // re-entrar. Stagger de 30 ms, igual que la CSS de los demás tabs.
+  useLayoutEffect(() => {
     if (!visible) {
-      wasHiddenRef.current = true;
+      wasVisibleRef.current = false;
+      animatedCountRef.current = 0;
       return;
     }
-    if (!wasHiddenRef.current) return;
-    wasHiddenRef.current = false;
-    if (!ready) return;
     const el = contentRef.current;
     if (!el) return;
-    el.classList.remove('settings-tab-enter');
-    void el.offsetWidth;
-    el.classList.add('settings-tab-enter');
-  }, [visible, ready]);
+    const blocks = Array.from(el.children);
+    const from = wasVisibleRef.current ? animatedCountRef.current : 0;
+    const entering = blocks.slice(from);
+    wasVisibleRef.current = true;
+    animatedCountRef.current = blocks.length;
+    if (entering.length === 0) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    entering.forEach((block, idx) => {
+      block.animate(
+        [
+          { opacity: 0, transform: 'translate3d(0, 8px, 0)' },
+          { opacity: 1, transform: 'translate3d(0, 0, 0)' },
+        ],
+        { duration: 200, delay: idx * 30, easing: 'cubic-bezier(0.23, 1, 0.32, 1)', fill: 'backwards' },
+      );
+    });
+  }, [visible, mountedBlocks]);
 
   return (
-    <>
-      <div ref={contentRef} hidden={!ready} className={ready ? 'settings-tab-enter' : undefined}>
-        {mountedBlocks >= 1 && <DescargasConcurrencia {...props} />}
-        {mountedBlocks >= 2 && <DescargasServidores {...props} />}
-        {mountedBlocks >= 3 && <DescargasNombrado {...props} />}
-        {mountedBlocks >= 4 && <DescargasAvanzado {...props} />}
-      </div>
-      {!ready && <DescargasSkeleton />}
-    </>
+    <div ref={contentRef} className="flex flex-col gap-6">
+      {mountedBlocks >= 1 && <DescargasConcurrencia {...props} />}
+      {mountedBlocks >= 2 && <DescargasServidores {...props} />}
+      {mountedBlocks >= 3 && <DescargasNombrado {...props} />}
+      {mountedBlocks >= 4 && <DescargasAvanzado {...props} />}
+    </div>
   );
-});
+}, downloadsTabPropsEqual);

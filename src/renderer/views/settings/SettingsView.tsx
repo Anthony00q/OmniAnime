@@ -52,8 +52,8 @@ export function SettingsView({ isActive = true }: { isActive?: boolean }) {
   const [initialSettingsJson, setInitialSettingsJson] = useState<string>('');
   const [isSaved, setIsSaved] = useState(false);
   const [activeTab, setActiveTab] = useState('sistema');
-  // Descargas queda montado en la sesión tras su primera visita: al volver no repasa el skeleton.
-  const [downloadsVisited, setDownloadsVisited] = useState(false);
+  // El tab más pesado se pre-monta nada más abrir Ajustes: el click solo lo muestra.
+  const [downloadsMounted, setDownloadsMounted] = useState(false);
   const [showRestoreConfirm, setShowRestoreConfirm] = useState(false);
   const [showRestartConfirm, setShowRestartConfirm] = useState(false);
   const [restartItems, setRestartItems] = useState<string[]>([]);
@@ -179,8 +179,16 @@ export function SettingsView({ isActive = true }: { isActive?: boolean }) {
   }, [activeTab]);
 
   useEffect(() => {
-    if (activeTab === 'descargas') setDownloadsVisited(true);
+    if (activeTab === 'descargas') setDownloadsMounted(true);
   }, [activeTab]);
+
+  // El click directo (efecto anterior) manda sobre este pre-mount diferido; el
+  // timeout evita que el idle se eternice con la app ocupada.
+  useEffect(() => {
+    if (!isActive || downloadsMounted) return;
+    const idleId = window.requestIdleCallback(() => setDownloadsMounted(true), { timeout: 500 });
+    return () => window.cancelIdleCallback(idleId);
+  }, [isActive, downloadsMounted]);
 
   useEffect(() => {
     if (loadedSettings && !settings) {
@@ -515,9 +523,10 @@ export function SettingsView({ isActive = true }: { isActive?: boolean }) {
 
             {activeTab === 'atajos' && <ShortcutsTab settings={settings} onChange={handleChange} />}
 
-            {/* Al final para no mover las posiciones del stagger de los demás tabs */}
-            {downloadsVisited && (
-              <div hidden={activeTab !== 'descargas'}>
+            {/* Al final para no mover las posiciones del stagger de los demás tabs.
+                animation:none en línea: `.settings-tab-enter > *` gana a Tailwind y el wrapper animaría encima del stagger. */}
+            {downloadsMounted && (
+              <div hidden={activeTab !== 'descargas'} style={{ animation: 'none' }}>
                 <DownloadsTab
                   settings={settings}
                   namingPreview={namingPreview}
