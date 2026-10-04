@@ -52,6 +52,8 @@ export function SettingsView({ isActive = true }: { isActive?: boolean }) {
   const [initialSettingsJson, setInitialSettingsJson] = useState<string>('');
   const [isSaved, setIsSaved] = useState(false);
   const [activeTab, setActiveTab] = useState('sistema');
+  // Descargas queda montado en la sesión tras su primera visita: al volver no repasa el skeleton.
+  const [downloadsVisited, setDownloadsVisited] = useState(false);
   const [showRestoreConfirm, setShowRestoreConfirm] = useState(false);
   const [showRestartConfirm, setShowRestartConfirm] = useState(false);
   const [restartItems, setRestartItems] = useState<string[]>([]);
@@ -174,6 +176,10 @@ export function SettingsView({ isActive = true }: { isActive?: boolean }) {
   // Cada pestaña empieza arriba: evita saltos al venir de un tab más largo
   useEffect(() => {
     tabScrollRef.current?.scrollTo({ top: 0 });
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (activeTab === 'descargas') setDownloadsVisited(true);
   }, [activeTab]);
 
   useEffect(() => {
@@ -463,10 +469,7 @@ export function SettingsView({ isActive = true }: { isActive?: boolean }) {
           ref={tabScrollRef}
           className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-6 min-[960px]:p-8 min-[960px]:pt-6 custom-scrollbar [scrollbar-gutter:stable]"
         >
-          <div
-            key={activeTab}
-            className="settings-tab-enter mx-auto flex w-full max-w-4xl flex-col gap-6 pb-16 xl:max-w-6xl 2xl:max-w-7xl"
-          >
+          <div className="settings-tab-enter mx-auto flex w-full max-w-4xl flex-col gap-6 pb-16 xl:max-w-6xl 2xl:max-w-7xl">
             {activeTab === 'sistema' && (
               <SystemTab
                 settings={settings}
@@ -476,15 +479,6 @@ export function SettingsView({ isActive = true }: { isActive?: boolean }) {
                 onAddOutputDir={handleAddOutputDir}
                 onRemoveOutputDir={handleRemoveOutputDir}
                 onReorderOutputDirs={handleReorderOutputDirs}
-                onChange={handleChange}
-              />
-            )}
-
-            {activeTab === 'descargas' && (
-              <DownloadsTab
-                settings={settings}
-                namingPreview={namingPreview}
-                folderNamingPreview={folderNamingPreview}
                 onChange={handleChange}
               />
             )}
@@ -520,6 +514,19 @@ export function SettingsView({ isActive = true }: { isActive?: boolean }) {
             )}
 
             {activeTab === 'atajos' && <ShortcutsTab settings={settings} onChange={handleChange} />}
+
+            {/* Al final para no mover las posiciones del stagger de los demás tabs */}
+            {downloadsVisited && (
+              <div hidden={activeTab !== 'descargas'}>
+                <DownloadsTab
+                  settings={settings}
+                  namingPreview={namingPreview}
+                  folderNamingPreview={folderNamingPreview}
+                  onChange={handleChange}
+                  visible={activeTab === 'descargas'}
+                />
+              </div>
+            )}
           </div>
         </div>
       </div>
