@@ -1,0 +1,49 @@
+name: CI (validación)
+
+run-name: "CI ${{ github.ref_name }}"
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validar (Windows)
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Descargar código
+        uses: actions/checkout@v4
+
+      - name: Instalar Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Instalar dependencias (npm ci)
+        run: npm ci
+
+      - name: Tipos del renderer
+        run: npm run typecheck:renderer
+
+      - name: Compilar main (tsc)
+        run: npm run build:main
+
+      - name: Lint (ESLint)
+        run: npm run lint
+
+      - name: Formato (Prettier)
+        run: npm run format:check
+
+      - name: Compilar renderer (Vite)
+        run: npm run build:vite
