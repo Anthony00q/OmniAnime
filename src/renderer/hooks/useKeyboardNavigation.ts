@@ -1,22 +1,19 @@
 import { useEffect } from 'react';
-import { useAtom, useAtomValue, useSetAtom } from 'jotai';
+import { useLocation } from '@tanstack/react-router';
+import { useAtomValue } from 'jotai';
 import { shouldKeepFocusOnMouseClick, shouldSuppressSpace } from '@/utils/focusBlur';
-import {
-  currentViewAtom,
-  previousViewAtom,
-  settingsAtom,
-  showCloseConfirmAtom,
-  navigateToCatalogAtom,
-} from '@/renderer/store/atoms';
+import { settingsAtom, showCloseConfirmAtom } from '@/renderer/store/atoms';
+import { useAppNavigation } from '@/renderer/hooks/useAppNavigation';
+import { viewIdFromPath } from '@/renderer/utils/viewRoutes';
 
 const NAVIGATION_VIEWS = ['home', 'catalog', 'details', 'downloader', 'history', 'scanner', 'player', 'settings'];
 
 export function useKeyboardNavigation(): void {
-  const [currentView, setCurrentView] = useAtom(currentViewAtom);
-  const [, setPreviousView] = useAtom(previousViewAtom);
+  const { pathname } = useLocation();
+  const currentView = viewIdFromPath(pathname) ?? 'home';
   const showCloseConfirm = useAtomValue(showCloseConfirmAtom);
   const settings = useAtomValue(settingsAtom);
-  const navigateToCatalog = useSetAtom(navigateToCatalogAtom);
+  const { setView, navigateToCatalog } = useAppNavigation();
 
   const closeShortcut = settings?.shortcuts?.close || 'Escape';
   const searchShortcut = settings?.shortcuts?.search || 'F';
@@ -106,17 +103,11 @@ export function useKeyboardNavigation(): void {
         if (e.key === previousViewShortcut) {
           e.preventDefault();
           const prevIndex = currentIndex <= 0 ? NAVIGATION_VIEWS.length - 1 : currentIndex - 1;
-          if (currentViewValue !== 'details' && currentViewValue !== 'settings') {
-            setPreviousView(currentViewValue);
-          }
-          setCurrentView(NAVIGATION_VIEWS[prevIndex]);
+          setView(NAVIGATION_VIEWS[prevIndex]);
         } else if (e.key === nextViewShortcut) {
           e.preventDefault();
           const nextIndex = currentIndex >= NAVIGATION_VIEWS.length - 1 ? 0 : currentIndex + 1;
-          if (currentViewValue !== 'details' && currentViewValue !== 'settings') {
-            setPreviousView(currentViewValue);
-          }
-          setCurrentView(NAVIGATION_VIEWS[nextIndex]);
+          setView(NAVIGATION_VIEWS[nextIndex]);
         }
       }
     };
@@ -132,8 +123,7 @@ export function useKeyboardNavigation(): void {
     previousViewShortcut,
     nextViewShortcut,
     currentView,
-    setCurrentView,
-    setPreviousView,
+    setView,
     navigateToCatalog,
   ]);
 }

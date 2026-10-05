@@ -6,3 +6,4 @@ MPV/
 data/
 logs/
 *.log
+src/renderer/routes/routeTree.gen.ts

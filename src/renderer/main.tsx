@@ -1,8 +1,9 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { RouterProvider } from '@tanstack/react-router';
 import { createStore, Provider as JotaiProvider } from 'jotai';
-import App from './App';
+import { router } from './router';
 import '@fontsource/bricolage-grotesque/latin-600.css';
 import '@fontsource/bricolage-grotesque/latin-700.css';
 import '@fontsource/sora/latin-600.css';
@@ -138,7 +139,7 @@ async function bootstrap(): Promise<void> {
     <React.StrictMode>
       <JotaiProvider store={store}>
         <QueryClientProvider client={queryClient}>
-          <App />
+          <RouterProvider router={router} />
         </QueryClientProvider>
       </JotaiProvider>
     </React.StrictMode>,

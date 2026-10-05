@@ -1,9 +1,10 @@
 import { memo, useCallback, useState, useEffect, useMemo, useRef } from 'react';
 import { ScanSearch, RefreshCcw, AlertTriangle, Link, Search, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { useAtomValue, useSetAtom } from 'jotai';
-import { settingsAtom, currentViewAtom } from '@/renderer/store/atoms';
+import { useAtomValue } from 'jotai';
+import { settingsAtom } from '@/renderer/store/atoms';
 import { Dialog } from '@/renderer/components/Dialog';
+import { useAppNavigation } from '@/renderer/hooks/useAppNavigation';
 import { useLibrary, useSearchAnime, useLibraryActions } from '@/renderer/hooks/useQueries';
 import { isIpcFailError } from '@/renderer/hooks/queries/unwrap';
 import { PosterCard } from '@/renderer/components/anime/PosterCard';
@@ -110,7 +111,7 @@ export function ScannerView({ isActive = true }: { isActive?: boolean }) {
   }, [folders, selectedDirFilter]);
   const libActions = useLibraryActions();
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const setCurrentView = useSetAtom(currentViewAtom);
+  const { setView } = useAppNavigation();
 
   useEffect(() => {
     if (selectedDirFilter !== 'all' && !dirs.includes(selectedDirFilter)) {
@@ -295,7 +296,7 @@ export function ScannerView({ isActive = true }: { isActive?: boolean }) {
             title="No hay carpetas configuradas"
             description="Configura al menos una carpeta de descarga en Ajustes para escanear tu librería."
             actionLabel="Abrir Ajustes"
-            onAction={() => setCurrentView('settings')}
+            onAction={() => setView('settings')}
           />
         ) : isError ? (
           <ErrorState

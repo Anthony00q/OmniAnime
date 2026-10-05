@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { tanstackRouter } from '@tanstack/router-plugin/vite';
 import path from 'path';
 import fs from 'fs';
 
@@ -8,6 +9,12 @@ import fs from 'fs';
 export default defineConfig({
   plugins: [
     react(),
+    tanstackRouter({
+      target: 'react',
+      routesDirectory: path.resolve(import.meta.dirname, 'src/renderer/routes'),
+      generatedRouteTree: path.resolve(import.meta.dirname, 'src/renderer/routes/routeTree.gen.ts'),
+      autoCodeSplitting: false,
+    }),
     {
       name: 'copy-splash-html',
       closeBundle() {

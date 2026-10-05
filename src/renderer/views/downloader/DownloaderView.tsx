@@ -1,7 +1,7 @@
 import { Trash2, Clock } from 'lucide-react';
 import { useCallback, useEffect, useState, useMemo, useRef } from 'react';
-import { useSetAtom } from 'jotai';
 import { toast } from 'sonner';
+
 import { useQueue, useDownloadActions } from '@/renderer/hooks/useQueries';
 import { isIpcFailError, unwrap } from '@/renderer/hooks/queries/unwrap';
 import { PageHeader } from '@/renderer/components/ui/PageHeader';
@@ -9,7 +9,7 @@ import { ErrorState } from '@/renderer/components/ui/ErrorState';
 import { Dialog } from '@/renderer/components/Dialog';
 import { QueueSkeleton } from '@/renderer/components/anime/PosterGridSkeleton';
 import { EmptyState } from '@/renderer/components/ui/EmptyState';
-import { navigateToCatalogAtom } from '@/renderer/store/atoms';
+import { useAppNavigation } from '@/renderer/hooks/useAppNavigation';
 import {
   activeServersOf,
   epProgressOf,
@@ -30,7 +30,7 @@ export function DownloaderView({ onSelectAnime, activeProvider, isActive = true 
   const actions = useDownloadActions();
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [pendingRetryIds, setPendingRetryIds] = useState<Set<string>>(new Set());
-  const navigateToCatalog = useSetAtom(navigateToCatalogAtom);
+  const { navigateToCatalog } = useAppNavigation();
 
   useEffect(() => {
     if (!isActive) setShowClearConfirm(false);

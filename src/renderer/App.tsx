@@ -1,6 +1,7 @@
-import { memo, useCallback, useEffect, useMemo } from 'react';
-import { useAtom, useAtomValue } from 'jotai';
+import { createContext, memo, lazy, Suspense, useCallback, useContext, useEffect, useMemo } from 'react';
+import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { useQueryClient } from '@tanstack/react-query';
+import { Outlet, useLocation } from '@tanstack/react-router';
 import { Toaster } from 'sonner';
 import clsx from 'clsx';
 import { Titlebar } from './components/Titlebar';
@@ -8,67 +9,78 @@ import { Sidebar } from './components/Sidebar';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { AppTooltipProvider } from './components/ui/AppTooltip';
 import { Dialog } from './components/Dialog';
-import { HomeView } from '@/renderer/views/home/HomeView';
-import { ScheduleView } from '@/renderer/views/schedule/ScheduleView';
-import { CatalogView } from '@/renderer/views/catalog/CatalogView';
-import { AnimeDetailsView } from '@/renderer/views/animeDetails/AnimeDetailsView';
-import { LibraryView } from '@/renderer/views/library/LibraryView';
-import { DownloaderView } from '@/renderer/views/downloader/DownloaderView';
-import { HistoryView } from '@/renderer/views/history/HistoryView';
-import { ScannerView } from '@/renderer/views/scanner/ScannerView';
-import { SettingsView } from '@/renderer/views/settings/SettingsView';
 import { useActiveProvider, useLoadSettings, prefetchAnimeDetails } from './hooks/useQueries';
 import { useAppUpdate } from './hooks/useAppUpdate';
 import { UpdateModal } from './components/update/UpdateModal';
 import { useThemeSync } from './hooks/useThemeSync';
 import { useKeyboardNavigation } from './hooks/useKeyboardNavigation';
+import { useAppNavigation } from './hooks/useAppNavigation';
 import { useDownloadNotifications, useToastReconcile } from './hooks/useDownloadNotifications';
+import { viewIdFromPath } from './utils/viewRoutes';
 import {
-  currentViewAtom,
-  previousViewAtom,
   selectedAnimeAtom,
   activeProviderAtom,
   settingsAtom,
   toastPositionAtom,
   showCloseConfirmAtom,
   providerChangedCounterAtom,
-  navigateToCatalogCounterAtom,
 } from './store/atoms';
 
 const MAX_VISIBLE_TOASTS = 3;
 const TOAST_DURATION_MS = 4000;
 
-function getViewPanelClass(currentView: string, view: string): string {
-  return clsx(
-    'flex-1 overflow-hidden flex flex-col',
-    view !== 'details' && view !== 'player' && 'pt-10',
-    currentView !== view && 'hidden',
-    currentView === view && 'view-enter',
-  );
+// Vistas del shell: lazy para cargar cada una al entrar y memo para que los
+// re-renders del chrome (toasts, ajustes, proveedor) no las arrastren.
+const HomeView = lazy(() => import('./views/home/HomeView').then((m) => ({ default: m.HomeView })));
+const ScheduleView = lazy(() => import('./views/schedule/ScheduleView').then((m) => ({ default: m.ScheduleView })));
+const CatalogView = lazy(() => import('./views/catalog/CatalogView').then((m) => ({ default: m.CatalogView })));
+const AnimeDetailsView = lazy(() =>
+  import('./views/animeDetails/AnimeDetailsView').then((m) => ({ default: m.AnimeDetailsView })),
+);
+const DownloaderView = lazy(() =>
+  import('./views/downloader/DownloaderView').then((m) => ({ default: m.DownloaderView })),
+);
+const HistoryView = lazy(() => import('./views/history/HistoryView').then((m) => ({ default: m.HistoryView })));
+const ScannerView = lazy(() => import('./views/scanner/ScannerView').then((m) => ({ default: m.ScannerView })));
+const LibraryView = lazy(() => import('./views/library/LibraryView').then((m) => ({ default: m.LibraryView })));
+const SettingsView = lazy(() => import('./views/settings/SettingsView').then((m) => ({ default: m.SettingsView })));
+
+export const MemoHomeView = memo(HomeView);
+export const MemoScheduleView = memo(ScheduleView);
+export const MemoCatalogView = memo(CatalogView);
+export const MemoAnimeDetailsView = memo(AnimeDetailsView);
+export const MemoDownloaderView = memo(DownloaderView);
+export const MemoHistoryView = memo(HistoryView);
+export const MemoScannerView = memo(ScannerView);
+export const MemoLibraryView = memo(LibraryView);
+export const MemoSettingsView = memo(SettingsView);
+
+export interface AppShellHandlers {
+  onSelectAnime: (slug: string) => void;
+  onDetailsBack: () => void;
 }
 
-// Que App se re-renderice (toasts, ajustes, proveedor) no arrastra las vistas que nada repintan.
-const MemoHomeView = memo(HomeView);
-const MemoScheduleView = memo(ScheduleView);
-const MemoCatalogView = memo(CatalogView);
-const MemoAnimeDetailsView = memo(AnimeDetailsView);
-const MemoDownloaderView = memo(DownloaderView);
-const MemoHistoryView = memo(HistoryView);
-const MemoScannerView = memo(ScannerView);
-const MemoLibraryView = memo(LibraryView);
-const MemoSettingsView = memo(SettingsView);
+// El shell comparte sus handlers estables con las rutas para que las vistas
+// reciban siempre los mismos props.
+const AppShellContext = createContext<AppShellHandlers | null>(null);
+
+export function useAppShell(): AppShellHandlers {
+  const handlers = useContext(AppShellContext);
+  if (!handlers) throw new Error('useAppShell solo funciona dentro del shell de la app');
+  return handlers;
+}
 
 export default function App() {
-  const [currentView, setCurrentView] = useAtom(currentViewAtom);
-  const [previousView, setPreviousView] = useAtom(previousViewAtom);
-  const [selectedAnime, setSelectedAnime] = useAtom(selectedAnimeAtom);
+  const { pathname } = useLocation();
+  const currentView = viewIdFromPath(pathname) ?? 'home';
   const [activeProvider, setActiveProvider] = useAtom(activeProviderAtom);
   const [toastPosition, setToastPosition] = useAtom(toastPositionAtom);
   const [showCloseConfirm, setShowCloseConfirm] = useAtom(showCloseConfirmAtom);
   const [settings, setSettings] = useAtom(settingsAtom);
+  const setSelectedAnime = useSetAtom(selectedAnimeAtom);
   const providerChangedCounter = useAtomValue(providerChangedCounterAtom);
-  const navigateToCatalogCounter = useAtomValue(navigateToCatalogCounterAtom);
   const { data: loadedActiveProvider } = useActiveProvider();
+  const { setView: navigateView, openAnime, detailsBack } = useAppNavigation();
 
   const toastOptions = useMemo(
     () => ({
@@ -118,13 +130,6 @@ export default function App() {
   }, [setShowCloseConfirm]);
 
   useEffect(() => {
-    if (navigateToCatalogCounter > 0) {
-      setSelectedAnime(null);
-      setCurrentView('catalog');
-    }
-  }, [navigateToCatalogCounter, setCurrentView, setSelectedAnime]);
-
-  useEffect(() => {
     if (providerChangedCounter > 0) {
       setSelectedAnime(null);
     }
@@ -151,132 +156,87 @@ export default function App() {
 
   const handleSetView = useCallback(
     (view: string) => {
-      if (currentView !== 'details' && currentView !== 'settings') {
-        setPreviousView(currentView);
-      }
-      setCurrentView(view);
+      navigateView(view);
     },
-    [currentView, setPreviousView, setCurrentView],
+    [navigateView],
   );
 
   const queryClient = useQueryClient();
   const handleSelectAnime = useCallback(
     (slug: string) => {
       prefetchAnimeDetails(queryClient, activeProvider, slug);
-      if (currentView !== 'details') {
-        setPreviousView(currentView);
-      }
-      setSelectedAnime(slug);
-      setCurrentView('details');
+      openAnime(slug);
     },
-    [queryClient, activeProvider, currentView, setPreviousView, setSelectedAnime, setCurrentView],
+    [queryClient, activeProvider, openAnime],
   );
 
   const handleDetailsBack = useCallback(() => {
-    setSelectedAnime(null);
-    setCurrentView(previousView || 'home');
-  }, [previousView, setSelectedAnime, setCurrentView]);
+    detailsBack();
+  }, [detailsBack]);
+
+  const shellContext = useMemo<AppShellHandlers>(
+    () => ({ onSelectAnime: handleSelectAnime, onDetailsBack: handleDetailsBack }),
+    [handleSelectAnime, handleDetailsBack],
+  );
 
   return (
-    <AppTooltipProvider>
-      <div className="flex h-screen overflow-hidden bg-background text-foreground flex-col relative">
-        <Toaster
-          theme="dark"
-          position={toastPosition}
-          visibleToasts={MAX_VISIBLE_TOASTS}
-          duration={TOAST_DURATION_MS}
-          closeButton
-          richColors
-          gap={12}
-          offset={{ top: '48px', bottom: '16px', left: '16px', right: '16px' }}
-          toastOptions={toastOptions}
-        />
-        <Titlebar />
-
-        <div className="flex h-full overflow-hidden relative">
-          <Sidebar currentView={currentView} setCurrentView={handleSetView} />
-
-          <main className="flex-1 min-w-0 overflow-hidden relative flex flex-col">
-            <ErrorBoundary scope="ui:home">
-              <div className={getViewPanelClass(currentView, 'home')}>
-                <MemoHomeView isActive={currentView === 'home'} />
-              </div>
-            </ErrorBoundary>
-            <ErrorBoundary scope="ui:schedule">
-              <div className={getViewPanelClass(currentView, 'schedule')}>
-                <MemoScheduleView isActive={currentView === 'schedule'} />
-              </div>
-            </ErrorBoundary>
-            <ErrorBoundary scope="ui:catalog">
-              <div className={getViewPanelClass(currentView, 'catalog')}>
-                <MemoCatalogView />
-              </div>
-            </ErrorBoundary>
-            <ErrorBoundary scope="ui:details">
-              <div className={getViewPanelClass(currentView, 'details')}>
-                <MemoAnimeDetailsView
-                  slug={selectedAnime || ''}
-                  onBack={handleDetailsBack}
-                  onSelectAnime={handleSelectAnime}
-                  isActive={currentView === 'details'}
-                />
-              </div>
-            </ErrorBoundary>
-            <ErrorBoundary scope="ui:downloader">
-              <div className={getViewPanelClass(currentView, 'downloader')}>
-                <MemoDownloaderView
-                  onSelectAnime={handleSelectAnime}
-                  activeProvider={activeProvider}
-                  isActive={currentView === 'downloader'}
-                />
-              </div>
-            </ErrorBoundary>
-            <ErrorBoundary scope="ui:history">
-              <div className={getViewPanelClass(currentView, 'history')}>
-                <MemoHistoryView
-                  isActive={currentView === 'history'}
-                  activeProvider={activeProvider}
-                  onSelectAnime={handleSelectAnime}
-                />
-              </div>
-            </ErrorBoundary>
-            <ErrorBoundary scope="ui:scanner">
-              <div className={getViewPanelClass(currentView, 'scanner')}>
-                <MemoScannerView isActive={currentView === 'scanner'} />
-              </div>
-            </ErrorBoundary>
-            <ErrorBoundary scope="ui:library">
-              <div className={getViewPanelClass(currentView, 'player')}>
-                <MemoLibraryView
-                  onSelectAnime={handleSelectAnime}
-                  activeProvider={activeProvider}
-                  isActive={currentView === 'player'}
-                />
-              </div>
-            </ErrorBoundary>
-            <ErrorBoundary scope="ui:settings">
-              <div className={getViewPanelClass(currentView, 'settings')}>
-                <MemoSettingsView isActive={currentView === 'settings'} />
-              </div>
-            </ErrorBoundary>
-          </main>
-        </div>
-
-        {showCloseConfirm && (
-          <Dialog
-            open={showCloseConfirm}
-            onOpenChange={setShowCloseConfirm}
-            title="¿Cerrar aplicación?"
-            message="Tienes descargas en progreso. Si cierras la aplicación ahora, se cancelarán las descargas activas y tendrás que reanudarlas más tarde. ¿Realmente deseas salir?"
-            confirmLabel="Sí, salir"
-            danger={true}
-            onConfirm={async () => {
-              await window.api.invoke('force-close-app');
-            }}
+    <AppShellContext.Provider value={shellContext}>
+      <AppTooltipProvider>
+        <div className="flex h-screen overflow-hidden bg-background text-foreground flex-col relative">
+          <Toaster
+            theme="dark"
+            position={toastPosition}
+            visibleToasts={MAX_VISIBLE_TOASTS}
+            duration={TOAST_DURATION_MS}
+            closeButton
+            richColors
+            gap={12}
+            offset={{ top: '48px', bottom: '16px', left: '16px', right: '16px' }}
+            toastOptions={toastOptions}
           />
-        )}
-        <UpdateModal />
-      </div>
-    </AppTooltipProvider>
+          <Titlebar />
+
+          <div className="flex h-full overflow-hidden relative">
+            <Sidebar currentView={currentView} setCurrentView={handleSetView} />
+
+            <main className="flex-1 min-w-0 overflow-hidden relative flex flex-col">
+              <ErrorBoundary scope="ui:downloader">
+                <div
+                  className={clsx(
+                    'flex-1 overflow-hidden flex flex-col pt-10',
+                    currentView !== 'downloader' && 'hidden',
+                    currentView === 'downloader' && 'view-enter',
+                  )}
+                >
+                  <Suspense fallback={null}>
+                    <MemoDownloaderView
+                      onSelectAnime={handleSelectAnime}
+                      activeProvider={activeProvider}
+                      isActive={currentView === 'downloader'}
+                    />
+                  </Suspense>
+                </div>
+              </ErrorBoundary>
+              <Outlet />
+            </main>
+          </div>
+
+          {showCloseConfirm && (
+            <Dialog
+              open={showCloseConfirm}
+              onOpenChange={setShowCloseConfirm}
+              title="¿Cerrar aplicación?"
+              message="Tienes descargas en progreso. Si cierras la aplicación ahora, se cancelarán las descargas activas y tendrás que reanudarlas más tarde. ¿Realmente deseas salir?"
+              confirmLabel="Sí, salir"
+              danger={true}
+              onConfirm={async () => {
+                await window.api.invoke('force-close-app');
+              }}
+            />
+          )}
+          <UpdateModal />
+        </div>
+      </AppTooltipProvider>
+    </AppShellContext.Provider>
   );
 }

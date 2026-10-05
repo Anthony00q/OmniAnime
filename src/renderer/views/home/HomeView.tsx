@@ -1,10 +1,11 @@
 import { RefreshCcw, Clock, Loader2, Clapperboard } from 'lucide-react';
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useAtomValue, useSetAtom } from 'jotai';
+import { useAtomValue } from 'jotai';
 import { useAtomCallback } from 'jotai/utils';
 import type { KeyboardEvent } from 'react';
-import { activeProviderAtom, openAnimeAtom, navigateToCatalogAtom } from '@/renderer/store/atoms';
+import { activeProviderAtom } from '@/renderer/store/atoms';
+import { useAppNavigation } from '@/renderer/hooks/useAppNavigation';
 import { useConnectivityStatus, useHomeData, useSearchAnime, prefetchAnimeDetails } from '@/renderer/hooks/useQueries';
 import { shouldShowOfflineEmpty } from '@/renderer/utils/offlineEmpty';
 import { filterHomeBySection, homeSectionLabel, listHomeSections } from '@/renderer/utils/homeSections';
@@ -18,7 +19,7 @@ import { ErrorState } from '@/renderer/components/ui/ErrorState';
 import { EmptyState } from '@/renderer/components/ui/EmptyState';
 
 const HomePosterItem = memo(function HomePosterItem({ item, priority }: { item: any; priority: boolean }) {
-  const setOpenAnime = useSetAtom(openAnimeAtom);
+  const { openAnime } = useAppNavigation();
   const queryClient = useQueryClient();
   // Sin suscripción al átomo: cada item se re-renderizaría con cada cambio de proveedor.
   const getProviderId = useAtomCallback((get) => get(activeProviderAtom));
@@ -44,7 +45,7 @@ const HomePosterItem = memo(function HomePosterItem({ item, priority }: { item: 
       }
       onClick={() => {
         prefetchAnimeDetails(queryClient, getProviderId(), item.slug);
-        setOpenAnime(item.slug);
+        openAnime(item.slug);
       }}
     />
   );
@@ -52,10 +53,9 @@ const HomePosterItem = memo(function HomePosterItem({ item, priority }: { item: 
 
 export function HomeView({ isActive }: { isActive?: boolean }) {
   const providerId = useAtomValue(activeProviderAtom);
-  const setOpenAnime = useSetAtom(openAnimeAtom);
+  const { openAnime, navigateToCatalog } = useAppNavigation();
 
   const providerName = providerId === 'jkanime' ? 'JkAnime' : 'AnimeAV1';
-  const navigateToCatalog = useSetAtom(navigateToCatalogAtom);
   const previousProviderRef = useRef(providerId);
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -120,7 +120,7 @@ export function HomeView({ isActive }: { isActive?: boolean }) {
 
   const handleSelectAnime = (slug: string) => {
     prefetchAnimeDetails(queryClient, providerId, slug);
-    setOpenAnime(slug);
+    openAnime(slug);
     setShowDropdown(false);
     setActiveSearchIndex(-1);
   };

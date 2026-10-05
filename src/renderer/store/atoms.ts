@@ -4,8 +4,6 @@ import { DEFAULT_ACCENT_HSL, isThemeValue } from '@/renderer/utils/color';
 
 export type ToastPosition = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'top-center' | 'bottom-center';
 
-export const currentViewAtom = atom<string>('home');
-export const previousViewAtom = atom<string>('home');
 export const selectedAnimeAtom = atom<string | null>(null);
 
 export const activeProviderAtom = atom<string>('animeav1');
@@ -53,36 +51,5 @@ export const appUpdateErrorAtom = atom<string | null>(null);
 
 export const providerChangedCounterAtom = atom(0);
 export const settingsChangedCounterAtom = atom(0);
-export const navigateToCatalogCounterAtom = atom(0);
-export const focusSearchCounterAtom = atom(0);
 
 export const pendingCatalogGenreAtom = atom<string | null>(null);
-
-export const openAnimeAtom = atom(null, (_get, set, slug: string) => {
-  const current = _get(currentViewAtom);
-  if (current !== 'details') {
-    set(previousViewAtom, current);
-  }
-  set(selectedAnimeAtom, slug);
-  set(currentViewAtom, 'details');
-});
-
-export const closeAnimeDetailsAtom = atom(null, (_get, set) => {
-  set(selectedAnimeAtom, null);
-  set(currentViewAtom, _get(previousViewAtom));
-});
-
-export const navigateToCatalogAtom = atom(null, (_get, set, genre?: string) => {
-  if (genre) {
-    set(pendingCatalogGenreAtom, genre);
-  }
-  const current = _get(currentViewAtom);
-  if (current !== 'catalog' && current !== 'details' && current !== 'settings') {
-    set(previousViewAtom, current);
-  }
-  set(currentViewAtom, 'catalog');
-  set(navigateToCatalogCounterAtom, (c) => c + 1);
-  setTimeout(() => {
-    set(focusSearchCounterAtom, (c) => c + 1);
-  }, 50);
-});

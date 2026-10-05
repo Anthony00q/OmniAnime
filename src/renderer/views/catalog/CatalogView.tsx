@@ -1,18 +1,13 @@
 import { memo, useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Filter, Loader2, SearchX } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useAtomValue, useSetAtom, useAtom } from 'jotai';
+import { useAtomValue, useAtom } from 'jotai';
 import { useAtomCallback } from 'jotai/utils';
+import { useLocation } from '@tanstack/react-router';
 import { CustomSelect } from '@/renderer/components/CustomSelect';
 import { EmptyState } from '@/renderer/components/ui/EmptyState';
-import {
-  activeProviderAtom,
-  providerChangedCounterAtom,
-  navigateToCatalogCounterAtom,
-  focusSearchCounterAtom,
-  pendingCatalogGenreAtom,
-  openAnimeAtom,
-} from '@/renderer/store/atoms';
+import { activeProviderAtom, providerChangedCounterAtom, pendingCatalogGenreAtom } from '@/renderer/store/atoms';
+import { useAppNavigation } from '@/renderer/hooks/useAppNavigation';
 import { useCatalog, useConnectivityStatus, useFiltersData, prefetchAnimeDetails } from '@/renderer/hooks/useQueries';
 import { shouldShowOfflineEmpty } from '@/renderer/utils/offlineEmpty';
 import { PosterCard } from '@/renderer/components/anime/PosterCard';
@@ -26,7 +21,7 @@ import { dedupeCatalogPages, getCatalogResultKey } from '@/renderer/utils/catalo
 import { ActiveFilterChips } from '@/renderer/components/catalog/ActiveFilterChips';
 
 const CatalogPosterItem = memo(function CatalogPosterItem({ item, priority }: { item: any; priority: boolean }) {
-  const setOpenAnime = useSetAtom(openAnimeAtom);
+  const { openAnime } = useAppNavigation();
   const queryClient = useQueryClient();
   // Sin suscripción al átomo: cada item se re-renderizaría con cada cambio de proveedor.
   const getProviderId = useAtomCallback((get) => get(activeProviderAtom));
@@ -48,7 +43,7 @@ const CatalogPosterItem = memo(function CatalogPosterItem({ item, priority }: { 
       }
       onClick={() => {
         prefetchAnimeDetails(queryClient, getProviderId(), item.slug);
-        setOpenAnime(item.slug);
+        openAnime(item.slug);
       }}
     />
   );
@@ -59,9 +54,10 @@ export function CatalogView() {
 
   const providerId = useAtomValue(activeProviderAtom);
   const providerChangedCounter = useAtomValue(providerChangedCounterAtom);
-  const navigateToCatalogCounter = useAtomValue(navigateToCatalogCounterAtom);
-  const focusSearchCounter = useAtomValue(focusSearchCounterAtom);
   const [pendingCatalogGenre, setPendingCatalogGenre] = useAtom(pendingCatalogGenreAtom);
+  const location = useLocation();
+  // El foco del buscador viaja en el estado de la entrada de historial.
+  const focusSearch = location.state.focusSearch ?? false;
 
   const [showFilters, setShowFilters] = useState(false);
   const [searchInput, setSearchInput] = useState('');
@@ -125,17 +121,10 @@ export function CatalogView() {
   }, [providerChangedCounter]);
 
   useEffect(() => {
-    if (focusSearchCounter > 0) {
+    if (focusSearch) {
       searchInputRef.current?.focus();
     }
-  }, [focusSearchCounter]);
-
-  useEffect(() => {
-    if (navigateToCatalogCounter === 0) return;
-    if (pendingCatalogGenre) {
-      applyPendingGenre(pendingCatalogGenre);
-    }
-  }, [filterData, navigateToCatalogCounter, pendingCatalogGenre, applyPendingGenre]);
+  }, [focusSearch]);
 
   useEffect(() => {
     const handler = setTimeout(() => {

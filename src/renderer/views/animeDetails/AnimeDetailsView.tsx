@@ -34,12 +34,8 @@ import jkanimeIcon from '../../../../assets/provider-icons/jkanime-32.png';
 import jkanimeIcon2x from '../../../../assets/provider-icons/jkanime-64.png';
 import anilistIcon from '../../../../assets/provider-icons/anilist-32.png';
 import anilistIcon2x from '../../../../assets/provider-icons/anilist-64.png';
-import {
-  outputDirsAtom,
-  navigateToCatalogAtom,
-  pendingCatalogGenreAtom,
-  activeProviderAtom,
-} from '@/renderer/store/atoms';
+import { outputDirsAtom, pendingCatalogGenreAtom, activeProviderAtom } from '@/renderer/store/atoms';
+import { useAppNavigation } from '@/renderer/hooks/useAppNavigation';
 import { parseEpisodeFilter } from '@/renderer/utils/episodeFilter';
 import { useEpisodeView } from '@/renderer/utils/episodeView';
 import { EpisodeViewMenu } from '@/renderer/views/library/components/EpisodeViewMenu';
@@ -235,7 +231,7 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
 
   const outputDirs = useAtomValue(outputDirsAtom);
   const activeProviderId = useAtomValue(activeProviderAtom);
-  const navigateToCatalog = useSetAtom(navigateToCatalogAtom);
+  const { navigateToCatalog } = useAppNavigation();
   const setPendingGenre = useSetAtom(pendingCatalogGenreAtom);
 
   const dataSlug = (data as AnimeDetails | undefined)?.slug;

@@ -2,9 +2,10 @@ import { CalendarDays, LayoutGrid, RefreshCcw, Rows3 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import clsx from 'clsx';
 import { useQueryClient } from '@tanstack/react-query';
-import { useAtomValue, useSetAtom } from 'jotai';
+import { useAtomValue } from 'jotai';
 import { useAtomCallback } from 'jotai/utils';
-import { activeProviderAtom, navigateToCatalogAtom, openAnimeAtom } from '@/renderer/store/atoms';
+import { activeProviderAtom } from '@/renderer/store/atoms';
+import { useAppNavigation } from '@/renderer/hooks/useAppNavigation';
 import { prefetchAnimeDetails, useConnectivityStatus, useSchedule } from '@/renderer/hooks/useQueries';
 import { shouldShowOfflineEmpty } from '@/renderer/utils/offlineEmpty';
 import {
@@ -44,8 +45,7 @@ export function ScheduleView({ isActive }: { isActive?: boolean }) {
   const providerId = useAtomValue(activeProviderAtom);
   const getProviderId = useAtomCallback((get) => get(activeProviderAtom));
   const providerName = providerId === 'jkanime' ? 'JkAnime' : 'AnimeAV1';
-  const setOpenAnime = useSetAtom(openAnimeAtom);
-  const navigateToCatalog = useSetAtom(navigateToCatalogAtom);
+  const { openAnime, navigateToCatalog } = useAppNavigation();
   const queryClient = useQueryClient();
 
   const { data, isLoading, isError, refetch, refresh, isRefreshing } = useSchedule();
@@ -98,9 +98,9 @@ export function ScheduleView({ isActive }: { isActive?: boolean }) {
       // El proveedor se lee al clic: si el handler lo cerrara, cambiaría con cada
       // cambio de proveedor y el memo de las filas no surtiría efecto.
       prefetchAnimeDetails(queryClient, getProviderId(), slug);
-      setOpenAnime(slug);
+      openAnime(slug);
     },
-    [queryClient, getProviderId, setOpenAnime],
+    [queryClient, getProviderId, openAnime],
   );
 
   const isEmpty = !isLoading && !isError && entries.length === 0;

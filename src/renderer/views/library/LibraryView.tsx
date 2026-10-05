@@ -10,9 +10,10 @@ import {
   type SetStateAction,
 } from 'react';
 import { RefreshCcw, FolderOpen, Library, Search } from 'lucide-react';
-import { useAtomValue, useSetAtom } from 'jotai';
+import { useAtomValue } from 'jotai';
 import { toast } from 'sonner';
-import { settingsAtom, currentViewAtom, navigateToCatalogAtom } from '@/renderer/store/atoms';
+import { settingsAtom } from '@/renderer/store/atoms';
+import { useAppNavigation } from '@/renderer/hooks/useAppNavigation';
 import { useLibrary } from '@/renderer/hooks/useQueries';
 import { isIpcFailError, unwrap } from '@/renderer/hooks/queries/unwrap';
 import { LibraryAnimeDetails } from './LibraryAnimeDetails';
@@ -102,8 +103,7 @@ export function LibraryView({ onSelectAnime, activeProvider, isActive }: Library
     }
   });
   const searchInputRef = useRef<HTMLInputElement | null>(null);
-  const setCurrentView = useSetAtom(currentViewAtom);
-  const navigateToCatalog = useSetAtom(navigateToCatalogAtom);
+  const { setView, navigateToCatalog } = useAppNavigation();
   const [folderMenu, setFolderMenu] = useState<{ x: number; y: number; item: any } | null>(null);
   const [detailsItem, setDetailsItem] = useState<any>(null);
 
@@ -296,7 +296,7 @@ export function LibraryView({ onSelectAnime, activeProvider, isActive }: Library
             title="Aún sin estantes"
             description="Configura al menos una carpeta de descarga en Ajustes para comenzar tu colección."
             actionLabel="Abrir Ajustes"
-            onAction={() => setCurrentView('settings')}
+            onAction={() => setView('settings')}
           />
         ) : isError ? (
           <ErrorState
