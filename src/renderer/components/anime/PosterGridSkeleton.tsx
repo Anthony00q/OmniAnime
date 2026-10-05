@@ -81,20 +81,54 @@ export function ScheduleSkeleton({ count = 7 }: { count?: number }) {
   return (
     <ul className="pt-2" role="status" aria-label="Cargando horario" aria-busy="true">
       {Array.from({ length: count }).map((_, idx) => (
-        <li
-          key={idx}
-          className="schedule-row flex items-center gap-4 border-b border-border/40 px-2 py-4 last:border-0"
-          aria-hidden="true"
-        >
-          <div className="h-[78px] w-[52px] shrink-0 animate-pulse rounded bg-secondary/40" />
-          <div className="min-w-0 flex-1 space-y-2">
-            <div className="h-4 w-2/3 animate-pulse rounded bg-secondary/60" />
-            <div className="h-3 w-1/3 animate-pulse rounded bg-secondary/30" />
+        <li key={idx} aria-hidden="true">
+          <div className="flex items-baseline gap-3 pb-1 pt-5">
+            <div className="h-4 w-12 animate-pulse rounded bg-secondary/50" />
+            <div className="h-px flex-1 self-center bg-secondary/30" />
           </div>
-          <div className="h-7 w-32 shrink-0 animate-pulse rounded-full bg-secondary/40" />
+          <div className="schedule-row flex items-center gap-4 border-b border-border/40 px-2 py-4">
+            <div className="h-[78px] w-[52px] shrink-0 animate-pulse rounded bg-secondary/40" />
+            <div className="min-w-0 flex-1 space-y-2">
+              <div className="h-4 w-2/3 animate-pulse rounded bg-secondary/60" />
+              <div className="h-3 w-1/3 animate-pulse rounded bg-secondary/30" />
+            </div>
+            <div className="h-7 w-32 shrink-0 animate-pulse rounded-full bg-secondary/40" />
+          </div>
         </li>
       ))}
     </ul>
+  );
+}
+
+export function ScheduleGridSkeleton({ count = 10 }: { count?: number }) {
+  return (
+    <div
+      className="grid grid-cols-2 gap-4 gap-y-6 pt-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7"
+      role="status"
+      aria-label="Cargando horario"
+      aria-busy="true"
+    >
+      {Array.from({ length: count }).map((_, idx) => (
+        <div
+          key={idx}
+          className="schedule-card overflow-hidden rounded-xl border border-border/50 bg-card"
+          aria-hidden="true"
+        >
+          <div className="aspect-[2/3] w-full animate-pulse bg-secondary/40" />
+          <div className="flex flex-col gap-1 border-t border-border/50 px-3 py-2.5">
+            <div className="flex min-h-[20px] items-center justify-between gap-2">
+              <div className="h-4 w-12 animate-pulse rounded bg-secondary/50" />
+              <div className="h-3 w-14 animate-pulse rounded bg-secondary/40" />
+            </div>
+            <div className="flex h-[38px] flex-col justify-center gap-1">
+              <div className="h-3.5 w-3/4 animate-pulse rounded bg-secondary/60" />
+              <div className="h-3.5 w-1/2 animate-pulse rounded bg-secondary/60" />
+            </div>
+            <div className="h-[18px] w-2/3 animate-pulse rounded bg-secondary/30" />
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }
 
