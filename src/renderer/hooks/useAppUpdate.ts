@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
-import type { AppUpdateCheckResult, AppUpdateState } from '@/types/appUpdate';
+import type { AppUpdateCheckData, AppUpdateState } from '@/types/appUpdate';
 import { shouldPlaySystemSound } from '@/utils/sounds/soundPacks';
 import {
   appUpdateAvailableAtom,
@@ -12,17 +12,13 @@ import {
   settingsAtom,
 } from '@/renderer/store/atoms';
 import { playNotificationSound } from '@/renderer/utils/sound';
+import { isIpcFailError, unwrap } from '@/renderer/hooks/queries/unwrap';
 
 // Check único tras el handoff del splash: no bloquea el arranque,
 // el modal solo abre si hay versión nueva y no se descartó en la sesión.
 const POST_SPLASH_CHECK_DELAY_MS = 2500;
 const INFO_SOUND_COOLDOWN_MS = 500;
 let lastInfoSoundAt = 0;
-
-function readCheckResult(result: unknown): AppUpdateCheckResult | null {
-  if (!result || typeof result !== 'object') return null;
-  return result as AppUpdateCheckResult;
-}
 
 function playInfoSoundOnce(settings: unknown) {
   const now = Date.now();
@@ -90,11 +86,12 @@ export function useAppUpdate() {
     if (checkedRef.current) return;
     checkedRef.current = true;
     const timer = setTimeout(() => {
+      // Silencioso a propósito: el modal solo se abre con versión nueva.
       void window.api
         .invoke('app-update-check')
-        .then((result: unknown) => {
-          const check = readCheckResult(result);
-          if (check?.ok && check.available && check.version) {
+        .then((res) => unwrap(res, { toast: false }))
+        .then((check: AppUpdateCheckData | null) => {
+          if (check?.available && check.version) {
             applyAvailable(check.version, check.notes);
           }
         })
@@ -117,25 +114,18 @@ export function useAppUpdate() {
     setPercent(0);
     setPhase('downloading');
     try {
-      const result = (await window.api.invoke('app-update-download')) as { ok?: boolean; message?: string } | null;
-      if (!result?.ok) {
-        setError(result?.message || 'No se pudo descargar la actualización.');
-        setPhase('idle');
-      }
-    } catch {
-      setError('No se pudo descargar la actualización.');
+      unwrap(await window.api.invoke('app-update-download'), { toast: false });
+    } catch (e: unknown) {
+      setError(isIpcFailError(e) ? e.message : 'No se pudo descargar la actualización.');
       setPhase('idle');
     }
   }, [setError, setPercent, setPhase]);
 
   const install = useCallback(async () => {
     try {
-      const result = (await window.api.invoke('app-update-install')) as { ok?: boolean; message?: string } | null;
-      if (!result?.ok) {
-        setError(result?.message || 'No se pudo instalar la actualización.');
-      }
-    } catch {
-      setError('No se pudo instalar la actualización.');
+      unwrap(await window.api.invoke('app-update-install'), { toast: false });
+    } catch (e: unknown) {
+      setError(isIpcFailError(e) ? e.message : 'No se pudo instalar la actualización.');
     }
   }, [setError]);
 

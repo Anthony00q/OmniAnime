@@ -29,3 +29,11 @@ export interface AppUpdateInstallResult {
   code?: 'DEV' | 'ACTIVE_DOWNLOADS' | 'FAILED';
   message?: string;
 }
+
+// Lo que viaja al renderer cuando la comprobación sale bien.
+export interface AppUpdateCheckData {
+  available: boolean;
+  version?: string;
+  currentVersion?: string;
+  notes?: string;
+}
