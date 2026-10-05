@@ -7,7 +7,7 @@ import {
   CatalogFiltersData,
   ScheduleData,
 } from '../../../types/anime';
-import { AnimeProvider } from '../AnimeProvider';
+import { AnimeProvider, type ProviderModule } from '../AnimeProvider';
 import { noopScopedLogger, type ScopedLogger } from '../../logging/AppLogger';
 import type { OutboundClient } from '../../../utils/security/outboundPolicy';
 import {
@@ -229,3 +229,11 @@ export class AnimeAV1Provider implements AnimeProvider {
 
 export { buildAv1EpisodeThumbUrl } from './mapper';
 export { extractAkaTitles, extractMediaMalId, parseAv1Schedule } from './parser';
+
+export const animeav1Provider: ProviderModule = {
+  id: 'animeav1',
+  label: 'AnimeAV1',
+  icon: 'animeav1',
+  capabilities: { search: true, homeFeed: true, schedule: true, episodeLinks: true },
+  create: (options) => new AnimeAV1Provider(options),
+};

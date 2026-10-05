@@ -6,6 +6,7 @@ import {
   CatalogFiltersData,
   ScheduleData,
 } from '../../types/anime';
+import type { ScopedLogger } from '../logging/AppLogger';
 
 export interface AnimeProvider {
   get id(): string;
@@ -18,4 +19,21 @@ export interface AnimeProvider {
   getDetails(slug: string): Promise<AnimeDetails | null>;
   getLinks(slug: string, episode: number, lang?: string, signal?: AbortSignal): Promise<DownloadLink[]>;
   getFiltersData(force?: boolean): Promise<CatalogFiltersData>;
+}
+
+export interface ProviderCapabilities {
+  search: boolean;
+  homeFeed: boolean;
+  schedule: boolean;
+  episodeLinks: boolean;
+}
+
+// Contrato ampliado que exporta cada `providers/<name>/index.ts`: identidad,
+// capacidades y fábrica de su AnimeProvider. Es lo que descubre el registry.
+export interface ProviderModule {
+  id: string;
+  label: string;
+  icon: string;
+  capabilities: ProviderCapabilities;
+  create(options?: { logger?: ScopedLogger }): AnimeProvider;
 }

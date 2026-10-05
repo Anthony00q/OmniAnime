@@ -7,7 +7,7 @@ import {
   CatalogFiltersData,
   ScheduleData,
 } from '../../../types/anime';
-import { AnimeProvider } from '../AnimeProvider';
+import { AnimeProvider, type ProviderModule } from '../AnimeProvider';
 import { noopScopedLogger, type ScopedLogger } from '../../logging/AppLogger';
 import {
   createJkHttpClient,
@@ -389,3 +389,11 @@ export class JkAnimeProvider implements AnimeProvider {
 
 export { buildJkEpisodeThumbUrl, collectJkEpisodeThumbs, resolveJkSeasonFromTexts, splitJkSynonyms } from './mapper';
 export { collectJkHomeEpisodes, collectJkSchedule, extractJkAlternativeTitles, extractJkMalId } from './parser';
+
+export const jkanimeProvider: ProviderModule = {
+  id: 'jkanime',
+  label: 'JkAnime',
+  icon: 'jkanime',
+  capabilities: { search: true, homeFeed: true, schedule: true, episodeLinks: true },
+  create: (options) => new JkAnimeProvider(options),
+};
