@@ -20,6 +20,7 @@ import { Dialog } from '@/renderer/components/Dialog';
 import { AppTooltip } from '@/renderer/components/ui/AppTooltip';
 import { EmptyState } from '@/renderer/components/ui/EmptyState';
 import { useLogFilePage, useLogFilenames, useDeleteLogFiles, fetchLogPageSnapshot } from '@/renderer/hooks/useQueries';
+import { isIpcFailError } from '@/renderer/hooks/queries/unwrap';
 import { exportDiagnostics, revealLogFile } from '@/renderer/utils/diagnosticsActions';
 import { filterLogFilenames } from '@/utils/logging/logPage';
 
@@ -198,7 +199,7 @@ export const LogsTab = memo(function LogsTab({ isActive = true }: LogsTabProps) 
     setDeleting(true);
     try {
       const res: any = await deleteLogFiles.mutateAsync([...selected]);
-      if (res?.ok === true) {
+      if (res?.deleted > 0) {
         toast.success(
           res.deleted === 1 ? 'Espacio liberado: 1 sesión anterior' : `Espacio liberado: ${res.deleted} sesiones`,
           res.skipped > 0 ? { description: `${res.skipped} omitida(s)` } : undefined,
@@ -206,7 +207,7 @@ export const LogsTab = memo(function LogsTab({ isActive = true }: LogsTabProps) 
         if (openFile && selected.has(openFile)) setOpenFile(null);
         setSelected(new Set());
       } else {
-        toast.error('Nada que liberar', { description: String(res?.error || 'Sin datos') });
+        toast.error('Nada que liberar', res.skipped > 0 ? { description: `${res.skipped} omitida(s)` } : undefined);
       }
     } catch (e: any) {
       toast.error('No se pudo liberar espacio', { description: String(e?.message || e) });
@@ -228,8 +229,9 @@ export const LogsTab = memo(function LogsTab({ isActive = true }: LogsTabProps) 
       }
       const body = entries.map((e: any) => e.text).join('\n\n');
       await copyText(res?.nextCursor != null ? `${body}\n\n…[recortado]` : body, 'Sesión actual copiada');
-    } catch {
-      toast.error('No se pudo copiar la sesión');
+    } catch (e: unknown) {
+      // El fallo de lectura ya avisa; esto cubre solo el copiado.
+      if (!isIpcFailError(e)) toast.error('No se pudo copiar la sesión');
     } finally {
       setCopying(false);
     }

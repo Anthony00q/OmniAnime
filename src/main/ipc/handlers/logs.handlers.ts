@@ -2,6 +2,7 @@ import { app, dialog } from 'electron';
 import { handleIpc } from '../ipcGuard';
 import * as fs from 'fs';
 import * as path from 'path';
+import { fail, ok } from '../../../types/api';
 import { redactLogText } from '../../../services/logging/AppLogger';
 import {
   LOG_VIEW_MAX_BYTES_PER_FILE,
@@ -37,7 +38,7 @@ export function registerLogsHandlers(dependencies: IpcRegistryDependencies): voi
       try {
         names = await fs.promises.readdir(logDir);
       } catch {
-        return { ok: true as const, files: [], current, sessionStart: dependencies.getSessionStart() };
+        return ok({ files: [], current, sessionStart: dependencies.getSessionStart() });
       }
       const files = listLogFilenames(names);
       const detailed = await Promise.all(
@@ -50,10 +51,10 @@ export function registerLogsHandlers(dependencies: IpcRegistryDependencies): voi
           }
         }),
       );
-      return { ok: true as const, files: detailed, current, sessionStart: dependencies.getSessionStart() };
+      return ok({ files: detailed, current, sessionStart: dependencies.getSessionStart() });
     } catch (error) {
       dependencies.writeGlobalLog(error);
-      return { ok: false as const, files: [], current: '', sessionStart: '' };
+      return fail('LOG_FILES_FAILED', 'No se pudo leer el registro');
     }
   });
   handleIpc(
@@ -84,8 +85,7 @@ export function registerLogsHandlers(dependencies: IpcRegistryDependencies): voi
         const entries = selectLogEntriesFromSources(sources, filters ?? {}, sessionStart);
         const { page, nextCursor, total } = paginateLogEntries(entries, cursor, limit);
         const home = app.getPath('home');
-        return {
-          ok: true as const,
+        return ok({
           entries: page.map((e) => ({
             ...e,
             text: redactLogText(capEntryText(e.text), home),
@@ -93,10 +93,10 @@ export function registerLogsHandlers(dependencies: IpcRegistryDependencies): voi
           nextCursor,
           total,
           sessionStart,
-        };
+        });
       } catch (error) {
         dependencies.writeGlobalLog(error);
-        return { ok: false as const, entries: [], nextCursor: null, total: 0 };
+        return fail('LOG_PAGE_FAILED', 'No se pudo leer el registro');
       }
     },
   );
@@ -115,7 +115,7 @@ export function registerLogsHandlers(dependencies: IpcRegistryDependencies): voi
         list.push(text);
         byFile.set(file, list);
       }
-      if (byFile.size === 0) return { ok: false as const, deleted: 0, skipped: 0, error: 'Sin entradas válidas' };
+      if (byFile.size === 0) return fail('LOG_ENTRIES_INVALID', 'Sin entradas válidas');
       const rules = { sessionStart: dependencies.getSessionStart() };
       const home = app.getPath('home');
       const toViewerText = (text: string): string => redactLogText(capEntryText(text), home);
@@ -146,14 +146,14 @@ export function registerLogsHandlers(dependencies: IpcRegistryDependencies): voi
             }
           } catch (rewriteError) {
             dependencies.writeGlobalLog(rewriteError);
-            return { ok: false as const, deleted, skipped, error: 'No se pudo reescribir el registro' };
+            return fail('LOG_ENTRIES_REWRITE_FAILED', 'No se pudo reescribir el registro');
           }
         }
       }
-      return { ok: true as const, deleted, skipped };
+      return ok({ deleted, skipped });
     } catch (error) {
       dependencies.writeGlobalLog(error);
-      return { ok: false as const, deleted: 0, skipped: 0, error: 'No se pudieron eliminar las entradas' };
+      return fail('LOG_ENTRIES_DELETE_FAILED', 'No se pudieron eliminar las entradas');
     }
   });
 
@@ -182,11 +182,11 @@ export function registerLogsHandlers(dependencies: IpcRegistryDependencies): voi
           skipped += 1;
         }
       }
-      if (deleted === 0) return { ok: false as const, deleted, skipped, error: 'Nada que liberar' };
-      return { ok: true as const, deleted, skipped };
+      // Nada que liberar es un resultado, no un fallo.
+      return ok({ deleted, skipped });
     } catch (error) {
       dependencies.writeGlobalLog(error);
-      return { ok: false as const, deleted: 0, skipped: 0, error: 'No se pudo liberar espacio' };
+      throw error;
     }
   });
 
@@ -201,19 +201,19 @@ export function registerLogsHandlers(dependencies: IpcRegistryDependencies): voi
           defaultPath: path.join(app.getPath('downloads'), `omnianime-diagnostico-${stamp}.log`),
           filters: [{ name: 'Registro', extensions: ['log'] }],
         });
-        if (result.canceled || !result.filePath) return { success: false as const, canceled: true };
+        if (result.canceled || !result.filePath) return ok(null);
         if (!result.filePath.toLowerCase().endsWith('.log')) {
-          return { success: false as const, error: 'Solo se permite exportar como .log' };
+          return fail('EXPORT_DIAGNOSTICS_INVALID', 'Solo se permite exportar como .log');
         }
         // Sin filtros se exporta la cola general (comportamiento anterior).
         const { text } = collectDiagnosticsBundle(dependencies, selection ?? {});
         const tmp = `${result.filePath}.tmp`;
         await fs.promises.writeFile(tmp, text, 'utf-8');
         await fs.promises.rename(tmp, result.filePath);
-        return { success: true as const, path: result.filePath };
+        return ok({ path: result.filePath });
       } catch (error) {
         dependencies.writeGlobalLog(error);
-        return { success: false as const, error: error instanceof Error ? error.message : String(error) };
+        throw error;
       }
     },
   );
