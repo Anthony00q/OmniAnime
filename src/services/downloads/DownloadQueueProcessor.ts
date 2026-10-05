@@ -2,7 +2,8 @@ import type { HistoryStatus, HistoryWriteRecord } from '../../types/history';
 import type { ProviderDownloadLink, QueueItem } from '../../types/queue';
 import type { EpisodeAttemptProgress } from './EpisodeDownloadAttemptService';
 import { EpisodeDownloadAttemptService } from './EpisodeDownloadAttemptService';
-import { DownloadCoordinator, type FallbackAttemptPort } from './DownloadCoordinator';
+import { DownloadCoordinator } from './DownloadCoordinator';
+import { SlotScheduler } from './SlotScheduler';
 import type { EpisodeDownloadSummary, ServerAttemptOutcome } from '../persistence/ServerStatsStore';
 import { noopScopedLogger, type ScopedLogger } from '../logging/AppLogger';
 import { QueueStore } from '../persistence/QueueStore';
@@ -62,13 +63,6 @@ export interface DownloadQueueProcessorOptions {
 
 export type EpisodeGateReason = 'resume' | 'cancel' | 'total';
 
-// Tope de EPs-INTENTO simultáneos contra el mismo servidor (NO de conexiones):
-// con 3 EPs en paralelo, como mucho 2 descargan del mismo host a la vez y el
-// tercero espera un hueco en vez de saturarlo. La concurrencia de streams por
-// intento es otro nivel (AttemptConcurrencyHandle) y aquí no se contabiliza.
-const MAX_CONCURRENT_PER_SERVER = 2;
-const SERVER_SLOT_POLL_MS = 200;
-
 interface EpisodeGate {
   settled: boolean;
   reason: EpisodeGateReason;
@@ -82,8 +76,6 @@ export class DownloadQueueProcessor {
   private readonly pausedEpisodesByItem = new Map<string, Set<number>>();
   private readonly cancelledEpisodesByItem = new Map<string, Set<number>>();
   private readonly activeEpisodeControllers = new Map<string, AbortController>();
-  // Slots vivos por servidor (itemId|server). Cuenta EPs, no conexiones.
-  private readonly activeServerCounts = new Map<string, number>();
   // Puertas de aparcamiento: el worker en pausa espera aquí tras liberar su
   // slot en el finally del coordinador; la puerta solo retiene el flujo.
   private readonly episodeGates = new Map<string, EpisodeGate>();
@@ -94,8 +86,13 @@ export class DownloadQueueProcessor {
   private activeQueueItemId: string | null = null;
   private isProcessingQueue = false;
   private readonly coordinator: DownloadCoordinator;
+  private readonly slots: SlotScheduler;
 
   constructor(private readonly options: DownloadQueueProcessorOptions) {
+    this.slots = new SlotScheduler({
+      attemptService: options.attemptService,
+      isEpisodeInterrupted: (item, episode) => this.episodeInterrupted(item, episode),
+    });
     this.coordinator =
       options.coordinator ??
       new DownloadCoordinator({
@@ -1251,50 +1248,14 @@ export class DownloadQueueProcessor {
     return this.coordinator.sortLinksForEpisode(links, order, preferredServer);
   }
 
-  private serverSlotKey(id: string, server: string): string {
-    return `${id}|${server}`;
-  }
-
   private episodeInterrupted(item: QueueItem, episode: number): boolean {
     if (this.cancelledIds.has(item.id) || this.pausedItemIds.has(item.id)) return true;
     if (item.status === 'cancelled' || item.status === 'paused') return true;
     return (item.cancelledEps ?? []).includes(episode) || (item.pausedEps ?? []).includes(episode);
   }
 
-  private async acquireServerSlot(
-    item: QueueItem,
-    episode: number,
-    server: string,
-    signal: AbortSignal,
-  ): Promise<boolean> {
-    const key = this.serverSlotKey(item.id, server);
-    for (;;) {
-      const used = this.activeServerCounts.get(key) ?? 0;
-      if (used < MAX_CONCURRENT_PER_SERVER) {
-        this.activeServerCounts.set(key, used + 1);
-        return true;
-      }
-      if (signal.aborted || this.episodeInterrupted(item, episode)) return false;
-      await new Promise((resolve) => setTimeout(resolve, SERVER_SLOT_POLL_MS));
-    }
-  }
-
-  private releaseServerSlot(id: string, server: string): void {
-    const key = this.serverSlotKey(id, server);
-    const left = (this.activeServerCounts.get(key) ?? 1) - 1;
-    if (left <= 0) this.activeServerCounts.delete(key);
-    else this.activeServerCounts.set(key, left);
-  }
-
-  private purgeServerSlots(id: string): void {
-    for (const key of Array.from(this.activeServerCounts.keys())) {
-      if (key === id || key.startsWith(`${id}|`)) this.activeServerCounts.delete(key);
-    }
-  }
-
-  // Fallback secuencial por episodio: delega en el coordinador. Los slots por
-  // servidor (tope 2 EPs, retención entre links del mismo host) siguen siendo
-  // responsabilidad de la cola y viajan en el puerto de intento.
+  // Fallback secuencial por episodio: delega en el coordinador. El tope de EPs
+  // por servidor lo gestiona SlotScheduler y viaja en el puerto de intento.
   private async attemptServersSequentially(
     item: QueueItem,
     episode: number,
@@ -1304,49 +1265,6 @@ export class DownloadQueueProcessor {
     onProgress: (update: EpisodeAttemptProgress) => void,
     onServerChange?: (server: string) => void,
   ): Promise<{ success: boolean; failureReason: string }> {
-    let heldServer: string | null = null;
-    const port: FallbackAttemptPort = {
-      attempt: async (link, callbacks) => {
-        // Tope por servidor: si ya hay 2 EPs en este host, espera un hueco en
-        // vez de saturarlo. Al abortar/pausar sale y sigue la ruta de aborto.
-        if (heldServer !== link.canonicalServer) {
-          if (heldServer) {
-            this.releaseServerSlot(item.id, heldServer);
-            heldServer = null;
-          }
-          const acquired = await this.acquireServerSlot(item, episode, link.canonicalServer, episodeAbort.signal);
-          if (!acquired) {
-            return {
-              success: false,
-              aborted: episodeAbort.signal.aborted,
-              parentAborted: episodeAbort.signal.aborted,
-              skipRequested: false,
-              attemptTimedOut: false,
-              invalidMp4: false,
-              toolFailureMessage: null,
-              started: false,
-              attempted: false,
-            };
-          }
-          heldServer = link.canonicalServer;
-        }
-        const result = await this.options.attemptService.attempt(
-          item,
-          episode,
-          link,
-          dest,
-          episodeAbort.signal,
-          callbacks,
-        );
-        return { ...result, attempted: true };
-      },
-      release: () => {
-        if (heldServer) {
-          this.releaseServerSlot(item.id, heldServer);
-          heldServer = null;
-        }
-      },
-    };
     return this.coordinator.attemptServersSequentially(
       item,
       episode,
@@ -1355,7 +1273,7 @@ export class DownloadQueueProcessor {
       sortedLinks,
       onProgress,
       onServerChange,
-      port,
+      this.slots.createAttemptPort(item, episode, dest, episodeAbort),
     );
   }
 
@@ -1651,7 +1569,7 @@ export class DownloadQueueProcessor {
     } finally {
       // Red anti-hang: despierta aparcados si el run termina por error
       this.wakeItemGates(item.id, 'total');
-      this.purgeServerSlots(item.id);
+      this.slots.purgeServerSlots(item.id);
       if (this.parallelContexts.get(item.id) === runCtx) this.parallelContexts.delete(item.id);
     }
     if (this.activeEpisodeControllers.size === 0) this.activeQueueItemId = null;
