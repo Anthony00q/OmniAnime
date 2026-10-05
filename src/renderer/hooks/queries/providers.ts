@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useAtom, useSetAtom } from 'jotai';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { activeProviderAtom, providerChangedCounterAtom } from '@/renderer/store/atoms';
+import { unwrap } from './unwrap';
 
 export interface ProviderOption {
   id: string;
@@ -11,7 +12,7 @@ export interface ProviderOption {
 export function useActiveProvider() {
   return useQuery({
     queryKey: ['active-provider'],
-    queryFn: () => window.api.invoke('get-active-provider') as Promise<string>,
+    queryFn: async () => unwrap(await window.api.invoke('get-active-provider')) as string,
     staleTime: Infinity,
   });
 }
@@ -22,7 +23,7 @@ export function useProvidersList(): ProviderOption[] {
   useEffect(() => {
     window.api
       .invoke('get-providers')
-      .then(setProviders)
+      .then((res) => setProviders(unwrap(res)))
       .catch(() => {});
   }, []);
 
@@ -59,9 +60,7 @@ export function useProviderSwitch(): (id: string) => void {
         };
         void window.api
           .invoke('set-active-provider', id)
-          .then((result) => {
-            if (result === false) rollbackIfStale();
-          })
+          .then((res) => unwrap(res, { toast: false }))
           .catch(rollbackIfStale);
       };
       // El flujo arranca tras pintar el deslizamiento del indicador (160ms): el render

@@ -25,7 +25,7 @@ export function useSystemInfo(enabled = true) {
 export function useConnectivityStatus(enabled = true) {
   return useQuery({
     queryKey: ['connectivity-status'],
-    queryFn: () => window.api.invoke('get-connectivity-status') as Promise<boolean>,
+    queryFn: async () => unwrap(await window.api.invoke('get-connectivity-status')) as boolean,
     enabled,
     staleTime: 30 * 1000,
     refetchOnWindowFocus: false,
@@ -37,7 +37,6 @@ export function useStorageActions() {
   const queryClient = useQueryClient();
   return {
     cleanCache: useMutation({
-      // La vista gestiona su aviso (toast con id): unwrap no toste.
       mutationFn: async () => unwrap(await window.api.invoke('clean-cache'), { toast: false }),
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: ['storage-stats'] });

@@ -62,7 +62,7 @@ async function bootstrap(): Promise<void> {
   let preloaded: PreloadedRendererData | null = null;
 
   try {
-    preloaded = (await window.api.invoke('get-preloaded-data')) as PreloadedRendererData | null;
+    preloaded = unwrap(await window.api.invoke('get-preloaded-data')) as PreloadedRendererData | null;
   } catch {
     // The active-provider query below remains the fallback for startup errors.
   }
@@ -75,7 +75,7 @@ async function bootstrap(): Promise<void> {
   let providerId = cleanProviderId(preloaded?.providerId);
   if (!providerId) {
     try {
-      providerId = cleanProviderId(await window.api.invoke('get-active-provider'));
+      providerId = cleanProviderId(unwrap(await window.api.invoke('get-active-provider')));
     } catch {
       // Queries remain responsible for recovering if startup data is unavailable.
     }
