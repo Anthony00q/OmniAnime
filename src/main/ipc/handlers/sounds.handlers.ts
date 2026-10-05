@@ -1,4 +1,5 @@
-import { app, dialog, ipcMain } from 'electron';
+import { app, dialog } from 'electron';
+import { handleIpc } from '../ipcGuard';
 import * as path from 'path';
 import { CustomSoundService } from '../../../services/sounds/CustomSoundService';
 import type { IpcRegistryDependencies } from '../../IpcRegistry';
@@ -10,7 +11,7 @@ export function registerSoundHandlers({ writeGlobalLog }: IpcRegistryDependencie
     soundsDir: path.join(app.getAppPath(), 'assets', 'sounds'),
   });
 
-  ipcMain.handle('import-custom-sound', async () => {
+  handleIpc('import-custom-sound', async () => {
     try {
       const result = await dialog.showOpenDialog({
         title: 'Subir sonido',
@@ -25,7 +26,7 @@ export function registerSoundHandlers({ writeGlobalLog }: IpcRegistryDependencie
     }
   });
 
-  ipcMain.handle('delete-custom-sound', async (_, id: string) => {
+  handleIpc('delete-custom-sound', async (_, id: string) => {
     try {
       return await service.delete(String(id || ''));
     } catch (error) {
@@ -34,7 +35,7 @@ export function registerSoundHandlers({ writeGlobalLog }: IpcRegistryDependencie
     }
   });
 
-  ipcMain.handle('read-sound-data', async (_, ref: string) => {
+  handleIpc('read-sound-data', async (_, ref: string) => {
     try {
       const data = await service.read(String(ref || ''));
       return data ? { ok: true, data } : { ok: false };

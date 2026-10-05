@@ -1,4 +1,4 @@
-import { ipcMain } from 'electron';
+import { handleIpc } from '../ipcGuard';
 import type { IpcRegistryDependencies } from '../../IpcRegistry';
 
 export function registerProviderHandlers({
@@ -6,9 +6,9 @@ export function registerProviderHandlers({
   providerGateway,
   getConnectivityStatus,
 }: IpcRegistryDependencies): void {
-  ipcMain.handle('get-preloaded-data', () => preloadedData);
-  ipcMain.handle('get-providers', () => providerGateway.getProvidersList());
-  ipcMain.handle('get-active-provider', () => providerGateway.activeProviderIdName);
-  ipcMain.handle('set-active-provider', (_, id) => providerGateway.setActiveProvider(id));
-  ipcMain.handle('get-connectivity-status', () => getConnectivityStatus());
+  handleIpc('get-preloaded-data', () => preloadedData);
+  handleIpc('get-providers', () => providerGateway.getProvidersList());
+  handleIpc('get-active-provider', () => providerGateway.activeProviderIdName);
+  handleIpc('set-active-provider', (_, id) => providerGateway.setActiveProvider(id));
+  handleIpc('get-connectivity-status', () => getConnectivityStatus());
 }

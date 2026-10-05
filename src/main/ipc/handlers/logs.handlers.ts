@@ -1,4 +1,5 @@
-import { app, dialog, ipcMain } from 'electron';
+import { app, dialog } from 'electron';
+import { handleIpc } from '../ipcGuard';
 import * as fs from 'fs';
 import * as path from 'path';
 import { redactLogText } from '../../../services/logging/AppLogger';
@@ -28,7 +29,7 @@ function rewriteLogFileSync(file: string, kept: string): void {
 }
 
 export function registerLogsHandlers(dependencies: IpcRegistryDependencies): void {
-  ipcMain.handle('get-log-filenames', async () => {
+  handleIpc('get-log-filenames', async () => {
     try {
       const logDir = path.dirname(dependencies.getLogPath());
       const current = path.basename(dependencies.getLogPath());
@@ -55,7 +56,7 @@ export function registerLogsHandlers(dependencies: IpcRegistryDependencies): voi
       return { ok: false as const, files: [], current: '', sessionStart: '' };
     }
   });
-  ipcMain.handle(
+  handleIpc(
     'get-log-page',
     async (
       _,
@@ -100,7 +101,7 @@ export function registerLogsHandlers(dependencies: IpcRegistryDependencies): voi
     },
   );
 
-  ipcMain.handle('delete-log-entries', async (_, payload?: { items?: unknown }) => {
+  handleIpc('delete-log-entries', async (_, payload?: { items?: unknown }) => {
     try {
       const rawItems = Array.isArray(payload?.items) ? payload.items : [];
       const logDir = path.dirname(dependencies.getLogPath());
@@ -156,7 +157,7 @@ export function registerLogsHandlers(dependencies: IpcRegistryDependencies): voi
     }
   });
 
-  ipcMain.handle('delete-log-files', async (_, payload?: { files?: unknown }) => {
+  handleIpc('delete-log-files', async (_, payload?: { files?: unknown }) => {
     try {
       const logDir = path.dirname(dependencies.getLogPath());
       const current = path.basename(dependencies.getLogPath());
@@ -189,7 +190,7 @@ export function registerLogsHandlers(dependencies: IpcRegistryDependencies): voi
     }
   });
 
-  ipcMain.handle(
+  handleIpc(
     'export-diagnostics',
     async (_, selection?: { level?: unknown; scope?: unknown; query?: unknown; sessionOnly?: unknown }) => {
       try {

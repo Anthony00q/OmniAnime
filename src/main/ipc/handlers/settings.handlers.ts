@@ -1,4 +1,5 @@
-import { app, ipcMain } from 'electron';
+import { app } from 'electron';
+import { handleIpc } from '../ipcGuard';
 import * as path from 'path';
 import { SettingsManager } from '../../../services/persistence/SettingsManager';
 import { CustomSoundService } from '../../../services/sounds/CustomSoundService';
@@ -14,9 +15,9 @@ export function registerSettingsHandlers({
   destroyTray,
   refreshLogging,
 }: IpcRegistryDependencies): void {
-  ipcMain.handle('get-settings', () => SettingsManager.get());
-  ipcMain.handle('get-default-settings', () => SettingsManager.getDefaults());
-  ipcMain.handle('save-settings', (_, settings: AppSettings) => {
+  handleIpc('get-settings', () => SettingsManager.get());
+  handleIpc('get-default-settings', () => SettingsManager.getDefaults());
+  handleIpc('save-settings', (_, settings: AppSettings) => {
     const defaults = SettingsManager.getDefaults();
     settings.outputDirs = sanitizeOutputDirs(settings.outputDirs, settings.defaultOutputDir);
     if (settings.outputDirs.length === 0) {

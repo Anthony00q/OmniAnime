@@ -1,4 +1,4 @@
-import { ipcMain } from 'electron';
+import { handleIpc } from '../ipcGuard';
 import { aniListBannerResponse, resolveAniListBannerResult, type AniListFailureKind } from '../../anilistBanner';
 import { safeErrorMessage } from '../../../utils/logging/redactLog';
 import type { IpcRegistryDependencies } from '../../IpcRegistry';
@@ -6,7 +6,7 @@ import type { IpcRegistryDependencies } from '../../IpcRegistry';
 // Banner y estudio opcionales: ante error o duda devuelve null y la ficha sigue igual.
 export function registerAniListHandlers({ writeGlobalLog, scopedLog }: IpcRegistryDependencies): void {
   const fileLog = scopedLog('anilist');
-  ipcMain.handle(
+  handleIpc(
     'get-anilist-banner',
     async (
       _,

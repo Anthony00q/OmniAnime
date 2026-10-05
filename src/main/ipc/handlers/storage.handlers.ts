@@ -1,4 +1,5 @@
-import { app, dialog, ipcMain, shell } from 'electron';
+import { app, dialog, shell } from 'electron';
+import { handleIpc } from '../ipcGuard';
 import * as fs from 'fs';
 import * as path from 'path';
 import { SettingsManager } from '../../../services/persistence/SettingsManager';
@@ -21,7 +22,7 @@ import type { IpcRegistryDependencies } from '../../IpcRegistry';
 export function registerStorageHandlers(dependencies: IpcRegistryDependencies): void {
   const { storageService, writeGlobalLog, refreshLogging, getLogPath } = dependencies;
 
-  ipcMain.handle('get-storage-stats', async () => {
+  handleIpc('get-storage-stats', async () => {
     try {
       if (!storageService)
         return {
@@ -37,7 +38,7 @@ export function registerStorageHandlers(dependencies: IpcRegistryDependencies): 
     }
   });
 
-  ipcMain.handle('clean-cache', async () => {
+  handleIpc('clean-cache', async () => {
     try {
       if (!storageService) return { cleaned: 0, freed: 0, errors: ['Servicio no disponible'] };
       return await storageService.cleanCache();
@@ -47,7 +48,7 @@ export function registerStorageHandlers(dependencies: IpcRegistryDependencies): 
     }
   });
 
-  ipcMain.handle('clean-thumbnails', async (_, mode?: 'expired' | 'all') => {
+  handleIpc('clean-thumbnails', async (_, mode?: 'expired' | 'all') => {
     try {
       if (!storageService) return { cleaned: 0, freed: 0, errors: ['Servicio no disponible'] };
       const m = mode === 'all' ? 'all' : 'expired';
@@ -58,7 +59,7 @@ export function registerStorageHandlers(dependencies: IpcRegistryDependencies): 
     }
   });
 
-  ipcMain.handle('get-app-paths', async () => {
+  handleIpc('get-app-paths', async () => {
     try {
       if (!storageService) {
         return {
@@ -80,7 +81,7 @@ export function registerStorageHandlers(dependencies: IpcRegistryDependencies): 
     }
   });
 
-  ipcMain.handle('open-app-path', async (_, kind: string) => {
+  handleIpc('open-app-path', async (_, kind: string) => {
     try {
       const allowedKinds = new Set(['userData', 'logs', 'tools', 'db', 'log-file']);
       if (!allowedKinds.has(kind)) return { success: false, error: 'Tipo no permitido' };
@@ -130,7 +131,7 @@ export function registerStorageHandlers(dependencies: IpcRegistryDependencies): 
     }
   });
 
-  ipcMain.handle('export-settings', async () => {
+  handleIpc('export-settings', async () => {
     try {
       const win = dependencies.getMainWindow();
       const result = await dialog.showSaveDialog(win || (undefined as any), {
@@ -151,7 +152,7 @@ export function registerStorageHandlers(dependencies: IpcRegistryDependencies): 
     }
   });
 
-  ipcMain.handle('import-settings', async () => {
+  handleIpc('import-settings', async () => {
     try {
       const win = dependencies.getMainWindow();
       const result = await dialog.showOpenDialog(win || (undefined as any), {
@@ -312,7 +313,7 @@ export function registerStorageHandlers(dependencies: IpcRegistryDependencies): 
     }
   });
 
-  ipcMain.handle('get-system-info', async () => {
+  handleIpc('get-system-info', async () => {
     try {
       const settings = SettingsManager.get();
       const dirs = settings.outputDirs || [settings.defaultOutputDir];

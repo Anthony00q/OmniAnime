@@ -1,4 +1,4 @@
-import { ipcMain } from 'electron';
+import { handleIpc } from '../ipcGuard';
 import { SettingsManager } from '../../../services/persistence/SettingsManager';
 import { isPathWithinAnyDirectory } from '../../../utils/security/pathSecurity';
 import type { IpcRegistryDependencies } from '../../IpcRegistry';
@@ -11,21 +11,18 @@ export function registerLibraryHandlers({
   getAllowedBaseDirs,
   writeGlobalLog,
 }: IpcRegistryDependencies): void {
-  ipcMain.handle(
-    'preview-rename-anime-files',
-    async (_, data: { animePath: string; style: 'minimal' | 'descriptive' }) => {
-      try {
-        if (!isPathWithinAnyDirectory(data.animePath, getAllowedBaseDirs(), false)) {
-          return { success: false, error: 'La carpeta está fuera de la librería configurada.' };
-        }
-        return await episodeFileService.previewRename(data.animePath, data.style);
-      } catch (error) {
-        writeGlobalLog(error);
-        return { success: false, error: error instanceof Error ? error.message : String(error) };
+  handleIpc('preview-rename-anime-files', async (_, data: { animePath: string; style: 'minimal' | 'descriptive' }) => {
+    try {
+      if (!isPathWithinAnyDirectory(data.animePath, getAllowedBaseDirs(), false)) {
+        return { success: false, error: 'La carpeta está fuera de la librería configurada.' };
       }
-    },
-  );
-  ipcMain.handle('preview-reorder-episodes', async (_, data: { folderPath: string; startNumber: number }) => {
+      return await episodeFileService.previewRename(data.animePath, data.style);
+    } catch (error) {
+      writeGlobalLog(error);
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+  handleIpc('preview-reorder-episodes', async (_, data: { folderPath: string; startNumber: number }) => {
     try {
       if (!isPathWithinAnyDirectory(data.folderPath, getAllowedBaseDirs(), false)) {
         return { success: false, error: 'La carpeta está fuera de la librería configurada.' };
@@ -36,7 +33,7 @@ export function registerLibraryHandlers({
       return { success: false, error: error instanceof Error ? error.message : String(error) };
     }
   });
-  ipcMain.handle('rename-anime-files', async (_, data: { animePath: string; style: 'minimal' | 'descriptive' }) => {
+  handleIpc('rename-anime-files', async (_, data: { animePath: string; style: 'minimal' | 'descriptive' }) => {
     try {
       if (!isPathWithinAnyDirectory(data.animePath, getAllowedBaseDirs(), false))
         return { success: false, error: 'La carpeta está fuera de la librería configurada.' };
@@ -48,17 +45,15 @@ export function registerLibraryHandlers({
       return { success: false, error: error instanceof Error ? error.message : String(error) };
     }
   });
-  ipcMain.handle('scan-downloads', async (_, baseDirs: string | string[]) =>
-    libraryFileService.scanDownloads(baseDirs),
-  );
-  ipcMain.handle('rename-folder', (_, { oldPath, newName }: { oldPath: string; newName: string }) =>
+  handleIpc('scan-downloads', async (_, baseDirs: string | string[]) => libraryFileService.scanDownloads(baseDirs));
+  handleIpc('rename-folder', (_, { oldPath, newName }: { oldPath: string; newName: string }) =>
     libraryFileService.renameFolder(oldPath, newName),
   );
-  ipcMain.handle('delete-folder', (_, folderPath: string) => libraryFileService.deleteFolder(folderPath));
-  ipcMain.handle('relink-folder', (_, folderPath: string, targetSlug: string, providerId?: string | null) =>
+  handleIpc('delete-folder', (_, folderPath: string) => libraryFileService.deleteFolder(folderPath));
+  handleIpc('relink-folder', (_, folderPath: string, targetSlug: string, providerId?: string | null) =>
     libraryFileService.relinkFolder(folderPath, targetSlug, providerId),
   );
-  ipcMain.handle('scan-episodes', async (_, animePath: string) => {
+  handleIpc('scan-episodes', async (_, animePath: string) => {
     try {
       if (!isPathWithinAnyDirectory(animePath, getAllowedBaseDirs(), false)) return [];
       return await episodeFileService.scanEpisodes(animePath);
@@ -67,9 +62,9 @@ export function registerLibraryHandlers({
       return [];
     }
   });
-  ipcMain.handle('play-video', (_, videoPath: string) => libraryFileService.playVideo(videoPath));
-  ipcMain.handle('delete-video', (_, videoPath: string) => libraryFileService.deleteVideo(videoPath));
-  ipcMain.handle('get-folders-for-reorder', async () => {
+  handleIpc('play-video', (_, videoPath: string) => libraryFileService.playVideo(videoPath));
+  handleIpc('delete-video', (_, videoPath: string) => libraryFileService.deleteVideo(videoPath));
+  handleIpc('get-folders-for-reorder', async () => {
     try {
       const settings = SettingsManager.get();
       const baseDirs = settings.outputDirs || [settings.defaultOutputDir];
@@ -79,16 +74,13 @@ export function registerLibraryHandlers({
       return [];
     }
   });
-  ipcMain.handle(
-    'reorder-episodes',
-    async (_, { folderPath, startNumber }: { folderPath: string; startNumber: number }) => {
-      if (!isPathWithinAnyDirectory(folderPath, getAllowedBaseDirs(), false)) {
-        return { success: false, error: 'La carpeta está fuera de la librería configurada.' };
-      }
-      return await episodeFileService.reorderEpisodes(folderPath, startNumber);
-    },
-  );
-  ipcMain.handle('get-video-thumbnail', (_, videoPath: string) => {
+  handleIpc('reorder-episodes', async (_, { folderPath, startNumber }: { folderPath: string; startNumber: number }) => {
+    if (!isPathWithinAnyDirectory(folderPath, getAllowedBaseDirs(), false)) {
+      return { success: false, error: 'La carpeta está fuera de la librería configurada.' };
+    }
+    return await episodeFileService.reorderEpisodes(folderPath, startNumber);
+  });
+  handleIpc('get-video-thumbnail', (_, videoPath: string) => {
     if (!isPathWithinAnyDirectory(videoPath, getAllowedBaseDirs(), false)) return null;
     return thumbnailService.getThumbnail(videoPath);
   });

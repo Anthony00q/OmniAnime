@@ -1,11 +1,12 @@
-import { app, ipcMain, shell } from 'electron';
+import { app, shell } from 'electron';
+import { handleIpc } from '../ipcGuard';
 import * as fs from 'fs';
 import * as path from 'path';
 import { isAllowedChangelogUrl, isAllowedExternalUrl } from '../../../utils/security/externalUrl';
 import type { IpcRegistryDependencies } from '../../IpcRegistry';
 
 export function registerWindowHandlers({ getMainWindow, setIsQuitting }: IpcRegistryDependencies): void {
-  ipcMain.handle('get-app-version', () => {
+  handleIpc('get-app-version', () => {
     try {
       return app.getVersion();
     } catch {
@@ -13,7 +14,7 @@ export function registerWindowHandlers({ getMainWindow, setIsQuitting }: IpcRegi
     }
   });
 
-  ipcMain.handle('get-splash-icon', () => {
+  handleIpc('get-splash-icon', () => {
     try {
       const iconPath = path.join(app.getAppPath(), 'assets', 'icon-64.png');
       if (!fs.existsSync(iconPath)) return null;
@@ -24,7 +25,7 @@ export function registerWindowHandlers({ getMainWindow, setIsQuitting }: IpcRegi
     }
   });
 
-  ipcMain.handle('window-minimize', () => {
+  handleIpc('window-minimize', () => {
     try {
       getMainWindow()?.minimize();
       return true;
@@ -33,7 +34,7 @@ export function registerWindowHandlers({ getMainWindow, setIsQuitting }: IpcRegi
     }
   });
 
-  ipcMain.handle('window-toggle-maximize', () => {
+  handleIpc('window-toggle-maximize', () => {
     try {
       const mainWindow = getMainWindow();
       if (!mainWindow) return { isMaximized: false };
@@ -45,7 +46,7 @@ export function registerWindowHandlers({ getMainWindow, setIsQuitting }: IpcRegi
     }
   });
 
-  ipcMain.handle('window-close', () => {
+  handleIpc('window-close', () => {
     try {
       getMainWindow()?.close();
       return true;
@@ -54,7 +55,7 @@ export function registerWindowHandlers({ getMainWindow, setIsQuitting }: IpcRegi
     }
   });
 
-  ipcMain.handle('force-close-app', () => {
+  handleIpc('force-close-app', () => {
     try {
       setIsQuitting(true);
       getMainWindow()?.close();
@@ -64,7 +65,7 @@ export function registerWindowHandlers({ getMainWindow, setIsQuitting }: IpcRegi
     }
   });
 
-  ipcMain.handle('window-get-state', () => {
+  handleIpc('window-get-state', () => {
     try {
       return { isMaximized: !!getMainWindow()?.isMaximized() };
     } catch {
@@ -73,7 +74,7 @@ export function registerWindowHandlers({ getMainWindow, setIsQuitting }: IpcRegi
   });
 
   // `policy` elige la allowlist: proveedores por defecto, changelog para las notas.
-  ipcMain.handle('open-external-url', async (_, rawUrl: string, options?: { policy?: 'provider' | 'changelog' }) => {
+  handleIpc('open-external-url', async (_, rawUrl: string, options?: { policy?: 'provider' | 'changelog' }) => {
     try {
       const url = String(rawUrl || '').trim();
       const allowed = options?.policy === 'changelog' ? isAllowedChangelogUrl(url) : isAllowedExternalUrl(url);
@@ -85,7 +86,7 @@ export function registerWindowHandlers({ getMainWindow, setIsQuitting }: IpcRegi
     }
   });
 
-  ipcMain.handle('app-restart', () => {
+  handleIpc('app-restart', () => {
     try {
       setIsQuitting(true);
     } catch {}

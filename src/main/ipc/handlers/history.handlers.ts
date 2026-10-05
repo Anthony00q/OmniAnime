@@ -1,4 +1,5 @@
-import { ipcMain, shell } from 'electron';
+import { shell } from 'electron';
+import { handleIpc } from '../ipcGuard';
 import * as fs from 'fs';
 import * as path from 'path';
 import { isPathWithinAnyDirectory } from '../../../utils/security/pathSecurity';
@@ -9,7 +10,7 @@ export function registerHistoryHandlers({
   writeGlobalLog,
   getAllowedBaseDirs,
 }: IpcRegistryDependencies): void {
-  ipcMain.handle('get-download-history', () => {
+  handleIpc('get-download-history', () => {
     try {
       return historyService.getHistory();
     } catch (error) {
@@ -17,12 +18,12 @@ export function registerHistoryHandlers({
       throw error;
     }
   });
-  ipcMain.handle('clear-download-history', () => historyService.clearHistory());
-  ipcMain.handle('remove-history-entry', (_, index: number) => historyService.removeHistoryEntry(index));
-  ipcMain.handle('remove-history-entries', (_, indices: number[], expectedIds?: number[]) =>
+  handleIpc('clear-download-history', () => historyService.clearHistory());
+  handleIpc('remove-history-entry', (_, index: number) => historyService.removeHistoryEntry(index));
+  handleIpc('remove-history-entries', (_, indices: number[], expectedIds?: number[]) =>
     historyService.removeHistoryEntries(indices, expectedIds),
   );
-  ipcMain.handle('open-folder', async (_, folderPath: string) => {
+  handleIpc('open-folder', async (_, folderPath: string) => {
     try {
       const normalizedPath = path.resolve(String(folderPath || ''));
       const isKnownHistoryPath = historyService

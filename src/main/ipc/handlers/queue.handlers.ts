@@ -1,4 +1,5 @@
-import { ipcMain, shell } from 'electron';
+import { shell } from 'electron';
+import { handleIpc } from '../ipcGuard';
 import * as fs from 'fs';
 import * as path from 'path';
 import { SettingsManager } from '../../../services/persistence/SettingsManager';
@@ -21,15 +22,15 @@ export function registerQueueHandlers(dependencies: IpcRegistryDependencies): vo
     writeGlobalLog,
   } = dependencies;
 
-  ipcMain.handle('add-to-queue', (_, payload: QueueEnqueuePayload) => queueEnqueueService.enqueue(payload));
+  handleIpc('add-to-queue', (_, payload: QueueEnqueuePayload) => queueEnqueueService.enqueue(payload));
 
-  ipcMain.handle('cancel-download', (_, id: string) => queueProcessor.cancel(id));
-  ipcMain.handle('skip-server', (_, id: string) => queueProcessor.skip(id));
-  ipcMain.handle('pause-download', (_, id: string) => {
+  handleIpc('cancel-download', (_, id: string) => queueProcessor.cancel(id));
+  handleIpc('skip-server', (_, id: string) => queueProcessor.skip(id));
+  handleIpc('pause-download', (_, id: string) => {
     if (typeof id !== 'string' || !id) return false;
     return queueProcessor.pause(id);
   });
-  ipcMain.handle('cancel-episode', (_, id: string, episode: number) => {
+  handleIpc('cancel-episode', (_, id: string, episode: number) => {
     if (typeof id !== 'string' || !id || !isValidEpisodeParam(episode)) return false;
     const item = downloadQueue.find((queueItem) => queueItem.id === id);
     if (!item || !(item.episodes || []).includes(episode)) return false;
@@ -43,13 +44,13 @@ export function registerQueueHandlers(dependencies: IpcRegistryDependencies): vo
     }
     return queueProcessor.cancelEpisode(id, episode);
   });
-  ipcMain.handle('pause-episode', (_, id: string, episode: number) => {
+  handleIpc('pause-episode', (_, id: string, episode: number) => {
     if (typeof id !== 'string' || !id || !isValidEpisodeParam(episode)) return false;
     const item = downloadQueue.find((queueItem) => queueItem.id === id);
     if (!item || !(item.episodes || []).includes(episode)) return false;
     return queueProcessor.pauseEpisode(id, episode);
   });
-  ipcMain.handle('resume-episode', (_, id: string, episode: number) => {
+  handleIpc('resume-episode', (_, id: string, episode: number) => {
     if (typeof id !== 'string' || !id || !isValidEpisodeParam(episode)) return false;
     const resumed = queueProcessor.resumeEpisode(id, episode);
     if (!resumed) return false;
@@ -57,11 +58,11 @@ export function registerQueueHandlers(dependencies: IpcRegistryDependencies): vo
     setImmediate(() => processQueue().catch(writeGlobalLog));
     return true;
   });
-  ipcMain.handle('skip-episode', (_, id: string, episode: number) => {
+  handleIpc('skip-episode', (_, id: string, episode: number) => {
     if (typeof id !== 'string' || !id || !isValidEpisodeParam(episode)) return false;
     return queueProcessor.skip(id, episode);
   });
-  ipcMain.handle('clear-queue', () => {
+  handleIpc('clear-queue', () => {
     const terminalIds = queueStore.items
       .filter((i) => i.status === 'done' || i.status === 'failed' || i.status === 'cancelled')
       .map((i) => i.id);
@@ -70,13 +71,13 @@ export function registerQueueHandlers(dependencies: IpcRegistryDependencies): vo
     sendQueueUpdate();
     return true;
   });
-  ipcMain.handle('remove-from-queue', (_, id: string) => {
+  handleIpc('remove-from-queue', (_, id: string) => {
     queueStore.removeFromQueue(id);
     queueProcessor.notifyItemsRemoved([id]);
     sendQueueUpdate();
     return true;
   });
-  ipcMain.handle('resume-download', (_, id: string) => {
+  handleIpc('resume-download', (_, id: string) => {
     if (typeof id !== 'string' || !id) return false;
     const resumed = queueProcessor.resume(id);
     if (!resumed) return false;
@@ -84,14 +85,14 @@ export function registerQueueHandlers(dependencies: IpcRegistryDependencies): vo
     setImmediate(() => processQueue().catch(writeGlobalLog));
     return true;
   });
-  ipcMain.handle('retry-failed-download', (_, id: string) => {
+  handleIpc('retry-failed-download', (_, id: string) => {
     const retried = queueProcessor.retryFailed(id);
     if (!retried) return false;
     sendQueueUpdate();
     setImmediate(() => processQueue().catch(writeGlobalLog));
     return true;
   });
-  ipcMain.handle('open-anime-folder', async (_, animeTitle: string) => {
+  handleIpc('open-anime-folder', async (_, animeTitle: string) => {
     try {
       const settings = SettingsManager.get();
       const baseDirs = settings.outputDirs || [settings.defaultOutputDir];
@@ -115,7 +116,7 @@ export function registerQueueHandlers(dependencies: IpcRegistryDependencies): vo
       return false;
     }
   });
-  ipcMain.handle('get-queue', () =>
+  handleIpc('get-queue', () =>
     downloadQueue.map((item) => {
       const info = queueStore.getDirInfo(item.targetPath);
       return { ...item, dirLabel: info.label, dirFullPath: info.fullPath };

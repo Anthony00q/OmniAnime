@@ -1,4 +1,5 @@
-import { dialog, ipcMain } from 'electron';
+import { dialog } from 'electron';
+import { handleIpc } from '../ipcGuard';
 import axios from 'axios';
 import { USER_AGENT } from '../../../utils/windowUtils';
 import { safeErrorMessage } from '../../../utils/logging/redactLog';
@@ -23,7 +24,7 @@ export function registerCatalogHandlers({
       providerGateway.activeProvider
     );
   };
-  ipcMain.handle('get-image-base64', async (_, url: string): Promise<string | null> => {
+  handleIpc('get-image-base64', async (_, url: string): Promise<string | null> => {
     try {
       if (!url || !isAllowedImageUrl(url)) return null;
       const response = await axios.get(url, {
@@ -98,7 +99,7 @@ export function registerCatalogHandlers({
     }
   });
 
-  ipcMain.handle(
+  handleIpc(
     'get-home-data',
     async (_, payload?: boolean | { force?: boolean; mediaFilter?: string; provider?: string }) => {
       try {
@@ -113,7 +114,7 @@ export function registerCatalogHandlers({
     },
   );
 
-  ipcMain.handle('get-schedule', async (_, payload?: { force?: boolean; provider?: string }) => {
+  handleIpc('get-schedule', async (_, payload?: { force?: boolean; provider?: string }) => {
     try {
       return await scheduleService.getSchedule(!!payload?.force, payload?.provider);
     } catch (error) {
@@ -122,7 +123,7 @@ export function registerCatalogHandlers({
     }
   });
 
-  ipcMain.handle('get-catalog', async (_, filters: CatalogFilters & { provider?: string } = {}, force = false) => {
+  handleIpc('get-catalog', async (_, filters: CatalogFilters & { provider?: string } = {}, force = false) => {
     try {
       const { provider: requestedProvider, ...catalogFilters } = filters || {};
       return await resolveProvider(requestedProvider).getCatalog(
@@ -150,7 +151,7 @@ export function registerCatalogHandlers({
     }
   });
 
-  ipcMain.handle('get-filters-data', async (_, payload: boolean | { force?: boolean; provider?: string } = false) => {
+  handleIpc('get-filters-data', async (_, payload: boolean | { force?: boolean; provider?: string } = false) => {
     try {
       const force = typeof payload === 'boolean' ? payload : !!payload?.force;
       const providerId =
@@ -162,7 +163,7 @@ export function registerCatalogHandlers({
     }
   });
 
-  ipcMain.handle('search-anime', async (_, payload: string | { query?: string; provider?: string }) => {
+  handleIpc('search-anime', async (_, payload: string | { query?: string; provider?: string }) => {
     try {
       const query = typeof payload === 'string' ? payload : String(payload?.query ?? '');
       const providerId =
@@ -174,7 +175,7 @@ export function registerCatalogHandlers({
     }
   });
 
-  ipcMain.handle('get-details', async (_, payload: string | { slug?: string; provider?: string }) => {
+  handleIpc('get-details', async (_, payload: string | { slug?: string; provider?: string }) => {
     try {
       const slug = typeof payload === 'string' ? payload : String(payload?.slug ?? '');
       const providerId =
@@ -191,7 +192,7 @@ export function registerCatalogHandlers({
     }
   });
 
-  ipcMain.handle(
+  handleIpc(
     'get-episode-thumbs',
     async (_, payload: { slug?: string; fromEp?: number; toEp?: number; provider?: string }) => {
       try {
@@ -207,37 +208,34 @@ export function registerCatalogHandlers({
     },
   );
 
-  ipcMain.handle('select-folder', async () => {
+  handleIpc('select-folder', async () => {
     const result = await dialog.showOpenDialog({ properties: ['openDirectory'] });
     return result.filePaths[0];
   });
 
-  ipcMain.handle(
-    'search-trailer-id',
-    async (_, payload: string | { title?: string; slug?: string; mediaId?: number }) => {
-      try {
-        const animeTitle = typeof payload === 'string' ? payload : String(payload?.title || '').trim();
-        const query = encodeURIComponent(`${animeTitle} trailer oficial anime pv`);
-        const url = `https://www.youtube.com/results?search_query=${query}&sp=EgIQAQ%253D%253D`;
-        const response = await axios.get(url, {
-          headers: {
-            'User-Agent': USER_AGENT,
-            'Accept-Language': 'es-ES,es;q=0.9,en;q=0.8',
-          },
-          timeout: 10000,
-          maxRedirects: 3,
-          maxContentLength: 2 * 1024 * 1024,
-        });
-        const html = response.data;
-        const regex = /"videoRenderer":\{"videoId":"([^"]+)"/g;
-        const matches = [...html.matchAll(regex)];
-        if (matches.length > 0) return matches[0][1];
-        const simpleMatch = html.match(/"videoId":"([^"]+)"/);
-        return simpleMatch ? simpleMatch[1] : null;
-      } catch (error) {
-        writeGlobalLog(error);
-        return null;
-      }
-    },
-  );
+  handleIpc('search-trailer-id', async (_, payload: string | { title?: string; slug?: string; mediaId?: number }) => {
+    try {
+      const animeTitle = typeof payload === 'string' ? payload : String(payload?.title || '').trim();
+      const query = encodeURIComponent(`${animeTitle} trailer oficial anime pv`);
+      const url = `https://www.youtube.com/results?search_query=${query}&sp=EgIQAQ%253D%253D`;
+      const response = await axios.get(url, {
+        headers: {
+          'User-Agent': USER_AGENT,
+          'Accept-Language': 'es-ES,es;q=0.9,en;q=0.8',
+        },
+        timeout: 10000,
+        maxRedirects: 3,
+        maxContentLength: 2 * 1024 * 1024,
+      });
+      const html = response.data;
+      const regex = /"videoRenderer":\{"videoId":"([^"]+)"/g;
+      const matches = [...html.matchAll(regex)];
+      if (matches.length > 0) return matches[0][1];
+      const simpleMatch = html.match(/"videoId":"([^"]+)"/);
+      return simpleMatch ? simpleMatch[1] : null;
+    } catch (error) {
+      writeGlobalLog(error);
+      return null;
+    }
+  });
 }

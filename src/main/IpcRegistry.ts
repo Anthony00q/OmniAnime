@@ -1,4 +1,4 @@
-import { BrowserWindow, ipcMain } from 'electron';
+import type { BrowserWindow } from 'electron';
 import type { DownloadAnimeDetails } from '../types/anime';
 import type { DownloadProvider, QueueItem } from '../types/queue';
 import { ProviderGateway } from '../services/providers/ProviderGateway';
@@ -30,6 +30,7 @@ import { registerLogsHandlers } from './ipc/handlers/logs.handlers';
 import { registerSoundHandlers } from './ipc/handlers/sounds.handlers';
 import type { LogScope, ScopedLogger } from '../services/logging/AppLogger';
 import type { InvokeChannel, SendChannel } from '../types/ipc-channels';
+import { handleIpc, installIpcGuard, onIpc } from './ipc/ipcGuard';
 
 // Canales propios de IpcRegistry; el resto de registros viven en ipc/handlers/.
 const rendererReadyChannel: InvokeChannel = 'renderer-ready';
@@ -70,6 +71,12 @@ export interface IpcRegistryDependencies {
 }
 
 export function registerIpcHandlers(dependencies: IpcRegistryDependencies): void {
+  // Los handlers pasan por ipcGuard (recover + timeout); sus errores llegan aquí con scope.
+  installIpcGuard({
+    report: (shape, channel) => {
+      dependencies.scopedLog('ipc').error(`handler '${channel}' falló [${shape.code}]: ${shape.message}`);
+    },
+  });
   registerProviderHandlers(dependencies);
   registerHistoryHandlers(dependencies);
   registerWindowHandlers(dependencies);
@@ -84,12 +91,12 @@ export function registerIpcHandlers(dependencies: IpcRegistryDependencies): void
   registerServerStatsHandlers(dependencies);
   registerLogsHandlers(dependencies);
   // Señal del renderer tras el primer render con home listo; sin args.
-  ipcMain.handle(rendererReadyChannel, () => {
+  handleIpc(rendererReadyChannel, () => {
     dependencies.markRendererReady();
   });
   // Anti-spam: un loop de errores en renderer no debe tumbar main ni el disco.
   const logErrorStamps: number[] = [];
-  ipcMain.on(logErrorChannel, (_, error) => {
+  onIpc(logErrorChannel, (_, error) => {
     const now = Date.now();
     while (logErrorStamps.length > 0 && now - logErrorStamps[0] > 1000) logErrorStamps.shift();
     if (logErrorStamps.length >= 20) return;
