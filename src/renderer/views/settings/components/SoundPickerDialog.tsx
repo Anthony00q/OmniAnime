@@ -12,6 +12,7 @@ import {
 import { SOUND_CATALOG } from '@/utils/sounds/soundCatalogData';
 import type { NotificationSoundType } from '@/utils/sounds/soundPacks';
 import { loadFullSoundBuffer, previewSoundSlice } from '@/renderer/utils/sound';
+import { isIpcFailError, unwrap } from '@/renderer/hooks/queries/unwrap';
 import { SoundTrimEditor } from './SoundTrimEditor';
 
 interface SoundPickerDialogProps {
@@ -71,22 +72,15 @@ export function SoundPickerDialog({
     setImporting(true);
     setImportError(null);
     try {
-      const res = (await window.api.invoke('import-custom-sound')) as {
-        ok: boolean;
-        error?: string;
-        canceled?: boolean;
-        file?: CustomSoundFileMeta;
-      };
-      if (res?.canceled) return;
-      if (!res?.ok || !res.file) {
-        setImportError(res?.error || 'No se pudo importar el sonido.');
-        return;
-      }
-      onImported(res.file);
-      onSelect(makeCustomRef(res.file.id));
-      await openTrimFor(res.file);
-    } catch {
-      setImportError('No se pudo importar el sonido.');
+      const file = unwrap(await window.api.invoke('import-custom-sound'), {
+        toast: false,
+      }) as CustomSoundFileMeta | null;
+      if (!file) return;
+      onImported(file);
+      onSelect(makeCustomRef(file.id));
+      await openTrimFor(file);
+    } catch (e: unknown) {
+      setImportError(isIpcFailError(e) ? e.message : 'No se pudo importar el sonido.');
     } finally {
       setImporting(false);
     }

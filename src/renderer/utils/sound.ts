@@ -1,4 +1,5 @@
 import { reportRendererError } from './rendererErrorReporting';
+import { unwrap } from '@/renderer/hooks/queries/unwrap';
 import {
   DEFAULT_TYPE_VOLUMES,
   getSoundRecipe,
@@ -86,9 +87,8 @@ async function readAndDecode(audioCtx: AudioContext, ref: string): Promise<Audio
   try {
     const api = (window as any).api;
     if (!api?.invoke) return null;
-    const res = await api.invoke('read-sound-data', ref);
-    if (!res?.ok || !res.data || res.data.byteLength === 0) return null;
-    const bytes: Uint8Array = res.data;
+    const bytes = unwrap(await api.invoke('read-sound-data', ref), { toast: false });
+    if (!bytes || bytes.byteLength === 0) return null;
     const copy = new Uint8Array(bytes).buffer;
     const buffer = await audioCtx.decodeAudioData(copy);
     if (!buffer || !Number.isFinite(buffer.duration) || buffer.duration <= 0) return null;

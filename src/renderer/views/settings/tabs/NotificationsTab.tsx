@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { CustomSwitch } from '@/renderer/components/CustomSwitch';
 import { ToastPositionSelector } from '@/renderer/components/ToastPositionSelector';
 import { SoundPickerDialog } from '@/renderer/views/settings/components/SoundPickerDialog';
+import { unwrap } from '@/renderer/hooks/queries/unwrap';
 import {
   DEFAULT_TYPE_VOLUMES,
   SOUND_PACK_CHOICES,
@@ -128,7 +129,8 @@ export const NotificationsTab = memo(function NotificationsTab({
 
   const handleDeleteCustom = async (id: string) => {
     try {
-      await window.api.invoke('delete-custom-sound', id);
+      // Mejor esfuerzo: el sonido se retira aunque el borrado falle.
+      unwrap(await window.api.invoke('delete-custom-sound', id), { toast: false });
     } catch {}
     onChange(
       'customSoundFiles',
