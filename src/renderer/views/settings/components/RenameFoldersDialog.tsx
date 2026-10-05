@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Check, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { isIpcFailError, unwrap } from '@/renderer/hooks/queries/unwrap';
 import { Dialog } from '@/renderer/components/Dialog';
 import { CustomCheckbox } from '@/renderer/components/CustomCheckbox';
 import { ANILIST_BANNER_STALE_MS, getAniListBannerQuery, useLibrary } from '@/renderer/hooks/useQueries';
@@ -115,14 +116,19 @@ export function RenameFoldersDialog({ open, onOpenChange, dirs, source }: Rename
     for (const item of renamable) {
       if (!selected.has(item.folderPath) || nextResults[item.folderPath]) continue;
       try {
-        const res = (await window.api.invoke('rename-folder', {
-          oldPath: item.folderPath,
-          newName: item.newName,
-        })) as { success: boolean; error?: string } | null;
-        nextResults[item.folderPath] =
-          res && res.success ? { ok: true } : { ok: false, error: res?.error || 'No se pudo renombrar.' };
-      } catch {
-        nextResults[item.folderPath] = { ok: false, error: 'No se pudo renombrar.' };
+        unwrap(
+          await window.api.invoke('rename-folder', {
+            oldPath: item.folderPath,
+            newName: item.newName,
+          }),
+          { toast: false },
+        );
+        nextResults[item.folderPath] = { ok: true };
+      } catch (e: unknown) {
+        nextResults[item.folderPath] = {
+          ok: false,
+          error: isIpcFailError(e) ? e.message : 'No se pudo renombrar.',
+        };
       }
     }
     setResults(nextResults);

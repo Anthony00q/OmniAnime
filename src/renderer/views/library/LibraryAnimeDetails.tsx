@@ -165,7 +165,9 @@ export function LibraryAnimeDetails({
   const handlePlay = useCallback(
     (videoPath: string) => {
       libActions.playVideo.mutate(videoPath, {
-        onError: (error) => toast.error(error.message || 'No se pudo reproducir el archivo'),
+        onError: (error) => {
+          if (!isIpcFailError(error)) toast.error(error.message || 'No se pudo reproducir el archivo');
+        },
       });
     },
     [libActions.playVideo],
@@ -217,7 +219,9 @@ export function LibraryAnimeDetails({
             toast.error(res?.error || 'Error al renombrar archivos');
           }
         },
-        onError: (e: any) => toast.error(e?.message || 'Error al comunicarse con el sistema'),
+        onError: (e: any) => {
+          if (!isIpcFailError(e)) toast.error(e?.message || 'Error al comunicarse con el sistema');
+        },
       },
     );
   };
@@ -243,7 +247,9 @@ export function LibraryAnimeDetails({
             toast.error(res?.error || 'Error al renumerar episodios');
           }
         },
-        onError: () => toast.error('Error al comunicarse con el sistema'),
+        onError: (e: any) => {
+          if (!isIpcFailError(e)) toast.error('Error al comunicarse con el sistema');
+        },
       },
     );
   };
@@ -525,7 +531,9 @@ export function LibraryAnimeDetails({
         onConfirm={() => {
           if (deleteConfirmPath) {
             libActions.deleteVideo.mutate(deleteConfirmPath, {
-              onError: (error) => toast.error(error.message || 'No se pudo eliminar el episodio'),
+              onError: (error) => {
+                if (!isIpcFailError(error)) toast.error(error.message || 'No se pudo eliminar el episodio');
+              },
             });
             setDeleteConfirmPath(null);
           }

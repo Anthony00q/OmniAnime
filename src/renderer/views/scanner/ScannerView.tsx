@@ -5,6 +5,7 @@ import { useAtomValue, useSetAtom } from 'jotai';
 import { settingsAtom, currentViewAtom } from '@/renderer/store/atoms';
 import { Dialog } from '@/renderer/components/Dialog';
 import { useLibrary, useSearchAnime, useLibraryActions } from '@/renderer/hooks/useQueries';
+import { isIpcFailError } from '@/renderer/hooks/queries/unwrap';
 import { PosterCard } from '@/renderer/components/anime/PosterCard';
 import { PosterImage } from '@/renderer/components/anime/PosterImage';
 import { PosterGrid } from '@/renderer/components/anime/PosterGrid';
@@ -227,7 +228,9 @@ export function ScannerView({ isActive = true }: { isActive?: boolean }) {
           toast.success('Carpeta vinculada exitosamente');
           setRelinkFolder(null);
         },
-        onError: () => toast.error('Error al vincular la carpeta'),
+        onError: (error) => {
+          if (!isIpcFailError(error)) toast.error('Error al vincular la carpeta');
+        },
       },
     );
   };

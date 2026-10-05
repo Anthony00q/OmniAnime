@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Check, ChevronDown, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { isIpcFailError, unwrap } from '@/renderer/hooks/queries/unwrap';
 import { Dialog } from '@/renderer/components/Dialog';
 import { CustomCheckbox } from '@/renderer/components/CustomCheckbox';
 import { useLibrary } from '@/renderer/hooks/useQueries';
@@ -68,10 +69,13 @@ export function RenameLibraryFilesDialog({ open, onOpenChange, dirs, style }: Re
         if (cancelled) return;
         let preview: FilesRenamePreview | null = null;
         try {
-          preview = (await window.api.invoke('preview-rename-anime-files', {
-            animePath: entry.folderPath,
-            style,
-          })) as FilesRenamePreview | null;
+          preview = unwrap(
+            await window.api.invoke('preview-rename-anime-files', {
+              animePath: entry.folderPath,
+              style,
+            }),
+            { toast: false },
+          ) as FilesRenamePreview | null;
         } catch {
           preview = null;
         }
@@ -112,14 +116,19 @@ export function RenameLibraryFilesDialog({ open, onOpenChange, dirs, style }: Re
     for (const row of renamable) {
       if (!selected.has(row.folderPath) || nextResults[row.folderPath]) continue;
       try {
-        const res = (await window.api.invoke('rename-anime-files', {
-          animePath: row.folderPath,
-          style,
-        })) as { success: boolean; error?: string } | null;
-        nextResults[row.folderPath] =
-          res && res.success ? { ok: true } : { ok: false, error: res?.error || 'No se pudo renombrar.' };
-      } catch {
-        nextResults[row.folderPath] = { ok: false, error: 'No se pudo renombrar.' };
+        unwrap(
+          await window.api.invoke('rename-anime-files', {
+            animePath: row.folderPath,
+            style,
+          }),
+          { toast: false },
+        );
+        nextResults[row.folderPath] = { ok: true };
+      } catch (e: unknown) {
+        nextResults[row.folderPath] = {
+          ok: false,
+          error: isIpcFailError(e) ? e.message : 'No se pudo renombrar.',
+        };
       }
     }
     setResults(nextResults);

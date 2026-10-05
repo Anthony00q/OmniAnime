@@ -1,5 +1,4 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
-import { ensureIpcSuccess } from './internal';
 import { unwrap } from './unwrap';
 
 export function useLibrary(dirs: string[]) {
@@ -9,7 +8,7 @@ export function useLibrary(dirs: string[]) {
       const scannedRows = await Promise.all(
         dirs.map(async (dir, sourceDirIndex) => {
           if (!dir) return [];
-          const rows = await window.api.invoke('scan-downloads', dir);
+          const rows = unwrap(await window.api.invoke('scan-downloads', dir));
           return rows ? rows.map((row: any) => ({ ...row, sourceDir: dir, sourceDirIndex })) : [];
         }),
       );
@@ -29,7 +28,7 @@ export function useLibrary(dirs: string[]) {
 export function useEpisodes(animePath: string | null) {
   return useQuery({
     queryKey: ['episodes', animePath],
-    queryFn: () => window.api.invoke('scan-episodes', animePath),
+    queryFn: async () => unwrap(await window.api.invoke('scan-episodes', animePath)),
     enabled: !!animePath,
     staleTime: 10 * 1000,
   });
@@ -38,7 +37,8 @@ export function useEpisodes(animePath: string | null) {
 export function usePreviewRename(animePath: string | null, style: 'minimal' | 'descriptive', enabled: boolean) {
   return useQuery({
     queryKey: ['preview-rename', animePath, style],
-    queryFn: () => window.api.invoke('preview-rename-anime-files', { animePath, style }) as Promise<any>,
+    queryFn: async () =>
+      unwrap(await window.api.invoke('preview-rename-anime-files', { animePath, style }), { toast: false }),
     enabled: enabled && !!animePath,
     staleTime: 0,
     placeholderData: keepPreviousData,
@@ -48,7 +48,8 @@ export function usePreviewRename(animePath: string | null, style: 'minimal' | 'd
 export function usePreviewReorder(folderPath: string | null, startNumber: number, enabled: boolean) {
   return useQuery({
     queryKey: ['preview-reorder', folderPath, startNumber],
-    queryFn: () => window.api.invoke('preview-reorder-episodes', { folderPath, startNumber }) as Promise<any>,
+    queryFn: async () =>
+      unwrap(await window.api.invoke('preview-reorder-episodes', { folderPath, startNumber }), { toast: false }),
     enabled: enabled && !!folderPath && Number.isFinite(startNumber),
     staleTime: 0,
     placeholderData: keepPreviousData,
@@ -63,10 +64,10 @@ export function useLibraryActions() {
       mutationFn: async (folderPath: string) => unwrap(await window.api.invoke('open-folder', folderPath)),
     }),
     playVideo: useMutation({
-      mutationFn: async (videoPath: string) => ensureIpcSuccess(await window.api.invoke('play-video', videoPath)),
+      mutationFn: async (videoPath: string) => unwrap(await window.api.invoke('play-video', videoPath)),
     }),
     deleteVideo: useMutation({
-      mutationFn: async (videoPath: string) => ensureIpcSuccess(await window.api.invoke('delete-video', videoPath)),
+      mutationFn: async (videoPath: string) => unwrap(await window.api.invoke('delete-video', videoPath)),
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: ['episodes'] });
         queryClient.invalidateQueries({ queryKey: ['library'] });
@@ -74,7 +75,7 @@ export function useLibraryActions() {
     }),
     renameFiles: useMutation({
       mutationFn: async (params: { animePath: string; style: string }) =>
-        ensureIpcSuccess(await window.api.invoke('rename-anime-files', params)),
+        unwrap(await window.api.invoke('rename-anime-files', params)),
       onSuccess: (_data, params) => {
         queryClient.invalidateQueries({ queryKey: ['episodes', params.animePath] });
         queryClient.invalidateQueries({ queryKey: ['library'] });
@@ -83,7 +84,7 @@ export function useLibraryActions() {
     }),
     reorderEpisodes: useMutation({
       mutationFn: async (params: { folderPath: string; startNumber: number }) =>
-        ensureIpcSuccess(await window.api.invoke('reorder-episodes', params)),
+        unwrap(await window.api.invoke('reorder-episodes', params)),
       onSuccess: (_data, params) => {
         queryClient.invalidateQueries({ queryKey: ['episodes', params.folderPath] });
         queryClient.invalidateQueries({ queryKey: ['library'] });
@@ -92,9 +93,7 @@ export function useLibraryActions() {
     }),
     relinkFolder: useMutation({
       mutationFn: async (params: { folderPath: string; slug: string; providerId?: string | null }) =>
-        ensureIpcSuccess(
-          await window.api.invoke('relink-folder', params.folderPath, params.slug, params.providerId ?? null),
-        ),
+        unwrap(await window.api.invoke('relink-folder', params.folderPath, params.slug, params.providerId ?? null)),
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: ['library'] });
       },

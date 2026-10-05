@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Play, Image as ImageIcon } from 'lucide-react';
 import { reportRendererError } from '@/renderer/utils/rendererErrorReporting';
+import { unwrap } from '@/renderer/hooks/queries/unwrap';
 
 interface EpisodeThumbnailProps {
   videoPath: string;
@@ -30,6 +31,7 @@ export function EpisodeThumbnail({ videoPath, alt = '', className = '', thumbTok
         if (entries[0].isIntersecting && !thumbSrc) {
           window.api
             .invoke('get-video-thumbnail', videoPath)
+            .then(unwrap)
             .then((src: string) => {
               if (isMounted && src) {
                 setThumbSrc(src);

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { isIpcFailError, unwrap } from '@/renderer/hooks/queries/unwrap';
 import { Dialog } from '@/renderer/components/Dialog';
 import { CustomInput } from '@/renderer/components/CustomInput';
 import { CustomRadio, CustomRadioGroup } from '@/renderer/components/CustomRadioGroup';
@@ -66,19 +67,18 @@ export function RenameFolderDialog({
     setSaving(true);
     setError(null);
     try {
-      const res = (await window.api.invoke('rename-folder', {
-        oldPath: folderPath,
-        newName: finalName,
-      })) as { success: boolean; error?: string } | null;
-      if (res && res.success) {
-        toast.success('Carpeta renombrada');
-        onOpenChange(false);
-        onRenamed?.();
-      } else {
-        setError(res?.error || 'No se pudo renombrar la carpeta.');
-      }
-    } catch {
-      setError('No se pudo renombrar la carpeta.');
+      unwrap(
+        await window.api.invoke('rename-folder', {
+          oldPath: folderPath,
+          newName: finalName,
+        }),
+        { toast: false },
+      );
+      toast.success('Carpeta renombrada');
+      onOpenChange(false);
+      onRenamed?.();
+    } catch (e: unknown) {
+      setError(isIpcFailError(e) ? e.message : 'No se pudo renombrar la carpeta.');
     } finally {
       setSaving(false);
     }
