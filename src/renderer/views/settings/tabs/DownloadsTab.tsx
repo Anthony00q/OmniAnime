@@ -354,7 +354,7 @@ const DescargasNombrado = memo(function DescargasNombrado({
         </div>
       </div>
       <div className="mt-4 rounded-xl bg-background border border-border/60 px-3 py-2.5 text-xs text-muted-foreground">
-        Si AniList no vincula el anime, se usa el nombre del proveedor. Solo afecta a descargas nuevas.
+        Si el título elegido no está disponible, se usa el siguiente que sí lo esté. Solo afecta a descargas nuevas.
       </div>
       <div className="mt-4 flex flex-wrap gap-2">
         <button

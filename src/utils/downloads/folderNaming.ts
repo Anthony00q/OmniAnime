@@ -1,12 +1,12 @@
 // Nombre de carpeta de descarga: qué título se usa, limpieza para Windows y colisiones.
 
 export const FOLDER_NAME_SOURCES = [
+  'provider',
+  'provider-alt',
   'anilist-romaji',
   'anilist-english',
   'anilist-native',
   'anilist-synonym',
-  'provider',
-  'provider-alt',
 ] as const;
 
 export type FolderNameSource = (typeof FOLDER_NAME_SOURCES)[number];
@@ -19,7 +19,7 @@ export function normalizeFolderNameSource(raw: unknown): FolderNameSource {
 
 export type FolderCandidateKey = FolderNameSource | 'japanese';
 
-export const DEFAULT_FOLDER_NAME_SOURCE: FolderNameSource = 'anilist-romaji';
+export const DEFAULT_FOLDER_NAME_SOURCE: FolderNameSource = 'provider';
 
 export const FALLBACK_FOLDER_NAME = 'Sin_titulo';
 
