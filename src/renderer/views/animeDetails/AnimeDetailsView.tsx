@@ -56,6 +56,7 @@ import {
   useAniListId,
 } from '@/renderer/hooks/useQueries';
 import { shouldShowOfflineEmpty } from '@/renderer/utils/offlineEmpty';
+import { isIpcFailError, unwrap } from '@/renderer/hooks/queries/unwrap';
 import { Dialog } from '@/renderer/components/Dialog';
 import { CustomNumberInput } from '@/renderer/components/CustomNumberInput';
 import { AppTooltip } from '@/renderer/components/ui/AppTooltip';
@@ -256,20 +257,18 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
   const handleOpenExternal = useCallback(async () => {
     if (!externalUrl) return;
     try {
-      const ok = await window.api.invoke('open-external-url', externalUrl);
-      if (!ok) toast.error('No se pudo abrir el enlace externo');
-    } catch {
-      toast.error('No se pudo abrir el enlace externo');
+      unwrap(await window.api.invoke('open-external-url', externalUrl));
+    } catch (error) {
+      if (!isIpcFailError(error)) toast.error('No se pudo abrir el enlace externo');
     }
   }, [externalUrl]);
 
   const handleOpenAniList = useCallback(async () => {
     if (!anilistUrl) return;
     try {
-      const ok = await window.api.invoke('open-external-url', anilistUrl);
-      if (!ok) toast.error('No se pudo abrir el enlace externo');
-    } catch {
-      toast.error('No se pudo abrir el enlace externo');
+      unwrap(await window.api.invoke('open-external-url', anilistUrl));
+    } catch (error) {
+      if (!isIpcFailError(error)) toast.error('No se pudo abrir el enlace externo');
     }
   }, [anilistUrl]);
 

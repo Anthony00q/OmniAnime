@@ -5,6 +5,7 @@ import {
   type InvokeChannel,
   type SplashEventChannel,
 } from '../types/ipc-channels';
+import { isIpcFail, type IpcResponse } from '../types/api';
 
 // Preload aislado del splash; sus canales salen de la fuente única.
 const splashStatus: SplashEventChannel = 'splash-status';
@@ -23,6 +24,8 @@ contextBridge.exposeInMainWorld('splashApi', {
   },
   getIconDataUrl: (): Promise<string | null> => {
     if (!invokeAllowed.has(splashIcon)) return Promise.reject(new Error(`Canal IPC no permitido: ${splashIcon}`));
-    return ipcRenderer.invoke(splashIcon) as Promise<string | null>;
+    return (ipcRenderer.invoke(splashIcon) as Promise<IpcResponse<string | null>>).then((res) =>
+      res && !isIpcFail(res) ? (res.data ?? null) : null,
+    );
   },
 });

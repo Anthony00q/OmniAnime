@@ -1,6 +1,7 @@
 import { memo, useEffect, useState } from 'react';
 import { useAtomValue } from 'jotai';
 import { settingsAtom } from '@/renderer/store/atoms';
+import { unwrap } from '@/renderer/hooks/queries/unwrap';
 import { HardDrive, Download, Database, Palette, Bell, Keyboard, Info, ScrollText } from 'lucide-react';
 
 interface TabDef {
@@ -64,6 +65,7 @@ export const SettingsTabNav = memo(function SettingsTabNav({ activeTab, onTabCha
     let cancelled = false;
     window.api
       ?.invoke('get-app-version')
+      .then(unwrap)
       .then((v: unknown) => {
         if (!cancelled && typeof v === 'string' && v.trim()) setAppVersion(v.trim());
       })

@@ -1,5 +1,6 @@
 import { Minus, Square, X, Copy } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { unwrap } from '@/renderer/hooks/queries/unwrap';
 
 export function Titlebar() {
   const [isMaximized, setIsMaximized] = useState(false);
@@ -27,7 +28,7 @@ export function Titlebar() {
     window.api.on('window-state-changed', handleWindowStateChanged);
     window.api
       .invoke('window-get-state')
-      .then((state: any) => handleWindowStateChanged(state))
+      .then((res: any) => handleWindowStateChanged(unwrap(res)))
       .catch(() => undefined);
 
     return () => {

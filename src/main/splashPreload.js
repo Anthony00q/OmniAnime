@@ -7,6 +7,7 @@ const __modules = {
     Object.defineProperty(exports, '__esModule', { value: true });
     const electron_1 = require('electron');
     const ipc_channels_1 = require('../types/ipc-channels');
+    const api_1 = require('../types/api');
     // Preload aislado del splash; sus canales salen de la fuente única.
     const splashStatus = 'splash-status';
     const splashIcon = 'get-splash-icon';
@@ -23,7 +24,9 @@ const __modules = {
       },
       getIconDataUrl: () => {
         if (!invokeAllowed.has(splashIcon)) return Promise.reject(new Error(`Canal IPC no permitido: ${splashIcon}`));
-        return electron_1.ipcRenderer.invoke(splashIcon);
+        return electron_1.ipcRenderer
+          .invoke(splashIcon)
+          .then((res) => (res && !(0, api_1.isIpcFail)(res) ? (res.data ?? null) : null));
       },
     });
   },
@@ -136,6 +139,24 @@ const __modules = {
     ];
     // eventos del splash: viven solo en splashPreload, fuera del preload principal
     exports.SPLASH_EVENT_CHANNELS = ['splash-status'];
+  },
+  'types/api': function (exports, require, module) {
+    'use strict';
+    Object.defineProperty(exports, '__esModule', { value: true });
+    exports.ok = ok;
+    exports.fail = fail;
+    exports.isIpcFail = isIpcFail;
+    function ok(data) {
+      return { ok: true, data };
+    }
+    function fail(code, message) {
+      return { ok: false, code, message };
+    }
+    function isIpcFail(response) {
+      return (
+        typeof response === 'object' && response !== null && response.ok === false && typeof response.code === 'string'
+      );
+    }
   },
 };
 

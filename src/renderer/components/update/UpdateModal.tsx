@@ -5,6 +5,7 @@ import { Dialog } from '@/renderer/components/Dialog';
 import { ProgressBar } from '@/renderer/components/ui/ProgressBar';
 import { ReleaseNotesView } from './ReleaseNotesView';
 import { useAppUpdate } from '@/renderer/hooks/useAppUpdate';
+import { unwrap } from '@/renderer/hooks/queries/unwrap';
 import { releaseNotesForVersion } from '@/renderer/utils/releaseNotes';
 import { buildReleasePageUrl } from '@/utils/security/externalUrl';
 import {
@@ -38,6 +39,7 @@ export function UpdateModal() {
     let cancelled = false;
     void window.api
       .invoke('get-app-version')
+      .then(unwrap)
       .then((version: unknown) => {
         if (cancelled) return;
         setCurrentVersion(typeof version === 'string' ? version : '');

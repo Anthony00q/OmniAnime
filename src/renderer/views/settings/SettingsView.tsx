@@ -18,7 +18,7 @@ import {
   useStorageActions,
   fetchDefaultSettings,
 } from '@/renderer/hooks/useQueries';
-import { isIpcFailError } from '@/renderer/hooks/queries/unwrap';
+import { isIpcFailError, unwrap } from '@/renderer/hooks/queries/unwrap';
 import { ErrorState } from '@/renderer/components/ui/ErrorState';
 import { AppearanceTab } from './tabs/AppearanceTab';
 import { DownloadsTab } from './tabs/DownloadsTab';
@@ -152,9 +152,9 @@ export function SettingsView({ isActive = true }: { isActive?: boolean }) {
   const handleRestartNow = async () => {
     setRestartLoading(true);
     try {
-      await window.api.invoke('app-restart');
-    } catch {
-      toast.error('No se pudo reiniciar. Cierra y vuelve a abrir la app.');
+      unwrap(await window.api.invoke('app-restart'));
+    } catch (error) {
+      if (!isIpcFailError(error)) toast.error('No se pudo reiniciar. Cierra y vuelve a abrir la app.');
       setRestartLoading(false);
       setShowRestartConfirm(false);
     }
