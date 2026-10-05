@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { ViewPanel } from '@/renderer/components/ViewPanel';
-import { LegacyPanel } from './-legacyPanel';
+import { MemoCatalogView } from '@/renderer/App';
 
 export const Route = createFileRoute('/catalog')({
   component: CatalogRoute,
@@ -9,7 +9,7 @@ export const Route = createFileRoute('/catalog')({
 function CatalogRoute() {
   return (
     <ViewPanel scope="ui:catalog">
-      <LegacyPanel view="catalog" />
+      <MemoCatalogView />
     </ViewPanel>
   );
 }
