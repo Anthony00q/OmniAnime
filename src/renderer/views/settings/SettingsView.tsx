@@ -403,10 +403,9 @@ export function SettingsView({ isActive = true }: { isActive?: boolean }) {
   const handleOpenOutputDir = async (dir: string) => {
     if (!dir) return;
     try {
-      const res = await window.api.invoke('open-folder', dir);
-      if (res && res.success === false) toast.error(res.error || 'No se pudo abrir la carpeta');
-    } catch {
-      toast.error('No se pudo abrir la carpeta');
+      unwrap(await window.api.invoke('open-folder', dir));
+    } catch (error) {
+      if (!isIpcFailError(error)) toast.error('No se pudo abrir la carpeta');
     }
   };
 

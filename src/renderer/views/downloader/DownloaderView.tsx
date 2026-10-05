@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState, useMemo, useRef } from 'react';
 import { useSetAtom } from 'jotai';
 import { toast } from 'sonner';
 import { useQueue, useDownloadActions } from '@/renderer/hooks/useQueries';
+import { unwrap } from '@/renderer/hooks/queries/unwrap';
 import { PageHeader } from '@/renderer/components/ui/PageHeader';
 import { ErrorState } from '@/renderer/components/ui/ErrorState';
 import { Dialog } from '@/renderer/components/Dialog';
@@ -279,8 +280,9 @@ export function DownloaderView({ onSelectAnime, activeProvider, isActive = true 
   const handleOpenAnimeFolder = useCallback(async (targetPath: string, animeTitle: string) => {
     try {
       if (targetPath) {
-        const exact = await window.api.invoke('open-folder', targetPath);
-        if (exact?.success !== false) return;
+        // Sin aviso aquí: si la ruta exacta falla, la búsqueda difusa de abajo es la que informa.
+        unwrap(await window.api.invoke('open-folder', targetPath), { toast: false });
+        return;
       }
     } catch {}
     try {

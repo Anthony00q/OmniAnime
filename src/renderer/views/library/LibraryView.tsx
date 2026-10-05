@@ -14,6 +14,7 @@ import { useAtomValue, useSetAtom } from 'jotai';
 import { toast } from 'sonner';
 import { settingsAtom, currentViewAtom, navigateToCatalogAtom } from '@/renderer/store/atoms';
 import { useLibrary } from '@/renderer/hooks/useQueries';
+import { isIpcFailError, unwrap } from '@/renderer/hooks/queries/unwrap';
 import { LibraryAnimeDetails } from './LibraryAnimeDetails';
 import { PosterCard } from '@/renderer/components/anime/PosterCard';
 import { PosterGrid } from '@/renderer/components/anime/PosterGrid';
@@ -172,12 +173,9 @@ export function LibraryView({ onSelectAnime, activeProvider, isActive }: Library
     if (!target) return;
 
     try {
-      const result = await window.api.invoke('open-folder', target);
-      if (result === false || result?.success === false) {
-        toast.error(result?.error || 'No se pudo abrir la carpeta');
-      }
-    } catch {
-      toast.error('No se pudo abrir la carpeta');
+      unwrap(await window.api.invoke('open-folder', target));
+    } catch (error) {
+      if (!isIpcFailError(error)) toast.error('No se pudo abrir la carpeta');
     }
   };
 

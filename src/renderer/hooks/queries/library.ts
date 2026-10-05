@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { ensureIpcSuccess } from './internal';
+import { unwrap } from './unwrap';
 
 export function useLibrary(dirs: string[]) {
   return useQuery({
@@ -59,7 +60,7 @@ export function useLibraryActions() {
 
   return {
     openFolder: useMutation({
-      mutationFn: async (folderPath: string) => ensureIpcSuccess(await window.api.invoke('open-folder', folderPath)),
+      mutationFn: async (folderPath: string) => unwrap(await window.api.invoke('open-folder', folderPath)),
     }),
     playVideo: useMutation({
       mutationFn: async (videoPath: string) => ensureIpcSuccess(await window.api.invoke('play-video', videoPath)),

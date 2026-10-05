@@ -2,6 +2,7 @@ import { shell } from 'electron';
 import { handleIpc } from '../ipcGuard';
 import * as fs from 'fs';
 import * as path from 'path';
+import { fail, ok } from '../../../types/api';
 import { isPathWithinAnyDirectory } from '../../../utils/security/pathSecurity';
 import type { IpcRegistryDependencies } from '../../IpcRegistry';
 
@@ -12,16 +13,22 @@ export function registerHistoryHandlers({
 }: IpcRegistryDependencies): void {
   handleIpc('get-download-history', () => {
     try {
-      return historyService.getHistory();
+      return ok(historyService.getHistory());
     } catch (error) {
       writeGlobalLog(error);
       throw error;
     }
   });
-  handleIpc('clear-download-history', () => historyService.clearHistory());
-  handleIpc('remove-history-entry', (_, index: number) => historyService.removeHistoryEntry(index));
+  handleIpc('clear-download-history', () =>
+    historyService.clearHistory() ? ok(null) : fail('CLEAR_HISTORY_FAILED', 'Error al limpiar el historial'),
+  );
+  handleIpc('remove-history-entry', (_, index: number) =>
+    historyService.removeHistoryEntry(index) ? ok(null) : fail('REMOVE_HISTORY_FAILED', 'Error al eliminar la entrada'),
+  );
   handleIpc('remove-history-entries', (_, indices: number[], expectedIds?: number[]) =>
-    historyService.removeHistoryEntries(indices, expectedIds),
+    historyService.removeHistoryEntries(indices, expectedIds)
+      ? ok(null)
+      : fail('REMOVE_HISTORY_FAILED', 'Error al eliminar el grupo'),
   );
   handleIpc('open-folder', async (_, folderPath: string) => {
     try {
@@ -30,17 +37,17 @@ export function registerHistoryHandlers({
         .getHistory()
         .some((record) => path.resolve(record.dirFullPath || '') === normalizedPath);
       if (!isKnownHistoryPath && !isPathWithinAnyDirectory(normalizedPath, getAllowedBaseDirs())) {
-        return { success: false, error: 'La ruta está fuera de la librería configurada.' };
+        return fail('OPEN_FOLDER_OUTSIDE_LIBRARY', 'La ruta está fuera de la librería configurada.');
       }
       if (!fs.existsSync(normalizedPath)) {
-        return { success: false, error: 'La ruta no existe en el disco.' };
+        return fail('OPEN_FOLDER_MISSING', 'La ruta no existe en el disco.');
       }
       const error = await shell.openPath(normalizedPath);
-      if (error) return { success: false, error };
-      return { success: true };
+      if (error) return fail('OPEN_FOLDER_FAILED', 'No se pudo abrir la carpeta');
+      return ok(null);
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error);
-      return { success: false, error: message };
+      writeGlobalLog(error);
+      return fail('OPEN_FOLDER_FAILED', 'No se pudo abrir la carpeta');
     }
   });
 }

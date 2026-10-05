@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
-import { ensureIpcSuccess } from './internal';
+import { unwrap } from './unwrap';
 
 export function useHistory(isActive: boolean) {
   const queryClient = useQueryClient();
@@ -8,7 +8,7 @@ export function useHistory(isActive: boolean) {
 
   const query = useQuery({
     queryKey: ['history'],
-    queryFn: () => window.api.invoke('get-download-history'),
+    queryFn: async () => unwrap(await window.api.invoke('get-download-history')),
     enabled: isActive,
     staleTime: 10 * 1000,
   });
@@ -42,12 +42,12 @@ export function useHistoryActions() {
 
   return {
     clearHistory: useMutation({
-      mutationFn: async () => ensureIpcSuccess(await window.api.invoke('clear-download-history')),
+      mutationFn: async () => unwrap(await window.api.invoke('clear-download-history')),
       onSuccess: invalidate,
     }),
     removeHistoryEntries: useMutation({
       mutationFn: async (payload: { indices: number[]; expectedIds?: number[] }) =>
-        ensureIpcSuccess(await window.api.invoke('remove-history-entries', payload.indices, payload.expectedIds)),
+        unwrap(await window.api.invoke('remove-history-entries', payload.indices, payload.expectedIds)),
       onSuccess: invalidate,
     }),
     invalidateHistory: invalidate,

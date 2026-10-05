@@ -3,6 +3,7 @@ import { Trash2, History, ChevronRight, ChevronDown, Loader2 } from 'lucide-reac
 import { toast } from 'sonner';
 import { Dialog } from '@/renderer/components/Dialog';
 import { useHistory, useHistoryActions } from '@/renderer/hooks/useQueries';
+import { isIpcFailError, unwrap } from '@/renderer/hooks/queries/unwrap';
 import { PageHeader } from '@/renderer/components/ui/PageHeader';
 import { ErrorState } from '@/renderer/components/ui/ErrorState';
 import { EmptyState } from '@/renderer/components/ui/EmptyState';
@@ -56,7 +57,9 @@ export function HistoryView({ isActive, activeProvider, onSelectAnime }: History
         toast.success('Historial limpiado');
         collapseAll();
       },
-      onError: () => toast.error('Error al limpiar el historial'),
+      onError: (error) => {
+        if (!isIpcFailError(error)) toast.error('Error al limpiar el historial');
+      },
     });
   };
 
@@ -76,7 +79,9 @@ export function HistoryView({ isActive, activeProvider, onSelectAnime }: History
             return next;
           });
         },
-        onError: () => toast.error('Error al eliminar el grupo'),
+        onError: (error) => {
+          if (!isIpcFailError(error)) toast.error('Error al eliminar el grupo');
+        },
       },
     );
   };
@@ -87,12 +92,9 @@ export function HistoryView({ isActive, activeProvider, onSelectAnime }: History
     try {
       const sep = fullPath.includes('\\') ? '\\' : '/';
       const folderPath = isDirectory ? fullPath : fullPath.substring(0, fullPath.lastIndexOf(sep));
-      const res = await window.api.invoke('open-folder', folderPath || fullPath);
-      if (res && res.success === false) {
-        toast.error(res.error || 'No se pudo abrir el directorio');
-      }
-    } catch {
-      toast.error('No se pudo abrir el directorio');
+      unwrap(await window.api.invoke('open-folder', folderPath || fullPath));
+    } catch (error) {
+      if (!isIpcFailError(error)) toast.error('No se pudo abrir el directorio');
     }
   }, []);
 

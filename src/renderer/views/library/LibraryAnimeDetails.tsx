@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo, useCallback, type MouseEvent as R
 import { HERO_DIM_MAX, HERO_DIM_DISTANCE } from '@/renderer/utils/heroDim';
 import { ArrowLeft, FolderOpen, Settings, Wand2, ListOrdered, Info, FileText, Hash, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
+import { isIpcFailError } from '@/renderer/hooks/queries/unwrap';
 import { Dialog } from '@/renderer/components/Dialog';
 import {
   useEpisodes,
@@ -176,7 +177,9 @@ export function LibraryAnimeDetails({
 
   const handleOpenFolder = useCallback(() => {
     libActions.openFolder.mutate(folderData.path, {
-      onError: (error) => toast.error(error.message || 'No se pudo abrir la carpeta'),
+      onError: (error) => {
+        if (!isIpcFailError(error)) toast.error(error.message || 'No se pudo abrir la carpeta');
+      },
     });
   }, [libActions.openFolder, folderData.path]);
 
