@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { unwrap } from './unwrap';
 
 // Banner y estudio de AniList: éxitos con caché larga (24h); fallos de
 // red/límite con caché corta (2 min) para reintentar pronto sin golpear la API.
@@ -80,7 +81,8 @@ export async function fetchAniListMeta(
 ): Promise<AniListMeta | null> {
   const req = normalizeAniListRequest(input);
   if (!req.title && req.malId === null) return null;
-  const res = (await window.api.invoke('get-anilist-banner', req)) as {
+  // AniList nunca avisa: silencio salvo el reintento transitorio.
+  const res = unwrap(await window.api.invoke('get-anilist-banner', req), { toast: false }) as {
     anilistId: number;
     banner?: string | null;
     studio?: string | null;

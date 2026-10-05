@@ -1,4 +1,5 @@
 import { handleIpc } from '../ipcGuard';
+import { ok } from '../../../types/api';
 import { aniListBannerResponse, resolveAniListBannerResult, type AniListFailureKind } from '../../anilistBanner';
 import { safeErrorMessage } from '../../../utils/logging/redactLog';
 import type { IpcRegistryDependencies } from '../../IpcRegistry';
@@ -28,7 +29,7 @@ export function registerAniListHandlers({ writeGlobalLog, scopedLog }: IpcRegist
         const title = String(raw.title ?? '');
         const malId = Number(raw.malId);
         const hasMalId = Number.isInteger(malId) && malId > 0;
-        if (!title.trim() && !hasMalId) return null;
+        if (!title.trim() && !hasMalId) return ok(null);
         const alternativeTitles = Array.isArray(raw.alternativeTitles)
           ? raw.alternativeTitles.filter((t): t is string => typeof t === 'string').slice(0, 3)
           : undefined;
@@ -52,10 +53,10 @@ export function registerAniListHandlers({ writeGlobalLog, scopedLog }: IpcRegist
             if (kind !== 'nomatch') fileLog.warn(`banner no resuelto (${kind})`);
           },
         );
-        return aniListBannerResponse(resolved, failureKind);
+        return ok(aniListBannerResponse(resolved, failureKind));
       } catch (error) {
         writeGlobalLog(`AniList banner error: ${safeErrorMessage(error)}`);
-        return null;
+        return ok(null);
       }
     },
   );
