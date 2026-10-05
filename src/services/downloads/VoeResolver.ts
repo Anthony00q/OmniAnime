@@ -1,4 +1,4 @@
-import axios from 'axios';
+import { BROAD_OUTBOUND_POLICY, outboundGet } from '../../utils/security/outboundPolicy';
 
 const USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
@@ -138,15 +138,19 @@ function followVoeRedirect(html: string, embedUrl: string): string | null {
 }
 
 async function defaultFetchHtml(url: string, timeoutMs: number): Promise<string> {
-  const response = await axios.get(url, {
-    headers: { 'User-Agent': USER_AGENT, Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8' },
-    timeout: timeoutMs,
-    responseType: 'text',
-    maxRedirects: 5,
-    maxContentLength: MAX_PAYLOAD_BYTES,
-    maxBodyLength: MAX_PAYLOAD_BYTES,
-    validateStatus: (status) => status >= 200 && status < 300,
-  });
+  const response = await outboundGet(
+    url,
+    {
+      headers: { 'User-Agent': USER_AGENT, Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8' },
+      timeout: timeoutMs,
+      responseType: 'text',
+      maxRedirects: 5,
+      maxContentLength: MAX_PAYLOAD_BYTES,
+      maxBodyLength: MAX_PAYLOAD_BYTES,
+      validateStatus: (status) => status >= 200 && status < 300,
+    },
+    BROAD_OUTBOUND_POLICY,
+  );
   return String(response.data || '');
 }
 

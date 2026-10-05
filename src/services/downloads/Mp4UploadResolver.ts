@@ -1,4 +1,4 @@
-import axios from 'axios';
+import { BROAD_OUTBOUND_POLICY, outboundGet } from '../../utils/security/outboundPolicy';
 
 // Resolución directa propia de MP4Upload: del embed HTML se extrae
 // el fichero `https://<host>.mp4upload.com:<port>/d/<id>/<file>` para
@@ -59,13 +59,17 @@ export interface Mp4UploadResolverDeps {
 }
 
 async function defaultFetchHtml(url: string, timeoutMs: number): Promise<string> {
-  const response = await axios.get(url, {
-    headers: { 'User-Agent': MP4UPLOAD_USER_AGENT, Referer: MP4UPLOAD_REFERER },
-    timeout: timeoutMs,
-    responseType: 'text',
-    maxRedirects: 5,
-    validateStatus: (status) => status >= 200 && status < 300,
-  });
+  const response = await outboundGet(
+    url,
+    {
+      headers: { 'User-Agent': MP4UPLOAD_USER_AGENT, Referer: MP4UPLOAD_REFERER },
+      timeout: timeoutMs,
+      responseType: 'text',
+      maxRedirects: 5,
+      validateStatus: (status) => status >= 200 && status < 300,
+    },
+    BROAD_OUTBOUND_POLICY,
+  );
   return String(response.data || '');
 }
 

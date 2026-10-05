@@ -1,4 +1,4 @@
-import axios from 'axios';
+import { BROAD_OUTBOUND_POLICY, outboundGet } from '../../utils/security/outboundPolicy';
 import * as fsp from 'fs/promises';
 import * as http from 'http';
 import * as https from 'https';
@@ -132,28 +132,36 @@ export async function downloadHlsToMp4(
   const fetchText =
     deps?.fetchText ??
     (async (url: string): Promise<string> => {
-      const response = await axios.get(url, {
+      const response = await outboundGet(
+        url,
+        {
+          headers,
+          timeout: PLAYLIST_TIMEOUT_MS,
+          maxRedirects: 5,
+          httpAgent,
+          httpsAgent,
+          signal: signal as never,
+          validateStatus: (status) => status >= 200 && status < 300,
+        },
+        BROAD_OUTBOUND_POLICY,
+      );
+      return String(response.data ?? '');
+    });
+  const fetchBytes = async (url: string): Promise<Buffer> => {
+    const response = await outboundGet(
+      url,
+      {
         headers,
-        timeout: PLAYLIST_TIMEOUT_MS,
+        timeout: SEGMENT_TIMEOUT_MS,
         maxRedirects: 5,
+        responseType: 'arraybuffer',
         httpAgent,
         httpsAgent,
         signal: signal as never,
         validateStatus: (status) => status >= 200 && status < 300,
-      });
-      return String(response.data ?? '');
-    });
-  const fetchBytes = async (url: string): Promise<Buffer> => {
-    const response = await axios.get(url, {
-      headers,
-      timeout: SEGMENT_TIMEOUT_MS,
-      maxRedirects: 5,
-      responseType: 'arraybuffer',
-      httpAgent,
-      httpsAgent,
-      signal: signal as never,
-      validateStatus: (status) => status >= 200 && status < 300,
-    });
+      },
+      BROAD_OUTBOUND_POLICY,
+    );
     return Buffer.from(response.data as ArrayBuffer);
   };
 

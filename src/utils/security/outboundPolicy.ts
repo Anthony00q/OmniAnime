@@ -28,6 +28,13 @@ export interface OutboundPolicy {
 
 export const DEFAULT_OUTBOUND_TIMEOUT_MS = 30_000;
 
+// Para orígenes no enumerables (los hosts de descarga salen de los enlaces del proveedor y cambian): solo host público.
+export const BROAD_OUTBOUND_POLICY: OutboundPolicy = {
+  allowHttp: true,
+  blockPrivateNetwork: true,
+  allowLoopback: true,
+};
+
 function parseIPv4(host: string): number[] | null {
   const match = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
   if (!match) return null;

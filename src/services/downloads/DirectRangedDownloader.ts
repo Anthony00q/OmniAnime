@@ -1,4 +1,4 @@
-import axios from 'axios';
+import { BROAD_OUTBOUND_POLICY, outboundRequest } from '../../utils/security/outboundPolicy';
 import * as fsp from 'fs/promises';
 import {
   readConcurrency,
@@ -53,21 +53,24 @@ export function parseContentRangeTotal(raw: unknown): number | null {
 
 export async function probeDirectRangeSupport(url: string, options: RangedDownloadOptions): Promise<RangedProbeResult> {
   try {
-    const response = await axios({
-      url,
-      method: 'GET',
-      responseType: 'stream',
-      headers: {
-        'User-Agent': options.userAgent,
-        Referer: options.referer,
-        Range: 'bytes=0-0',
-        'Accept-Encoding': 'identity',
+    const response = await outboundRequest(
+      {
+        url,
+        method: 'GET',
+        responseType: 'stream',
+        headers: {
+          'User-Agent': options.userAgent,
+          Referer: options.referer,
+          Range: 'bytes=0-0',
+          'Accept-Encoding': 'identity',
+        },
+        timeout: RANGE_PROBE_TIMEOUT_MS,
+        signal: options.signal as never,
+        maxRedirects: 5,
+        validateStatus: () => true,
       },
-      timeout: RANGE_PROBE_TIMEOUT_MS,
-      signal: options.signal as never,
-      maxRedirects: 5,
-      validateStatus: () => true,
-    });
+      BROAD_OUTBOUND_POLICY,
+    );
     try {
       (response.data as { destroy?: () => void } | null)?.destroy?.();
     } catch {
@@ -111,21 +114,24 @@ export async function downloadDirectRanged(
     }
   };
   const runPart = async (index: number, start: number, end: number): Promise<void> => {
-    const response = await axios({
-      url,
-      method: 'GET',
-      responseType: 'stream',
-      headers: {
-        'User-Agent': options.userAgent,
-        Referer: options.referer,
-        Range: `bytes=${start}-${end}`,
-        'Accept-Encoding': 'identity',
+    const response = await outboundRequest(
+      {
+        url,
+        method: 'GET',
+        responseType: 'stream',
+        headers: {
+          'User-Agent': options.userAgent,
+          Referer: options.referer,
+          Range: `bytes=${start}-${end}`,
+          'Accept-Encoding': 'identity',
+        },
+        timeout: PART_TIMEOUT_MS,
+        signal: options.signal as never,
+        maxRedirects: 5,
+        validateStatus: () => true,
       },
-      timeout: PART_TIMEOUT_MS,
-      signal: options.signal as never,
-      maxRedirects: 5,
-      validateStatus: () => true,
-    });
+      BROAD_OUTBOUND_POLICY,
+    );
     if (response.status !== 206) throw new Error(`ranged part ${index} status ${response.status}`);
     const stream = response.data as NodeJS.ReadableStream & { destroy?: () => void };
     await new Promise<void>((resolve, reject) => {

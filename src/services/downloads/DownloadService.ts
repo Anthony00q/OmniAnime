@@ -1,5 +1,6 @@
 import { execFile } from 'child_process';
 import axios from 'axios';
+import { BROAD_OUTBOUND_POLICY, outboundGet, outboundRequest } from '../../utils/security/outboundPolicy';
 import * as fs from 'fs';
 import * as fsp from 'fs/promises';
 import * as http from 'http';
@@ -210,13 +211,17 @@ export class DownloadService {
     for (let attempt = 1; attempt <= MAX_EXTRACT_ATTEMPTS; attempt += 1) {
       if (signal?.aborted) return false;
       try {
-        const { data } = await axios.get(url, {
-          headers: {
-            'User-Agent': DIRECT_USER_AGENT,
+        const { data } = await outboundGet<string>(
+          url,
+          {
+            headers: {
+              'User-Agent': DIRECT_USER_AGENT,
+            },
+            timeout: 10000,
+            signal: signal as any,
           },
-          timeout: 10000,
-          signal: signal as any,
-        });
+          BROAD_OUTBOUND_POLICY,
+        );
         const match =
           data.match(/href="((?:https?:\/\/)?download\d+\.mediafire\.com\/[^"]+)"/i) ||
           data.match(/id="downloadButton" href="([^"]+)"/i);
@@ -432,26 +437,29 @@ export class DownloadService {
       if (offset === 0) {
         await fsp.writeFile(sidecarDest, JSON.stringify({ url })).catch(() => undefined);
       }
-      const response = await axios({
-        url,
-        method: 'GET',
-        responseType: 'stream',
-        httpAgent,
-        httpsAgent,
-        headers: {
-          Referer: typeof referer === 'string' && referer ? referer : DEFAULT_DOWNLOAD_REFERER,
-          'User-Agent': DIRECT_USER_AGENT,
-          'Accept-Encoding': 'identity',
-          Connection: 'keep-alive',
-          ...(offset > 0 ? { Range: `bytes=${offset}-` } : {}),
+      const response = await outboundRequest(
+        {
+          url,
+          method: 'GET',
+          responseType: 'stream',
+          httpAgent,
+          httpsAgent,
+          headers: {
+            Referer: typeof referer === 'string' && referer ? referer : DEFAULT_DOWNLOAD_REFERER,
+            'User-Agent': DIRECT_USER_AGENT,
+            'Accept-Encoding': 'identity',
+            Connection: 'keep-alive',
+            ...(offset > 0 ? { Range: `bytes=${offset}-` } : {}),
+          },
+          timeout: 60000,
+          signal: internalController.signal as any,
+          maxContentLength: Infinity,
+          maxBodyLength: Infinity,
+          maxRedirects: 5,
+          validateStatus: () => true,
         },
-        timeout: 60000,
-        signal: internalController.signal as any,
-        maxContentLength: Infinity,
-        maxBodyLength: Infinity,
-        maxRedirects: 5,
-        validateStatus: () => true,
-      });
+        BROAD_OUTBOUND_POLICY,
+      );
 
       if (signal?.aborted) {
         freezeAndKill();
