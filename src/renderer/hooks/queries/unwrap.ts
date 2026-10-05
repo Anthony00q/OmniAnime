@@ -30,13 +30,19 @@ export function ipcFailMessage(failure: IpcErrorShape): string {
   return message || IPC_FAIL_MESSAGES[failure.code] || 'La operación no se pudo completar';
 }
 
+export interface UnwrapOptions {
+  // Para sitios que gestionan su propio aviso (ciclo de toasts con id o error inline):
+  // unwrap registra y lanza, pero no tostea.
+  toast?: boolean;
+}
+
 // Desenvuelve la respuesta estándar (src/types/api.ts): avisa, deja registro y lanza en fail.
 // La tipación fina por canal llega después; hoy invoke devuelve any y aquí no se pierde fluidez.
-export function unwrap<T = any>(response: any): T {
+export function unwrap<T = any>(response: any, options: UnwrapOptions = {}): T {
   if (isIpcFail(response)) {
     const message = ipcFailMessage(response);
     reportRendererError(`ipc:${response.code}`, message);
-    toast.error(message);
+    if (options.toast !== false) toast.error(message);
     throw new IpcFailError(response.code, message);
   }
   return (response as IpcSuccess<T>).data;

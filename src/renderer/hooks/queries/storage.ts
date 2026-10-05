@@ -1,11 +1,11 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
-import { ensureIpcSuccess } from './internal';
+import { unwrap } from './unwrap';
 
 export function useStorageStats(enabled = true, dirs?: string[]) {
   const key = dirs && dirs.length > 0 ? dirs.join('|') : 'no-dirs';
   return useQuery({
     queryKey: ['storage-stats', key],
-    queryFn: () => window.api.invoke('get-storage-stats'),
+    queryFn: async () => unwrap(await window.api.invoke('get-storage-stats')),
     enabled,
     staleTime: 30 * 1000,
     placeholderData: keepPreviousData,
@@ -15,7 +15,7 @@ export function useStorageStats(enabled = true, dirs?: string[]) {
 export function useSystemInfo(enabled = true) {
   return useQuery({
     queryKey: ['system-info'],
-    queryFn: () => window.api.invoke('get-system-info'),
+    queryFn: async () => unwrap(await window.api.invoke('get-system-info')),
     enabled,
     staleTime: 30 * 1000,
   });
@@ -37,8 +37,8 @@ export function useStorageActions() {
   const queryClient = useQueryClient();
   return {
     cleanCache: useMutation({
-      mutationFn: async () =>
-        window.api.invoke('clean-cache') as Promise<{ cleaned: number; freed: number; errors: string[] }>,
+      // La vista gestiona su aviso (toast con id): unwrap no toste.
+      mutationFn: async () => unwrap(await window.api.invoke('clean-cache'), { toast: false }),
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: ['storage-stats'] });
         queryClient.invalidateQueries({ queryKey: ['library'] });
@@ -46,34 +46,22 @@ export function useStorageActions() {
     }),
     cleanThumbnails: useMutation({
       mutationFn: async (mode: 'expired' | 'all' = 'expired') =>
-        window.api.invoke('clean-thumbnails', mode) as Promise<{ cleaned: number; freed: number; errors: string[] }>,
+        unwrap(await window.api.invoke('clean-thumbnails', mode), { toast: false }),
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: ['storage-stats'] });
       },
     }),
     openAppPath: useMutation({
-      mutationFn: async (kind: string) => ensureIpcSuccess(await window.api.invoke('open-app-path', kind)),
+      mutationFn: async (kind: string) => unwrap(await window.api.invoke('open-app-path', kind)),
     }),
     exportSettings: useMutation({
-      mutationFn: async () =>
-        window.api.invoke('export-settings') as Promise<{
-          success: boolean;
-          path?: string;
-          error?: string;
-          canceled?: boolean;
-        }>,
+      mutationFn: async () => unwrap(await window.api.invoke('export-settings')),
     }),
     importSettings: useMutation({
-      mutationFn: async () =>
-        window.api.invoke('import-settings') as Promise<{
-          success: boolean;
-          settings?: Record<string, unknown>;
-          error?: string;
-          canceled?: boolean;
-        }>,
-      onSuccess: (res) => {
-        if (res?.success && res.settings) {
-          queryClient.setQueryData(['settings'], res.settings);
+      mutationFn: async () => unwrap(await window.api.invoke('import-settings')),
+      onSuccess: (settings) => {
+        if (settings) {
+          queryClient.setQueryData(['settings'], settings);
           queryClient.invalidateQueries({ queryKey: ['settings'] });
         }
       },

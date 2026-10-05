@@ -2,6 +2,7 @@ import { app, dialog, shell } from 'electron';
 import { handleIpc } from '../ipcGuard';
 import * as fs from 'fs';
 import * as path from 'path';
+import { fail, ok } from '../../../types/api';
 import { SettingsManager } from '../../../services/persistence/SettingsManager';
 import { APP_LOG_FILENAME } from '../../../services/logging/AppLogger';
 import { normalizeDownloadSettings } from '../../../utils/downloads/downloadSettings';
@@ -25,13 +26,13 @@ export function registerStorageHandlers(dependencies: IpcRegistryDependencies): 
   handleIpc('get-storage-stats', async () => {
     try {
       if (!storageService)
-        return {
+        return ok({
           disks: [],
           db: { db: 0, wal: 0, shm: 0, total: 0 },
           thumbnails: { count: 0, size: 0, expiredCount: 0 },
           cache: { count: 0, size: 0, perDir: [] },
-        };
-      return await storageService.getStorageStats();
+        });
+      return ok(await storageService.getStorageStats());
     } catch (error) {
       writeGlobalLog(error);
       throw error;
@@ -40,51 +41,51 @@ export function registerStorageHandlers(dependencies: IpcRegistryDependencies): 
 
   handleIpc('clean-cache', async () => {
     try {
-      if (!storageService) return { cleaned: 0, freed: 0, errors: ['Servicio no disponible'] };
-      return await storageService.cleanCache();
+      if (!storageService) return fail('STORAGE_UNAVAILABLE', 'El servicio de almacenamiento no está disponible');
+      return ok(await storageService.cleanCache());
     } catch (error) {
       writeGlobalLog(error);
-      return { cleaned: 0, freed: 0, errors: [error instanceof Error ? error.message : String(error)] };
+      throw error;
     }
   });
 
   handleIpc('clean-thumbnails', async (_, mode?: 'expired' | 'all') => {
     try {
-      if (!storageService) return { cleaned: 0, freed: 0, errors: ['Servicio no disponible'] };
+      if (!storageService) return fail('STORAGE_UNAVAILABLE', 'El servicio de almacenamiento no está disponible');
       const m = mode === 'all' ? 'all' : 'expired';
-      return await storageService.cleanThumbnails(m);
+      return ok(await storageService.cleanThumbnails(m));
     } catch (error) {
       writeGlobalLog(error);
-      return { cleaned: 0, freed: 0, errors: [error instanceof Error ? error.message : String(error)] };
+      throw error;
     }
   });
 
   handleIpc('get-app-paths', async () => {
     try {
       if (!storageService) {
-        return {
+        return ok({
           userData: app.getPath('userData'),
           logs: path.join(app.getPath('userData'), 'logs'),
           toolsDir: '',
           dbPath: '',
-        };
+        });
       }
-      return storageService.getAppPaths();
+      return ok(storageService.getAppPaths());
     } catch (error) {
       writeGlobalLog(error);
-      return {
+      return ok({
         userData: app.getPath('userData'),
         logs: path.join(app.getPath('userData'), 'logs'),
         toolsDir: '',
         dbPath: '',
-      };
+      });
     }
   });
 
   handleIpc('open-app-path', async (_, kind: string) => {
     try {
       const allowedKinds = new Set(['userData', 'logs', 'tools', 'db', 'log-file']);
-      if (!allowedKinds.has(kind)) return { success: false, error: 'Tipo no permitido' };
+      if (!allowedKinds.has(kind)) return fail('OPEN_APP_PATH_NOT_ALLOWED', 'Tipo no permitido');
       // Sesion viva de AppLogger (nunca app.log legacy): nunca sale de aqui.
       if (kind === 'log-file') {
         let logFile = '';
@@ -96,13 +97,13 @@ export function registerStorageHandlers(dependencies: IpcRegistryDependencies): 
         if (!logFile) logFile = path.join(app.getPath('userData'), 'logs', APP_LOG_FILENAME);
         if (fs.existsSync(logFile)) {
           shell.showItemInFolder(logFile);
-          return { success: true };
+          return ok(null);
         }
         const dir = path.dirname(logFile);
-        if (!fs.existsSync(dir)) return { success: false, error: 'La ruta no existe' };
+        if (!fs.existsSync(dir)) return fail('OPEN_APP_PATH_MISSING', 'La ruta no existe');
         const error = await shell.openPath(dir);
-        if (error) return { success: false, error };
-        return { success: true };
+        if (error) return fail('OPEN_APP_PATH_FAILED', 'No se pudo abrir la carpeta');
+        return ok(null);
       }
       let target: string | null = null;
       if (storageService) {
@@ -115,19 +116,19 @@ export function registerStorageHandlers(dependencies: IpcRegistryDependencies): 
         if (kind === 'userData') target = app.getPath('userData');
         else if (kind === 'logs') target = path.join(app.getPath('userData'), 'logs');
       }
-      if (!target) return { success: false, error: 'Ruta no disponible' };
+      if (!target) return fail('OPEN_APP_PATH_UNAVAILABLE', 'Ruta no disponible');
       if (!fs.existsSync(target)) {
         try {
           fs.mkdirSync(target, { recursive: true });
         } catch {}
       }
-      if (!fs.existsSync(target)) return { success: false, error: 'La ruta no existe' };
+      if (!fs.existsSync(target)) return fail('OPEN_APP_PATH_MISSING', 'La ruta no existe');
       const error = await shell.openPath(target);
-      if (error) return { success: false, error };
-      return { success: true };
+      if (error) return fail('OPEN_APP_PATH_FAILED', 'No se pudo abrir la carpeta');
+      return ok(null);
     } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error);
-      return { success: false, error: msg };
+      writeGlobalLog(error);
+      return fail('OPEN_APP_PATH_FAILED', 'No se pudo abrir la carpeta');
     }
   });
 
@@ -139,16 +140,16 @@ export function registerStorageHandlers(dependencies: IpcRegistryDependencies): 
         defaultPath: path.join(app.getPath('downloads'), 'omnianime-settings.json'),
         filters: [{ name: 'JSON', extensions: ['json'] }],
       });
-      if (result.canceled || !result.filePath) return { success: false, canceled: true };
+      if (result.canceled || !result.filePath) return ok(null);
       const settings = SettingsManager.get();
       const data = JSON.stringify(settings, null, 2);
       const tmp = result.filePath + '.tmp';
       await fs.promises.writeFile(tmp, data, 'utf-8');
       await fs.promises.rename(tmp, result.filePath);
-      return { success: true, path: result.filePath };
+      return ok({ path: result.filePath });
     } catch (error) {
       writeGlobalLog(error);
-      return { success: false, error: error instanceof Error ? error.message : String(error) };
+      return fail('EXPORT_SETTINGS_FAILED', 'No se pudo exportar la configuración');
     }
   });
 
@@ -160,14 +161,19 @@ export function registerStorageHandlers(dependencies: IpcRegistryDependencies): 
         filters: [{ name: 'JSON', extensions: ['json'] }],
         properties: ['openFile'],
       });
-      if (result.canceled || !result.filePaths[0]) return { success: false, canceled: true };
+      if (result.canceled || !result.filePaths[0]) return ok(null);
       const filePath = result.filePaths[0];
       const allowed = filePath.endsWith('.json');
-      if (!allowed) return { success: false, error: 'Solo se permiten archivos .json' };
+      if (!allowed) return fail('IMPORT_SETTINGS_INVALID', 'Solo se permiten archivos .json');
       const raw = await fs.promises.readFile(filePath, 'utf-8');
-      const parsed = JSON.parse(raw);
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(raw);
+      } catch {
+        return fail('IMPORT_SETTINGS_INVALID', 'Archivo no válido');
+      }
       if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed))
-        return { success: false, error: 'Archivo no válido' };
+        return fail('IMPORT_SETTINGS_INVALID', 'Archivo no válido');
       const defaults = SettingsManager.getDefaults();
       const isValidOutputDir = isValidOutputDirString;
       const allowedThemes = new Set(['dark', 'quantum', 'oled', 'tinta']);
@@ -299,17 +305,17 @@ export function registerStorageHandlers(dependencies: IpcRegistryDependencies): 
       }
 
       const saved = SettingsManager.save(merged);
-      if (!saved) return { success: false, error: 'No se pudo guardar' };
+      if (!saved) return fail('IMPORT_SETTINGS_FAILED', 'No se pudo guardar');
       try {
         refreshLogging();
       } catch {}
       dependencies.queueStore.invalidateDirLabelCache();
       if (merged.minimizeToTrayOnClose === true) dependencies.createTray();
       else dependencies.destroyTray();
-      return { success: true, settings: merged };
+      return ok(merged);
     } catch (error) {
       writeGlobalLog(error);
-      return { success: false, error: error instanceof Error ? error.message : String(error) };
+      return fail('IMPORT_SETTINGS_FAILED', 'No se pudo importar la configuración');
     }
   });
 
@@ -334,10 +340,10 @@ export function registerStorageHandlers(dependencies: IpcRegistryDependencies): 
         thumbnails: storage?.thumbnails || null,
         cache: storage?.cache || null,
       };
-      return info;
+      return ok(info);
     } catch (error) {
       writeGlobalLog(error);
-      return null;
+      return ok(null);
     }
   });
 }

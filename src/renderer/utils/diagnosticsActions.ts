@@ -1,9 +1,10 @@
 import { toast } from 'sonner';
+import { unwrap } from '@/renderer/hooks/queries/unwrap';
 
 export async function revealLogFile(): Promise<boolean> {
   try {
-    const res = (await window.api.invoke('open-app-path', 'log-file')) as { success?: boolean; error?: string };
-    if (res?.success === false) throw new Error(res?.error || 'No se pudo mostrar el archivo');
+    // El aviso es de título + detalle y lo gestiona este flujo: unwrap no toste.
+    unwrap(await window.api.invoke('open-app-path', 'log-file'), { toast: false });
     return true;
   } catch (e: unknown) {
     toast.error('No se pudo mostrar el archivo de registro', {
