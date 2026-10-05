@@ -10,6 +10,7 @@ export function Titlebar() {
     let alive = true;
     window.api
       .invoke('get-splash-icon')
+      .then((res) => unwrap(res, { toast: false }))
       .then((url: unknown) => {
         if (alive && typeof url === 'string' && url.startsWith('data:image')) setIconUrl(url);
       })
