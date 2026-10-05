@@ -134,7 +134,7 @@ export function SettingsView({ isActive = true }: { isActive?: boolean }) {
 
   const checkActiveDownloads = async (): Promise<boolean> => {
     try {
-      const queue = await window.api.invoke('get-queue');
+      const queue = unwrap(await window.api.invoke('get-queue'));
       const items = Array.isArray(queue) ? queue : queue?.items || [];
       return items.some((item: any) => item?.status === 'downloading');
     } catch {
@@ -269,7 +269,7 @@ export function SettingsView({ isActive = true }: { isActive?: boolean }) {
         if (items.length > 0) void openRestartDialog(items);
       },
       onError: (error) => {
-        // El fallo de IPC ya avisa con su mensaje; esto cubre el resto de errores.
+        // El aviso de IPC ya salió; esto cubre el resto de errores.
         if (!isIpcFailError(error)) toast.error('Error al guardar la configuración');
       },
     });

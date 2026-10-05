@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
-import { ensureIpcSuccess } from './internal';
+import { unwrap } from './unwrap';
 
 // Sin progreso en vuelo se limpia; en flujo activo se conserva hasta el próximo delta.
 // Compartida entre eventos queue-update y refetches (anti-parpadeo al restaurar).
@@ -24,7 +24,7 @@ export function useQueue() {
   const query = useQuery({
     queryKey: ['queue'],
     queryFn: async () => {
-      const fresh = (await window.api.invoke('get-queue')) as any[];
+      const fresh = unwrap(await window.api.invoke('get-queue')) as any[];
       // Anti-parpadeo: el refetch (foco/visibilidad) no debe tumbar el
       // progreso en vuelo; se fusiona igual que ante queue-update
       const prev = queryClient.getQueryData(['queue']) as any[] | undefined;
@@ -112,8 +112,9 @@ export function useQueue() {
 
 export function useAddToQueue() {
   return useMutation({
+    // El aviso lo gestiona la ficha (loading → reemplazo).
     mutationFn: async (params: Record<string, unknown>) =>
-      ensureIpcSuccess(await window.api.invoke('add-to-queue', params)),
+      unwrap(await window.api.invoke('add-to-queue', params), { toast: false }),
   });
 }
 
@@ -127,41 +128,42 @@ export function useDownloadActions() {
   // duplicaba get-queue (push + refetch con el mismo dato).
   return {
     cancelDownload: useMutation({
-      mutationFn: async (id: string) => ensureIpcSuccess(await window.api.invoke('cancel-download', id)),
+      // Silencioso: el doble clic o la acción ya resuelta no son un error.
+      mutationFn: async (id: string) => unwrap(await window.api.invoke('cancel-download', id), { toast: false }),
     }),
     pauseDownload: useMutation({
-      mutationFn: async (id: string) => ensureIpcSuccess(await window.api.invoke('pause-download', id)),
+      mutationFn: async (id: string) => unwrap(await window.api.invoke('pause-download', id)),
     }),
     skipServer: useMutation({
-      mutationFn: async (id: string) => ensureIpcSuccess(await window.api.invoke('skip-server', id)),
+      mutationFn: async (id: string) => unwrap(await window.api.invoke('skip-server', id)),
     }),
     skipEpisode: useMutation({
       mutationFn: async (params: { id: string; episode: number }) =>
-        ensureIpcSuccess(await window.api.invoke('skip-episode', params.id, params.episode)),
+        unwrap(await window.api.invoke('skip-episode', params.id, params.episode)),
     }),
     cancelEpisode: useMutation({
       mutationFn: async (params: { id: string; episode: number }) =>
-        ensureIpcSuccess(await window.api.invoke('cancel-episode', params.id, params.episode)),
+        unwrap(await window.api.invoke('cancel-episode', params.id, params.episode)),
     }),
     pauseEpisode: useMutation({
       mutationFn: async (params: { id: string; episode: number }) =>
-        ensureIpcSuccess(await window.api.invoke('pause-episode', params.id, params.episode)),
+        unwrap(await window.api.invoke('pause-episode', params.id, params.episode)),
     }),
     resumeEpisode: useMutation({
       mutationFn: async (params: { id: string; episode: number }) =>
-        ensureIpcSuccess(await window.api.invoke('resume-episode', params.id, params.episode)),
+        unwrap(await window.api.invoke('resume-episode', params.id, params.episode)),
     }),
     removeFromQueue: useMutation({
-      mutationFn: async (id: string) => ensureIpcSuccess(await window.api.invoke('remove-from-queue', id)),
+      mutationFn: async (id: string) => unwrap(await window.api.invoke('remove-from-queue', id)),
     }),
     resumeDownload: useMutation({
-      mutationFn: async (id: string) => ensureIpcSuccess(await window.api.invoke('resume-download', id)),
+      mutationFn: async (id: string) => unwrap(await window.api.invoke('resume-download', id)),
     }),
     retryFailed: useMutation({
-      mutationFn: async (id: string) => ensureIpcSuccess(await window.api.invoke('retry-failed-download', id)),
+      mutationFn: async (id: string) => unwrap(await window.api.invoke('retry-failed-download', id)),
     }),
     clearQueue: useMutation({
-      mutationFn: async () => ensureIpcSuccess(await window.api.invoke('clear-queue')),
+      mutationFn: async () => unwrap(await window.api.invoke('clear-queue')),
     }),
     invalidateQueue,
   };

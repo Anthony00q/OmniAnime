@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState, useMemo, useRef } from 'react';
 import { useSetAtom } from 'jotai';
 import { toast } from 'sonner';
 import { useQueue, useDownloadActions } from '@/renderer/hooks/useQueries';
-import { unwrap } from '@/renderer/hooks/queries/unwrap';
+import { isIpcFailError, unwrap } from '@/renderer/hooks/queries/unwrap';
 import { PageHeader } from '@/renderer/components/ui/PageHeader';
 import { ErrorState } from '@/renderer/components/ui/ErrorState';
 import { Dialog } from '@/renderer/components/Dialog';
@@ -48,7 +48,9 @@ export function DownloaderView({ onSelectAnime, activeProvider, isActive = true 
   const handlePause = useCallback(
     (id: string) =>
       actions.pauseDownload.mutate(id, {
-        onError: () => toast.error('No se pudo pausar la descarga'),
+        onError: (error) => {
+          if (!isIpcFailError(error)) toast.error('No se pudo pausar la descarga');
+        },
       }),
     [actions],
   );
@@ -173,9 +175,9 @@ export function DownloaderView({ onSelectAnime, activeProvider, isActive = true 
         setTimeout(() => clearSwitchPending(id), 10_000),
       );
       actions.skipServer.mutate(id, {
-        onError: () => {
+        onError: (error) => {
           clearSwitchPending(id);
-          toast.error('No se pudo saltar el servidor');
+          if (!isIpcFailError(error)) toast.error('No se pudo saltar el servidor');
         },
       });
     },
@@ -185,7 +187,9 @@ export function DownloaderView({ onSelectAnime, activeProvider, isActive = true 
   const handleResume = useCallback(
     (id: string) =>
       actions.resumeDownload.mutate(id, {
-        onError: () => toast.error('No se pudo reanudar la descarga'),
+        onError: (error) => {
+          if (!isIpcFailError(error)) toast.error('No se pudo reanudar la descarga');
+        },
       }),
     [actions],
   );
@@ -195,7 +199,9 @@ export function DownloaderView({ onSelectAnime, activeProvider, isActive = true 
       actions.cancelEpisode.mutate(
         { id, episode },
         {
-          onError: () => toast.error(`No se pudo cancelar EP ${episode}`),
+          onError: (error) => {
+            if (!isIpcFailError(error)) toast.error(`No se pudo cancelar EP ${episode}`);
+          },
           onSettled: () => markEpisodePending(id, episode, false),
         },
       );
@@ -208,7 +214,9 @@ export function DownloaderView({ onSelectAnime, activeProvider, isActive = true 
       actions.pauseEpisode.mutate(
         { id, episode },
         {
-          onError: () => toast.error(`No se pudo pausar EP ${episode}`),
+          onError: (error) => {
+            if (!isIpcFailError(error)) toast.error(`No se pudo pausar EP ${episode}`);
+          },
           onSettled: () => markEpisodePending(id, episode, false),
         },
       );
@@ -221,7 +229,9 @@ export function DownloaderView({ onSelectAnime, activeProvider, isActive = true 
       actions.resumeEpisode.mutate(
         { id, episode },
         {
-          onError: () => toast.error(`No se pudo reanudar EP ${episode}`),
+          onError: (error) => {
+            if (!isIpcFailError(error)) toast.error(`No se pudo reanudar EP ${episode}`);
+          },
           onSettled: () => markEpisodePending(id, episode, false),
         },
       );
@@ -244,9 +254,9 @@ export function DownloaderView({ onSelectAnime, activeProvider, isActive = true 
       actions.skipEpisode.mutate(
         { id, episode },
         {
-          onError: () => {
+          onError: (error) => {
             clearSkipEpPending(key);
-            toast.error(`No se pudo saltar servidor de EP ${episode}`);
+            if (!isIpcFailError(error)) toast.error(`No se pudo saltar servidor de EP ${episode}`);
           },
         },
       );
@@ -266,7 +276,9 @@ export function DownloaderView({ onSelectAnime, activeProvider, isActive = true 
           });
         },
         onError: (error) => {
-          toast.error(error instanceof Error ? error.message : 'No se pudo reintentar la descarga');
+          if (!isIpcFailError(error)) {
+            toast.error(error instanceof Error ? error.message : 'No se pudo reintentar la descarga');
+          }
           setPendingRetryIds((prev) => {
             const next = new Set(prev);
             next.delete(id);
@@ -280,16 +292,15 @@ export function DownloaderView({ onSelectAnime, activeProvider, isActive = true 
   const handleOpenAnimeFolder = useCallback(async (targetPath: string, animeTitle: string) => {
     try {
       if (targetPath) {
-        // Sin aviso aquí: si la ruta exacta falla, la búsqueda difusa de abajo es la que informa.
+        // Sin aviso: si la ruta exacta falla, informa la búsqueda difusa.
         unwrap(await window.api.invoke('open-folder', targetPath), { toast: false });
         return;
       }
     } catch {}
     try {
-      const ok = await window.api.invoke('open-anime-folder', animeTitle);
-      if (!ok) toast.error('No se pudo encontrar la carpeta de descarga');
-    } catch {
-      toast.error('Error al abrir la carpeta');
+      unwrap(await window.api.invoke('open-anime-folder', animeTitle));
+    } catch (error) {
+      if (!isIpcFailError(error)) toast.error('Error al abrir la carpeta');
     }
   }, []);
 

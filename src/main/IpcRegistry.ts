@@ -29,6 +29,7 @@ import { registerServerStatsHandlers } from './ipc/handlers/server-stats.handler
 import { registerLogsHandlers } from './ipc/handlers/logs.handlers';
 import { registerSoundHandlers } from './ipc/handlers/sounds.handlers';
 import type { LogScope, ScopedLogger } from '../services/logging/AppLogger';
+import { ok } from '../types/api';
 import type { InvokeChannel, SendChannel } from '../types/ipc-channels';
 import { handleIpc, installIpcGuard, onIpc } from './ipc/ipcGuard';
 
@@ -93,6 +94,7 @@ export function registerIpcHandlers(dependencies: IpcRegistryDependencies): void
   // Señal del renderer tras el primer render con home listo; sin args.
   handleIpc(rendererReadyChannel, () => {
     dependencies.markRendererReady();
+    return ok(null);
   });
   // Anti-spam: un loop de errores en renderer no debe tumbar main ni el disco.
   const logErrorStamps: number[] = [];
