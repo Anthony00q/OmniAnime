@@ -73,9 +73,7 @@ export const SystemTab = memo(function SystemTab({
               </div>
               <div>
                 <h2 className="text-base font-bold tracking-tight">Carpetas de descarga</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Hasta 3 carpetas. Las nuevas descargas usan la carpeta que elijas al añadirlas.
-                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">Hasta 3 carpetas de descarga.</p>
               </div>
             </div>
             <span className="shrink-0 inline-flex items-center gap-1.5 rounded-full bg-secondary border border-border px-2.5 py-1 text-xs font-mono font-semibold">
@@ -224,8 +222,8 @@ export const SystemTab = memo(function SystemTab({
 
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
             <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-              <Info className="w-3.5 h-3.5" /> Cambiar carpetas no mueve lo que ya está en curso. Las nuevas usan la
-              carpeta elegida al añadirlas.
+              <Info className="w-3.5 h-3.5" /> Cambiar carpetas no mueve lo que ya está en curso; las descargas nuevas
+              usan la carpeta que elijas al añadirlas.
             </p>
             {outputDirs.length < 3 && (
               <button
@@ -271,8 +269,8 @@ export const SystemTab = memo(function SystemTab({
               />
               <span className="text-xs text-muted-foreground leading-relaxed">
                 {settings.defaultProvider === 'animeav1'
-                  ? 'AnimeAV1 ofrece mayor catálogo. Se aplicará al reiniciar.'
-                  : 'JkAnime como alternativa. Se aplicará al reiniciar.'}
+                  ? 'AnimeAV1 será el proveedor con el que arranque la app.'
+                  : 'JkAnime será el proveedor con el que arranque la app.'}
               </span>
             </div>
           </div>
@@ -319,7 +317,7 @@ export const SystemTab = memo(function SystemTab({
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                  Usa la GPU para una interfaz más fluida. Requiere reiniciar.
+                  Usa la GPU para que la interfaz vaya más fluida.
                 </p>
               </div>
             </div>

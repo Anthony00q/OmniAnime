@@ -77,7 +77,7 @@ export const ShortcutsTab = memo(function ShortcutsTab({ settings, onChange }: S
                   <X className="w-4 h-4 text-muted-foreground" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="text-sm font-bold leading-tight">Cerrar modales / Salir</div>
+                  <div className="text-sm font-bold leading-tight">Cerrar diálogos / Salir</div>
                   <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
                     Cierra diálogos o suelta el campo de texto.
                   </p>
@@ -87,7 +87,7 @@ export const ShortcutsTab = memo(function ShortcutsTab({ settings, onChange }: S
                 </kbd>
               </div>
               <div className="mt-4 rounded-xl bg-secondary/30 border border-border/40 px-3 py-2 text-xs text-muted-foreground">
-                Fijo para no interferir con la ventana.
+                Fija: no se puede cambiar.
               </div>
             </div>
 

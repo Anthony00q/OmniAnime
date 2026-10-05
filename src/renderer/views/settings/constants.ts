@@ -20,7 +20,7 @@ export { DEFAULT_ACCENT_HEX };
 
 export const THEME_META: Record<ThemeId, { desc: string; hint: string; shortLabel: string }> = {
   dark: { desc: 'Fondo marrón oscuro con acento ámbar', hint: 'Recomendado', shortLabel: 'Oscuro cálido' },
-  oled: { desc: 'Negro total, ideal para pantallas OLED', hint: 'AMOLED', shortLabel: 'Negro puro' },
+  oled: { desc: 'Negro total para pantallas OLED', hint: 'AMOLED', shortLabel: 'Negro puro' },
   quantum: { desc: 'Tonos tierra con acento cobre', hint: '', shortLabel: 'Marrón oscuro' },
   tinta: { desc: 'Tonos fríos con acento rojo', hint: '', shortLabel: 'Gris azulado' },
 };

@@ -51,17 +51,17 @@ export function buildFolderNamingPreview(source: FolderNameSource): string {
 export function folderNameSourceHint(source: FolderNameSource): string {
   switch (source) {
     case 'anilist-english':
-      return 'Usa el título en inglés de AniList; es el que suelen reconocer las apps externas.';
+      return 'Usa el título en inglés de AniList.';
     case 'anilist-native':
-      return 'Usa el título japonés de AniList tal cual.';
+      return 'Usa el título japonés de AniList.';
     case 'anilist-synonym':
-      return 'Usa el primer sinónimo que AniList guarde para el anime (abreviaturas, títulos locales).';
+      return 'Usa el primer sinónimo de AniList (abreviaturas o títulos locales).';
     case 'provider':
-      return 'Usa el título exacto que publica la fuente activa (AnimeAV1 o JkAnime).';
+      return 'Usa el título que publica la fuente activa (AnimeAV1 o JkAnime).';
     case 'provider-alt':
       return 'Usa el primer nombre alternativo que publica la fuente activa.';
     default:
-      return 'Usa el título principal de AniList; ideal para apps que vinculan por AniList.';
+      return 'Usa el título principal de AniList (romaji).';
   }
 }
 

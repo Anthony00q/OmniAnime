@@ -71,12 +71,15 @@ const DescargasConcurrencia = memo(function DescargasConcurrencia({ settings, on
           <div className="min-w-0">
             <span className="flex items-center gap-1.5 text-sm font-semibold select-none">
               Episodios en paralelo
-              <AppTooltip content="Cuántos episodios del mismo anime se descargan a la vez. Con 1 van uno por uno.">
+              <AppTooltip content="Con 1 se descargan uno por uno.">
                 <span aria-hidden="true" className="inline-flex text-muted-foreground">
                   <Info className="w-3.5 h-3.5" />
                 </span>
               </AppTooltip>
             </span>
+            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+              Cuántos episodios del mismo anime se descargan a la vez.
+            </p>
           </div>
           <CustomSelect
             value={String(dl.maxParallelEpisodes)}
@@ -88,20 +91,22 @@ const DescargasConcurrencia = memo(function DescargasConcurrencia({ settings, on
         </div>
         {dl.maxParallelEpisodes >= 3 && (
           <p className="text-[11px] text-warning leading-relaxed select-none mt-3" role="note">
-            Con 3 en paralelo, como máximo 2 usan el mismo servidor para no saturarlo.
+            Como máximo 2 se descargan a la vez del mismo servidor, para no saturarlo.
           </p>
         )}
 
+        <div className="mt-4">
+          <div className="text-[11px] font-semibold tracking-widest uppercase text-muted-foreground">
+            Conexiones por archivo
+          </div>
+          <p className="text-xs text-muted-foreground leading-relaxed mt-1">
+            Cuántas partes del archivo se descargan a la vez. Si el servidor no lo permite, se usa 1 conexión.
+          </p>
+        </div>
+
         <div className="rounded-xl border border-border/60 bg-background p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 mt-3">
           <div className="min-w-0">
-            <span className="flex items-center gap-1.5 text-sm font-semibold select-none">
-              MediaFire: conexiones por archivo
-              <AppTooltip content="Divide cada descarga en segmentos en paralelo. Si el servidor no lo permite, usa 1 conexión.">
-                <span aria-hidden="true" className="inline-flex text-muted-foreground">
-                  <Info className="w-3.5 h-3.5" />
-                </span>
-              </AppTooltip>
-            </span>
+            <span className="flex items-center gap-1.5 text-sm font-semibold select-none">MediaFire</span>
             {locked.mediafireConnections && (
               <p
                 id={managedHintId('mediafireConnections')}
@@ -126,14 +131,7 @@ const DescargasConcurrencia = memo(function DescargasConcurrencia({ settings, on
         </div>
         <div className="rounded-xl border border-border/60 bg-background p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 mt-3">
           <div className="min-w-0">
-            <span className="flex items-center gap-1.5 text-sm font-semibold select-none">
-              MP4Upload: conexiones por archivo
-              <AppTooltip content="Divide cada descarga en segmentos en paralelo. Si el servidor no lo permite, usa 1 conexión.">
-                <span aria-hidden="true" className="inline-flex text-muted-foreground">
-                  <Info className="w-3.5 h-3.5" />
-                </span>
-              </AppTooltip>
-            </span>
+            <span className="flex items-center gap-1.5 text-sm font-semibold select-none">MP4Upload</span>
             {locked.mp4uploadConnections && (
               <p
                 id={managedHintId('mp4uploadConnections')}
@@ -158,14 +156,7 @@ const DescargasConcurrencia = memo(function DescargasConcurrencia({ settings, on
         </div>
         <div className="rounded-xl border border-border/60 bg-background p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 mt-3">
           <div className="min-w-0">
-            <span className="flex items-center gap-1.5 text-sm font-semibold select-none">
-              Voe: conexiones por archivo
-              <AppTooltip content="Divide cada descarga en segmentos en paralelo. Si el servidor no lo permite, usa 1 conexión.">
-                <span aria-hidden="true" className="inline-flex text-muted-foreground">
-                  <Info className="w-3.5 h-3.5" />
-                </span>
-              </AppTooltip>
-            </span>
+            <span className="flex items-center gap-1.5 text-sm font-semibold select-none">Voe</span>
             {locked.voeConnections && (
               <p id={managedHintId('voeConnections')} className="text-xs text-muted-foreground mt-1 leading-relaxed">
                 {ADAPTIVE_MANAGED_HINT}
@@ -189,14 +180,14 @@ const DescargasConcurrencia = memo(function DescargasConcurrencia({ settings, on
           <div className="min-w-0">
             <span className="flex items-center gap-1.5 text-sm font-semibold select-none">
               Mega: single-stream
-              <AppTooltip content="MEGA se descarga en una sola conexión continua, sin dividir el archivo en partes. Es la configuración más rápida probada y no depende de Conexiones adaptativas.">
+              <AppTooltip content="MEGA no permite descargar el archivo por partes, y Conexiones adaptativas no lo gestiona.">
                 <span aria-hidden="true" className="inline-flex text-muted-foreground">
                   <Info className="w-3.5 h-3.5" />
                 </span>
               </AppTooltip>
             </span>
             <p id="mega-fixed-hint" className="text-xs text-muted-foreground mt-1 leading-relaxed">
-              Configuración optimizada automáticamente para MEGA.
+              MEGA se descarga siempre con 1 conexión: es lo más rápido.
             </p>
           </div>
           <CustomSelect
@@ -213,14 +204,14 @@ const DescargasConcurrencia = memo(function DescargasConcurrencia({ settings, on
           <div className="min-w-0">
             <span className="flex items-center gap-1.5 text-sm font-semibold select-none">
               Segmentos HLS en paralelo
-              <AppTooltip content="HLS (AnimeAV1): cuántos fragmentos del episodio se descargan a la vez. Solo se usa en HLS; el resto de servidores no cambia.">
+              <AppTooltip content="Cuántos fragmentos del episodio se descargan a la vez.">
                 <span aria-hidden="true" className="inline-flex text-muted-foreground">
                   <Info className="w-3.5 h-3.5" />
                 </span>
               </AppTooltip>
             </span>
             <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-              Más segmentos no siempre es más rápido.
+              Solo se usa en AnimeAV1, y subir los segmentos no siempre acelera la descarga.
             </p>
           </div>
           <CustomSelect
@@ -235,13 +226,8 @@ const DescargasConcurrencia = memo(function DescargasConcurrencia({ settings, on
           />
         </div>
 
-        <div className="mt-4 rounded-xl bg-background border border-border/60 px-3 py-2.5 flex items-center gap-2 text-xs text-muted-foreground">
-          <AppTooltip content="Si cambias algo durante una descarga, se aplicará a las siguientes, no a la que está en marcha.">
-            <span aria-hidden="true" className="inline-flex shrink-0">
-              <Info className="w-3.5 h-3.5" />
-            </span>
-          </AppTooltip>
-          <span>Los cambios se aplican a las siguientes descargas.</span>
+        <div className="mt-4 rounded-xl bg-background border border-border/60 px-3 py-2.5 text-xs text-muted-foreground">
+          Los cambios se aplican a las siguientes descargas; la que está en marcha no se toca.
         </div>
       </div>
     </section>
@@ -261,7 +247,7 @@ const DescargasServidores = memo(function DescargasServidores({ settings, onChan
         <h3 className="text-sm font-bold tracking-tight">Servidores disponibles</h3>
       </div>
       <p className="mb-4 text-xs leading-relaxed text-muted-foreground">
-        Los servidores se prueban en este orden en cada episodio. Si uno falla o no está, sigue el siguiente.
+        Los servidores se prueban en este orden; si uno falla o no está, se pasa al siguiente.
       </p>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {PROVIDER_SERVERS.map((provider) => {
@@ -283,14 +269,6 @@ const DescargasServidores = memo(function DescargasServidores({ settings, onChan
             />
           );
         })}
-      </div>
-      <div className="mt-4 rounded-xl bg-background border border-border/60 px-3 py-2.5 flex items-center gap-2 text-xs text-muted-foreground">
-        <AppTooltip content="Si cambias algo durante una descarga, se aplicará a las siguientes, no a la que está en marcha.">
-          <span aria-hidden="true" className="inline-flex shrink-0">
-            <Info className="w-3.5 h-3.5" />
-          </span>
-        </AppTooltip>
-        <span>Los cambios se aplican a las siguientes descargas.</span>
       </div>
     </section>
   );
@@ -335,8 +313,8 @@ const DescargasNombrado = memo(function DescargasNombrado({
           />
           <p className="min-h-[36px] text-[11px] text-muted-foreground leading-relaxed">
             {settings.namingStyle === 'minimal'
-              ? 'Solo el número de episodio, ideal para una biblioteca limpia.'
-              : 'Incluye el título del anime para identificar archivos rápidamente.'}
+              ? 'Usa solo el número del episodio, sin el título.'
+              : 'Incluye el título del anime y el número del episodio.'}
           </p>
         </div>
         <div className="rounded-xl bg-background border border-border/60 p-3">
@@ -375,13 +353,8 @@ const DescargasNombrado = memo(function DescargasNombrado({
           </AppTooltip>
         </div>
       </div>
-      <div className="mt-4 rounded-xl bg-background border border-border/60 px-3 py-2.5 flex items-center gap-2 text-xs text-muted-foreground">
-        <AppTooltip content="Si AniList no vincula el anime, se usa el nombre del proveedor. El cambio solo afecta a las descargas nuevas.">
-          <span aria-hidden="true" className="inline-flex shrink-0">
-            <Info className="w-3.5 h-3.5" />
-          </span>
-        </AppTooltip>
-        <span>Si AniList no vincula el anime se usa el nombre del proveedor. Solo afecta a descargas nuevas.</span>
+      <div className="mt-4 rounded-xl bg-background border border-border/60 px-3 py-2.5 text-xs text-muted-foreground">
+        Si AniList no vincula el anime, se usa el nombre del proveedor. Solo afecta a descargas nuevas.
       </div>
       <div className="mt-4 flex flex-wrap gap-2">
         <button
@@ -464,6 +437,9 @@ const DescargasAvanzado = memo(function DescargasAvanzado({ settings, onChange }
                 className="w-full"
                 options={DOWNLOAD_RETRIES_OPTIONS.map((o) => ({ ...o }))}
               />
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Cuántas veces se vuelve a intentar si una descarga falla.
+              </p>
             </div>
             <div className="space-y-2">
               <span className="block text-sm font-semibold">Tiempo de espera al iniciar</span>
@@ -477,6 +453,9 @@ const DescargasAvanzado = memo(function DescargasAvanzado({ settings, onChange }
                 className="w-full"
                 options={DOWNLOAD_START_TIMEOUT_OPTIONS.map((o) => ({ ...o }))}
               />
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Cuánto se espera a que la descarga empiece antes de cancelar el intento.
+              </p>
             </div>
           </div>
           <div className="mx-5 sm:mx-6 mb-5 sm:mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -484,14 +463,14 @@ const DescargasAvanzado = memo(function DescargasAvanzado({ settings, onChange }
               <div className="min-w-0">
                 <div className="text-sm font-semibold leading-tight flex items-center gap-1.5">
                   Continuar descargas interrumpidas
-                  <AppTooltip content="Si pausas y continúas más tarde, sigue donde se quedó. A veces hay que empezar de cero (si cambia el enlace o el servidor no lo permite).">
+                  <AppTooltip content="Si cambia el enlace o el servidor no lo permite, empieza de cero.">
                     <span aria-hidden="true" className="inline-flex text-muted-foreground">
                       <Info className="w-3.5 h-3.5" />
                     </span>
                   </AppTooltip>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                  Sigue donde se quedó en vez de empezar de cero.
+                  Retoma el episodio donde se quedó, en vez de empezar de cero.
                 </p>
               </div>
               <CustomSwitch
@@ -504,14 +483,14 @@ const DescargasAvanzado = memo(function DescargasAvanzado({ settings, onChange }
               <div className="min-w-0">
                 <div className="text-sm font-semibold leading-tight flex items-center gap-1.5">
                   <FolderDown className="w-3.5 h-3.5 text-muted-foreground" /> Limpiar al terminar
-                  <AppTooltip content="Al terminar bien, borra sus temporales. Si lo dejas apagado, puedes borrarlos luego en Almacenamiento.">
+                  <AppTooltip content="Si lo desactivas, los puedes borrar luego desde Almacenamiento.">
                     <span aria-hidden="true" className="inline-flex text-muted-foreground">
                       <Info className="w-3.5 h-3.5" />
                     </span>
                   </AppTooltip>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                  Borra los temporales cuando el episodio termina bien.
+                  Borra los archivos temporales del episodio cuando termina bien.
                 </p>
               </div>
               <CustomSwitch
@@ -528,14 +507,14 @@ const DescargasAvanzado = memo(function DescargasAvanzado({ settings, onChange }
                     <span className="inline-flex items-center rounded border border-primary/30 bg-primary/10 px-1 py-px align-middle text-[10px] font-semibold uppercase leading-none tracking-wider text-primary">
                       Experimental
                     </span>{' '}
-                    <AppTooltip content="Ajusta automáticamente las conexiones internas del episodio según el rendimiento de tu conexión. El número de conexiones sigue siendo el punto de partida; el resto lo gestiona la app. Función experimental: puede cambiar o desactivarse en próximas versiones.">
+                    <AppTooltip content="El número de conexiones que elijas es solo el punto de partida. Puede cambiar en próximas versiones.">
                       <span aria-hidden="true" className="inline-flex align-middle text-muted-foreground">
                         <Info className="w-3.5 h-3.5" />
                       </span>
                     </AppTooltip>
                   </div>
                   <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                    Ajusta las conexiones internas del episodio según rendimiento.
+                    Ajusta las conexiones del episodio según el rendimiento de tu conexión.
                   </p>
                 </div>
                 <CustomSwitch
@@ -546,7 +525,7 @@ const DescargasAvanzado = memo(function DescargasAvanzado({ settings, onChange }
               </div>
               <div className="mt-3 border-t border-border/40 pt-3">
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  Servidores con Adaptive. El resto usa su número de conexiones manual.
+                  Los servidores sin Adaptive usan el número de conexiones que configures a mano.
                 </p>
                 <div className="mt-1 grid gap-x-6 gap-y-1 sm:grid-cols-3">
                   {ADAPTIVE_SERVER_ROWS.map((row) => (

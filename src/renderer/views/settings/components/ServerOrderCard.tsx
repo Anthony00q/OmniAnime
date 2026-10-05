@@ -79,7 +79,7 @@ export const ServerOrderCard = memo(function ServerOrderCard({
         <span className="ml-auto shrink-0 select-none text-[13px] font-medium tabular-nums text-text-tertiary">
           {active.length} de {candidates.length} activos
         </span>
-        <AppTooltip content="Apagado se salta y no se intenta. Si lo vuelves a activar, se añade al final.">
+        <AppTooltip content="Si lo apagas, se salta y no se intenta; al activarlo de nuevo, se añade al final.">
           <span
             aria-hidden="true"
             className="inline-flex h-6 w-6 items-center justify-center rounded-lg text-muted-foreground"

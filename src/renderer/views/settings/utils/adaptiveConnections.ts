@@ -43,7 +43,7 @@ export function isConnectionControlLocked(key: string, adaptiveConnections: unkn
 
 // Texto auxiliar del control bloqueado.
 export const ADAPTIVE_MANAGED_HINT =
-  'Administrado automáticamente: Conexiones adaptativas elige el nivel según el rendimiento. Tu valor se conserva y solo se usa si lo desactivas para este servidor.';
+  'Lo gestiona Conexiones adaptativas; tu valor se conserva y vuelve a usarse si la desactivas.';
 
 // Id del aviso, para enlazarlo al select con aria-describedby.
 export function managedHintId(key: AdaptiveManagedConnectionKey): string {

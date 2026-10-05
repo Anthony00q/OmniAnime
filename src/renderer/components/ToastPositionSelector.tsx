@@ -10,12 +10,12 @@ interface ToastPositionSelectorProps {
 
 export function ToastPositionSelector({ value, onChange }: ToastPositionSelectorProps) {
   const positions: { id: ToastPosition; label: string; gridArea: string }[] = [
-    { id: 'top-left', label: 'Arriba Izquierda', gridArea: 'col-start-1 row-start-1' },
-    { id: 'top-center', label: 'Arriba Centro', gridArea: 'col-start-2 row-start-1' },
-    { id: 'top-right', label: 'Arriba Derecha', gridArea: 'col-start-3 row-start-1' },
-    { id: 'bottom-left', label: 'Abajo Izquierda', gridArea: 'col-start-1 row-start-3' },
-    { id: 'bottom-center', label: 'Abajo Centro', gridArea: 'col-start-2 row-start-3' },
-    { id: 'bottom-right', label: 'Abajo Derecha', gridArea: 'col-start-3 row-start-3' },
+    { id: 'top-left', label: 'Arriba a la izquierda', gridArea: 'col-start-1 row-start-1' },
+    { id: 'top-center', label: 'Arriba al centro', gridArea: 'col-start-2 row-start-1' },
+    { id: 'top-right', label: 'Arriba a la derecha', gridArea: 'col-start-3 row-start-1' },
+    { id: 'bottom-left', label: 'Abajo a la izquierda', gridArea: 'col-start-1 row-start-3' },
+    { id: 'bottom-center', label: 'Abajo al centro', gridArea: 'col-start-2 row-start-3' },
+    { id: 'bottom-right', label: 'Abajo a la derecha', gridArea: 'col-start-3 row-start-3' },
   ];
 
   // transform-only avoids left/center bounce

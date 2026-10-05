@@ -252,7 +252,7 @@ export const LogsTab = memo(function LogsTab({ isActive = true }: LogsTabProps) 
           </div>
           <div>
             <h3 className="text-base font-bold tracking-[-0.015em]">Registro de sesiones</h3>
-            <p className="text-xs text-muted-foreground">Un fichero por cada arranque de la aplicación</p>
+            <p className="text-xs text-muted-foreground">Un fichero por cada arranque de la aplicación.</p>
           </div>
           <AppTooltip content="Recargar">
             <span className="ml-auto inline-flex">
@@ -452,7 +452,7 @@ export const LogsTab = memo(function LogsTab({ isActive = true }: LogsTabProps) 
           onClick={() => void exportDiagnostics({ sessionOnly: false })}
           className="w-full inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 bg-secondary hover:bg-secondary/80 border border-border rounded-xl text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
         >
-          <Download className="w-4 h-4" /> Exportar registro
+          <Download className="w-4 h-4" /> Exportar diagnóstico
         </button>
       </section>
 
@@ -508,7 +508,7 @@ export const LogsTab = memo(function LogsTab({ isActive = true }: LogsTabProps) 
         </div>
         {modalEntries.length >= MODAL_MAX_ENTRIES ? (
           <p className="mt-3 px-3 py-2 text-[11px] text-muted-foreground text-center">
-            Mostrando las {MODAL_MAX_ENTRIES} más recientes. Exporta el registro para ver el resto.
+            Mostrando las {MODAL_MAX_ENTRIES} más recientes. Exporta el diagnóstico para ver el resto.
           </p>
         ) : fileQuery.hasNextPage ? (
           <button

@@ -202,7 +202,7 @@ export const StorageTab = memo(function StorageTab({
               <div className="min-w-0">
                 <div className="text-sm font-semibold">Archivos temporales</div>
                 <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                  Borra los restos que quedan cuando una descarga no termina. No afecta lo que estás descargando ahora.
+                  Borra los restos que quedan cuando una descarga no termina.
                 </p>
               </div>
             </div>
@@ -241,7 +241,7 @@ export const StorageTab = memo(function StorageTab({
               <div className="min-w-0">
                 <div className="text-sm font-semibold">Vistas previas antiguas</div>
                 <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                  Elimina las vistas previas que ya no usas. Se crean de nuevo al ver el vídeo.
+                  Elimina las vistas previas con más de 30 días. Se vuelven a crear al ver el vídeo.
                 </p>
               </div>
             </div>

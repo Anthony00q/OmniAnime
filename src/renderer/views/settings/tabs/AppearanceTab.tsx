@@ -25,9 +25,7 @@ const EpisodeViewSetting = memo(function EpisodeViewSetting({
   return (
     <div>
       <div className="block text-sm font-semibold">Vista de episodios</div>
-      <p className="text-xs text-muted-foreground mt-0.5 mb-3">
-        Cómo se muestran los episodios en Detalles. Aquí se aplica al guardar.
-      </p>
+      <p className="text-xs text-muted-foreground mt-0.5 mb-3">Cómo se muestran los episodios en Detalles.</p>
       <div role="radiogroup" aria-label="Vista de episodios" className="grid grid-cols-2 gap-3">
         {options.map(({ value, label, desc, Icon }) => {
           const active = view === value;
@@ -263,7 +261,7 @@ export const AppearanceTab = memo(
                     })}
                   </div>
                   <p className="text-xs text-muted-foreground mt-2.5 leading-relaxed">
-                    Todos están pensados para usar con poca luz.
+                    Los cuatro son oscuros, para usar con poca luz.
                   </p>
                 </div>
 
@@ -403,9 +401,7 @@ export const AppearanceTab = memo(
                         );
                       })}
                     </div>
-                    <p className="text-[11px] text-muted-foreground mt-2">
-                      5 tonos pensados para modo oscuro. Se aplicará a los destacados de la interfaz.
-                    </p>
+                    <p className="text-[11px] text-muted-foreground mt-2">5 tonos para modo oscuro.</p>
                   </div>
                 </div>
 
@@ -526,7 +522,7 @@ export const AppearanceTab = memo(
                     </div>
                   </div>
                   <p className="text-xs text-muted-foreground mt-3 leading-relaxed">
-                    Vista previa orientativa. Se aplicará a toda la interfaz al guardar.
+                    Vista previa orientativa; la interfaz cambia al guardar.
                   </p>
                 </div>
               </div>

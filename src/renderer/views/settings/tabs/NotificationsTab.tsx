@@ -27,7 +27,7 @@ const TYPE_ROWS: ReadonlyArray<{
   desc: string;
   group: SoundCatalogGroup;
 }> = [
-  { key: 'download', label: 'Descarga', desc: 'Al empezar', group: 'inicio' },
+  { key: 'download', label: 'Descarga', desc: 'Al empezar cada episodio', group: 'inicio' },
   { key: 'success', label: 'Éxito', desc: 'Al terminar', group: 'exito' },
   { key: 'error', label: 'Error', desc: 'Si algo falla', group: 'error' },
   { key: 'info', label: 'Info', desc: 'Avisos del sistema', group: 'info' },
@@ -168,7 +168,7 @@ export const NotificationsTab = memo(function NotificationsTab({
             </div>
             <div>
               <h2 className="text-base font-bold tracking-tight">Notificaciones y alertas</h2>
-              <p className="text-xs text-muted-foreground mt-0.5">Elige qué avisos y sonidos quieres ver.</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Elige qué avisos ver y qué sonidos oír.</p>
             </div>
           </div>
 
@@ -437,7 +437,7 @@ export const NotificationsTab = memo(function NotificationsTab({
       <div className="flex items-start gap-2 px-1">
         <Zap className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
         <p className="text-xs leading-relaxed text-muted-foreground">
-          Los avisos del sistema usan notificaciones del sistema y los de descargas aparecen en la app.
+          Los mensajes del sistema salen como notificaciones del sistema; los de descargas aparecen dentro de la app.
         </p>
       </div>
 
