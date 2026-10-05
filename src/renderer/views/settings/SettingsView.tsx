@@ -385,7 +385,7 @@ export function SettingsView({ isActive = true }: { isActive?: boolean }) {
 
   const handleSelectOutputDir = async (index: number) => {
     try {
-      const selectedPath = await window.api.invoke('select-folder');
+      const selectedPath = unwrap(await window.api.invoke('select-folder'));
       if (!selectedPath) return;
       if (typeof selectedPath !== 'string' || !isValidOutputDirString(selectedPath)) {
         toast.error('Carpeta no válida. Elige una carpeta dentro de un disco, no su raíz.');

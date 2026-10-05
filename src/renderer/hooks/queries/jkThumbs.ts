@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { unwrap } from './unwrap';
 
 // Thumbs JK bajo demanda (solo jkanime); inmutables: staleTime largo.
 export function useJkEpisodeThumbs(
@@ -11,7 +12,7 @@ export function useJkEpisodeThumbs(
   return useQuery({
     queryKey: ['jk-ep-thumbs', provider, slug, fromEp, toEp],
     queryFn: async () => {
-      const thumbs = await window.api.invoke('get-episode-thumbs', { slug, fromEp, toEp, provider });
+      const thumbs = unwrap(await window.api.invoke('get-episode-thumbs', { slug, fromEp, toEp, provider }));
       return (thumbs && typeof thumbs === 'object' ? thumbs : {}) as Record<number, string>;
     },
     enabled:

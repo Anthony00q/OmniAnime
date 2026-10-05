@@ -1,12 +1,13 @@
 import { useQuery, type QueryClient } from '@tanstack/react-query';
 import { useDeferredProvider } from './internal';
+import { unwrap } from './unwrap';
 
 export function animeDetailsKey(provider: string, slug: string | null): (string | null)[] {
   return ['details', provider, slug];
 }
 
 export function fetchAnimeDetails(slug: string | null, provider: string): Promise<any> {
-  return window.api.invoke('get-details', { slug, provider });
+  return window.api.invoke('get-details', { slug, provider }).then(unwrap);
 }
 
 export function useAnimeDetails(slug: string | null) {

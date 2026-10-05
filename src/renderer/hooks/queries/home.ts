@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import type { ScheduleData } from '@/types/anime';
 import { useDeferredProvider } from './internal';
+import { unwrap } from './unwrap';
 
 export function useHomeData() {
   const provider = useDeferredProvider();
@@ -10,7 +11,7 @@ export function useHomeData() {
 
   const query = useQuery({
     queryKey: ['home', provider],
-    queryFn: () => window.api.invoke('get-home-data', { force: false, provider }),
+    queryFn: async () => unwrap(await window.api.invoke('get-home-data', { force: false, provider })),
     staleTime: 4 * 60 * 1000,
   });
 
@@ -18,8 +19,8 @@ export function useHomeData() {
     setIsRefreshing(true);
     window.api
       .invoke('get-home-data', { force: true, provider })
-      .then((data: any) => {
-        queryClient.setQueryData(['home', provider], data);
+      .then((res: any) => {
+        queryClient.setQueryData(['home', provider], unwrap(res));
       })
       .catch(() => {
         queryClient.invalidateQueries({ queryKey: ['home', provider] });
@@ -40,7 +41,7 @@ export function useSchedule() {
   const query = useQuery<ScheduleData>({
     queryKey: ['schedule', provider],
     queryFn: async () => {
-      const data = (await window.api.invoke('get-schedule', { force: false, provider })) as ScheduleData | null;
+      const data = unwrap(await window.api.invoke('get-schedule', { force: false, provider })) as ScheduleData | null;
       if (!data) throw new Error('No se pudo cargar el horario');
       return data;
     },
@@ -51,7 +52,8 @@ export function useSchedule() {
     setIsRefreshing(true);
     window.api
       .invoke('get-schedule', { force: true, provider })
-      .then((data: ScheduleData | null) => {
+      .then((res) => {
+        const data = unwrap(res) as ScheduleData | null;
         if (!data) throw new Error('No se pudo cargar el horario');
         queryClient.setQueryData(['schedule', provider], data);
       })

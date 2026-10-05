@@ -1,6 +1,7 @@
 import { dialog } from 'electron';
 import { handleIpc } from '../ipcGuard';
 import axios from 'axios';
+import { ok } from '../../../types/api';
 import { USER_AGENT } from '../../../utils/windowUtils';
 import { safeErrorMessage } from '../../../utils/logging/redactLog';
 import { assertAllowedImageRedirect, isAllowedImageUrl } from '../../../utils/security/networkSecurity';
@@ -24,9 +25,9 @@ export function registerCatalogHandlers({
       providerGateway.activeProvider
     );
   };
-  handleIpc('get-image-base64', async (_, url: string): Promise<string | null> => {
+  handleIpc('get-image-base64', async (_, url: string) => {
     try {
-      if (!url || !isAllowedImageUrl(url)) return null;
+      if (!url || !isAllowedImageUrl(url)) return ok(null);
       const response = await axios.get(url, {
         headers: { 'User-Agent': USER_AGENT, Referer: 'https://animeav1.com/' },
         responseType: 'arraybuffer',
@@ -39,10 +40,10 @@ export function registerCatalogHandlers({
       const contentTypeRaw = String(response.headers['content-type'] || '').toLowerCase();
       const mime = contentTypeRaw.split(';')[0].trim();
       const allowedMime = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif', 'image/avif']);
-      if (!allowedMime.has(mime)) return null;
-      if (mime === 'image/svg+xml' || contentTypeRaw.includes('svg')) return null;
+      if (!allowedMime.has(mime)) return ok(null);
+      if (mime === 'image/svg+xml' || contentTypeRaw.includes('svg')) return ok(null);
       const buffer = Buffer.isBuffer(response.data) ? response.data : Buffer.from(response.data);
-      if (buffer.length === 0 || buffer.length > 5 * 1024 * 1024) return null;
+      if (buffer.length === 0 || buffer.length > 5 * 1024 * 1024) return ok(null);
       const isValidMagic = (() => {
         if (mime === 'image/jpeg' || mime === 'image/jpg') {
           return buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
@@ -91,11 +92,11 @@ export function registerCatalogHandlers({
         }
         return false;
       })();
-      if (!isValidMagic) return null;
+      if (!isValidMagic) return ok(null);
       const base64 = buffer.toString('base64');
-      return `data:${mime};base64,${base64}`;
+      return ok(`data:${mime};base64,${base64}`);
     } catch {
-      return null;
+      return ok(null);
     }
   });
 
@@ -106,48 +107,50 @@ export function registerCatalogHandlers({
         const force = typeof payload === 'boolean' ? payload : !!payload?.force;
         const providerId =
           payload && typeof payload === 'object' && typeof payload.provider === 'string' ? payload.provider : undefined;
-        return await homeFeedService.getHomeFeed('anime', 30, force, providerId);
+        return ok(await homeFeedService.getHomeFeed('anime', 30, force, providerId));
       } catch (error) {
         writeGlobalLog(`Home error: ${safeErrorMessage(error)}`);
-        return [];
+        return ok([]);
       }
     },
   );
 
   handleIpc('get-schedule', async (_, payload?: { force?: boolean; provider?: string }) => {
     try {
-      return await scheduleService.getSchedule(!!payload?.force, payload?.provider);
+      return ok(await scheduleService.getSchedule(!!payload?.force, payload?.provider));
     } catch (error) {
       writeGlobalLog(`Schedule error: ${safeErrorMessage(error)}`);
-      return null;
+      return ok(null);
     }
   });
 
   handleIpc('get-catalog', async (_, filters: CatalogFilters & { provider?: string } = {}, force = false) => {
     try {
       const { provider: requestedProvider, ...catalogFilters } = filters || {};
-      return await resolveProvider(requestedProvider).getCatalog(
-        {
-          page: catalogFilters?.page || 1,
-          search: catalogFilters?.search || '',
-          genre: Array.isArray(catalogFilters?.genre) ? catalogFilters.genre.filter(Boolean) : [],
-          status: catalogFilters?.status || '',
-          category: catalogFilters?.category || '',
-          order: catalogFilters?.order ?? '',
-          minYear: catalogFilters?.minYear || null,
-          maxYear: catalogFilters?.maxYear || null,
-          year: catalogFilters?.year || '',
-          letter: catalogFilters?.letter || '',
-          demographic: catalogFilters?.demographic || '',
-          type: catalogFilters?.type || '',
-          season: catalogFilters?.season || '',
-          orderDir: catalogFilters?.orderDir ?? '',
-        },
-        force,
+      return ok(
+        await resolveProvider(requestedProvider).getCatalog(
+          {
+            page: catalogFilters?.page || 1,
+            search: catalogFilters?.search || '',
+            genre: Array.isArray(catalogFilters?.genre) ? catalogFilters.genre.filter(Boolean) : [],
+            status: catalogFilters?.status || '',
+            category: catalogFilters?.category || '',
+            order: catalogFilters?.order ?? '',
+            minYear: catalogFilters?.minYear || null,
+            maxYear: catalogFilters?.maxYear || null,
+            year: catalogFilters?.year || '',
+            letter: catalogFilters?.letter || '',
+            demographic: catalogFilters?.demographic || '',
+            type: catalogFilters?.type || '',
+            season: catalogFilters?.season || '',
+            orderDir: catalogFilters?.orderDir ?? '',
+          },
+          force,
+        ),
       );
     } catch (error) {
       writeGlobalLog(`Catalog error: ${safeErrorMessage(error)}`);
-      return [];
+      return ok([]);
     }
   });
 
@@ -156,10 +159,10 @@ export function registerCatalogHandlers({
       const force = typeof payload === 'boolean' ? payload : !!payload?.force;
       const providerId =
         payload && typeof payload === 'object' && typeof payload.provider === 'string' ? payload.provider : undefined;
-      return await resolveProvider(providerId).getFiltersData(force);
+      return ok(await resolveProvider(providerId).getFiltersData(force));
     } catch (error) {
       writeGlobalLog(`Filters error: ${safeErrorMessage(error)}`);
-      return { categories: [], genres: [], years: [] };
+      return ok({ categories: [], genres: [], years: [] });
     }
   });
 
@@ -168,10 +171,10 @@ export function registerCatalogHandlers({
       const query = typeof payload === 'string' ? payload : String(payload?.query ?? '');
       const providerId =
         payload && typeof payload === 'object' && typeof payload.provider === 'string' ? payload.provider : undefined;
-      return await resolveProvider(providerId).search(query);
+      return ok(await resolveProvider(providerId).search(query));
     } catch (error) {
       writeGlobalLog(`Search error: ${safeErrorMessage(error)}`);
-      return [];
+      return ok([]);
     }
   });
 
@@ -182,13 +185,13 @@ export function registerCatalogHandlers({
         payload && typeof payload === 'object' && typeof payload.provider === 'string'
           ? (payload.provider as string)
           : undefined;
-      return await getAnimeDetailsBySlug(slug, providerId as 'animeav1' | 'jkanime' | undefined);
+      return ok(await getAnimeDetailsBySlug(slug, providerId as 'animeav1' | 'jkanime' | undefined));
     } catch (error: unknown) {
       const message = safeErrorMessage(error);
       writeGlobalLog(
         `get-details handler error (${String((payload as { slug?: string })?.slug ?? payload)}): ${message}`,
       );
-      return null;
+      return ok(null);
     }
   });
 
@@ -197,20 +200,20 @@ export function registerCatalogHandlers({
     async (_, payload: { slug?: string; fromEp?: number; toEp?: number; provider?: string }) => {
       try {
         const slug = String(payload?.slug ?? '').trim();
-        if (!slug) return {};
+        if (!slug) return ok({});
         const provider = resolveProvider(payload?.provider);
-        if (!(provider instanceof JkAnimeProvider)) return {};
-        return await provider.getEpisodeThumbs(slug, Number(payload?.fromEp), Number(payload?.toEp));
+        if (!(provider instanceof JkAnimeProvider)) return ok({});
+        return ok(await provider.getEpisodeThumbs(slug, Number(payload?.fromEp), Number(payload?.toEp)));
       } catch (error: unknown) {
         writeGlobalLog(`get-episode-thumbs handler error: ${safeErrorMessage(error)}`);
-        return {};
+        return ok({});
       }
     },
   );
 
   handleIpc('select-folder', async () => {
     const result = await dialog.showOpenDialog({ properties: ['openDirectory'] });
-    return result.filePaths[0];
+    return ok(result.filePaths[0] ?? null);
   });
 
   handleIpc('search-trailer-id', async (_, payload: string | { title?: string; slug?: string; mediaId?: number }) => {
@@ -230,12 +233,12 @@ export function registerCatalogHandlers({
       const html = response.data;
       const regex = /"videoRenderer":\{"videoId":"([^"]+)"/g;
       const matches = [...html.matchAll(regex)];
-      if (matches.length > 0) return matches[0][1];
+      if (matches.length > 0) return ok(matches[0][1]);
       const simpleMatch = html.match(/"videoId":"([^"]+)"/);
-      return simpleMatch ? simpleMatch[1] : null;
+      return ok(simpleMatch ? simpleMatch[1] : null);
     } catch (error) {
       writeGlobalLog(error);
-      return null;
+      return ok(null);
     }
   });
 }
