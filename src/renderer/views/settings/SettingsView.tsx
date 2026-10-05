@@ -18,6 +18,7 @@ import {
   useStorageActions,
   fetchDefaultSettings,
 } from '@/renderer/hooks/useQueries';
+import { isIpcFailError } from '@/renderer/hooks/queries/unwrap';
 import { ErrorState } from '@/renderer/components/ui/ErrorState';
 import { AppearanceTab } from './tabs/AppearanceTab';
 import { DownloadsTab } from './tabs/DownloadsTab';
@@ -267,8 +268,9 @@ export function SettingsView({ isActive = true }: { isActive?: boolean }) {
         if (providerChanged) items.push('Proveedor por defecto');
         if (items.length > 0) void openRestartDialog(items);
       },
-      onError: () => {
-        toast.error('Error al guardar la configuración');
+      onError: (error) => {
+        // El fallo de IPC ya avisa con su mensaje; esto cubre el resto de errores.
+        if (!isIpcFailError(error)) toast.error('Error al guardar la configuración');
       },
     });
   };
@@ -304,12 +306,12 @@ export function SettingsView({ isActive = true }: { isActive?: boolean }) {
           if (providerChanged) items.push('Proveedor por defecto');
           if (items.length > 0) void openRestartDialog(items);
         },
-        onError: () => {
-          toast.error('Error al restablecer la configuración');
+        onError: (error) => {
+          if (!isIpcFailError(error)) toast.error('Error al restablecer la configuración');
         },
       });
-    } catch {
-      toast.error('Error al restablecer la configuración');
+    } catch (error) {
+      if (!isIpcFailError(error)) toast.error('Error al restablecer la configuración');
     } finally {
       setShowRestoreConfirm(false);
     }

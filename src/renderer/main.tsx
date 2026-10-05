@@ -17,6 +17,7 @@ import '@fontsource/instrument-sans/latin-600.css';
 import '@fontsource/instrument-sans/latin-700.css';
 import './index.css';
 import { activeProviderAtom } from './store/atoms';
+import { unwrap } from './hooks/queries/unwrap';
 import { DEFAULT_CATALOG_FILTERS } from './utils/catalogFilters';
 import { adaptLibraryPreloadToFolders } from './utils/libraryPreload';
 import { installRendererErrorReporting, reportRendererError } from './utils/rendererErrorReporting';
@@ -106,7 +107,10 @@ async function bootstrap(): Promise<void> {
   // o degradado, no se siembra y useLibrary carga lazy como antes.
   try {
     if (Array.isArray(preloaded?.libraryMeta) && preloaded.libraryMeta.length > 0) {
-      const settings = (await window.api.invoke('get-settings').catch(() => null)) as {
+      const settings = (await window.api
+        .invoke('get-settings')
+        .then(unwrap)
+        .catch(() => null)) as {
         outputDirs?: unknown;
         defaultOutputDir?: unknown;
       } | null;

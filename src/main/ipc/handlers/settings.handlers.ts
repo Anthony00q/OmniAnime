@@ -1,6 +1,7 @@
 import { app } from 'electron';
 import { handleIpc } from '../ipcGuard';
 import * as path from 'path';
+import { fail, ok } from '../../../types/api';
 import { SettingsManager } from '../../../services/persistence/SettingsManager';
 import { CustomSoundService } from '../../../services/sounds/CustomSoundService';
 import { normalizeDownloadSettings } from '../../../utils/downloads/downloadSettings';
@@ -15,8 +16,8 @@ export function registerSettingsHandlers({
   destroyTray,
   refreshLogging,
 }: IpcRegistryDependencies): void {
-  handleIpc('get-settings', () => SettingsManager.get());
-  handleIpc('get-default-settings', () => SettingsManager.getDefaults());
+  handleIpc('get-settings', () => ok(SettingsManager.get()));
+  handleIpc('get-default-settings', () => ok(SettingsManager.getDefaults()));
   handleIpc('save-settings', (_, settings: AppSettings) => {
     const defaults = SettingsManager.getDefaults();
     settings.outputDirs = sanitizeOutputDirs(settings.outputDirs, settings.defaultOutputDir);
@@ -31,7 +32,7 @@ export function registerSettingsHandlers({
     settings.download = normalizeDownloadSettings((settings as AppSettings).download);
     settings.logging = normalizeLoggingSettings((settings as AppSettings).logging);
     const saved = SettingsManager.save(settings);
-    if (!saved) return false;
+    if (!saved) return fail('SAVE_SETTINGS_FAILED', 'Error al guardar la configuración');
     try {
       refreshLogging();
     } catch {}
@@ -47,6 +48,6 @@ export function registerSettingsHandlers({
     queueStore.invalidateDirLabelCache();
     if (settings.minimizeToTrayOnClose === true) createTray();
     else destroyTray();
-    return true;
+    return ok(null);
   });
 }
