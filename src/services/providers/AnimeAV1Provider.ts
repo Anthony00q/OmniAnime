@@ -1,4 +1,3 @@
-import axios from 'axios';
 import * as cheerio from 'cheerio';
 import * as http from 'http';
 import * as https from 'https';
@@ -17,6 +16,7 @@ import {
 import { AnimeProvider } from './AnimeProvider';
 import { noopScopedLogger, type ScopedLogger } from '../logging/AppLogger';
 import { normalizeMegaUrl, normalizeMp4UploadUrl } from '../../utils/serverUtils';
+import { createOutboundClient, type OutboundPolicy } from '../../utils/security/outboundPolicy';
 import {
   extractBalancedBlock,
   extractBalancedObjects,
@@ -27,6 +27,7 @@ import {
 } from '../../utils/scrapeParse';
 
 const BASE_URL = 'https://animeav1.com';
+const AV1_OUTBOUND_POLICY: OutboundPolicy = { allowedHosts: ['animeav1.com'], allowLoopback: false };
 const USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 const MAX_HTML_BYTES = 5 * 1024 * 1024;
@@ -158,15 +159,18 @@ export class AnimeAV1Provider implements AnimeProvider {
     return 'AnimeAV1';
   }
 
-  private client = axios.create({
-    headers: { 'User-Agent': USER_AGENT },
-    timeout: 10000,
-    maxRedirects: 3,
-    maxContentLength: MAX_HTML_BYTES,
-    maxBodyLength: MAX_HTML_BYTES,
-    httpAgent: new http.Agent({ keepAlive: true, maxSockets: 32 }),
-    httpsAgent: new https.Agent({ keepAlive: true, maxSockets: 32 }),
-  });
+  private client = createOutboundClient(
+    {
+      headers: { 'User-Agent': USER_AGENT },
+      timeout: 10000,
+      maxRedirects: 3,
+      maxContentLength: MAX_HTML_BYTES,
+      maxBodyLength: MAX_HTML_BYTES,
+      httpAgent: new http.Agent({ keepAlive: true, maxSockets: 32 }),
+      httpsAgent: new https.Agent({ keepAlive: true, maxSockets: 32 }),
+    },
+    AV1_OUTBOUND_POLICY,
+  );
   private pendingSearchController: AbortController | null = null;
 
   private readonly REGEX = {

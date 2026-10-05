@@ -1,4 +1,4 @@
-import axios, { type AxiosRequestConfig } from 'axios';
+import type { AxiosRequestConfig } from 'axios';
 import * as cheerio from 'cheerio';
 import * as http from 'http';
 import * as https from 'https';
@@ -16,12 +16,15 @@ import {
 import { AnimeProvider } from './AnimeProvider';
 import { noopScopedLogger, type ScopedLogger } from '../logging/AppLogger';
 import { normalizeAllowedImageUrl } from '../../utils/security/networkSecurity';
+import { createOutboundClient, type OutboundPolicy } from '../../utils/security/outboundPolicy';
 import { normalizeMegaUrl, normalizeMp4UploadUrl } from '../../utils/serverUtils';
 import { extractBalancedBlock, extractBalancedObjects, decodeBase64Text, isHttpUrl } from '../../utils/scrapeParse';
 
 const MAX_HTML_BYTES = 5 * 1024 * 1024;
 
 const JK_BASE_URL = 'https://jkanime.net';
+
+const JK_OUTBOUND_POLICY: OutboundPolicy = { allowedHosts: ['jkanime.net'], allowLoopback: false };
 
 // `select[name]` del formulario de /directorio/ → cubo de filtros.
 // No usar la posición: el orden puede cambiar sin aviso.
@@ -329,6 +332,7 @@ export class JkAnimeProvider implements AnimeProvider {
   private readonly MAX_REDIRECTS = 3;
   // abort previous search on fast typing
   private pendingSearchController: AbortController | null = null;
+  private readonly http = createOutboundClient({}, JK_OUTBOUND_POLICY);
   private readonly httpAgent = new http.Agent({ keepAlive: true, maxSockets: 32 });
   private readonly httpsAgent = new https.Agent({ keepAlive: true, maxSockets: 32 });
   // Contextos AJAX por slug para la carga bajo demanda de miniaturas.
@@ -352,7 +356,7 @@ export class JkAnimeProvider implements AnimeProvider {
 
   async getHome(): Promise<HomeEpisode[]> {
     try {
-      const { data } = await axios.get(this.BASE_URL, this.requestConfig());
+      const { data } = await this.http.get(this.BASE_URL, this.requestConfig());
       return collectJkHomeEpisodes(cheerio.load(data));
     } catch (error) {
       this.logger.error(`jkanime home: ${error}`);
@@ -362,7 +366,7 @@ export class JkAnimeProvider implements AnimeProvider {
 
   async getSchedule(): Promise<ScheduleData | null> {
     try {
-      const { data } = await axios.get(`${this.BASE_URL}/horario`, this.requestConfig());
+      const { data } = await this.http.get(`${this.BASE_URL}/horario`, this.requestConfig());
       return collectJkSchedule(cheerio.load(data));
     } catch (error) {
       this.logger.error(`jkanime schedule: ${error}`);
@@ -410,7 +414,7 @@ export class JkAnimeProvider implements AnimeProvider {
         params.append('orden', filters.orderDir);
       }
 
-      const { data } = await axios.get(`${this.BASE_URL}/directorio/?${params.toString()}`, this.requestConfig());
+      const { data } = await this.http.get(`${this.BASE_URL}/directorio/?${params.toString()}`, this.requestConfig());
 
       const match = data.match(/var animes = (\{.*?\});/);
       if (match) {
@@ -490,7 +494,7 @@ export class JkAnimeProvider implements AnimeProvider {
     this.pendingSearchController = controller;
     try {
       const safeQuery = encodeURIComponent(query.replace(/ /g, '_'));
-      const { data } = await axios.get(
+      const { data } = await this.http.get(
         `${this.BASE_URL}/buscar/${safeQuery}/`,
         this.requestConfig({ signal: controller.signal }),
       );
@@ -573,14 +577,14 @@ export class JkAnimeProvider implements AnimeProvider {
     if (cached && cached.expiresAt > Date.now()) return cached;
     this.episodeAjaxContexts.delete(cleanSlug);
     try {
-      const res = await axios.get(`${this.BASE_URL}/${cleanSlug}/`, this.requestConfig());
+      const res = await this.http.get(`${this.BASE_URL}/${cleanSlug}/`, this.requestConfig());
       const $ = cheerio.load(res.data);
       const cookies = res.headers['set-cookie'];
       const cookieStr = cookies ? cookies.map((c) => c.split(';')[0]).join('; ') : '';
       const token = $('meta[name="csrf-token"]').attr('content');
       const animeId = $('#guardar-anime').attr('data-anime');
       const img = this.normalizeImageUrl($('.anime_pic img').attr('src') || '');
-      const first = await axios.post(
+      const first = await this.http.post(
         `${this.BASE_URL}/ajax/episodes/${animeId}/${1}`,
         new URLSearchParams({ _token: String(token || ''), id: String(animeId || ''), p: '1' }).toString(),
         this.requestConfig({
@@ -627,7 +631,7 @@ export class JkAnimeProvider implements AnimeProvider {
           block.map(async (page) => {
             try {
               const pageParams = new URLSearchParams({ _token: ctx.token, id: ctx.animeId, p: String(page) });
-              const rp = await axios.post(
+              const rp = await this.http.post(
                 `${this.BASE_URL}/ajax/episodes/${ctx.animeId}/${page}`,
                 pageParams.toString(),
                 this.requestConfig({
@@ -661,7 +665,7 @@ export class JkAnimeProvider implements AnimeProvider {
 
   async getDetails(slug: string): Promise<AnimeDetails | null> {
     try {
-      const res = await axios.get(`${this.BASE_URL}/${slug}/`, this.requestConfig());
+      const res = await this.http.get(`${this.BASE_URL}/${slug}/`, this.requestConfig());
       const $ = cheerio.load(res.data);
 
       const titleContainer = $('.anime_info h3').first();
@@ -697,7 +701,11 @@ export class JkAnimeProvider implements AnimeProvider {
               },
             });
 
-          const aj = await axios.post(`${this.BASE_URL}/ajax/episodes/${animeId}/1`, params.toString(), ajaxConfig());
+          const aj = await this.http.post(
+            `${this.BASE_URL}/ajax/episodes/${animeId}/1`,
+            params.toString(),
+            ajaxConfig(),
+          );
 
           const total = aj.data?.total;
           if (typeof total === 'number' && Number.isInteger(total) && total > 0 && total <= 5000) {
@@ -729,7 +737,7 @@ export class JkAnimeProvider implements AnimeProvider {
                 try {
                   const pageParams = new URLSearchParams(params.toString());
                   pageParams.set('p', String(page));
-                  const rp = await axios.post(
+                  const rp = await this.http.post(
                     `${this.BASE_URL}/ajax/episodes/${animeId}/${page}`,
                     pageParams.toString(),
                     ajaxConfig(),
@@ -912,7 +920,7 @@ export class JkAnimeProvider implements AnimeProvider {
     // DUB desactivado: solo SUB
     const requestedJkLang: number = 1;
     try {
-      const { data } = await axios.get(`${this.BASE_URL}/${slug}/${episode}/`, this.requestConfig({ signal }));
+      const { data } = await this.http.get(`${this.BASE_URL}/${slug}/${episode}/`, this.requestConfig({ signal }));
       const match = data.match(/var servers\s*=\s*(\[[\s\S]*?\]);/);
       if (!match) return [];
 
@@ -1008,7 +1016,7 @@ export class JkAnimeProvider implements AnimeProvider {
 
   async getFiltersData(): Promise<CatalogFiltersData> {
     try {
-      const { data } = await axios.get(`${this.BASE_URL}/directorio/`, this.requestConfig());
+      const { data } = await this.http.get(`${this.BASE_URL}/directorio/`, this.requestConfig());
       const $ = cheerio.load(data);
       const filters: CatalogFiltersData = {
         genres: [],

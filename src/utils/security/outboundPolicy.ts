@@ -156,65 +156,83 @@ function redirectTargetOf(options: Record<string, unknown>): string {
   return `${protocol}//${host}${port}${String(options.path ?? '/')}`;
 }
 
-// Única vía de peticiones salientes: valida la URL inicial y cada salto de
-// redirect, y aplica timeout por defecto. El resto de la config es la de axios.
-export async function outboundRequest<T = unknown>(
-  config: AxiosRequestConfig,
-  policy: OutboundPolicy = {},
-): Promise<AxiosResponse<T>> {
+interface PreparedCall {
+  config: AxiosRequestConfig;
+  blocked: () => OutboundPolicyError | null;
+}
+
+function prepareCall(config: AxiosRequestConfig, policy: OutboundPolicy): PreparedCall {
   assertOutboundUrl(absoluteUrlOf(config), policy);
 
   let blocked: OutboundPolicyError | null = null;
-  try {
-    return await axios.request<T>({
+  return {
+    config: {
       ...config,
       timeout: config.timeout ?? policy.timeoutMs ?? DEFAULT_OUTBOUND_TIMEOUT_MS,
       beforeRedirect: (options, responseDetails, requestDetails) => {
         try {
           assertOutboundUrl(redirectTargetOf(options), policy);
         } catch (error) {
-          // follow-redirects envuelve el error del salto; guardamos el nuestro
-          // para devolverlo tal cual al llamador.
+          // follow-redirects envuelve el error del salto; guardamos el nuestro para devolverlo tal cual.
           blocked = error as OutboundPolicyError;
           throw error;
         }
         config.beforeRedirect?.(options, responseDetails, requestDetails);
       },
-    });
+    },
+    blocked: () => blocked,
+  };
+}
+
+async function runCall<T>(prepared: PreparedCall, send: () => Promise<AxiosResponse<T>>): Promise<AxiosResponse<T>> {
+  try {
+    return await send();
   } catch (error) {
+    const blocked = prepared.blocked();
     if (blocked) throw blocked;
     throw error;
   }
 }
 
-export function outboundGet<T = unknown>(
+// Valida la URL inicial y cada salto de redirect, con timeout por defecto; el resto de la config es la de axios.
+export function outboundRequest<T = any>(
+  config: AxiosRequestConfig,
+  policy: OutboundPolicy = {},
+): Promise<AxiosResponse<T>> {
+  const prepared = prepareCall(config, policy);
+  return runCall(prepared, () => axios.request<T>(prepared.config));
+}
+
+export function outboundGet<T = any>(
   url: string,
   config: AxiosRequestConfig = {},
   policy: OutboundPolicy = {},
 ): Promise<AxiosResponse<T>> {
-  return outboundRequest<T>({ ...config, url, method: 'get' }, policy);
+  const prepared = prepareCall({ ...config, url, method: 'get' }, policy);
+  return runCall(prepared, () => axios.get<T>(url, prepared.config));
 }
 
-export function outboundPost<T = unknown>(
+export function outboundPost<T = any>(
   url: string,
   data?: unknown,
   config: AxiosRequestConfig = {},
   policy: OutboundPolicy = {},
 ): Promise<AxiosResponse<T>> {
-  return outboundRequest<T>({ ...config, url, data, method: 'post' }, policy);
+  const prepared = prepareCall({ ...config, url, data, method: 'post' }, policy);
+  return runCall(prepared, () => axios.post<T>(url, data, prepared.config));
 }
 
 export interface OutboundClient {
-  request<T = unknown>(config: AxiosRequestConfig): Promise<AxiosResponse<T>>;
-  get<T = unknown>(url: string, config?: AxiosRequestConfig): Promise<AxiosResponse<T>>;
-  post<T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<AxiosResponse<T>>;
+  request<T = any>(config: AxiosRequestConfig): Promise<AxiosResponse<T>>;
+  get<T = any>(url: string, config?: AxiosRequestConfig): Promise<AxiosResponse<T>>;
+  post<T = any>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<AxiosResponse<T>>;
 }
 
 export function createOutboundClient(defaults: AxiosRequestConfig, policy: OutboundPolicy = {}): OutboundClient {
-  const merge = (config: AxiosRequestConfig): AxiosRequestConfig => ({ ...defaults, ...config });
+  const merge = (config: AxiosRequestConfig = {}): AxiosRequestConfig => ({ ...defaults, ...config });
   return {
     request: (config) => outboundRequest(merge(config), policy),
-    get: (url, config) => outboundRequest(merge({ ...config, url, method: 'get' }), policy),
-    post: (url, data, config) => outboundRequest(merge({ ...config, url, data, method: 'post' }), policy),
+    get: (url, config) => outboundGet(url, merge(config), policy),
+    post: (url, data, config) => outboundPost(url, data, merge(config), policy),
   };
 }

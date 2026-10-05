@@ -1,4 +1,3 @@
-import axios from 'axios';
 import * as https from 'https';
 import {
   ANILIST_API_URL,
@@ -8,6 +7,7 @@ import {
   type AniListPost,
 } from '../services/providers/AniListService';
 import { normalizeAllowedImageUrl } from '../utils/security/networkSecurity';
+import { outboundPost, type OutboundPolicy } from '../utils/security/outboundPolicy';
 import { USER_AGENT } from '../utils/windowUtils';
 
 // Fuente del banner persistido en la carpeta del anime.
@@ -21,17 +21,22 @@ const ANILIST_MISS_TTL_MS = 5 * 60 * 1000;
 // Reutiliza la conexión con AniList entre consultas.
 const anilistAgent = new https.Agent({ keepAlive: true, maxSockets: 8 });
 
+const ANILIST_OUTBOUND_POLICY: OutboundPolicy = { allowedHosts: ['graphql.anilist.co'], allowLoopback: false };
+
 const defaultAniListPost: AniListPost = (body: unknown) =>
-  axios
-    .post(ANILIST_API_URL, body, {
+  outboundPost(
+    ANILIST_API_URL,
+    body,
+    {
       headers: { 'User-Agent': USER_AGENT, 'Content-Type': 'application/json', Accept: 'application/json' },
       timeout: ANILIST_REQUEST_TIMEOUT_MS,
       maxContentLength: ANILIST_MAX_BYTES,
       maxBodyLength: ANILIST_MAX_BYTES,
       maxRedirects: 2,
       httpsAgent: anilistAgent,
-    })
-    .then((res) => res.data);
+    },
+    ANILIST_OUTBOUND_POLICY,
+  ).then((res) => res.data);
 
 export {
   anilistBannerInputFromDetails,
