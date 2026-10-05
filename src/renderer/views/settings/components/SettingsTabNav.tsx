@@ -51,6 +51,8 @@ const TABS: TabDef[] = [
   { id: 'atajos', icon: <Keyboard className="w-4 h-4" />, label: 'Atajos de teclado', desc: 'Productividad' },
 ];
 
+export const SETTINGS_TAB_IDS = TABS.map((tab) => tab.id);
+
 interface SettingsTabNavProps {
   activeTab: string;
   onTabChange: (id: string) => void;

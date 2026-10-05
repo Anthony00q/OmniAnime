@@ -16,9 +16,10 @@ import { Route as HistoryRouteImport } from './history'
 import { Route as LibraryRouteImport } from './library'
 import { Route as ScannerRouteImport } from './scanner'
 import { Route as ScheduleRouteImport } from './schedule'
-import { Route as SettingsRouteImport } from './settings'
 import { Route as AnimeIndexRouteImport } from './anime.index'
 import { Route as AnimeIdRouteImport } from './anime.$id'
+import { Route as SettingsIndexRouteImport } from './settings.index'
+import { Route as SettingsTabRouteImport } from './settings.$tab'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -55,11 +56,6 @@ const ScheduleRoute = ScheduleRouteImport.update({
   path: '/schedule',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SettingsRoute = SettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AnimeIndexRoute = AnimeIndexRouteImport.update({
   id: '/anime/',
   path: '/anime/',
@@ -68,6 +64,16 @@ const AnimeIndexRoute = AnimeIndexRouteImport.update({
 const AnimeIdRoute = AnimeIdRouteImport.update({
   id: '/anime/$id',
   path: '/anime/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsIndexRoute = SettingsIndexRouteImport.update({
+  id: '/settings/',
+  path: '/settings/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsTabRoute = SettingsTabRouteImport.update({
+  id: '/settings/$tab',
+  path: '/settings/$tab',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -79,9 +85,10 @@ export interface FileRoutesByFullPath {
   '/library': typeof LibraryRoute
   '/scanner': typeof ScannerRoute
   '/schedule': typeof ScheduleRoute
-  '/settings': typeof SettingsRoute
   '/anime/$id': typeof AnimeIdRoute
+  '/settings/$tab': typeof SettingsTabRoute
   '/anime/': typeof AnimeIndexRoute
+  '/settings/': typeof SettingsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -91,9 +98,10 @@ export interface FileRoutesByTo {
   '/library': typeof LibraryRoute
   '/scanner': typeof ScannerRoute
   '/schedule': typeof ScheduleRoute
-  '/settings': typeof SettingsRoute
   '/anime/$id': typeof AnimeIdRoute
+  '/settings/$tab': typeof SettingsTabRoute
   '/anime': typeof AnimeIndexRoute
+  '/settings': typeof SettingsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -104,9 +112,10 @@ export interface FileRoutesById {
   '/library': typeof LibraryRoute
   '/scanner': typeof ScannerRoute
   '/schedule': typeof ScheduleRoute
-  '/settings': typeof SettingsRoute
   '/anime/$id': typeof AnimeIdRoute
+  '/settings/$tab': typeof SettingsTabRoute
   '/anime/': typeof AnimeIndexRoute
+  '/settings/': typeof SettingsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -118,9 +127,10 @@ export interface FileRouteTypes {
     | '/library'
     | '/scanner'
     | '/schedule'
-    | '/settings'
     | '/anime/$id'
+    | '/settings/$tab'
     | '/anime/'
+    | '/settings/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -130,9 +140,10 @@ export interface FileRouteTypes {
     | '/library'
     | '/scanner'
     | '/schedule'
-    | '/settings'
     | '/anime/$id'
+    | '/settings/$tab'
     | '/anime'
+    | '/settings'
   id:
     | '__root__'
     | '/'
@@ -142,9 +153,10 @@ export interface FileRouteTypes {
     | '/library'
     | '/scanner'
     | '/schedule'
-    | '/settings'
     | '/anime/$id'
+    | '/settings/$tab'
     | '/anime/'
+    | '/settings/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -155,9 +167,10 @@ export interface RootRouteChildren {
   LibraryRoute: typeof LibraryRoute
   ScannerRoute: typeof ScannerRoute
   ScheduleRoute: typeof ScheduleRoute
-  SettingsRoute: typeof SettingsRoute
   AnimeIdRoute: typeof AnimeIdRoute
+  SettingsTabRoute: typeof SettingsTabRoute
   AnimeIndexRoute: typeof AnimeIndexRoute
+  SettingsIndexRoute: typeof SettingsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -211,13 +224,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ScheduleRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/settings': {
-      id: '/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof SettingsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/anime/': {
       id: '/anime/'
       path: '/anime'
@@ -232,6 +238,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AnimeIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/settings/': {
+      id: '/settings/'
+      path: '/settings'
+      fullPath: '/settings/'
+      preLoaderRoute: typeof SettingsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings/$tab': {
+      id: '/settings/$tab'
+      path: '/settings/$tab'
+      fullPath: '/settings/$tab'
+      preLoaderRoute: typeof SettingsTabRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -243,9 +263,10 @@ const rootRouteChildren: RootRouteChildren = {
   LibraryRoute: LibraryRoute,
   ScannerRoute: ScannerRoute,
   ScheduleRoute: ScheduleRoute,
-  SettingsRoute: SettingsRoute,
   AnimeIdRoute: AnimeIdRoute,
+  SettingsTabRoute: SettingsTabRoute,
   AnimeIndexRoute: AnimeIndexRoute,
+  SettingsIndexRoute: SettingsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

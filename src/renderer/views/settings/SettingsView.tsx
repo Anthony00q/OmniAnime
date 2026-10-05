@@ -44,7 +44,15 @@ import {
   type EpisodeView,
 } from '@/renderer/utils/episodeView';
 
-export function SettingsView({ isActive = true }: { isActive?: boolean }) {
+export function SettingsView({
+  isActive = true,
+  activeTab = 'sistema',
+  onTabChange,
+}: {
+  isActive?: boolean;
+  activeTab?: string;
+  onTabChange?: (tab: string) => void;
+}) {
   const { data: loadedSettings, isLoading, isError, refetch } = useLoadSettings();
   const saveSettings = useSaveSettings();
 
@@ -52,7 +60,8 @@ export function SettingsView({ isActive = true }: { isActive?: boolean }) {
   const [initialSettings, setInitialSettings] = useState<AppSettings | null>(null);
   const [initialSettingsJson, setInitialSettingsJson] = useState<string>('');
   const [isSaved, setIsSaved] = useState(false);
-  const [activeTab, setActiveTab] = useState('sistema');
+  // La pestaña vive en la URL; aquí solo se propaga el cambio a la navegación.
+  const setActiveTab = useCallback((next: string) => onTabChange?.(next), [onTabChange]);
   // El tab más pesado se pre-monta nada más abrir Ajustes: el click solo lo muestra.
   const [downloadsMounted, setDownloadsMounted] = useState(false);
   const [showRestoreConfirm, setShowRestoreConfirm] = useState(false);

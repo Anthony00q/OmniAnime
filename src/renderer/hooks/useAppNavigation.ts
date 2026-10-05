@@ -19,6 +19,7 @@ export interface AppNavigation {
   setView: (view: string) => void;
   openAnime: (slug: string) => void;
   navigateToCatalog: (genre?: string) => void;
+  setSettingsTab: (tab: string) => void;
   detailsBack: () => void;
 }
 
@@ -80,11 +81,25 @@ export function useAppNavigation(): AppNavigation {
     [fromFor, router, setPendingGenre],
   );
 
+  const setSettingsTab = useCallback(
+    (tab: string) => {
+      // Cambiar de pestaña reemplaza la entrada: atrás sale de Ajustes en vez de
+      // recorrer las pestañas ya visitadas.
+      const state = { from: router.state.location.state.from };
+      if (tab === 'sistema') {
+        void router.navigate({ to: '/settings', replace: true, state });
+      } else {
+        void router.navigate({ to: '/settings/$tab', params: { tab }, replace: true, state });
+      }
+    },
+    [router],
+  );
+
   const detailsBack = useCallback(() => {
     setSelectedAnime(null);
     const path = viewPath(stateOf().from ?? 'home');
     void router.navigate({ to: path ?? '/' });
   }, [router, setSelectedAnime, stateOf]);
 
-  return { setView, openAnime, navigateToCatalog, detailsBack };
+  return { setView, openAnime, navigateToCatalog, setSettingsTab, detailsBack };
 }
