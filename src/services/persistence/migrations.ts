@@ -5,6 +5,7 @@ import { safeErrorMessage } from '../../utils/logging/redactLog';
 import {
   SCHEMA_VERSION,
   applyBaseSchema,
+  applyHistoryIndexes,
   ensureDownloadSettingsColumn,
   ensureFolderMetaColumns,
   ensureQueueEpisodeColumns,
@@ -123,9 +124,6 @@ function migrateHistoryToV2(db: Database.Database): void {
     `);
   db.exec('DROP TABLE download_history');
   db.exec('ALTER TABLE download_history_v2 RENAME TO download_history');
-  db.exec('CREATE INDEX IF NOT EXISTS idx_history_slug ON download_history(slug)');
-  db.exec('CREATE INDEX IF NOT EXISTS idx_history_queue_id ON download_history(queue_id)');
-  db.exec('CREATE INDEX IF NOT EXISTS idx_history_scope_queue_id ON download_history(scope, queue_id)');
 }
 
 function ensureCompatColumns(db: Database.Database): void {
@@ -143,6 +141,10 @@ export const MIGRATIONS: MigrationStep[] = [
       migrateHistoryToV2(db);
     },
   },
+  {
+    version: 5,
+    run: ensureCompatColumns,
+  },
 ];
 
 export function migrateToLatest(db: Database.Database, options: MigrateOptions): void {
@@ -150,15 +152,16 @@ export function migrateToLatest(db: Database.Database, options: MigrateOptions):
   ensureFolderMetaColumns(db);
 
   const from = getMetaVersion(db);
-  if (from >= SCHEMA_VERSION) return;
+  if (from < SCHEMA_VERSION) {
+    // Instalación limpia: sin versión registrada toca importar los JSON legacy, no respaldar una DB sin datos.
+    const freshInstall = from === 0 && hasHistoryV2Columns(db);
+    if (!freshInstall) createPreUpgradeBackup(db, options.dbPath, SCHEMA_VERSION, options.log);
 
-  // Instalación limpia: esquema ya creado pero sin versión registrada. Ahí lo
-  // que toca es importar los JSON legacy, no respaldar una DB sin datos.
-  const freshInstall = from === 0 && hasHistoryV2Columns(db);
-  if (!freshInstall) createPreUpgradeBackup(db, options.dbPath, SCHEMA_VERSION, options.log);
+    runMigrationSteps(db, MIGRATIONS, from, SCHEMA_VERSION);
 
-  runMigrationSteps(db, MIGRATIONS, from, SCHEMA_VERSION);
+    if (freshInstall) importLegacyJsonFiles(db, options);
+    setMetaVersion(db, SCHEMA_VERSION);
+  }
 
-  if (freshInstall) importLegacyJsonFiles(db, options);
-  setMetaVersion(db, SCHEMA_VERSION);
+  applyHistoryIndexes(db);
 }

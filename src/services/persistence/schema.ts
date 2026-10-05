@@ -1,6 +1,6 @@
 import type Database from 'better-sqlite3';
 
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 
 export function applyBaseSchema(db: Database.Database): void {
   db.exec(`
@@ -96,7 +96,10 @@ export function applyBaseSchema(db: Database.Database): void {
             updated_at INTEGER NOT NULL
         )
     `);
+}
 
+// Se aplican tras las migraciones: un esquema antiguo aún no tiene scope/queue_id.
+export function applyHistoryIndexes(db: Database.Database): void {
   db.exec(`CREATE INDEX IF NOT EXISTS idx_history_slug ON download_history(slug)`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_history_queue_id ON download_history(queue_id)`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_history_scope_queue_id ON download_history(scope, queue_id)`);
