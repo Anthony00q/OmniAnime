@@ -5,13 +5,12 @@ import {
   MemoHistoryView,
   MemoHomeView,
   MemoLibraryView,
-  MemoScheduleView,
   MemoSettingsView,
   useAppShell,
 } from '@/renderer/App';
 import { activeProviderAtom } from '@/renderer/store/atoms';
 
-export type LegacyView = 'home' | 'schedule' | 'catalog' | 'details' | 'history' | 'library' | 'settings';
+export type LegacyView = 'home' | 'catalog' | 'details' | 'history' | 'library' | 'settings';
 
 // Contenido de las vistas que aún no tienen ruta propia: mismo render que les
 // daba el shell, con los mismos props.
@@ -22,8 +21,6 @@ export function LegacyPanel({ view, slug }: { view: LegacyView; slug?: string })
   switch (view) {
     case 'home':
       return <MemoHomeView />;
-    case 'schedule':
-      return <MemoScheduleView />;
     case 'catalog':
       return <MemoCatalogView />;
     case 'details':

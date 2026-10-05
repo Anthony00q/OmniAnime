@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { ViewPanel } from '@/renderer/components/ViewPanel';
-import { LegacyPanel } from './-legacyPanel';
+import { MemoScheduleView } from '@/renderer/App';
 
 export const Route = createFileRoute('/schedule')({
   component: ScheduleRoute,
@@ -9,7 +9,7 @@ export const Route = createFileRoute('/schedule')({
 function ScheduleRoute() {
   return (
     <ViewPanel scope="ui:schedule">
-      <LegacyPanel view="schedule" />
+      <MemoScheduleView />
     </ViewPanel>
   );
 }
