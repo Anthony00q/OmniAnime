@@ -1,123 +1,27 @@
 import { contextBridge, ipcRenderer } from 'electron';
+import { EVENT_CHANNELS, INVOKE_CHANNELS, SEND_CHANNELS } from '../types/ipc-channels';
 
-const INVOKE_CHANNELS = new Set([
-  'get-preloaded-data',
-  'get-providers',
-  'get-active-provider',
-  'set-active-provider',
-  'get-connectivity-status',
-  'get-download-history',
-  'clear-download-history',
-  'remove-history-entry',
-  'remove-history-entries',
-  'open-folder',
-  'window-minimize',
-  'window-toggle-maximize',
-  'window-close',
-  'force-close-app',
-  'window-get-state',
-  'open-external-url',
-  'app-restart',
-  'add-to-queue',
-  'cancel-download',
-  'pause-download',
-  'cancel-episode',
-  'pause-episode',
-  'resume-episode',
-  'skip-episode',
-  'skip-server',
-  'clear-queue',
-  'remove-from-queue',
-  'resume-download',
-  'retry-failed-download',
-  'open-anime-folder',
-  'get-queue',
-  'get-settings',
-  'get-default-settings',
-  'save-settings',
-  'get-image-base64',
-  'get-home-data',
-  'get-schedule',
-  'get-catalog',
-  'get-filters-data',
-  'search-anime',
-  'get-details',
-  'get-episode-thumbs',
-  'get-anilist-banner',
-  'select-folder',
-  'search-trailer-id',
-  'rename-anime-files',
-  'preview-rename-anime-files',
-  'preview-reorder-episodes',
-  'scan-downloads',
-  'rename-folder',
-  'delete-folder',
-  'relink-folder',
-  'scan-episodes',
-  'play-video',
-  'delete-video',
-  'get-folders-for-reorder',
-  'reorder-episodes',
-  'get-video-thumbnail',
-  'app-update-check',
-  'app-update-download',
-  'app-update-install',
-  'get-app-version',
-  'get-splash-icon',
-  'get-storage-stats',
-  'get-server-stats',
-  'clean-cache',
-  'clean-thumbnails',
-  'get-app-paths',
-  'open-app-path',
-  'export-settings',
-  'import-settings',
-  'import-custom-sound',
-  'delete-custom-sound',
-  'read-sound-data',
-  'get-system-info',
-  'get-log-page',
-  'get-log-filenames',
-  'delete-log-files',
-  'export-diagnostics',
-  'delete-log-entries',
-  'renderer-ready',
-]);
-
-const SEND_CHANNELS = new Set(['log-error']);
-
-const EVENT_CHANNELS = new Set([
-  'app-ready',
-  'confirm-app-close',
-  'window-state-changed',
-  'queue-update',
-  'queue-progress',
-  'history-updated',
-  'download-started',
-  'episode-downloaded',
-  'app-update-status',
-  'dl-log',
-  'dl-status',
-  'dl-log-progress',
-]);
+const invokeAllowed = new Set<string>(INVOKE_CHANNELS);
+const sendAllowed = new Set<string>(SEND_CHANNELS);
+const eventAllowed = new Set<string>(EVENT_CHANNELS);
 
 contextBridge.exposeInMainWorld('api', {
   invoke: (channel: string, ...args: any[]) => {
-    if (!INVOKE_CHANNELS.has(channel)) return Promise.reject(new Error(`Canal IPC no permitido: ${channel}`));
+    if (!invokeAllowed.has(channel)) return Promise.reject(new Error(`Canal IPC no permitido: ${channel}`));
     return ipcRenderer.invoke(channel, ...args);
   },
   send: (channel: string, ...args: any[]) => {
-    if (!SEND_CHANNELS.has(channel)) return;
+    if (!sendAllowed.has(channel)) return;
     ipcRenderer.send(channel, ...args);
   },
   on: (channel: string, func: (...args: any[]) => void) => {
-    if (!EVENT_CHANNELS.has(channel)) return;
+    if (!eventAllowed.has(channel)) return;
     const subscription = (_event: any, ...args: any[]) => func(...args);
     (func as any).__subscription = subscription;
     ipcRenderer.on(channel, subscription);
   },
   removeListener: (channel: string, func: (...args: any[]) => void) => {
-    if (!EVENT_CHANNELS.has(channel)) return;
+    if (!eventAllowed.has(channel)) return;
     const subscription = (func as any).__subscription;
     if (subscription) {
       ipcRenderer.removeListener(channel, subscription);
@@ -126,7 +30,7 @@ contextBridge.exposeInMainWorld('api', {
     }
   },
   removeAllListeners: (channel: string) => {
-    if (!EVENT_CHANNELS.has(channel)) return;
+    if (!eventAllowed.has(channel)) return;
     ipcRenderer.removeAllListeners(channel);
   },
 });

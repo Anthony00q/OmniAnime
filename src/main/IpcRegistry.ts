@@ -29,6 +29,11 @@ import { registerServerStatsHandlers } from './ipc/handlers/server-stats.handler
 import { registerLogsHandlers } from './ipc/handlers/logs.handlers';
 import { registerSoundHandlers } from './ipc/handlers/sounds.handlers';
 import type { LogScope, ScopedLogger } from '../services/logging/AppLogger';
+import type { InvokeChannel, SendChannel } from '../types/ipc-channels';
+
+// Canales propios de IpcRegistry; el resto de registros viven en ipc/handlers/.
+const rendererReadyChannel: InvokeChannel = 'renderer-ready';
+const logErrorChannel: SendChannel = 'log-error';
 
 export interface IpcRegistryDependencies {
   preloadedData: PreloadedData;
@@ -79,12 +84,12 @@ export function registerIpcHandlers(dependencies: IpcRegistryDependencies): void
   registerServerStatsHandlers(dependencies);
   registerLogsHandlers(dependencies);
   // Señal del renderer tras el primer render con home listo; sin args.
-  ipcMain.handle('renderer-ready', () => {
+  ipcMain.handle(rendererReadyChannel, () => {
     dependencies.markRendererReady();
   });
   // Anti-spam: un loop de errores en renderer no debe tumbar main ni el disco.
   const logErrorStamps: number[] = [];
-  ipcMain.on('log-error', (_, error) => {
+  ipcMain.on(logErrorChannel, (_, error) => {
     const now = Date.now();
     while (logErrorStamps.length > 0 && now - logErrorStamps[0] > 1000) logErrorStamps.shift();
     if (logErrorStamps.length >= 20) return;

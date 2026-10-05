@@ -16,6 +16,9 @@ export default tseslint.config(
       'logs/**',
       '.opencode/**',
       '.impeccable/**',
+      // Preloads generados por scripts/generate-preload.mjs: se lintea su fuente .ts
+      'src/main/preload.js',
+      'src/main/splashPreload.js',
     ],
   },
 

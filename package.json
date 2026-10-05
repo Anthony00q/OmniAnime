@@ -30,6 +30,7 @@
     "setup:tools": "node scripts/setup-tools.mjs",
     "dev:vite": "vite",
     "build:vite": "vite build",
+    "prebuild:main": "node scripts/generate-preload.mjs",
     "build:main": "tsc --project tsconfig.json",
     "typecheck:renderer": "tsc --project tsconfig.renderer.json --noEmit",
     "build": "npm run build:vite && npm run build:main && npm run typecheck:renderer",
