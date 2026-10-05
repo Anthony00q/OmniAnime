@@ -2,17 +2,17 @@ import type { HistoryStatus, HistoryWriteRecord } from '../../types/history';
 import type { ProviderDownloadLink, QueueItem } from '../../types/queue';
 import type { EpisodeAttemptProgress } from './EpisodeDownloadAttemptService';
 import { EpisodeDownloadAttemptService } from './EpisodeDownloadAttemptService';
-import { DownloadCoordinator } from './DownloadCoordinator';
+import type { DownloadCoordinator } from './DownloadCoordinator';
 import { SlotScheduler } from './SlotScheduler';
 import {
   ensureEpArrays,
   PauseController,
   type PausedProgressSink,
   pushUniqueEpisode,
-  queueFileContext,
   removeEpisode,
   removeFailureReason,
 } from './PauseController';
+import { RetryPolicy } from './RetryPolicy';
 import type { EpisodeDownloadSummary, ServerAttemptOutcome } from '../persistence/ServerStatsStore';
 import { noopScopedLogger, type ScopedLogger } from '../logging/AppLogger';
 import { QueueStore } from '../persistence/QueueStore';
@@ -65,13 +65,12 @@ export interface DownloadQueueProcessorOptions {
 }
 
 export class DownloadQueueProcessor {
-  private readonly retryOnlyIds = new Set<string>();
   // Época por item-run: los workers zombis (run ya terminado) deben salir, no reintentar
   private readonly runEpoch = new Map<string, number>();
   private isProcessingQueue = false;
-  private readonly coordinator: DownloadCoordinator;
   private readonly slots: SlotScheduler;
   private readonly pauseController: PauseController;
+  private readonly retry: RetryPolicy;
 
   constructor(private readonly options: DownloadQueueProcessorOptions) {
     this.pauseController = new PauseController({
@@ -90,24 +89,23 @@ export class DownloadQueueProcessor {
       attemptService: options.attemptService,
       isEpisodeInterrupted: (item, episode) => this.pauseController.episodeInterrupted(item, episode),
     });
-    this.coordinator =
-      options.coordinator ??
-      new DownloadCoordinator({
-        getServerSpeed: (server) => this.options.getServerSpeed(server),
-        sendLog: (message, type) => this.options.sendLog(message, type),
-        sendStatus: (message, isBatch) => this.options.sendStatus(message, isBatch),
-        updateTray: (text) => this.options.updateTray(text),
-        // scheduleQueueUpdate es opcional (los tests lo omiten a veces):
-        // se propaga tal cual para conservar la rama condicional original.
-        scheduleQueueUpdate: this.options.scheduleQueueUpdate ? () => this.options.scheduleQueueUpdate() : undefined,
-        sendQueueUpdate: () => this.options.sendQueueUpdate(),
-        fileLog: this.options.logger,
-        recordServerOutcome: (outcome) => this.options.recordServerOutcome?.(outcome),
-        recordEpisodeOutcome: (summary) => this.options.recordEpisodeOutcome?.(summary),
-        cleanEpisodeTemps: (dest) => this.options.attemptService.cleanEpisodeTemps(dest),
-        cleanEpisodeCache: (dest) => this.options.attemptService.cleanEpisodeCacheForEpisode(dest),
-        getStartTimeoutSec: () => this.getStartTimeoutSec(),
-      });
+    this.retry = new RetryPolicy({
+      queueStore: options.queueStore,
+      attemptService: options.attemptService,
+      getServerSpeed: (server) => options.getServerSpeed(server),
+      sendLog: (message, type) => options.sendLog(message, type),
+      sendStatus: (message, isBatch) => options.sendStatus(message, isBatch),
+      updateTray: (text) => options.updateTray(text),
+      scheduleQueueUpdate: options.scheduleQueueUpdate ? () => options.scheduleQueueUpdate() : undefined,
+      sendQueueUpdate: () => options.sendQueueUpdate(),
+      recordServerOutcome: (outcome) => options.recordServerOutcome?.(outcome),
+      recordEpisodeOutcome: (summary) => options.recordEpisodeOutcome?.(summary),
+      getDownloadSettings: () => options.getDownloadSettings?.(),
+      logger: options.logger,
+      slots: this.slots,
+      pause: this.pauseController,
+      coordinator: options.coordinator,
+    });
   }
 
   private get fileLog(): ScopedLogger {
@@ -155,107 +153,26 @@ export class DownloadQueueProcessor {
   }
 
   skip(id: string, episode?: number): boolean {
-    const item = this.options.queueStore.items.find((queueItem) => queueItem.id === id);
-    if (episode !== undefined) {
-      if (!Number.isInteger(episode)) return false;
-      if (id !== this.pauseController.activeItemId) return false;
-      // Alcance EP: nunca caer al skip global (abortaría todos los EPs/items).
-      try {
-        const svc = this.options.attemptService as unknown as {
-          skipEpisode?: (itemId: string, ep: number) => boolean;
-        };
-        const ok =
-          typeof svc.skipEpisode === 'function'
-            ? svc.skipEpisode.call(this.options.attemptService, id, episode)
-            : false;
-        if (ok && item) this.fileLog.info(`EP ${episode} salto manual de servidor`, queueFileContext(item, episode));
-        // Avisar ya para que la UI muestre el cambio sin esperar progreso.
-        if (ok) {
-          try {
-            this.options.sendQueueUpdate();
-          } catch {
-            /* aviso best-effort, nunca rompe el salto */
-          }
-        }
-        return ok;
-      } catch {
-        return false;
-      }
-    }
-    if (id !== this.pauseController.activeItemId) return false;
-    // Alcance item: solo EPs de este item, sin contaminar otros items en vuelo.
-    // Sin fallback al skip global: abortaría todos los EPs/items.
-    try {
-      const svc = this.options.attemptService as unknown as {
-        skipItem?: (itemId: string) => boolean;
-      };
-      if (typeof svc.skipItem !== 'function') return false;
-      const ok = svc.skipItem.call(this.options.attemptService, id);
-      if (ok && item) this.fileLog.info(`Salto manual de servidor: ${item.animeTitle}`, queueFileContext(item));
-      // Avisar ya para que la UI muestre el cambio sin esperar progreso.
-      if (ok) {
-        try {
-          this.options.sendQueueUpdate();
-        } catch {
-          /* aviso best-effort, nunca rompe el salto */
-        }
-      }
-      return ok;
-    } catch {
-      return false;
-    }
+    return this.retry.skip(id, episode);
   }
 
   skipEpisode(id: string, episode: number): boolean {
-    return this.skip(id, episode);
+    return this.retry.skipEpisode(id, episode);
   }
 
   retryFailed(id: string): boolean {
-    const item = this.options.queueStore.items.find((queueItem) => queueItem.id === id);
-    if (!item || item.failedEps.length === 0 || (item.status !== 'failed' && item.status !== 'done')) return false;
-
-    item.status = 'pending';
-    item.currentEp = null;
-    item.currentServer = undefined;
-    item.progress = 0;
-    this.pauseController.clearCancelled(id);
-    this.retryOnlyIds.add(id);
-
-    if (item.failureReasons) {
-      const nextReasons = { ...item.failureReasons };
-      for (const episode of item.failedEps) delete nextReasons[String(episode)];
-      item.failureReasons = Object.keys(nextReasons).length > 0 ? nextReasons : undefined;
-    }
-
-    this.fileLog.info(
-      `Reintento manual de fallidos: ${item.animeTitle} (${item.failedEps.length} ep)`,
-      queueFileContext(item),
-    );
-    return true;
+    return this.retry.retryFailed(id);
   }
 
   /** Cleanup stale ids for items that no longer exist or are terminal */
   private cleanupStaleIds(): void {
-    const forget = (id: string): void => {
-      try {
-        (this.options.attemptService as unknown as { forgetItem?: (itemId: string) => void }).forgetItem?.(id);
-      } catch {
-        /* limpieza best-effort */
-      }
-    };
-    for (const id of Array.from(this.retryOnlyIds)) {
-      const exists = this.options.queueStore.items.some((i) => i.id === id);
-      if (!exists) {
-        this.retryOnlyIds.delete(id);
-        forget(id);
-      }
-    }
+    this.retry.cleanupStaleIds();
     this.pauseController.cleanupStaleIds();
   }
 
   /** Called when queue items are removed externally (clear/remove) */
   notifyItemsRemoved(removedIds: string[]): void {
-    for (const id of removedIds) this.retryOnlyIds.delete(id);
+    for (const id of removedIds) this.retry.clearRetryOnly(id);
     this.pauseController.notifyItemsRemoved(removedIds);
     this.cleanupStaleIds();
   }
@@ -287,7 +204,7 @@ export class DownloadQueueProcessor {
         item.status = 'downloading';
         ensureEpArrays(item);
         const runEpoch = this.bumpRunEpoch(item.id);
-        const rawList = this.retryOnlyIds.has(item.id) ? [...item.failedEps] : item.episodes;
+        const rawList = this.retry.isRetryOnly(item.id) ? [...item.failedEps] : item.episodes;
         const episodesToProcess = this.pauseController.getWorkList(item, rawList);
         this.fileLog.info(`Procesando item: ${item.animeTitle}`, { queueId: item.id, provider: item.providerId });
         this.options.updateTray(`Descargando ${item.animeTitle}...`);
@@ -542,7 +459,7 @@ export class DownloadQueueProcessor {
                 item.currentEp = null;
                 this.options.updateTray();
                 this.pauseController.clearCancelled(item.id);
-                this.retryOnlyIds.delete(item.id);
+                this.retry.clearRetryOnly(item.id);
                 this.pauseController.clearItemPaused(item.id);
                 continue;
               }
@@ -573,7 +490,7 @@ export class DownloadQueueProcessor {
         item.currentEp = null;
         this.options.updateTray();
         this.pauseController.clearCancelled(item.id);
-        this.retryOnlyIds.delete(item.id);
+        this.retry.clearRetryOnly(item.id);
         if ((item.status as string) !== 'paused') {
           this.pauseController.clearItemPaused(item.id);
           // Pausados individuales que quedaron sin procesar se conservan para resume;
@@ -593,7 +510,7 @@ export class DownloadQueueProcessor {
       const failedItem = this.options.queueStore.items.find((item) => item.status === 'downloading');
       if (failedItem) {
         const wasCancelled = this.pauseController.isCancelled(failedItem.id) || failedItem.status === 'cancelled';
-        this.retryOnlyIds.delete(failedItem.id);
+        this.retry.clearRetryOnly(failedItem.id);
         this.pauseController.clearCancelled(failedItem.id);
         if (!wasCancelled && failedItem.currentEp !== null) {
           const failedEpisode = failedItem.currentEp;
@@ -741,29 +658,16 @@ export class DownloadQueueProcessor {
     }
   }
 
-  private getStartTimeoutSec(): number {
-    try {
-      const raw = this.options.getDownloadSettings?.()?.startTimeoutSec;
-      const n = typeof raw === 'number' ? Math.round(raw) : 90;
-      if (!Number.isFinite(n)) return 90;
-      return Math.max(30, Math.min(120, n));
-    } catch {
-      return 90;
-    }
-  }
-
-  // Orden de servidores: delega en el coordinador (los tests acceden por
-  // cast a este nombre/firma, se conserva como wrapper).
+  // Orden de servidores: los tests acceden por cast a este nombre/firma,
+  // se conserva como wrapper.
   private sortLinksForEpisode(
     links: ProviderDownloadLink[],
     order: string[],
     preferredServer?: string,
   ): ProviderDownloadLink[] {
-    return this.coordinator.sortLinksForEpisode(links, order, preferredServer);
+    return this.retry.sortLinksForEpisode(links, order, preferredServer);
   }
 
-  // Fallback secuencial por episodio: delega en el coordinador. El tope de EPs
-  // por servidor lo gestiona SlotScheduler y viaja en el puerto de intento.
   private async attemptServersSequentially(
     item: QueueItem,
     episode: number,
@@ -773,7 +677,7 @@ export class DownloadQueueProcessor {
     onProgress: (update: EpisodeAttemptProgress) => void,
     onServerChange?: (server: string) => void,
   ): Promise<{ success: boolean; failureReason: string }> {
-    return this.coordinator.attemptServersSequentially(
+    return this.retry.attemptServersSequentially(
       item,
       episode,
       dest,
@@ -781,7 +685,6 @@ export class DownloadQueueProcessor {
       sortedLinks,
       onProgress,
       onServerChange,
-      this.slots.createAttemptPort(item, episode, dest, episodeAbort),
     );
   }
 
