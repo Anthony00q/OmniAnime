@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { ViewPanel } from '@/renderer/components/ViewPanel';
-import { LegacyPanel } from './-legacyPanel';
+import { MemoAnimeDetailsView, useAppShell } from '@/renderer/App';
 
 export const Route = createFileRoute('/anime/$id')({
   component: AnimeDetailsRoute,
@@ -8,9 +8,10 @@ export const Route = createFileRoute('/anime/$id')({
 
 function AnimeDetailsRoute() {
   const { id } = Route.useParams();
+  const { onSelectAnime, onDetailsBack } = useAppShell();
   return (
     <ViewPanel scope="ui:details" titlebarOffset={false}>
-      <LegacyPanel view="details" slug={id} />
+      <MemoAnimeDetailsView slug={id} onBack={onDetailsBack} onSelectAnime={onSelectAnime} />
     </ViewPanel>
   );
 }
