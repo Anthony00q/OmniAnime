@@ -8,6 +8,7 @@ import type { HistoryDatabaseRow, HistoryWriteRecord } from '../../types/history
 import { noopScopedLogger, type ScopedLogger } from '../logging/AppLogger';
 import { safeErrorMessage } from '../../utils/logging/redactLog';
 import { getWriteCount, getTotalPersistMs, resetWriteCount } from './dbMetrics';
+import { checkDatabaseIntegrity, quarantineCorruptDatabase } from './integrity';
 import { migrateToLatest } from './migrations';
 import { QueueRows } from './QueueRows';
 import { HistoryRows } from './HistoryRows';
@@ -145,17 +146,12 @@ export class DatabaseManager {
 
       const isExisting = fs.existsSync(this.dbPath);
       if (isExisting) {
-        try {
-          const testDb = new Database(this.dbPath, { readonly: true });
-          testDb.pragma('integrity_check');
-          testDb.close();
+        const integrity = checkDatabaseIntegrity(this.dbPath);
+        if (integrity.ok) {
           this.db = new Database(this.dbPath);
-        } catch (e) {
-          this.dbLog('error', 'DB corrupta o no SQLite, creando nueva: ' + safeErrorMessage(e));
-          const corruptPath = this.dbPath + '.corrupt-' + Date.now();
-          try {
-            fs.renameSync(this.dbPath, corruptPath);
-          } catch {}
+        } else {
+          this.dbLog('error', 'DB corrupta o no SQLite, se respalda y crea nueva: ' + integrity.detail);
+          quarantineCorruptDatabase(this.dbPath);
           this.db = new Database(this.dbPath);
         }
       } else {
