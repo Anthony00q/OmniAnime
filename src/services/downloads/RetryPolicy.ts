@@ -1,12 +1,11 @@
 import type { ProviderDownloadLink, QueueItem } from '../../types/queue';
 import type { EpisodeAttemptProgress, EpisodeDownloadAttemptService } from './EpisodeDownloadAttemptService';
-import { DownloadCoordinator } from './DownloadCoordinator';
+import { DownloadCoordinator, type FallbackAttemptPort } from './DownloadCoordinator';
 import type { EpisodeDownloadSummary, ServerAttemptOutcome } from '../persistence/ServerStatsStore';
 import { noopScopedLogger, type ScopedLogger } from '../logging/AppLogger';
 import type { QueueStore } from '../persistence/QueueStore';
 import type { PauseController } from './PauseController';
 import { queueFileContext } from './PauseController';
-import type { SlotScheduler } from './SlotScheduler';
 
 export interface RetryPolicyDeps {
   queueStore: QueueStore;
@@ -22,7 +21,6 @@ export interface RetryPolicyDeps {
   recordEpisodeOutcome?: (summary: EpisodeDownloadSummary) => void;
   getDownloadSettings?: () => { startTimeoutSec?: number } | undefined;
   logger?: ScopedLogger;
-  slots: SlotScheduler;
   pause: PauseController;
   // Coordinador de fallback (opcional): por defecto se construye desde las deps.
   coordinator?: DownloadCoordinator;
@@ -100,8 +98,7 @@ export class RetryPolicy {
     return this.coordinator.sortLinksForEpisode(links, order, preferredServer);
   }
 
-  // Fallback secuencial por episodio: delega en el coordinador. El tope de EPs
-  // por servidor lo gestiona SlotScheduler y viaja en el puerto de intento.
+  // Fallback secuencial por episodio: delega en el coordinador con el puerto de SlotScheduler.
   async attemptServersSequentially(
     item: QueueItem,
     episode: number,
@@ -109,7 +106,8 @@ export class RetryPolicy {
     episodeAbort: AbortController,
     sortedLinks: ProviderDownloadLink[],
     onProgress: (update: EpisodeAttemptProgress) => void,
-    onServerChange?: (server: string) => void,
+    onServerChange: ((server: string) => void) | undefined,
+    port: FallbackAttemptPort,
   ): Promise<{ success: boolean; failureReason: string }> {
     return this.coordinator.attemptServersSequentially(
       item,
@@ -119,7 +117,7 @@ export class RetryPolicy {
       sortedLinks,
       onProgress,
       onServerChange,
-      this.deps.slots.createAttemptPort(item, episode, dest, episodeAbort),
+      port,
     );
   }
 
