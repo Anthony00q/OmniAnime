@@ -137,7 +137,15 @@ function trimWindowFor(settings: any, ref: string): SliceWindow | undefined {
   return { startSec: trimmed.trimStartSec, sec: trimmed.trimSec };
 }
 
+// Sin reanudar antes de programar, un AudioContext suspendido (app en segundo plano) pierde el sonido en silencio.
+function ensureRunning(audioCtx: AudioContext): void {
+  try {
+    if (audioCtx.state !== 'running') void audioCtx.resume();
+  } catch {}
+}
+
 function playRecipe(audioCtx: AudioContext, recipe: SoundRecipe, volume: number): void {
+  ensureRunning(audioCtx);
   let at = audioCtx.currentTime;
   for (const note of recipe.notes) {
     const oscillator = audioCtx.createOscillator() as OscillatorNode;
@@ -169,6 +177,7 @@ function playRecipe(audioCtx: AudioContext, recipe: SoundRecipe, volume: number)
 }
 
 function playBuffer(audioCtx: AudioContext, buffer: AudioBuffer, volume: number, window?: SliceWindow): void {
+  ensureRunning(audioCtx);
   const source = audioCtx.createBufferSource() as AudioBufferSourceNode;
   const gainNode = audioCtx.createGain() as GainNode;
   source.buffer = buffer;

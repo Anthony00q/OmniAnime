@@ -13,6 +13,8 @@ export function setupHardwareAcceleration(options?: { logger?: ScopedLogger }): 
       app.commandLine.appendSwitch('enable-oop-rasterization');
       app.commandLine.appendSwitch('enable-zero-copy');
       app.commandLine.appendSwitch('disable-software-rasterizer');
+      // En portátiles con gráfica híbrida, elegir la dedicada en vez de la integrada.
+      app.commandLine.appendSwitch('force_high_performance_gpu');
     } else {
       app.disableHardwareAcceleration();
     }

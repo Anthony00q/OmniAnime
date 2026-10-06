@@ -4,6 +4,7 @@ import * as fs from 'fs';
 import axios from 'axios';
 import { createMainContext } from './appContext';
 import { setupHardwareAcceleration } from './bootstrap/hardwareAcceleration';
+import { setupBackgroundBehavior } from './bootstrap/backgroundBehavior';
 import { checkConnectivity, getConnectivityStatus as getConnectivityStatusImpl } from './bootstrap/connectivity';
 import { registerOmniMediaProtocol } from './bootstrap/protocol';
 import { setupContextMenu } from './bootstrap/contextMenu';
@@ -116,6 +117,7 @@ DatabaseManager.setLogger(appLogger.child('db'));
 SettingsManager.setLogger(appLogger.child('settings'));
 
 setupHardwareAcceleration({ logger: appLogger.child('app') });
+setupBackgroundBehavior();
 
 const providerManager = new ProviderManager({ logger: appLogger.child('provider') });
 // Solo con OMNIANIME_DIRECT_RANGED_FROM_ONE=1 el pool ranged corre con 1 worker

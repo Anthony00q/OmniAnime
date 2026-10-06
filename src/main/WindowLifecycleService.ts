@@ -189,6 +189,8 @@ export class WindowLifecycleService {
         nodeIntegration: false,
         contextIsolation: true,
         preload: this.dependencies.getSplashPreloadPath(),
+        // Sin esto, el splash se congela si queda tapado por otra ventana.
+        backgroundThrottling: false,
       },
     });
     this.splashWindow.loadFile(this.dependencies.getSplashHtmlPath());
@@ -307,6 +309,8 @@ export class WindowLifecycleService {
           webSecurity: true,
           preload: this.dependencies.getPreloadPath(),
           powerPreference: 'high-performance',
+          // Sin esto, Chromium congela timers/animaciones y suspende el audio al minimizar o quedar tapada.
+          backgroundThrottling: false,
         } as any,
       });
       this.mainWindow.setMenuBarVisibility(false);
