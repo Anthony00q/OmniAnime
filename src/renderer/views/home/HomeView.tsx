@@ -260,7 +260,16 @@ export function HomeView({ isActive }: { isActive?: boolean }) {
 
       <div className="relative z-0 flex-1 overflow-y-auto px-4 pb-12 sm:px-8">
         {isLoading ? (
-          <PosterGridSkeleton count={12} />
+          <>
+            {/* Espejo de la barra sticky: la rejilla de carga cae donde va la real. */}
+            <div
+              aria-hidden="true"
+              className="-mx-4 flex min-h-[64px] flex-wrap items-center gap-2 bg-background px-4 pb-4 pt-4 sm:-mx-8 sm:px-8"
+            >
+              <div className="ml-auto h-3.5 w-52 animate-pulse rounded bg-secondary/50" />
+            </div>
+            <PosterGridSkeleton count={12} />
+          </>
         ) : isError ? (
           <ErrorState
             title="No se pudieron cargar los episodios"

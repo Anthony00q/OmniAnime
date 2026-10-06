@@ -111,13 +111,13 @@ export function ScheduleGridSkeleton({ count = 10 }: { count?: number }) {
       {Array.from({ length: count }).map((_, idx) => (
         <div
           key={idx}
-          className="schedule-card overflow-hidden rounded-xl border border-border/50 bg-card"
+          className="schedule-card flex min-w-0 flex-col overflow-hidden rounded-xl border border-border/50 bg-card"
           aria-hidden="true"
         >
           <div className="aspect-[2/3] w-full animate-pulse bg-secondary/40" />
-          <div className="flex flex-col gap-1 border-t border-border/50 px-3 py-2.5">
-            <div className="flex min-h-[20px] items-center justify-between gap-2">
-              <div className="h-4 w-12 animate-pulse rounded bg-secondary/50" />
+          <div className="flex w-full grow flex-col gap-1 border-t border-border/50 px-3 py-2.5">
+            <div className="flex min-h-[28px] items-center justify-between gap-2">
+              <div className="h-7 w-16 animate-pulse rounded-full bg-secondary/50" />
               <div className="h-3 w-14 animate-pulse rounded bg-secondary/40" />
             </div>
             <div className="flex h-[38px] flex-col justify-center gap-1">

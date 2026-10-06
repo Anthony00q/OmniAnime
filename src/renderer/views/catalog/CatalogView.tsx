@@ -494,9 +494,7 @@ export function CatalogView() {
 
       <div className="flex-1 overflow-y-auto px-4 pb-12 sm:px-8" onScroll={handleScroll}>
         {isLoading ? (
-          <div className="px-0 pt-2">
-            <PosterGridSkeleton count={12} />
-          </div>
+          <PosterGridSkeleton count={12} />
         ) : isError ? (
           <ErrorState
             title="No se pudo cargar el catálogo"

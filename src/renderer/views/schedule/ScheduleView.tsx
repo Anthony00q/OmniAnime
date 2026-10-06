@@ -128,11 +128,25 @@ export function ScheduleView({ isActive }: { isActive?: boolean }) {
 
       <div className="relative z-0 flex-1 overflow-y-auto px-4 pb-12 sm:px-8">
         {isLoading ? (
-          viewMode === 'grid' ? (
-            <ScheduleGridSkeleton count={10} />
-          ) : (
-            <ScheduleSkeleton count={7} />
-          )
+          <>
+            {/* Espejo de la barra semanal: el skeleton arranca donde va el contenido real. */}
+            <div
+              aria-hidden="true"
+              className="-mx-4 flex min-h-[64px] flex-wrap items-center gap-x-4 gap-y-2 bg-background px-4 pb-4 pt-4 sm:-mx-8 sm:px-8"
+            >
+              <div className="min-w-[500px] flex-1 rounded-full border border-border/70 p-1">
+                <div className="h-8 animate-pulse rounded-full bg-secondary/40" />
+              </div>
+              <div className="ml-auto flex items-center gap-3">
+                <div className="h-3.5 w-32 animate-pulse rounded bg-secondary/50" />
+                <div className="flex items-center gap-1 rounded-full border border-border/70 p-1">
+                  <div className="h-7 w-7 animate-pulse rounded-full bg-secondary/40" />
+                  <div className="h-7 w-7 animate-pulse rounded-full bg-secondary/40" />
+                </div>
+              </div>
+            </div>
+            {viewMode === 'grid' ? <ScheduleGridSkeleton count={10} /> : <ScheduleSkeleton count={7} />}
+          </>
         ) : isError ? (
           <ErrorState
             title="No se pudo cargar el horario"
