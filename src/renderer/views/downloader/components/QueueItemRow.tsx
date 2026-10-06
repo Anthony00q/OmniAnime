@@ -37,8 +37,8 @@ import { useIsTitleTruncated } from '@/renderer/views/downloader/hooks/useIsTitl
 import { EMPTY_DETAIL_ROWS, formatEpisodeList } from '@/renderer/views/downloader/model/downloaderModel';
 import { EpisodeDetailRow } from './EpisodeDetailRow';
 
-import animeav1Icon from '../../../../../assets/provider-icons/animeav1-32.png';
-import jkanimeIcon from '../../../../../assets/provider-icons/jkanime-32.png';
+import animeav1Icon from '@assets/provider-icons/animeav1-32.png';
+import jkanimeIcon from '@assets/provider-icons/jkanime-32.png';
 
 const PROVIDER_ICONS: Record<string, string> = {
   animeav1: animeav1Icon,

@@ -17,10 +17,10 @@ import clsx from 'clsx';
 import { activeProviderAtom, appUpdateAvailableAtom, appUpdateModalOpenAtom } from '@/renderer/store/atoms';
 import { useProvidersList, useProviderSwitch } from '@/renderer/hooks/useQueries';
 import { AppTooltip } from './ui/AppTooltip';
-import animeav1Icon from '../../../assets/provider-icons/animeav1-32.png';
-import animeav1Icon2x from '../../../assets/provider-icons/animeav1-64.png';
-import jkanimeIcon from '../../../assets/provider-icons/jkanime-32.png';
-import jkanimeIcon2x from '../../../assets/provider-icons/jkanime-64.png';
+import animeav1Icon from '@assets/provider-icons/animeav1-32.png';
+import animeav1Icon2x from '@assets/provider-icons/animeav1-64.png';
+import jkanimeIcon from '@assets/provider-icons/jkanime-32.png';
+import jkanimeIcon2x from '@assets/provider-icons/jkanime-64.png';
 
 interface SidebarProps {
   currentView: string;

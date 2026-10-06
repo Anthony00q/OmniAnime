@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { AppTooltip } from '@/renderer/components/ui/AppTooltip';
-import animeav1Icon from '../../../../../assets/provider-icons/animeav1-32.png';
-import jkanimeIcon from '../../../../../assets/provider-icons/jkanime-32.png';
+import animeav1Icon from '@assets/provider-icons/animeav1-32.png';
+import jkanimeIcon from '@assets/provider-icons/jkanime-32.png';
 
 const PROVIDER_ICONS: Record<string, string> = {
   animeav1: animeav1Icon,

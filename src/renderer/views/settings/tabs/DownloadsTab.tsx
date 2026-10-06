@@ -16,8 +16,8 @@ import { AppTooltip } from '@/renderer/components/ui/AppTooltip';
 import { DEFAULT_DOWNLOAD_SETTINGS, normalizeAdaptiveConnections } from '@/utils/downloads/downloadSettings';
 import { normalizeFolderNameSource } from '@/utils/downloads/folderNaming';
 import { folderNameSourceHint, snapToClosestOption } from '@/renderer/views/settings/utils/settingsHelpers';
-import animeav1Icon from '../../../../../assets/provider-icons/animeav1-32.png';
-import jkanimeIcon from '../../../../../assets/provider-icons/jkanime-32.png';
+import animeav1Icon from '@assets/provider-icons/animeav1-32.png';
+import jkanimeIcon from '@assets/provider-icons/jkanime-32.png';
 import {
   DOWNLOAD_PARALLEL_OPTIONS,
   DOWNLOAD_DIRECT_CONNECTIONS_OPTIONS,
