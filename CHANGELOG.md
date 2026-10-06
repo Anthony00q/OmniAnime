@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.1.7] - 2026-10-06
+
+### Catálogo
+
+- Los pósters de la programación semanal de **Horarios** se muestran más grandes en la vista de lista.
+
+### Interfaz
+
+- El botón para mostrar la sinopsis completa en la ficha aparece únicamente cuando el texto queda cortado.
+- El contenido ya no se mueve de lado al aparecer o desaparecer la barra de desplazamiento.
+
+### Actualizaciones
+
+- El texto de las novedades se lee mejor en el aviso de actualización.
+
 ## [1.1.6] - 2026-10-06
 
 ### Descargas
