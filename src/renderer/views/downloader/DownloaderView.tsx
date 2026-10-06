@@ -327,7 +327,7 @@ export function DownloaderView({ onSelectAnime, activeProvider, isActive = true 
         }
       />
 
-      <div className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-6">
+      <div className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-6 [scrollbar-gutter:stable]">
         {isLoading ? (
           <QueueSkeleton count={3} />
         ) : isError ? (

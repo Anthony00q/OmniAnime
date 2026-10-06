@@ -354,7 +354,7 @@ html[dir='ltr'] {
 
 .schedule-row {
   content-visibility: auto;
-  contain-intrinsic-size: 0 110px;
+  contain-intrinsic-size: 0 128px;
 }
 
 .motion-origin-popper {

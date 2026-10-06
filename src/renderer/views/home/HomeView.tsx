@@ -258,7 +258,7 @@ export function HomeView({ isActive }: { isActive?: boolean }) {
         </div>
       </PageHeader>
 
-      <div className="relative z-0 flex-1 overflow-y-auto px-4 pb-12 sm:px-8">
+      <div className="relative z-0 flex-1 overflow-y-auto px-4 pb-12 sm:px-8 [scrollbar-gutter:stable]">
         {isLoading ? (
           <>
             {/* Espejo de la barra sticky: la rejilla de carga cae donde va la real. */}

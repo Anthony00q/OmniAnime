@@ -87,7 +87,7 @@ export function ScheduleSkeleton({ count = 7 }: { count?: number }) {
             <div className="h-px flex-1 self-center bg-secondary/30" />
           </div>
           <div className="schedule-row flex items-center gap-4 border-b border-border/40 px-2 py-4">
-            <div className="h-[78px] w-[52px] shrink-0 animate-pulse rounded bg-secondary/40" />
+            <div className="h-[96px] w-[64px] shrink-0 animate-pulse rounded bg-secondary/40" />
             <div className="min-w-0 flex-1">
               <div className="h-4 w-2/3 animate-pulse rounded bg-secondary/60" />
             </div>

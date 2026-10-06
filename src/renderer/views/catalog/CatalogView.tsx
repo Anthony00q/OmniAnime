@@ -492,7 +492,7 @@ export function CatalogView() {
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto px-4 pb-12 sm:px-8" onScroll={handleScroll}>
+      <div className="flex-1 overflow-y-auto px-4 pb-12 sm:px-8 [scrollbar-gutter:stable]" onScroll={handleScroll}>
         {isLoading ? (
           <PosterGridSkeleton count={12} />
         ) : isError ? (

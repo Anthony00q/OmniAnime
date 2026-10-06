@@ -116,7 +116,7 @@ export function ScheduleView({ isActive }: { isActive?: boolean }) {
         }
       />
 
-      <div className="relative z-0 flex-1 overflow-y-auto px-4 pb-12 sm:px-8">
+      <div className="relative z-0 flex-1 overflow-y-auto px-4 pb-12 sm:px-8 [scrollbar-gutter:stable]">
         {isLoading ? (
           <>
             {/* Espejo de la barra semanal: el skeleton arranca donde va el contenido real. */}

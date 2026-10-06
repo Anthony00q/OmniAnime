@@ -161,7 +161,7 @@ export function HistoryView({ isActive, activeProvider, onSelectAnime }: History
         }
       />
 
-      <div className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-6">
+      <div className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-6 [scrollbar-gutter:stable]">
         {isLoading ? (
           <HistorySkeleton count={4} />
         ) : isError ? (

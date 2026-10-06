@@ -65,7 +65,7 @@ export const ScheduleAgendaRow = memo(function ScheduleAgendaRow({
         isNext && 'bg-primary/5 hover:bg-primary/10',
       )}
     >
-      <span className="h-[78px] w-[52px] shrink-0 overflow-hidden rounded bg-secondary">
+      <span className="h-[96px] w-[64px] shrink-0 overflow-hidden rounded bg-secondary">
         <PosterImage src={entry.poster} alt={entry.title} className="h-full w-full rounded object-cover" />
       </span>
       <span className="min-w-0 flex-1">
