@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.1.5] - 2026-10-06
+
+### Historial
+
+- La lista de descargas vuelve a mostrarse al abrir la vista.
+
+### Interfaz
+
+- Las miniaturas de los episodios de Jkanime vuelven a mostrarse en la ficha de anime.
+- Los menús y ventanas emergentes se cierran al cambiar de una vista a otra.
+
 ## [1.1.4] - 2026-10-06
 
 ### Descargas
