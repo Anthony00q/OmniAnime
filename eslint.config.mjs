@@ -46,6 +46,17 @@ export default tseslint.config(
     rules: {
       '@typescript-eslint/no-require-imports': 'off',
       '@typescript-eslint/no-explicit-any': 'off',
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              regex: '^(\\.\\./){4,}',
+              message: 'Profundidad máxima de import: 3 niveles (../../..). Si necesitas 4+, reorganiza o usa un punto de entrada intermedio.',
+            },
+          ],
+        },
+      ],
       // allow empty catch for best-effort cleanup (fs, unlink, stat) — intentional per Lote 2
       'no-empty': ['error', { allowEmptyCatch: true }],
     },
