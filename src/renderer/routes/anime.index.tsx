@@ -11,7 +11,7 @@ function AnimeEmptyRoute() {
   const { onSelectAnime, onDetailsBack } = useAppShell();
   return (
     <ViewPanel scope="ui:details" titlebarOffset={false}>
-      <MemoAnimeDetailsView slug="" onBack={onDetailsBack} onSelectAnime={onSelectAnime} />
+      <MemoAnimeDetailsView isActive slug="" onBack={onDetailsBack} onSelectAnime={onSelectAnime} />
     </ViewPanel>
   );
 }

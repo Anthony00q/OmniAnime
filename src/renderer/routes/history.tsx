@@ -13,7 +13,7 @@ function HistoryRoute() {
   const activeProvider = useAtomValue(activeProviderAtom);
   return (
     <ViewPanel scope="ui:history">
-      <MemoHistoryView activeProvider={activeProvider} onSelectAnime={onSelectAnime} />
+      <MemoHistoryView isActive activeProvider={activeProvider} onSelectAnime={onSelectAnime} />
     </ViewPanel>
   );
 }
