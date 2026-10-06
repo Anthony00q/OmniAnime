@@ -1,6 +1,6 @@
 export const BLOCKED_SERVERS = new Set(['1fichier', 'fichier', 'drive', 'gdrive', 'google drive']);
 
-export const SERVER_ORDER_ANIMEAV1_DEFAULT = ['Voe', 'Mega', 'MP4Upload'] as const;
+export const SERVER_ORDER_ANIMEAV1_DEFAULT = ['HLS', 'Voe', 'Mega', 'MP4Upload'] as const;
 
 export const SERVER_ORDER_JKANIME_DEFAULT = ['Mediafire', 'Voe', 'Mega', 'MP4Upload'] as const;
 
