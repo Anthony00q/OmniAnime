@@ -86,9 +86,8 @@ export default tseslint.config(
         {
           patterns: [
             {
-              // El lookahead deja pasar solo los imports de assets/
-              regex: '^(?!.*assets/).*\\.\\./',
-              message: 'Usa el alias @/ (raíz src/) en lugar de rutas relativas; ../ queda solo para assets/.',
+              regex: '\\.\\./',
+              message: 'Usa los alias @/ (src/) o @assets/ (assets/) en lugar de rutas relativas hacia arriba.',
             },
           ],
         },
