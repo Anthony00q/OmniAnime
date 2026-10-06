@@ -115,7 +115,7 @@ export function UpdateModal() {
         <div
           ref={notesRef}
           onScroll={syncNotesCut}
-          className="custom-scrollbar max-h-[50vh] overflow-y-auto rounded-lg border border-border/60 bg-background/40 p-4 text-sm leading-relaxed text-foreground select-text"
+          className="custom-scrollbar max-h-[50vh] overflow-y-auto rounded-lg border border-border/60 bg-background/40 p-4 text-[13px] leading-[1.55] text-muted-foreground select-text"
         >
           {notes ? (
             <ReleaseNotesView notes={notes} />

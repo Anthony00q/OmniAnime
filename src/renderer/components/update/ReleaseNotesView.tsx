@@ -27,7 +27,7 @@ function Inline({ nodes }: { nodes: ReleaseNotesInline[] }) {
       {nodes.map((node, index) => {
         const href = node.href;
         const body = node.code ? (
-          <code className="rounded bg-secondary/60 px-1 py-0.5 font-mono text-[12px]">{node.text}</code>
+          <code className="rounded bg-secondary/60 px-1 py-0.5 font-mono text-xs text-foreground">{node.text}</code>
         ) : (
           node.text
         );
