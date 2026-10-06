@@ -3,7 +3,6 @@ import clsx from 'clsx';
 import { PosterImage } from '@/renderer/components/anime/PosterImage';
 import {
   scheduleEntryState,
-  scheduleMetaLine,
   scheduleRowLabel,
   type ScheduleLabelTone,
   type ScheduleRowLabel,
@@ -55,7 +54,6 @@ export const ScheduleAgendaRow = memo(function ScheduleAgendaRow({
   isNext = false,
 }: ScheduleAgendaRowProps) {
   const label = scheduleRowLabel(entry, scheduleEntryState(entry, nowMs));
-  const meta = scheduleMetaLine(entry);
 
   return (
     <button
@@ -74,7 +72,6 @@ export const ScheduleAgendaRow = memo(function ScheduleAgendaRow({
         <span className="line-clamp-1 block text-[15px] font-semibold leading-tight text-foreground transition-colors group-hover:text-primary">
           {entry.title}
         </span>
-        {meta ? <span className="mt-1 block text-[13px] tabular-nums text-muted-foreground">{meta}</span> : null}
       </span>
       <span className="flex w-40 shrink-0 items-center justify-end">
         {label ? <ScheduleLabelPill label={label} isNext={isNext} /> : null}

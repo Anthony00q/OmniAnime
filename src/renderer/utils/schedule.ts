@@ -39,15 +39,6 @@ export function scheduleEntryState(
 
 export type ScheduleLabelTone = 'success' | 'danger' | 'neutral';
 
-// Texto de meta de la fila: solo lo que la fuente publica como tal (JkAnime
-// anuncia su último capítulo; AnimeAV1 no muestra episodio en su horario).
-export function scheduleMetaLine(entry: Pick<ScheduleEntry, 'episode' | 'note'>): string {
-  const parts: string[] = [];
-  if (Number.isInteger(entry.episode)) parts.push(`Ep ${entry.episode}`);
-  if (entry.note) parts.push(entry.note);
-  return parts.join(' · ');
-}
-
 export interface ScheduleRowLabel {
   // Palabra de estado (Emitido/Retrasado/Concluido) o null si solo hay hora.
   state: string | null;
@@ -87,6 +78,10 @@ export function sortDayEntries(entries: ScheduleEntry[]): ScheduleEntry[] {
   }
   timed.sort((a, b) => a.minutes - b.minutes);
   return [...timed.map((item) => item.entry), ...untimed];
+}
+
+export function visibleScheduleEntries(entries: ScheduleEntry[]): ScheduleEntry[] {
+  return entries.filter((entry) => !entry.finished);
 }
 
 function timeToMinutes(time: string | null | undefined): number | null {

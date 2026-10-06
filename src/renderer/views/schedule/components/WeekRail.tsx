@@ -45,13 +45,11 @@ export function WeekRail({ dates, counts, selectedDay, todayDay, onSelect, class
             <span className="text-[13px] font-semibold tabular-nums">{dates[idx].getDate()}</span>
             {count > 0 && (
               <>
-                <span aria-hidden="true" className="text-[13px] text-border-strong">
-                  ·
-                </span>
+                <span aria-hidden="true" className="h-3 w-px bg-border-strong/70" />
                 <span
                   className={clsx(
-                    'text-[13px] font-medium tabular-nums',
-                    selected ? 'text-primary/70' : 'text-text-tertiary',
+                    'text-[11px] font-medium tabular-nums',
+                    selected ? 'text-primary/60' : 'text-text-tertiary/70',
                   )}
                 >
                   {count}

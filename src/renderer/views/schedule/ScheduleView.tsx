@@ -1,6 +1,5 @@
-import { CalendarDays, LayoutGrid, RefreshCcw, Rows3 } from 'lucide-react';
+import { CalendarDays, RefreshCcw } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import clsx from 'clsx';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAtomValue } from 'jotai';
 import { useAtomCallback } from 'jotai/utils';
@@ -15,17 +14,14 @@ import {
   nowMarkerIndex,
   sortDayEntries,
   todayIsoWeekday,
+  visibleScheduleEntries,
   weekDates,
 } from '@/renderer/utils/schedule';
-import { getScheduleViewMode, setScheduleViewMode, type ScheduleViewMode } from '@/renderer/utils/scheduleView';
 import { PageHeader } from '@/renderer/components/ui/PageHeader';
 import { ErrorState } from '@/renderer/components/ui/ErrorState';
 import { EmptyState } from '@/renderer/components/ui/EmptyState';
-import { AppTooltip } from '@/renderer/components/ui/AppTooltip';
-import { PosterGrid } from '@/renderer/components/anime/PosterGrid';
-import { ScheduleGridSkeleton, ScheduleSkeleton } from '@/renderer/components/anime/PosterGridSkeleton';
+import { ScheduleSkeleton } from '@/renderer/components/anime/PosterGridSkeleton';
 import { ScheduleAgendaRow } from '@/renderer/views/schedule/components/ScheduleAgendaRow';
-import { ScheduleShowtimeCard } from '@/renderer/views/schedule/components/ScheduleShowtimeCard';
 import { WeekRail } from '@/renderer/views/schedule/components/WeekRail';
 
 // Marca de la hora actual entre franjas: estado del día, no decoración.
@@ -49,17 +45,11 @@ export function ScheduleView({ isActive }: { isActive?: boolean }) {
   const queryClient = useQueryClient();
 
   const { data, isLoading, isError, refetch, refresh, isRefreshing } = useSchedule();
-  const entries = useMemo(() => data?.entries ?? [], [data]);
+  const entries = useMemo(() => visibleScheduleEntries(data?.entries ?? []), [data]);
 
   const [selectedDay, setSelectedDay] = useState(() => todayIsoWeekday());
   const [nowMs, setNowMs] = useState(() => Date.now());
-  const [viewMode, setViewMode] = useState<ScheduleViewMode>(getScheduleViewMode);
   const todayDay = todayIsoWeekday(new Date(nowMs));
-
-  const changeViewMode = (mode: ScheduleViewMode) => {
-    setViewMode(mode);
-    setScheduleViewMode(mode);
-  };
 
   // El día elegido persiste en la sesión y se resetea al cambiar de proveedor.
   useEffect(() => {
@@ -137,15 +127,8 @@ export function ScheduleView({ isActive }: { isActive?: boolean }) {
               <div className="min-w-[500px] flex-1 rounded-full border border-border/70 p-1">
                 <div className="h-8 animate-pulse rounded-full bg-secondary/40" />
               </div>
-              <div className="ml-auto flex items-center gap-3">
-                <div className="h-3.5 w-32 animate-pulse rounded bg-secondary/50" />
-                <div className="flex items-center gap-1 rounded-full border border-border/70 p-1">
-                  <div className="h-7 w-7 animate-pulse rounded-full bg-secondary/40" />
-                  <div className="h-7 w-7 animate-pulse rounded-full bg-secondary/40" />
-                </div>
-              </div>
             </div>
-            {viewMode === 'grid' ? <ScheduleGridSkeleton count={10} /> : <ScheduleSkeleton count={7} />}
+            <ScheduleSkeleton count={7} />
           </>
         ) : isError ? (
           <ErrorState
@@ -184,71 +167,12 @@ export function ScheduleView({ isActive }: { isActive?: boolean }) {
                 todayDay={todayDay}
                 onSelect={setSelectedDay}
               />
-              <div className="ml-auto flex items-center gap-3">
-                <p className="select-none text-[13px] font-medium tabular-nums text-text-tertiary" role="status">
-                  {dayEntries.length} {dayEntries.length === 1 ? 'emisión' : 'emisiones'}{' '}
-                  <span aria-hidden="true" className="text-border-strong">
-                    |
-                  </span>{' '}
-                  {providerName}
-                </p>
-                <div
-                  className="flex items-center gap-1 rounded-full border border-border/70 p-1"
-                  role="group"
-                  aria-label="Modo de visualización del horario"
-                >
-                  <AppTooltip content="Tarjetas" side="bottom">
-                    <button
-                      type="button"
-                      onClick={() => changeViewMode('grid')}
-                      aria-pressed={viewMode === 'grid'}
-                      aria-label="Ver en tarjetas"
-                      className={clsx(
-                        "relative flex h-7 w-7 items-center justify-center rounded-full border transition-colors after:absolute after:-inset-2 after:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60",
-                        viewMode === 'grid'
-                          ? 'border-primary/30 bg-primary/15 text-primary'
-                          : 'border-transparent text-muted-foreground hover:bg-secondary hover:text-foreground',
-                      )}
-                    >
-                      <LayoutGrid className="h-4 w-4" aria-hidden="true" />
-                    </button>
-                  </AppTooltip>
-                  <AppTooltip content="Lista" side="bottom">
-                    <button
-                      type="button"
-                      onClick={() => changeViewMode('list')}
-                      aria-pressed={viewMode === 'list'}
-                      aria-label="Ver en lista"
-                      className={clsx(
-                        "relative flex h-7 w-7 items-center justify-center rounded-full border transition-colors after:absolute after:-inset-2 after:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60",
-                        viewMode === 'list'
-                          ? 'border-primary/30 bg-primary/15 text-primary'
-                          : 'border-transparent text-muted-foreground hover:bg-secondary hover:text-foreground',
-                      )}
-                    >
-                      <Rows3 className="h-4 w-4" aria-hidden="true" />
-                    </button>
-                  </AppTooltip>
-                </div>
-              </div>
             </div>
 
             {dayEntries.length === 0 ? (
               <p className="px-2 py-12 text-center text-[13px] text-muted-foreground">
                 Sin emisiones programadas para {WEEKDAY_LABELS[selectedDay - 1].toLowerCase()}.
               </p>
-            ) : viewMode === 'grid' ? (
-              <PosterGrid>
-                {dayEntries.map((entry) => (
-                  <ScheduleShowtimeCard
-                    key={entry.slug}
-                    entry={entry}
-                    nowMs={nowMs}
-                    onSelect={handleSelectAnime}
-                    isNext={entry.slug === nextSlug}
-                  />
-                ))}
-              </PosterGrid>
             ) : (
               <ul>
                 {groups.map((group, idx) => (

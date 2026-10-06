@@ -357,12 +357,6 @@ html[dir='ltr'] {
   contain-intrinsic-size: 0 110px;
 }
 
-/* Tarjeta de programación (póster 2/3 + banda de hora): 280px se queda corto y el scroll estima mal. */
-.schedule-card {
-  content-visibility: auto;
-  contain-intrinsic-size: 0 420px;
-}
-
 .motion-origin-popper {
   transform-origin: var(--radix-select-content-transform-origin);
 }
