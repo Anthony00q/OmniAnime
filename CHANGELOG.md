@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.1.6] - 2026-10-06
+
+### Descargas
+
+- El servidor **HLS** vuelve a estar disponible en AnimeAV1 y se intenta primero por defecto.
+
+### Catálogo
+
+- Las emisiones concluidas ya no aparecen en la programación semanal de **Horarios**.
+- La vista de Horarios se simplifica y se muestra siempre en lista, sin alternar con tarjetas.
+
 ## [1.1.5] - 2026-10-06
 
 ### Historial
