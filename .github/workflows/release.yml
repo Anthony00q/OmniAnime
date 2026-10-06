@@ -67,6 +67,9 @@ jobs:
       - name: Compilar y empaquetar instalador (sin publicar)
         run: npm run build:win
 
+      - name: Preloads generados al día
+        run: node scripts/generate-preload.mjs --check
+
       - name: Preparar artefactos
         shell: pwsh
         run: |

@@ -39,6 +39,9 @@ jobs:
       - name: Compilar main (tsc)
         run: npm run build:main
 
+      - name: Preloads generados al día
+        run: node scripts/generate-preload.mjs --check
+
       - name: Lint (ESLint)
         run: npm run lint
 

@@ -32,6 +32,7 @@
     "build:vite": "vite build",
     "prebuild:main": "node scripts/generate-preload.mjs",
     "build:main": "tsc --project tsconfig.json",
+    "postbuild:main": "node scripts/generate-preload.mjs --dist",
     "typecheck:renderer": "tsc --project tsconfig.renderer.json --noEmit",
     "build": "npm run build:vite && npm run build:main && npm run typecheck:renderer",
     "build:win": "npm run build && electron-builder --win nsis --publish never",

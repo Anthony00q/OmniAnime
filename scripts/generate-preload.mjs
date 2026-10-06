@@ -1,6 +1,6 @@
 // Genera src/main/preload.js y src/main/splashPreload.js desde los .ts de main: dev y prod
 // nacen de la misma fuente, con los canales de src/types/ipc-channels.ts embebidos.
-// Uso: node scripts/generate-preload.mjs [--check] (--check falla si están desactualizados)
+// Uso: node scripts/generate-preload.mjs [--check] [--dist] (--dist escribe dist/main, lo que la app empaquetada ejecuta)
 
 import { existsSync, promises as fsp } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -14,6 +14,7 @@ const prettier = require('prettier');
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const SRC_DIR = path.join(ROOT, 'src');
 const CHECK_ONLY = process.argv.includes('--check');
+const TARGET_DIST = process.argv.includes('--dist');
 const ENTRIES = [
   { entry: 'main/preload', out: 'main/preload.js' },
   { entry: 'main/splashPreload', out: 'main/splashPreload.js' },
@@ -127,27 +128,37 @@ function emitBundle(entryKey, modules) {
 const outputs = [];
 for (const { entry, out } of ENTRIES) {
   const modules = await collectModules(entry);
-  const outFile = path.join(SRC_DIR, toPosix(out));
-  const config = (await prettier.resolveConfig(outFile)) ?? {};
-  const text = await prettier.format(emitBundle(entry, modules), { ...config, filepath: outFile });
-  outputs.push({ outFile, text });
+  const srcFile = path.join(SRC_DIR, toPosix(out));
+  const distFile = path.join(ROOT, 'dist', toPosix(out));
+  const config = (await prettier.resolveConfig(srcFile)) ?? {};
+  const text = await prettier.format(emitBundle(entry, modules), { ...config, filepath: srcFile });
+  outputs.push({ srcFile, distFile, text });
 }
 
+// La app empaquetada ejecuta dist/main: si existe, no puede quedar desfasado respecto a src/.
 let drifted = false;
-for (const { outFile, text } of outputs) {
-  const current = existsSync(outFile) ? await fsp.readFile(outFile, 'utf8') : null;
-  if (CHECK_ONLY) {
-    if (current !== text) {
-      drifted = true;
-      console.error(`generate-preload: ${path.relative(ROOT, outFile)} está desactualizado`);
+for (const { srcFile, distFile, text } of outputs) {
+  const targets = TARGET_DIST
+    ? [{ file: distFile, fix: 'node scripts/generate-preload.mjs --dist' }]
+    : [
+        { file: srcFile, fix: 'node scripts/generate-preload.mjs' },
+        ...(existsSync(distFile) ? [{ file: distFile, fix: 'node scripts/generate-preload.mjs --dist' }] : []),
+      ];
+  for (const { file, fix } of targets) {
+    const current = existsSync(file) ? await fsp.readFile(file, 'utf8') : null;
+    if (CHECK_ONLY) {
+      if (current !== text) {
+        drifted = true;
+        console.error(`generate-preload: ${path.relative(ROOT, file)} está desactualizado (regenera con: ${fix})`);
+      }
+      continue;
     }
-    continue;
+    if (current === text) continue;
+    await fsp.writeFile(file, text, 'utf8');
+    console.log(`generate-preload: ${path.relative(ROOT, file)} regenerado`);
   }
-  if (current === text) continue;
-  await fsp.writeFile(outFile, text, 'utf8');
-  console.log(`generate-preload: ${path.relative(ROOT, outFile)} regenerado`);
 }
 
 if (CHECK_ONLY && drifted) {
-  fail('regenera con: node scripts/generate-preload.mjs');
+  fail('hay preloads desactualizados');
 }
