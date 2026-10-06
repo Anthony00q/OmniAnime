@@ -1,4 +1,4 @@
-// Verifica el trio publicable (exe + blockmap + latest.yml) antes de subirlo al draft.
+// Verifica el trio publicable (exe + blockmap + latest.yml) antes de subirlo a la release.
 // Uso: node scripts/verify-release-artifacts.mjs --dir dist-release --tag v1.0.2 [--package package.json]
 // Falla si falta alguna pieza, la version no cuadra o el sha512/size del yml no coincide con el exe real.
 

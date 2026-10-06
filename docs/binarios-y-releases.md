@@ -63,13 +63,14 @@ hace el resto: comprueba que el tag tiene forma `vX.X.X` y coincide con
 publicar**, verifica el trío exe + blockmap + `latest.yml`
 (versión y `sha512`/`size` contra el exe real, falla si no cuadra)
 y sube exe + blockmap + `latest.yml` + notas como artefactos.
-Un segundo job crea el **draft** en GitHub con lista explícita de
-ficheros (`fail_on_unmatched_files`, falla a la voz si falta algo) y las
-notas como body vía `body_path`. Solo los tags con forma `v*.*.*` disparan el workflow.
+Un segundo job publica la release en GitHub **directamente como _Latest_**
+con lista explícita de ficheros (`fail_on_unmatched_files`, falla a la voz
+si falta algo) y las notas como body vía `body_path`. Solo los tags con
+forma `v*.*.*` disparan el workflow.
 
-Publicar el draft es manual: revísalo en GitHub → _Publish release_.
-Solo entonces las apps instaladas lo ven (los drafts son invisibles para
-el auto-update) y muestran el modal con esas notas.
+Al publicarse sin pasar por draft, las apps instaladas la ven en cuanto
+termina el workflow y muestran el modal con esas notas. Revisa el
+CHANGELOG **antes** de crear el tag: no hay borrador intermedio que revisar.
 
 ## Cómo escribir las novedades del CHANGELOG
 
