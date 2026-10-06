@@ -141,6 +141,8 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
   const [rangeFrom, setRangeFrom] = useState('1');
   const [rangeTo, setRangeTo] = useState('');
   const [showFullSynopsis, setShowFullSynopsis] = useState(false);
+  const [synopsisNode, setSynopsisNode] = useState<HTMLParagraphElement | null>(null);
+  const [isSynopsisClamped, setIsSynopsisClamped] = useState(false);
   const [selectedLang, setSelectedLang] = useState<'SUB'>('SUB'); // DUB desactivado: solo SUB
   const [showDirPicker, setShowDirPicker] = useState(false);
   const [selectedDirIndex, setSelectedDirIndex] = useState(0);
@@ -186,6 +188,20 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
     observer.observe(heroNode);
     return () => observer.disconnect();
   }, [heroNode, slug]);
+
+  useLayoutEffect(() => {
+    const el = synopsisNode;
+    if (!el) return;
+    const check = () => setIsSynopsisClamped(el.scrollHeight > el.clientHeight + 1);
+    check();
+    if (typeof document !== 'undefined' && document.fonts) {
+      document.fonts.ready.then(check).catch(() => {});
+    }
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(check);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [synopsisNode, data?.description, showFullSynopsis]);
 
   // Dim continuo del banner: una escritura de opacidad por frame sobre el
   // wrapper de la imagen (fade hacia el fondo, fundido por debajo de los
@@ -686,11 +702,12 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
               <h3 className="text-xl font-bold mb-3 text-foreground">Sinopsis</h3>
               <div>
                 <p
+                  ref={setSynopsisNode}
                   className={`text-muted-foreground leading-relaxed select-text cursor-text ${showFullSynopsis ? '' : 'line-clamp-4'}`}
                 >
                   {data.description || 'No hay sinopsis disponible para este anime.'}
                 </p>
-                {data.description && data.description.length > 280 && (
+                {data.description && (showFullSynopsis || isSynopsisClamped) && (
                   <button
                     onClick={() => setShowFullSynopsis((p) => !p)}
                     aria-expanded={showFullSynopsis}
