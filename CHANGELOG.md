@@ -1,5 +1,40 @@
 # Changelog
 
+## [1.1.4] - 2026-10-06
+
+### Descargas
+
+- El nombre de la carpeta de descarga utiliza por defecto el título del proveedor.
+- Las **Conexiones adaptativas** ajustan mejor su elección con el uso y revisan periódicamente la conexión preferida.
+
+### Librería
+
+- El escaneo y los renombrados de la librería conservan el proveedor, el póster y la imagen de cada carpeta.
+
+### Catálogo
+
+- La programación semanal de **Horarios** se agrupa por franjas horarias.
+
+### Ajustes
+
+- Los textos de las pestañas se aclaran para que se entiendan mejor.
+- La pestaña **Descargas** se muestra por bloques y con una entrada suave, sin saltos.
+- Las opciones de las **Conexiones adaptativas** se reorganizan dentro de esa pestaña.
+
+### Interfaz
+
+- La barra de título recupera el logo de la aplicación.
+- El selector de fuentes muestra el icono de cada proveedor y responde sin espera.
+- Las cargas anticipan la forma del contenido real, con menos saltos al aparecer el resultado.
+- Los cambios de una zona ya no refrescan las demás, y la aplicación responde con más fluidez.
+- La vinculación con **AniList** reconoce más variaciones del título del anime.
+- La imagen superior de la ficha se muestra con más frecuencia y se recupera sola ante fallos pasajeros.
+
+### General
+
+- Los avisos suenan aunque la aplicación esté minimizada o en segundo plano.
+- La aplicación comprueba sus datos al arrancar y guarda una copia de respaldo si detecta daños.
+
 ## [1.1.3] - 2026-10-03
 
 ### Descargas
