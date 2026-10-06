@@ -13,6 +13,7 @@ export default defineConfig({
       target: 'react',
       routesDirectory: path.resolve(import.meta.dirname, 'src/renderer/routes'),
       generatedRouteTree: path.resolve(import.meta.dirname, 'src/renderer/routes/routeTree.gen.ts'),
+      routeFileIgnorePattern: 'routeTree\\.gen\\.ts$',
       autoCodeSplitting: false,
     }),
     {
