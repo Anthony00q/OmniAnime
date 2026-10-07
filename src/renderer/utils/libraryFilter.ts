@@ -63,6 +63,35 @@ export interface LibraryFolderDetails {
   episodeCount: number | null;
 }
 
+const SIZE_UNITS = ['B', 'KB', 'MB', 'GB', 'TB'];
+
+export function formatLibrarySize(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes <= 0) return '—';
+  let value = bytes;
+  let unit = 0;
+  while (value >= 1024 && unit < SIZE_UNITS.length - 1) {
+    value /= 1024;
+    unit += 1;
+  }
+  return unit === 0 ? `${Math.round(value)} B` : `${value.toFixed(1)} ${SIZE_UNITS[unit]}`;
+}
+
+export function sumVideoSizeBytes(episodes: unknown): number {
+  if (!Array.isArray(episodes)) return 0;
+  return episodes.reduce((total, episode) => {
+    const sizeBytes = Number((episode as { sizeBytes?: unknown } | null)?.sizeBytes);
+    return Number.isFinite(sizeBytes) && sizeBytes > 0 ? total + sizeBytes : total;
+  }, 0);
+}
+
+const MONTHS_ES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+
+export function formatLibraryDate(timestamp: number | undefined): string {
+  if (!Number.isFinite(timestamp) || !timestamp || timestamp <= 0) return '—';
+  const date = new Date(timestamp);
+  return `${date.getDate()} ${MONTHS_ES[date.getMonth()]} ${date.getFullYear()}`;
+}
+
 export function formatLibraryFolderDetails(item: any): LibraryFolderDetails {
   const alternatives = Array.isArray(item?.alternativeTitles)
     ? (item.alternativeTitles as unknown[]).filter((v): v is string => typeof v === 'string' && !!v.trim())

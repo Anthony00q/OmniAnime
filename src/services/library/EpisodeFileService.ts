@@ -21,6 +21,7 @@ export interface EpisodeFileRecord {
   path: string;
   ext: string;
   size: string;
+  sizeBytes: number;
   episodeNumber: number | null;
 }
 
@@ -300,6 +301,7 @@ export class EpisodeFileService {
             path: filePath,
             ext: path.extname(dirent.name).substring(1),
             size: `${(sizeBytes / (1024 * 1024)).toFixed(1)} MB`,
+            sizeBytes,
             episodeNumber: extractEpisodeNumberFromVideoFileName(dirent.name),
           };
         }),

@@ -7,11 +7,13 @@ import { buildTrayMenuTemplate } from './trayMenu';
 import {
   buildToolsStatusText,
   clampSplashProgress,
+  nextSplashProgress,
   waitForRendererReady,
   withStartupTimeout,
   RENDERER_READY_TIMEOUT_MS,
   SPLASH_BOOT_TIMEOUT_MS,
   SPLASH_STATUS_BUFFER_LIMIT,
+  SPLASH_WATCHDOG_TIMEOUT_MS,
 } from '../utils/splashBoot';
 
 export interface PreloadedData {
@@ -26,7 +28,9 @@ export {
   RENDERER_READY_TIMEOUT_MS,
   SPLASH_BOOT_TIMEOUT_MS,
   SPLASH_STATUS_BUFFER_LIMIT,
+  SPLASH_WATCHDOG_TIMEOUT_MS,
   clampSplashProgress,
+  nextSplashProgress,
   waitForRendererReady,
   withStartupTimeout,
   buildToolsStatusText,
@@ -73,6 +77,14 @@ export class WindowLifecycleService {
 
   getMainWindow(): BrowserWindow | null {
     return this.mainWindow;
+  }
+
+  private getAliveSplash(): BrowserWindow | null {
+    return this.splashWindow && !this.splashWindow.isDestroyed() ? this.splashWindow : null;
+  }
+
+  private getAliveMain(): BrowserWindow | null {
+    return this.mainWindow && !this.mainWindow.isDestroyed() ? this.mainWindow : null;
   }
 
   markRendererReady(): void {
@@ -200,6 +212,7 @@ export class WindowLifecycleService {
     // y perderse (webContents.send a renderer aún no listo). Se encolan y se
     // vacían en orden al cargar, con límite para evitar bloat.
     let splashLoaded = false;
+    let lastProgress = 0;
     const pendingStatus: Array<{ text: string; progress: number }> = [];
     const sendStatusNow = (text: string, progress: number): void => {
       if (this.splashWindow && !this.splashWindow.isDestroyed()) {
@@ -221,7 +234,10 @@ export class WindowLifecycleService {
     } catch {}
 
     const updateStatus = (text: string, progress: number): void => {
-      const payload = { text: String(text || ''), progress: clampSplashProgress(progress) };
+      // El % nunca retrocede (p. ej. escaneo 52→74 seguido de un paso a 80).
+      const clamped = nextSplashProgress(lastProgress, progress);
+      lastProgress = clamped;
+      const payload = { text: String(text || ''), progress: clamped };
       if (!splashLoaded) {
         if (pendingStatus.length < SPLASH_STATUS_BUFFER_LIMIT) pendingStatus.push(payload);
         else pendingStatus[pendingStatus.length - 1] = payload;
@@ -236,53 +252,83 @@ export class WindowLifecycleService {
   private async bootstrap(updateStatus: (text: string, progress: number) => void): Promise<void> {
     let windowIsReady = false;
     let loadingIsComplete = false;
+    let handoffStarted = false;
+
+    const revealMainWindow = (): void => {
+      const easeDrawer = (t: number): number => 1 - Math.pow(1 - t, 3.8); // --ease-drawer 0.32,0.72,0,1
+      // 2) Gap 200ms (respiro vacío)
+      setTimeout(() => {
+        const main = this.getAliveMain();
+        if (!main) return;
+        main.setOpacity(0);
+        main.show();
+        main.webContents.send('app-ready');
+        const durationIn = 620;
+        const startIn = Date.now();
+        const tickIn = setInterval(() => {
+          const alive = this.getAliveMain();
+          if (!alive) {
+            clearInterval(tickIn);
+            return;
+          }
+          const p2 = Math.min(1, (Date.now() - startIn) / durationIn);
+          alive.setOpacity(easeDrawer(p2));
+          if (p2 >= 1) {
+            clearInterval(tickIn);
+            alive.setOpacity(1);
+          }
+        }, 16);
+      }, 200);
+    };
 
     const maybeShowMainWindow = (): void => {
-      if (windowIsReady && loadingIsComplete && this.mainWindow) {
-        this.dependencies.loadQueue();
-        setImmediate(() => {
-          try {
-            this.dependencies.cleanupThumbnails();
-          } catch {}
-        });
+      // Handoff a lo sumo una vez: ni doble fade ni doble 'app-ready'.
+      if (handoffStarted) return;
+      if (!(windowIsReady && loadingIsComplete && this.getAliveMain())) return;
+      handoffStarted = true;
+      this.dependencies.loadQueue();
+      setImmediate(() => {
+        try {
+          this.dependencies.cleanupThumbnails();
+        } catch {}
+      });
 
-        // Secuencial cine: splash se toma su tiempo → gap → app lenta
-        // Aislado: solo handoff splash→app, no toca splash-in/shimmer/view-enter
-        setTimeout(() => {
-          // 1) Splash out 420ms ease-out (--ease-out 0.23,1,0.32,1)
-          this.splashWindow?.setOpacity(1);
-          const durationOut = 420;
-          const startOut = Date.now();
-          const easeOut = (t: number): number => 1 - Math.pow(1 - t, 3);
-          const easeDrawer = (t: number): number => 1 - Math.pow(1 - t, 3.8); // --ease-drawer 0.32,0.72,0,1
+      // Secuencial cine: splash se toma su tiempo → gap → app lenta
+      // Aislado: solo handoff splash→app, no toca splash-in/shimmer/view-enter
+      setTimeout(() => {
+        // 1) Splash out 420ms ease-out (--ease-out 0.23,1,0.32,1)
+        const splash = this.getAliveSplash();
+        if (!splash) {
+          revealMainWindow();
+          return;
+        }
+        splash.setOpacity(1);
+        const durationOut = 420;
+        const startOut = Date.now();
+        const easeOut = (t: number): number => 1 - Math.pow(1 - t, 3);
 
-          const tickOut = setInterval(() => {
-            const p = Math.min(1, (Date.now() - startOut) / durationOut);
-            this.splashWindow?.setOpacity(1 - easeOut(p));
-            if (p >= 1) {
-              clearInterval(tickOut);
-              this.splashWindow?.close();
-              // 2) Gap 200ms (respiro vacío)
-              setTimeout(() => {
-                this.mainWindow?.setOpacity(0);
-                this.mainWindow?.show();
-                this.mainWindow?.webContents.send('app-ready');
-                const durationIn = 620;
-                const startIn = Date.now();
-                const tickIn = setInterval(() => {
-                  const p2 = Math.min(1, (Date.now() - startIn) / durationIn);
-                  this.mainWindow?.setOpacity(easeDrawer(p2));
-                  if (p2 >= 1) {
-                    clearInterval(tickIn);
-                    this.mainWindow?.setOpacity(1);
-                  }
-                }, 16);
-              }, 200);
-            }
-          }, 16);
-        }, 80);
-      }
+        const tickOut = setInterval(() => {
+          const alive = this.getAliveSplash();
+          const p = Math.min(1, (Date.now() - startOut) / durationOut);
+          if (alive) alive.setOpacity(1 - easeOut(p));
+          if (p >= 1 || !alive) {
+            clearInterval(tickOut);
+            alive?.close();
+            revealMainWindow();
+          }
+        }, 16);
+      }, 80);
     };
+
+    // Red de seguridad: si el bootstrap se cuelga fuera de sus topes (DB o carga
+    // de la ventana), el splash no puede quedarse para siempre.
+    const watchdog = setTimeout(() => {
+      if (handoffStarted) return;
+      this.dependencies.writeLog('Splash: watchdog, forzando arranque degradado');
+      loadingIsComplete = true;
+      maybeShowMainWindow();
+      if (!handoffStarted) this.getAliveSplash()?.close();
+    }, SPLASH_WATCHDOG_TIMEOUT_MS);
 
     try {
       // Solo paint inicial del splash, sin retardo artificial (antes 500ms)
@@ -399,8 +445,8 @@ export class WindowLifecycleService {
 
       let preloadedData: PreloadedData;
       if (startupResult.timedOut || !startupResult.value) {
-        this.dependencies.writeLog('Splash: timeout en precarga, continuando degradado');
-        updateStatus('Sin conexión. Cargando datos locales...', 70);
+        this.dependencies.writeLog('Splash: precarga incompleta, continuando degradado');
+        updateStatus('No se pudo cargar todo. Continuando con datos locales...', 76);
         preloadedData = {
           providerId: this.dependencies.getActiveProviderId(),
           home: null,
@@ -414,8 +460,8 @@ export class WindowLifecycleService {
       this.dependencies.setPreloadedData(preloadedData);
 
       // Sin sleep artificial: la caché ya quedó sembrada en loadStartupData.
-      // Se cede un tick para pintar el 78% antes del check de tools (<10ms).
-      updateStatus('Optimizando caché en memoria...', 78);
+      // Se cede un tick para pintar el 80% antes del check de tools (<10ms).
+      updateStatus('Preparando la aplicación...', 80);
       await new Promise((resolve) => setImmediate(resolve));
 
       // Verificación ligera real (existsSync, sin spawn): el --version
@@ -428,35 +474,39 @@ export class WindowLifecycleService {
       }
       updateStatus(buildToolsStatusText(tools), 92);
 
-      const providerLabel = this.dependencies.getActiveProviderId() === 'jkanime' ? 'JkAnime' : 'AnimeAV1';
-      updateStatus(`Todo listo. Iniciando ${providerLabel}...`, 100);
+      updateStatus('Todo listo. Abriendo OmniAnime...', 100);
       // Handoff retenido hasta que el renderer pinte home con datos (o tope,
       // para no colgar el splash si el renderer no avisa).
       await waitForRendererReady(() => this.rendererReady, RENDERER_READY_TIMEOUT_MS);
       loadingIsComplete = true;
       maybeShowMainWindow();
+      clearTimeout(watchdog);
 
       void this.dependencies.warmLibrary(settings).catch(() => null);
     } catch (error) {
+      clearTimeout(watchdog);
       this.dependencies.writeLog('Error en splash: ' + String(error));
       loadingIsComplete = true;
       windowIsReady = true;
+      // La ventana se muestra a mano; el handoff animado no debe repetirlo.
+      handoffStarted = true;
 
-      if (this.mainWindow) {
-        if (!this.mainWindow.webContents.getURL()) {
+      const main = this.getAliveMain();
+      if (main) {
+        if (!main.webContents.getURL()) {
           if (this.dependencies.isPackaged()) {
-            await this.mainWindow.loadFile(this.dependencies.getAppHtmlPath());
+            await main.loadFile(this.dependencies.getAppHtmlPath());
           } else {
             try {
-              await this.mainWindow.loadURL(this.dependencies.getDevServerUrl());
+              await main.loadURL(this.dependencies.getDevServerUrl());
             } catch {
-              await this.mainWindow.loadFile(this.dependencies.getAppHtmlPath());
+              await main.loadFile(this.dependencies.getAppHtmlPath());
             }
           }
         }
-        this.mainWindow.show();
+        main.show();
       }
-      this.splashWindow?.close();
+      this.getAliveSplash()?.close();
     }
   }
 }

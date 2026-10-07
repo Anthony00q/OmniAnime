@@ -3,11 +3,19 @@
 export const SPLASH_BOOT_TIMEOUT_MS = 15_000;
 export const SPLASH_STATUS_BUFFER_LIMIT = 50;
 export const RENDERER_READY_TIMEOUT_MS = 3_000;
+// Red de seguridad del bootstrap completo (precarga + handoff): si algo se cuelga
+// fuera de esos topes, el splash nunca debe quedarse para siempre.
+export const SPLASH_WATCHDOG_TIMEOUT_MS = 30_000;
 
 export function clampSplashProgress(value: unknown): number {
   const num = typeof value === 'number' ? value : Number(value);
   if (!Number.isFinite(num)) return 0;
   return Math.min(100, Math.max(0, Math.round(num)));
+}
+
+// El porcentaje del splash nunca retrocede: solo el texto cambia.
+export function nextSplashProgress(previous: number, value: unknown): number {
+  return Math.max(clampSplashProgress(previous), clampSplashProgress(value));
 }
 
 export async function withStartupTimeout<T>(
@@ -63,8 +71,12 @@ export function waitForRendererReady(isReady: () => boolean, timeoutMs: number, 
   });
 }
 
+export function buildLibraryScanStatusText(processed: number, total: number): string {
+  return `Escaneando librería local (${processed} de ${total})...`;
+}
+
 export function buildToolsStatusText(tools: { ffmpeg: boolean } | null): string {
-  if (!tools) return 'Verificando herramientas de descarga...';
-  if (tools.ffmpeg) return 'Herramientas de descarga listas.';
-  return 'ffmpeg no encontrado, algunas conversiones fallarán.';
+  if (!tools) return 'No se pudieron verificar las herramientas de conversión.';
+  if (tools.ffmpeg) return 'Herramientas de conversión listas.';
+  return 'No se encontró la herramienta de conversión; algunos vídeos no se podrán convertir.';
 }

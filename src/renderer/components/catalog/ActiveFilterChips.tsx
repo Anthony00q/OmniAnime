@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
-import { AppTooltip } from '@/renderer/components/ui/AppTooltip';
 
 interface ActiveFilterChip {
   key: string;
@@ -151,20 +150,19 @@ export function ActiveFilterChips({ filters, onRemove, onClear }: ActiveFilterCh
                     : String(value));
 
             return (
-              <AppTooltip key={key} content={chipLabel}>
-                <button
-                  type="button"
-                  onClick={() => onRemove(key)}
-                  aria-hidden={!isVisible}
-                  aria-label={`Quitar filtro ${chipLabel}`}
-                  tabIndex={isVisible ? 0 : -1}
-                  data-state={isVisible ? 'visible' : 'hidden'}
-                  className="catalog-filter-chip group inline-flex max-w-full items-center gap-1 rounded-full border border-primary/15 bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary shadow-sm hover:bg-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
-                >
-                  <span className="max-w-[240px] truncate">{chipLabel}</span>
-                  <X className="h-3 w-3 shrink-0 opacity-60 transition-opacity group-hover:opacity-100" />
-                </button>
-              </AppTooltip>
+              <button
+                key={key}
+                type="button"
+                onClick={() => onRemove(key)}
+                aria-hidden={!isVisible}
+                aria-label={`Quitar filtro ${chipLabel}`}
+                tabIndex={isVisible ? 0 : -1}
+                data-state={isVisible ? 'visible' : 'hidden'}
+                className="catalog-filter-chip group inline-flex max-w-full items-center gap-1 rounded-full border border-primary/15 bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary shadow-sm hover:bg-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+              >
+                <span className="max-w-[240px] truncate">{chipLabel}</span>
+                <X className="h-3 w-3 shrink-0 opacity-60 transition-opacity group-hover:opacity-100" />
+              </button>
             );
           })}
 

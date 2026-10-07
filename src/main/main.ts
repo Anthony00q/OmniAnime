@@ -24,6 +24,7 @@ import { EpisodeLinksService } from '../services/downloads/EpisodeLinksService';
 import { QueueEnqueueService } from '../services/downloads/QueueEnqueueService';
 import { AppLogger, type LogScope, type ScopedLogger } from '../services/logging/AppLogger';
 import { effectiveMinLevel, normalizeLoggingSettings } from '../utils/logging/loggingSettings';
+import { buildLibraryScanStatusText } from '../utils/splashBoot';
 import { EpisodeFileService } from '../services/library/EpisodeFileService';
 import { HistoryService } from '../services/library/HistoryService';
 import { LibraryAssetService } from '../services/library/LibraryAssetService';
@@ -684,14 +685,15 @@ windowLifecycleService = new WindowLifecycleService({
         return null;
       }),
       (async () => {
-        updateStatus('Escaneando librería local (0%)...', 52);
+        updateStatus('Escaneando librería local...', 52);
         const libDirs = settings.outputDirs || [settings.defaultOutputDir];
         return libraryPreloadService.buildMetaPreload(
           libDirs,
           0,
-          ({ processed, total, matched }) => {
-            const pct = total > 0 ? Math.min(96, Math.round((processed / total) * 36) + 52) : 52;
-            updateStatus(`Escaneando librería local (${processed}/${total}, match: ${matched})...`, pct);
+          ({ processed, total }) => {
+            // El escaneo vive en 52→74: los pasos siguientes arrancan en 80.
+            const pct = total > 0 ? Math.min(74, Math.round((processed / total) * 22) + 52) : 52;
+            updateStatus(buildLibraryScanStatusText(processed, total), pct);
           },
           false,
         );
