@@ -21,6 +21,63 @@ export function createDefaultCatalogFilters(): Record<string, unknown> {
   };
 }
 
+export interface CatalogFiltersSnapshot {
+  filters: Record<string, unknown>;
+  searchInput: string;
+}
+
+export type CatalogSnapshotMap = Record<string, CatalogFiltersSnapshot>;
+
+export function createDefaultCatalogSnapshot(): CatalogFiltersSnapshot {
+  return { filters: createDefaultCatalogFilters(), searchInput: '' };
+}
+
+// Default compartido y congelado: leer un proveedor sin guardar debe devolver
+// siempre el mismo objeto para no romper la estabilidad de claves/memos.
+const EMPTY_CATALOG_SNAPSHOT: CatalogFiltersSnapshot = Object.freeze({
+  filters: Object.freeze({ ...createDefaultCatalogFilters(), genre: Object.freeze([]) }),
+  searchInput: '',
+});
+
+export function readCatalogSnapshot(map: CatalogSnapshotMap, providerId: string): CatalogFiltersSnapshot {
+  return map[providerId] ?? EMPTY_CATALOG_SNAPSHOT;
+}
+
+export function writeCatalogSnapshot(
+  map: CatalogSnapshotMap,
+  providerId: string,
+  snapshot: CatalogFiltersSnapshot,
+): CatalogSnapshotMap {
+  return { ...map, [providerId]: snapshot };
+}
+
+export function parseCatalogYear(value: unknown): number | null {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  if (typeof value !== 'string' || value.trim() === '') return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+/**
+ * Límites visibles de los sliders de año: lo guardado en los filtros, acotado
+ * al rango del proveedor; sin nada guardado, el rango completo.
+ */
+export function resolveCatalogYearBounds(
+  filters: Record<string, unknown>,
+  years: number[] | undefined,
+): { min: number | null; max: number | null } {
+  if (!years || years.length === 0) return { min: null, max: null };
+  const rangeMin = Math.min(...years);
+  const rangeMax = Math.max(...years);
+  const savedMin = parseCatalogYear(filters.minYear);
+  const savedMax = parseCatalogYear(filters.maxYear);
+  const clamp = (v: number) => Math.min(Math.max(v, rangeMin), rangeMax);
+  return {
+    min: savedMin === null ? rangeMin : clamp(savedMin),
+    max: savedMax === null ? rangeMax : clamp(savedMax),
+  };
+}
+
 interface FilterListItem {
   id: string;
   name: string;

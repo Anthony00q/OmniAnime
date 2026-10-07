@@ -6,8 +6,9 @@ import { useAtomCallback } from 'jotai/utils';
 import { useLocation } from '@tanstack/react-router';
 import { CustomSelect } from '@/renderer/components/CustomSelect';
 import { EmptyState } from '@/renderer/components/ui/EmptyState';
-import { activeProviderAtom, providerChangedCounterAtom, pendingCatalogGenreAtom } from '@/renderer/store/atoms';
+import { activeProviderAtom, pendingCatalogGenreAtom } from '@/renderer/store/atoms';
 import { useAppNavigation } from '@/renderer/hooks/useAppNavigation';
+import { useCatalogFilters } from '@/renderer/hooks/useCatalogFilters';
 import { useCatalog, useConnectivityStatus, useFiltersData, prefetchAnimeDetails } from '@/renderer/hooks/useQueries';
 import { shouldShowOfflineEmpty } from '@/renderer/utils/offlineEmpty';
 import { PosterCard } from '@/renderer/components/anime/PosterCard';
@@ -16,7 +17,11 @@ import { PosterGridSkeleton } from '@/renderer/components/anime/PosterGridSkelet
 import { PageHeader } from '@/renderer/components/ui/PageHeader';
 import { SearchField } from '@/renderer/components/ui/SearchField';
 import { ErrorState } from '@/renderer/components/ui/ErrorState';
-import { createDefaultCatalogFilters, resolveFilterChipLabel } from '@/renderer/utils/catalogFilters';
+import {
+  createDefaultCatalogFilters,
+  resolveFilterChipLabel,
+  resolveCatalogYearBounds,
+} from '@/renderer/utils/catalogFilters';
 import { dedupeCatalogPages, getCatalogResultKey } from '@/renderer/utils/catalogResults';
 import { ActiveFilterChips } from '@/renderer/components/catalog/ActiveFilterChips';
 
@@ -53,19 +58,16 @@ export function CatalogView() {
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const providerId = useAtomValue(activeProviderAtom);
-  const providerChangedCounter = useAtomValue(providerChangedCounterAtom);
   const [pendingCatalogGenre, setPendingCatalogGenre] = useAtom(pendingCatalogGenreAtom);
   const location = useLocation();
   // El foco del buscador viaja en el estado de la entrada de historial.
   const focusSearch = location.state.focusSearch ?? false;
 
   const [showFilters, setShowFilters] = useState(false);
-  const [searchInput, setSearchInput] = useState('');
-  const [localMinYear, setLocalMinYear] = useState<number | null>(null);
-  const [localMaxYear, setLocalMaxYear] = useState<number | null>(null);
-  const hasInitializedYearsRef = useRef(false);
+  const [dragMinYear, setDragMinYear] = useState<number | null>(null);
+  const [dragMaxYear, setDragMaxYear] = useState<number | null>(null);
 
-  const [activeFilters, setActiveFilters] = useState<Record<string, unknown>>(createDefaultCatalogFilters);
+  const { activeFilters, setActiveFilters, searchInput, setSearchInput } = useCatalogFilters(providerId);
 
   const { data: filterData } = useFiltersData();
 
@@ -78,6 +80,14 @@ export function CatalogView() {
   const isCatalogEmpty = !isLoading && !isError && items.length === 0;
   const { data: isOnline } = useConnectivityStatus(isCatalogEmpty);
   const showOfflineEmpty = shouldShowOfflineEmpty(isError ? 1 : items.length, isOnline);
+
+  // Los sliders muestran el rango guardado del proveedor; sin guardado, el rango completo.
+  const yearBounds = useMemo(
+    () => resolveCatalogYearBounds(activeFilters, filterData?.yearMode !== 'single' ? filterData?.years : undefined),
+    [activeFilters, filterData],
+  );
+  const shownMinYear = dragMinYear ?? yearBounds.min;
+  const shownMaxYear = dragMaxYear ?? yearBounds.max;
 
   const applyPendingGenre = useCallback(
     (genreName: string | null) => {
@@ -92,33 +102,16 @@ export function CatalogView() {
   );
 
   useEffect(() => {
-    if (
-      !hasInitializedYearsRef.current &&
-      filterData?.years &&
-      filterData.years.length > 0 &&
-      filterData.yearMode !== 'single'
-    ) {
-      const min = Math.min(...filterData.years);
-      const max = Math.max(...filterData.years);
-      setLocalMinYear(min);
-      setLocalMaxYear(max);
-      hasInitializedYearsRef.current = true;
-    }
-
     if (pendingCatalogGenre) {
       applyPendingGenre(pendingCatalogGenre);
     }
-  }, [filterData, pendingCatalogGenre, applyPendingGenre]);
+  }, [pendingCatalogGenre, applyPendingGenre]);
 
   useEffect(() => {
-    if (providerChangedCounter === 0) return;
-    setSearchInput('');
-    setActiveFilters(createDefaultCatalogFilters());
     setShowFilters(false);
-    setLocalMinYear(null);
-    setLocalMaxYear(null);
-    hasInitializedYearsRef.current = false;
-  }, [providerChangedCounter]);
+    setDragMinYear(null);
+    setDragMaxYear(null);
+  }, [providerId]);
 
   useEffect(() => {
     if (focusSearch) {
@@ -134,7 +127,7 @@ export function CatalogView() {
       });
     }, 800);
     return () => clearTimeout(handler);
-  }, [searchInput]);
+  }, [searchInput, setActiveFilters]);
 
   const scrollRafRef = useRef<number | null>(null);
   const handleScroll = useCallback(
@@ -184,18 +177,18 @@ export function CatalogView() {
   };
 
   const commitYearRange = () => {
-    if (localMinYear !== null && localMaxYear !== null) {
-      updateFilterRange(localMinYear, localMaxYear);
+    if (shownMinYear !== null && shownMaxYear !== null) {
+      updateFilterRange(shownMinYear, shownMaxYear);
     }
+    setDragMinYear(null);
+    setDragMaxYear(null);
   };
 
   const clearFilters = () => {
     setSearchInput('');
     setActiveFilters(createDefaultCatalogFilters());
-    if (filterData?.years && filterData.years.length > 0) {
-      setLocalMinYear(Math.min(...filterData.years));
-      setLocalMaxYear(Math.max(...filterData.years));
-    }
+    setDragMinYear(null);
+    setDragMaxYear(null);
   };
 
   const removeFilter = (key: string) => {
@@ -206,16 +199,8 @@ export function CatalogView() {
     } else {
       updateFilter(key, '');
     }
-    if (key === 'minYear') {
-      if (filterData?.years?.length) {
-        setLocalMinYear(Math.min(...filterData.years));
-      }
-    }
-    if (key === 'maxYear') {
-      if (filterData?.years?.length) {
-        setLocalMaxYear(Math.max(...filterData.years));
-      }
-    }
+    if (key === 'minYear') setDragMinYear(null);
+    if (key === 'maxYear') setDragMaxYear(null);
   };
 
   const activeFilterChips = useMemo(
@@ -441,11 +426,11 @@ export function CatalogView() {
                 />
               )}
 
-              {filterData.yearMode !== 'single' && localMinYear !== null && localMaxYear !== null && (
+              {filterData.yearMode !== 'single' && shownMinYear !== null && shownMaxYear !== null && (
                 <div className="col-span-full flex items-center gap-4 mt-2 px-1">
                   <div className="flex flex-col items-center gap-1 shrink-0 select-none">
                     <span className="text-[11px] font-semibold text-muted-foreground">Desde</span>
-                    <span className="text-sm font-bold text-foreground tabular-nums">{localMinYear}</span>
+                    <span className="text-sm font-bold text-foreground tabular-nums">{shownMinYear}</span>
                   </div>
                   <div className="flex-1 flex flex-col gap-1.5">
                     <input
@@ -453,11 +438,11 @@ export function CatalogView() {
                       aria-label="Año mínimo"
                       min={Math.min(...(filterData?.years || [1900]))}
                       max={Math.max(...(filterData?.years || [2099]))}
-                      value={localMinYear ?? Math.min(...(filterData?.years || [1900]))}
+                      value={shownMinYear}
                       onChange={(e) => {
                         const v = parseInt(e.target.value);
-                        if (localMaxYear !== null && v <= localMaxYear) {
-                          setLocalMinYear(v);
+                        if (shownMaxYear !== null && v <= shownMaxYear) {
+                          setDragMinYear(v);
                         }
                       }}
                       onPointerUp={commitYearRange}
@@ -469,11 +454,11 @@ export function CatalogView() {
                       aria-label="Año máximo"
                       min={Math.min(...(filterData?.years || [1900]))}
                       max={Math.max(...(filterData?.years || [2099]))}
-                      value={localMaxYear ?? Math.max(...(filterData?.years || [2099]))}
+                      value={shownMaxYear}
                       onChange={(e) => {
                         const v = parseInt(e.target.value);
-                        if (localMinYear !== null && v >= localMinYear) {
-                          setLocalMaxYear(v);
+                        if (shownMinYear !== null && v >= shownMinYear) {
+                          setDragMaxYear(v);
                         }
                       }}
                       onPointerUp={commitYearRange}
@@ -483,7 +468,7 @@ export function CatalogView() {
                   </div>
                   <div className="flex flex-col items-center gap-1 shrink-0 select-none">
                     <span className="text-[11px] font-semibold text-muted-foreground">Hasta</span>
-                    <span className="text-sm font-bold text-foreground tabular-nums">{localMaxYear}</span>
+                    <span className="text-sm font-bold text-foreground tabular-nums">{shownMaxYear}</span>
                   </div>
                 </div>
               )}

@@ -1,5 +1,6 @@
 import { atom } from 'jotai';
 import type { AppSettings, ThemeId } from '@/types/settings';
+import type { CatalogSnapshotMap } from '@/renderer/utils/catalogFilters';
 import { DEFAULT_ACCENT_HSL, isThemeValue } from '@/renderer/utils/color';
 
 export type ToastPosition = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'top-center' | 'bottom-center';
@@ -53,3 +54,7 @@ export const providerChangedCounterAtom = atom(0);
 export const settingsChangedCounterAtom = atom(0);
 
 export const pendingCatalogGenreAtom = atom<string | null>(null);
+
+// Filtros del catálogo por proveedor: al volver a Catálogo se restauran los del
+// proveedor activo; nunca mezclarlos entre proveedores (sus ids no son válidos).
+export const catalogSnapshotsAtom = atom<CatalogSnapshotMap>({});
