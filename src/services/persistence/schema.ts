@@ -1,6 +1,6 @@
 import type Database from 'better-sqlite3';
 
-export const SCHEMA_VERSION = 5;
+export const SCHEMA_VERSION = 6;
 
 export function applyBaseSchema(db: Database.Database): void {
   db.exec(`
@@ -94,6 +94,21 @@ export function applyBaseSchema(db: Database.Database): void {
             provider_id TEXT,
             anilist_id INTEGER,
             updated_at INTEGER NOT NULL
+        )
+    `);
+
+  applyAniLinkTable(db);
+}
+
+export function applyAniLinkTable(db: Database.Database): void {
+  db.exec(`
+        CREATE TABLE IF NOT EXISTS anilist_link (
+            provider_id TEXT NOT NULL,
+            slug TEXT NOT NULL,
+            anilist_id INTEGER NOT NULL,
+            source TEXT NOT NULL DEFAULT 'auto' CHECK (source IN ('auto', 'manual')),
+            updated_at INTEGER NOT NULL,
+            PRIMARY KEY (provider_id, slug)
         )
     `);
 }

@@ -23,7 +23,7 @@ const anilistAgent = new https.Agent({ keepAlive: true, maxSockets: 8 });
 
 const ANILIST_OUTBOUND_POLICY: OutboundPolicy = { allowedHosts: ['graphql.anilist.co'], allowLoopback: false };
 
-const defaultAniListPost: AniListPost = (body: unknown) =>
+export const defaultAniListPost: AniListPost = (body: unknown) =>
   outboundPost(
     ANILIST_API_URL,
     body,

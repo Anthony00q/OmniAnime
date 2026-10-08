@@ -14,6 +14,7 @@ import { QueueRows } from './QueueRows';
 import { HistoryRows } from './HistoryRows';
 import { SettingsRows } from './SettingsRows';
 import { FolderMetaRows } from './FolderMetaRows';
+import { AniLinkRows, type AniLinkRecord, type AniLinkSource } from './AniLinkRows';
 
 export class DatabaseManager {
   private static instance: DatabaseManager;
@@ -48,6 +49,7 @@ export class DatabaseManager {
   private historyRows: HistoryRows | null = null;
   private settingsRows: SettingsRows | null = null;
   private folderMetaRows: FolderMetaRows | null = null;
+  private aniLinkRows: AniLinkRows | null = null;
   private dbPath: string;
   private ready = false;
 
@@ -77,6 +79,7 @@ export class DatabaseManager {
       this.historyRows = null;
       this.settingsRows = null;
       this.folderMetaRows = null;
+      this.aniLinkRows = null;
       this.ready = false;
       this.initPromise = null;
     }
@@ -180,6 +183,7 @@ export class DatabaseManager {
       this.historyRows = new HistoryRows(this.db);
       this.settingsRows = new SettingsRows(this.db);
       this.folderMetaRows = new FolderMetaRows(this.db);
+      this.aniLinkRows = new AniLinkRows(this.db);
       this.historyRows.pruneHistory();
       this.persist();
 
@@ -250,6 +254,18 @@ export class DatabaseManager {
 
   deleteFolderMeta(folderPath: string): void {
     this.folderMetaRows?.deleteFolderMeta(folderPath);
+  }
+
+  getAniLink(providerId: string, slug: string): AniLinkRecord | null {
+    return this.aniLinkRows?.getLink(providerId, slug) ?? null;
+  }
+
+  setAniLink(providerId: string, slug: string, anilistId: number, source: AniLinkSource): void {
+    this.aniLinkRows?.setLink(providerId, slug, anilistId, source);
+  }
+
+  removeAniLink(providerId: string, slug: string): void {
+    this.aniLinkRows?.removeLink(providerId, slug);
   }
 
   getDb(): Database.Database | null {

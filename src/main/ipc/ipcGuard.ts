@@ -26,6 +26,7 @@ const IPC_TIMEOUTS: Record<string, number | null> = {
   'get-schedule': 60_000,
   'get-episode-thumbs': 60_000,
   'get-anilist-banner': 60_000,
+  'search-anilist': 60_000,
   'get-image-base64': 60_000,
   'search-trailer-id': 60_000,
   'app-update-check': 60_000,

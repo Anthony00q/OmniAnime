@@ -15,6 +15,7 @@ import { QueueEnqueueService } from '../services/downloads/QueueEnqueueService';
 import { AppUpdateService } from '../services/update/AppUpdateService';
 import { StorageService } from '../services/library/StorageService';
 import type { PreloadedData } from './WindowLifecycleService';
+import type { AniLinkStore } from './anilistLink';
 import { registerProviderHandlers } from './ipc/handlers/provider.handlers';
 import { registerHistoryHandlers } from './ipc/handlers/history.handlers';
 import { registerWindowHandlers } from './ipc/handlers/window.handlers';
@@ -53,6 +54,7 @@ export interface IpcRegistryDependencies {
   downloadQueue: QueueItem[];
   appUpdateService: AppUpdateService | null;
   storageService: StorageService | null;
+  aniLinkStore: AniLinkStore;
   getMainWindow: () => BrowserWindow | null;
   getAllowedBaseDirs: () => string[];
   getConnectivityStatus: () => boolean;

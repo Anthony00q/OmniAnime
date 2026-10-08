@@ -3,9 +3,14 @@ import * as path from 'path';
 import anitomy from 'anitomy';
 import type { AnimeDetails, AnimeSearchResult } from '../../types/anime';
 import type { FolderLibraryMeta, LibraryMetaPreloadRow } from '../../types/library';
-import { computeTitleMatchScore, normalizeFolderAlternativeTitles } from '../../utils/titleUtils';
+import {
+  computeTitleMatchScore,
+  normalizeFolderAlternativeTitles,
+  normalizeTitleForMatch,
+} from '../../utils/titleUtils';
 import {
   anilistBannerInputFromDetails,
+  canonicalizeSeasonTokens,
   type AniListBannerInput,
   type AniListBannerResult,
 } from '../providers/AniListService';
@@ -64,6 +69,20 @@ export function buildLibrarySearchVariants(rawName: string): string[] {
   variants.push(cleaned);
 
   return Array.from(new Set(variants.map((v) => v.trim()).filter(Boolean))).slice(0, 3);
+}
+
+const MIN_FOLDER_MATCH_SCORE = 50;
+const MIN_FOLDER_MATCH_GAP = 10;
+
+function seasonMarker(title: string): number | null {
+  const m = canonicalizeSeasonTokens(title).match(/\bseason (\d{1,2})\b/);
+  return m ? Number(m[1]) : null;
+}
+
+function seasonsConflict(folderName: string, title: string): boolean {
+  const a = seasonMarker(folderName);
+  const b = seasonMarker(title);
+  return a !== null && b !== null && a !== b;
 }
 
 async function mapLimit<T, R>(
@@ -303,8 +322,7 @@ export class LibraryPreloadService {
           const variants = buildLibrarySearchVariants(folder.name);
           const matchingProvider = this.options.getMatchingProvider(folder.localMeta?.providerId ?? null);
           const matchingProviderId = matchingProvider.id;
-          let best: AnimeSearchResult | null = null;
-          let bestScore = -1;
+          const bySlug = new Map<string, { item: AnimeSearchResult; score: number; titleKey: string }>();
 
           for (const q of variants) {
             if (!q) continue;
@@ -322,13 +340,24 @@ export class LibraryPreloadService {
             const list = (await pending) || [];
             for (const item of list.slice(0, 10)) {
               const title = String(item.title || '').trim();
-              const score = computeTitleMatchScore(q, title || '');
-              if (score > bestScore) {
-                bestScore = score;
-                best = item;
+              const score = seasonsConflict(folder.name, title) ? 0 : computeTitleMatchScore(q, title);
+              const key = String(item.slug || item.id || title);
+              const prev = bySlug.get(key);
+              if (!prev || score > prev.score) {
+                bySlug.set(key, { item, score, titleKey: normalizeTitleForMatch(title) });
               }
             }
           }
+
+          const byTitle = new Map<string, { item: AnimeSearchResult; score: number }>();
+          for (const entry of bySlug.values()) {
+            const prev = byTitle.get(entry.titleKey);
+            if (!prev || entry.score > prev.score) byTitle.set(entry.titleKey, entry);
+          }
+          const ranked = Array.from(byTitle.values()).sort((a, b) => b.score - a.score);
+          const best = ranked[0]?.item ?? null;
+          const bestScore = ranked[0]?.score ?? -1;
+          const runnerUpScore = ranked[1]?.score ?? -1;
 
           processed += 1;
           const now = Date.now();
@@ -338,7 +367,9 @@ export class LibraryPreloadService {
           }
 
           // Sin match remoto: conservar la carpeta con fila básica (no ocultar)
-          if (!best || bestScore < 38) return buildBasicRow();
+          if (!best || bestScore < MIN_FOLDER_MATCH_SCORE || bestScore - runnerUpScore < MIN_FOLDER_MATCH_GAP) {
+            return buildBasicRow();
+          }
 
           let details: AnimeDetails | null = null;
           try {
@@ -353,7 +384,8 @@ export class LibraryPreloadService {
           const localPoster = await this.options.assetService.ensureFolderPoster(folder.folderPath, posterUrl);
           // Banner como en la ficha: solo AniList validado, sin fallback al póster.
           const anilist = details
-            ? ((await this.options.resolveAniListMeta?.(anilistBannerInputFromDetails(details))) ?? null)
+            ? ((await this.options.resolveAniListMeta?.(anilistBannerInputFromDetails(details, matchingProviderId))) ??
+              null)
             : null;
           const anilistBannerUrl = anilist?.banner ?? null;
           const localBanner = anilistBannerUrl

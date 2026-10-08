@@ -13,6 +13,7 @@ query ($search: String) {
       title { romaji english native }
       synonyms
       bannerImage
+      coverImage { large }
       studios { edges { isMain node { name } } }
       startDate { year }
       season
@@ -37,6 +38,19 @@ query ($malId: Int) {
 }
 `;
 
+const ID_SEARCH_QUERY = `
+query ($id: Int) {
+  Media(id: $id, type: ANIME) {
+    id
+    idMal
+    title { romaji english native }
+    synonyms
+    bannerImage
+    studios { edges { isMain node { name } } }
+  }
+}
+`;
+
 const MAX_SEARCH_VARIANTS = 4;
 const MAX_POOLED_CANDIDATES = 15;
 
@@ -52,6 +66,7 @@ export interface AniListCandidate {
   native?: string | null;
   synonyms?: Array<string | null> | null;
   bannerImage?: string | null;
+  coverImage?: string | null;
   studio?: string | null;
   idMal?: number | null;
   startYear?: number | null;
@@ -60,6 +75,7 @@ export interface AniListCandidate {
   format?: string | null;
   episodes?: number | null;
   popularity?: number | null;
+  searchRank?: number;
 }
 
 export interface AniListTitles {
@@ -83,6 +99,8 @@ export interface AniListBannerInput {
   providerFormat?: string | null;
   providerSeason?: string | null;
   malId?: number | null;
+  providerId?: string | null;
+  slug?: string | null;
 }
 
 export interface AniListBannerSource {
@@ -92,11 +110,15 @@ export interface AniListBannerSource {
   type?: string | null;
   season?: string | null;
   malId?: number | null;
+  slug?: string | null;
 }
 
 // Mismo input que la ficha de Detalles: el banner guardado en disco
 // coincide con el mostrado. Sin fallback al póster en ningún punto.
-export function anilistBannerInputFromDetails(details: AniListBannerSource | null | undefined): AniListBannerInput {
+export function anilistBannerInputFromDetails(
+  details: AniListBannerSource | null | undefined,
+  providerId?: string | null,
+): AniListBannerInput {
   return {
     title: String(details?.title ?? ''),
     alternativeTitles: details?.alternativeTitles ?? null,
@@ -104,6 +126,8 @@ export function anilistBannerInputFromDetails(details: AniListBannerSource | nul
     providerFormat: details?.type ?? null,
     providerSeason: details?.season ?? null,
     malId: details?.malId ?? null,
+    providerId: providerId ?? null,
+    slug: typeof details?.slug === 'string' && details.slug.trim() ? details.slug.trim() : null,
   };
 }
 
@@ -281,6 +305,21 @@ function yearDistance(candidate: AniListCandidate, providerYear: number): number
 
 type ScoredCandidate = { candidate: AniListCandidate; score: number };
 
+const RANK_BONUS_TOP = 10;
+const RANK_BONUS_NEAR = 5;
+
+function searchRankBonus(candidate: AniListCandidate): number {
+  const rank = candidate.searchRank;
+  if (typeof rank !== 'number' || !Number.isInteger(rank) || rank < 0) return 0;
+  if (rank === 0) return RANK_BONUS_TOP;
+  return rank <= 3 ? RANK_BONUS_NEAR : 0;
+}
+
+function adjustScore(base: number, candidate: AniListCandidate): number {
+  if (base >= 100) return 100;
+  return Math.min(99, base + searchRankBonus(candidate));
+}
+
 // Desempata 100-100 en orden formato -> año -> episodios -> temporada; sin ganador único, null.
 function breakExactTie(
   tied: ScoredCandidate[],
@@ -343,7 +382,7 @@ export function selectAniListMatch(
   const providerYear = parseProviderYear(input.providerYear ?? null);
   const scored = candidates
     .filter((c) => c && Number.isFinite(Number(c.id)))
-    .map((c) => ({ candidate: c, score: scoreAniListCandidate(normalized, c) }))
+    .map((c) => ({ candidate: c, score: adjustScore(scoreAniListCandidate(normalized, c), c) }))
     .sort((a, b) => b.score - a.score || candidatePopularity(b.candidate) - candidatePopularity(a.candidate));
   if (scored.length === 0 || scored[0].score < MIN_MATCH_SCORE) return null;
   const [best, runnerUp] = [scored[0], scored[1]];
@@ -369,6 +408,7 @@ function toCandidate(raw: unknown): AniListCandidate | null {
   const title = (node.title || {}) as Record<string, unknown>;
   const synonyms = Array.isArray(node.synonyms) ? (node.synonyms as Array<string | null>) : null;
   const startDate = (node.startDate || {}) as Record<string, unknown>;
+  const coverImage = (node.coverImage || {}) as Record<string, unknown>;
   const asNumber = (value: unknown): number | null => (Number.isFinite(Number(value)) ? Number(value) : null);
   const asText = (value: unknown): string | null => (typeof value === 'string' && value.trim() ? value : null);
   return {
@@ -378,6 +418,7 @@ function toCandidate(raw: unknown): AniListCandidate | null {
     native: typeof title.native === 'string' ? title.native : null,
     synonyms,
     bannerImage: typeof node.bannerImage === 'string' ? node.bannerImage : null,
+    coverImage: asText(coverImage.large),
     studio: extractAniListStudio(node.studios),
     idMal: asNumber(node.idMal),
     startYear: asNumber(startDate.year),
@@ -427,16 +468,21 @@ export async function fetchAniListCandidates(searches: string[], post: AniListPo
   const lists = await Promise.all(
     (Array.isArray(searches) ? searches : []).map((s) => fetchAniListSearch(s, post).catch(() => [])),
   );
-  const seen = new Set<number>();
-  const pooled: AniListCandidate[] = [];
+  const byId = new Map<number, AniListCandidate>();
   for (const list of lists) {
-    for (const c of list) {
-      if (seen.has(c.id) || pooled.length >= MAX_POOLED_CANDIDATES) continue;
-      seen.add(c.id);
-      pooled.push(c);
+    for (let rank = 0; rank < list.length; rank += 1) {
+      const c = list[rank];
+      const existing = byId.get(c.id);
+      if (existing) {
+        if (existing.searchRank === undefined || rank < existing.searchRank) existing.searchRank = rank;
+        continue;
+      }
+      if (byId.size >= MAX_POOLED_CANDIDATES) continue;
+      c.searchRank = rank;
+      byId.set(c.id, c);
     }
   }
-  return pooled;
+  return Array.from(byId.values());
 }
 
 function isAniListBannerHost(rawUrl: string): boolean {
@@ -479,11 +525,29 @@ function titlesFrom(candidate: AniListCandidate): AniListTitles {
 
 function bannerFrom(candidate: AniListCandidate | null): AniListBannerResult | null {
   if (!candidate || Number(candidate.id) <= 0) return null;
+  const result = bannerResultFrom(candidate);
+  if (!result.banner && !result.studio) return null;
+  return result;
+}
+
+export function bannerResultFrom(candidate: AniListCandidate): AniListBannerResult {
   const rawBanner = String(candidate.bannerImage || '').trim();
   const banner = rawBanner && isAniListBannerHost(rawBanner) ? rawBanner : null;
   const studio = typeof candidate.studio === 'string' && candidate.studio.trim() ? candidate.studio : null;
-  if (!banner && !studio) return null;
   return { anilistId: candidate.id, banner, studio, titles: titlesFrom(candidate) };
+}
+
+export async function fetchAniListById(id: number, post: AniListPost): Promise<AniListCandidate | null> {
+  try {
+    if (!Number.isInteger(id) || id <= 0) return null;
+    const envelope = (await post({ query: ID_SEARCH_QUERY, variables: { id } })) as Record<string, unknown>;
+    const media = (envelope?.data as Record<string, unknown> | undefined)?.Media as unknown;
+    const candidate = toCandidate(media);
+    if (!candidate || Number(candidate.id) !== id) return null;
+    return candidate;
+  } catch {
+    return null;
+  }
 }
 
 // Orden: malId directo primero; fallback al matcher por título cuando no hay

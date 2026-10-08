@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { unwrap } from './unwrap';
 
 // Banner y estudio de AniList: éxitos con caché larga (24h); fallos de
@@ -18,6 +18,7 @@ export interface AniListMeta {
   banner: string | null;
   studio: string | null;
   titles: AniListMetaTitles;
+  linkSource: 'auto' | 'manual' | null;
 }
 
 export interface AniListBannerRequest {
@@ -27,6 +28,8 @@ export interface AniListBannerRequest {
   providerFormat?: string | null;
   providerSeason?: string | null;
   malId?: number | null;
+  providerId?: string | null;
+  slug?: string | null;
 }
 
 export interface NormalizedAniListRequest {
@@ -36,6 +39,8 @@ export interface NormalizedAniListRequest {
   providerFormat: string | null;
   providerSeason: string | null;
   malId: number | null;
+  providerId: string | null;
+  slug: string | null;
 }
 
 function asOptionalText(value: unknown): string | null {
@@ -59,6 +64,8 @@ export function normalizeAniListRequest(
     providerFormat: asOptionalText(raw.providerFormat),
     providerSeason: asOptionalText(raw.providerSeason),
     malId: Number.isInteger(malId) && malId > 0 ? malId : null,
+    providerId: asOptionalText(raw.providerId),
+    slug: asOptionalText(raw.slug),
   };
 }
 
@@ -73,6 +80,8 @@ export function anilistBannerKey(input: string | AniListBannerRequest | null | u
     req.providerFormat ?? '',
     req.providerSeason ?? '',
     String(req.malId ?? ''),
+    req.providerId ?? '',
+    req.slug ?? '',
   ];
 }
 
@@ -88,6 +97,7 @@ export async function fetchAniListMeta(
     studio?: string | null;
     titles?: Partial<AniListMetaTitles> | null;
     transientFailure?: boolean;
+    linkSource?: string | null;
   } | null;
   // El fallo transitorio va antes que el shape: sin él la query lanza y reintenta.
   if (res?.transientFailure) throw new Error('anilist-transient');
@@ -95,7 +105,13 @@ export async function fetchAniListMeta(
   const banner = typeof res.banner === 'string' && res.banner.trim() ? res.banner : null;
   const studio = typeof res.studio === 'string' && res.studio.trim() ? res.studio.trim() : null;
   if (!banner && !studio) return null;
-  return { anilistId: res.anilistId, banner, studio, titles: normalizeAniListTitles(res.titles) };
+  return {
+    anilistId: res.anilistId,
+    banner,
+    studio,
+    titles: normalizeAniListTitles(res.titles),
+    linkSource: res.linkSource === 'manual' || res.linkSource === 'auto' ? res.linkSource : null,
+  };
 }
 
 function normalizeAniListTitles(raw: Partial<AniListMetaTitles> | null | undefined): AniListMetaTitles {
@@ -167,5 +183,84 @@ export function useAniListId(input: string | AniListBannerRequest | null | undef
     refetchOnReconnect: false,
     retry: 1,
     retryDelay: ANILIST_FAILURE_STALE_MS,
+  });
+}
+
+export function useAniListLinkSource(input: string | AniListBannerRequest | null | undefined, enabled = true) {
+  const { queryKey, queryFn } = getAniListBannerQuery(input);
+  const req = normalizeAniListRequest(input);
+  return useQuery({
+    queryKey,
+    queryFn,
+    select: (meta) => meta?.linkSource ?? null,
+    enabled: enabled && (queryKey[1].length > 0 || req.malId !== null),
+    staleTime: ANILIST_BANNER_STALE_MS,
+    gcTime: 7 * 24 * 60 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    retry: 1,
+    retryDelay: ANILIST_FAILURE_STALE_MS,
+  });
+}
+
+export interface AniListSearchItem {
+  id: number;
+  romaji: string | null;
+  english: string | null;
+  format: string | null;
+  startYear: number | null;
+  cover: string | null;
+}
+
+export async function searchAniList(query: string): Promise<AniListSearchItem[]> {
+  const text = String(query || '').trim();
+  if (!text) return [];
+  const list = (await unwrap(await window.api.invoke('search-anilist', { query: text }), {
+    toast: false,
+  })) as unknown;
+  if (!Array.isArray(list)) return [];
+  return (list as Array<Partial<AniListSearchItem> & { id: number }>).map((item) => ({
+    id: item.id,
+    romaji: item.romaji ?? null,
+    english: item.english ?? null,
+    format: item.format ?? null,
+    startYear: item.startYear ?? null,
+    cover: typeof item.cover === 'string' && item.cover.trim() ? item.cover : null,
+  }));
+}
+
+export function useAniListSearch(query: string, enabled = true) {
+  const text = String(query || '').trim();
+  return useQuery({
+    queryKey: ['anilist-search', text],
+    queryFn: () => searchAniList(text),
+    enabled: enabled && text.length >= 3,
+    staleTime: 30 * 60 * 1000,
+    gcTime: 60 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    retry: 0,
+  });
+}
+
+export function useSetAniListLink() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (params: { providerId: string; slug: string; anilistId: number }) =>
+      unwrap(await window.api.invoke('set-anilist-link', params)),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['anilist-banner'] });
+    },
+  });
+}
+
+export function useRemoveAniListLink() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (params: { providerId: string; slug: string }) =>
+      unwrap(await window.api.invoke('remove-anilist-link', params)),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['anilist-banner'] });
+    },
   });
 }

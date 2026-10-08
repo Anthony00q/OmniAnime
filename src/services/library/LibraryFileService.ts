@@ -345,7 +345,10 @@ export class LibraryFileService {
       // póster. Null ante error, offline o sin match.
       let anilist: AniListBannerResult | null = null;
       try {
-        anilist = (await this.options.resolveAniListMeta?.(anilistBannerInputFromDetails(details))) ?? null;
+        anilist =
+          (await this.options.resolveAniListMeta?.(
+            anilistBannerInputFromDetails(details, providerId ?? this.options.getActiveProviderId()),
+          )) ?? null;
       } catch {
         anilist = null;
       }

@@ -4,6 +4,7 @@ import type { ScopedLogger } from '../logging/AppLogger';
 import { safeErrorMessage } from '../../utils/logging/redactLog';
 import {
   SCHEMA_VERSION,
+  applyAniLinkTable,
   applyBaseSchema,
   applyHistoryIndexes,
   ensureDownloadSettingsColumn,
@@ -144,6 +145,12 @@ export const MIGRATIONS: MigrationStep[] = [
   {
     version: 5,
     run: ensureCompatColumns,
+  },
+  {
+    version: 6,
+    run: (db) => {
+      applyAniLinkTable(db);
+    },
   },
 ];
 

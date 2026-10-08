@@ -96,9 +96,12 @@ export class QueueEnqueueService {
     // AniList primero: sus títulos pueden dar nombre a la carpeta.
     let anilist: AniListBannerResult | null = null;
     try {
-      anilist = await this.options.resolveAniListMeta(anilistBannerInputFromDetails(details), (kind) => {
-        if (kind !== 'nomatch') this.options.logAnilistWarn(`banner no resuelto (${kind})`);
-      });
+      anilist = await this.options.resolveAniListMeta(
+        { ...anilistBannerInputFromDetails(details, queueProvider), slug },
+        (kind) => {
+          if (kind !== 'nomatch') this.options.logAnilistWarn(`banner no resuelto (${kind})`);
+        },
+      );
     } catch (error) {
       this.options.logError(`Error resolviendo AniList para ${slug}: ${errorDetailForLog(error)}`);
     }

@@ -23,6 +23,7 @@ import {
   FolderOpen,
   ChevronDown,
   ChevronUp,
+  Link2,
 } from 'lucide-react';
 import { VList, type VListHandle } from 'virtua';
 import { useQueryClient } from '@tanstack/react-query';
@@ -51,6 +52,7 @@ import {
   useAniListBanner,
   useAniListStudio,
   useAniListId,
+  useAniListLinkSource,
 } from '@/renderer/hooks/useQueries';
 import { shouldShowOfflineEmpty } from '@/renderer/utils/offlineEmpty';
 import { isIpcFailError, unwrap } from '@/renderer/hooks/queries/unwrap';
@@ -65,6 +67,7 @@ import type { AnimeDetails, AnimeLanguage } from '@/types/anime';
 import { getStatusStyles } from '@/renderer/views/animeDetails/model/animeDetailsModel';
 import { EpisodeGridItem } from '@/renderer/views/animeDetails/components/EpisodeGridItem';
 import { FranchiseRelationItem } from '@/renderer/views/animeDetails/components/FranchiseRelationItem';
+import { AniListLinkDialog } from '@/renderer/views/animeDetails/components/AniListLinkDialog';
 import { useGridCols } from '@/renderer/views/animeDetails/hooks/useGridCols';
 import { useShouldVirtualize } from '@/renderer/views/animeDetails/hooks/useShouldVirtualize';
 
@@ -81,6 +84,7 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
   const { data: isOnline } = useConnectivityStatus(isDetailsEmpty && !!slug);
   const showOfflineDetails = shouldShowOfflineEmpty(data ? 1 : 0, isOnline);
   const addToQueue = useAddToQueue();
+  const activeProviderId = useAtomValue(activeProviderAtom);
   // Hero con solo banner de AniList o nada; sin provisional del proveedor.
   const anilistInput =
     !isLoading && data
@@ -91,6 +95,8 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
           providerFormat: data.type,
           providerSeason: data.season,
           malId: data.malId,
+          providerId: activeProviderId,
+          slug: (data as AnimeDetails | undefined)?.slug || slug,
         }
       : null;
   const anilistEnabled = !isLoading && !!data;
@@ -103,6 +109,7 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
   // Estudio con el mismo match que el banner; si no identifica, se oculta.
   const { data: anilistStudio } = useAniListStudio(anilistInput, anilistEnabled);
   const { data: anilistId, isSuccess: isAnilistIdSuccess } = useAniListId(anilistInput, anilistEnabled);
+  const { data: anilistLinkSource } = useAniListLinkSource(anilistInput, anilistEnabled);
   const isAnilistSettled = isAnilistSuccess || isAnilistError;
   const [bannerFailed, setBannerFailed] = useState(false);
   const [bannerShown, setBannerShown] = useState(false);
@@ -253,7 +260,6 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
   const availableLanguages: AnimeLanguage[] = ['SUB']; // DUB desactivado: solo SUB
 
   const outputDirs = useAtomValue(outputDirsAtom);
-  const activeProviderId = useAtomValue(activeProviderAtom);
   const { navigateToCatalog } = useAppNavigation();
   const setPendingGenre = useSetAtom(pendingCatalogGenreAtom);
 
@@ -268,6 +274,7 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
   const linkedAnilistId = isAnilistIdSuccess && typeof anilistId === 'number' ? anilistId : null;
   const anilistUrl = useMemo(() => buildAniListUrl(linkedAnilistId), [linkedAnilistId]);
   const [anilistIconFailed, setAnilistIconFailed] = useState(false);
+  const [linkDialogOpen, setLinkDialogOpen] = useState(false);
 
   useEffect(() => {
     setAnilistIconFailed(false);
@@ -1006,6 +1013,16 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
                             />
                           </button>
                         </AppTooltip>
+                        <AppTooltip content="Cambiar vínculo de AniList">
+                          <button
+                            type="button"
+                            onClick={() => setLinkDialogOpen(true)}
+                            aria-label="Cambiar el vínculo de AniList"
+                            className="inline-flex items-center justify-center rounded-md border border-transparent bg-secondary/50 p-1 text-foreground transition-colors hover:bg-secondary hover:border-border/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                          >
+                            <Link2 className="h-5 w-5" aria-hidden="true" />
+                          </button>
+                        </AppTooltip>
                       </span>
                     </li>
                   ) : (
@@ -1035,6 +1052,16 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
                           <span>{providerName}</span>
                         </button>
                       </AppTooltip>
+                      <AppTooltip content="Vincular con AniList">
+                        <button
+                          type="button"
+                          onClick={() => setLinkDialogOpen(true)}
+                          aria-label="Vincular con AniList"
+                          className="inline-flex items-center justify-center rounded-md border border-transparent bg-secondary/50 p-1 text-foreground transition-colors hover:bg-secondary hover:border-border/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                        >
+                          <Link2 className="h-5 w-5" aria-hidden="true" />
+                        </button>
+                      </AppTooltip>
                     </li>
                   ))}
               </ul>
@@ -1053,6 +1080,15 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
           </div>
         </div>
       </div>
+
+      <AniListLinkDialog
+        open={linkDialogOpen}
+        onClose={() => setLinkDialogOpen(false)}
+        providerId={activeProviderId}
+        slug={(data as AnimeDetails | undefined)?.slug || slug}
+        defaultQuery={data.title}
+        isManualLink={anilistLinkSource === 'manual'}
+      />
 
       <Dialog
         open={showRangeModal}

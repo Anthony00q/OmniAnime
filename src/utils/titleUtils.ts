@@ -68,12 +68,35 @@ export function formatEpisodeCountLabel(count: number, short = false): string {
   return `${total} ${total === 1 ? 'episodio' : 'episodios'}`;
 }
 
+function levenshteinDistance(a: string, b: string): number {
+  if (a === b) return 0;
+  if (!a.length) return b.length;
+  if (!b.length) return a.length;
+  let prev: number[] = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i += 1) {
+    const curr: number[] = [i];
+    for (let j = 1; j <= b.length; j += 1) {
+      const cost = a.charCodeAt(i - 1) === b.charCodeAt(j - 1) ? 0 : 1;
+      curr[j] = Math.min(curr[j - 1] + 1, prev[j] + 1, prev[j - 1] + cost);
+    }
+    prev = curr;
+  }
+  return prev[b.length];
+}
+
+function editSimilarity(a: string, b: string): number {
+  const maxLen = Math.max(a.length, b.length);
+  if (!maxLen) return 0;
+  return (1 - levenshteinDistance(a, b) / maxLen) * 100;
+}
+
+const SCORE_NOISE_FLOOR = 30;
+
 export function computeTitleMatchScore(a: string, b: string): number {
   const aa = normalizeTitleForMatch(a);
   const bb = normalizeTitleForMatch(b);
   if (!aa || !bb) return 0;
   if (aa === bb) return 100;
-  if (aa.startsWith(bb) || bb.startsWith(aa)) return 88;
 
   const at = new Set(aa.split(' ').filter(Boolean));
   const bt = new Set(bb.split(' ').filter(Boolean));
@@ -84,5 +107,9 @@ export function computeTitleMatchScore(a: string, b: string): number {
     if (bt.has(t)) common += 1;
   });
   const union = new Set([...Array.from(at), ...Array.from(bt)]).size;
-  return Math.round((common / union) * 72);
+
+  const sortedA = Array.from(at).sort().join(' ');
+  const sortedB = Array.from(bt).sort().join(' ');
+  const score = Math.max(editSimilarity(aa, bb), editSimilarity(sortedA, sortedB), (common / union) * 100);
+  return score < SCORE_NOISE_FLOOR ? 0 : Math.round(score);
 }

@@ -54,7 +54,7 @@ import {
 import { USER_AGENT } from '../utils/windowUtils';
 import { WindowLifecycleService, type PreloadedData } from './WindowLifecycleService';
 import { registerIpcHandlers } from './IpcRegistry';
-import { resolveAniListBannerResult } from './anilistBanner';
+import { resolveAniListWithLink } from './anilistLink';
 
 // Register privileged custom scheme for local posters/banners with webSecurity:true
 // Must be before app.whenReady(). Allows <img src="omni-media://..."> from both file:// and http:// (dev)
@@ -326,7 +326,7 @@ const libraryFileService = new LibraryFileService({
     ),
   getAnimeDetails: (slug, providerId) => getAnimeDetailsBySlug(slug, providerId),
   getActiveProviderId: () => providerGateway.activeProviderIdName,
-  resolveAniListMeta: (input) => resolveAniListBannerResult(input),
+  resolveAniListMeta: (input) => resolveAniListWithLink(input, database),
   openPath: (targetPath) => shell.openPath(targetPath),
   userDataDir: app.getPath('userData'),
   log: writeGlobalLog,
@@ -342,7 +342,7 @@ const libraryPreloadService = new LibraryPreloadService({
   getMatchingProvider: (preferredProviderId) =>
     (preferredProviderId ? providerGateway.getProvider(preferredProviderId) : undefined) ??
     providerGateway.activeProvider,
-  resolveAniListMeta: (input) => resolveAniListBannerResult(input),
+  resolveAniListMeta: (input) => resolveAniListWithLink(input, database),
   checkConnectivity,
   log: writeGlobalLog,
   scopedLogError: (message) => scopedLog('app').error(message),
@@ -565,7 +565,7 @@ const queueEnqueueService = new QueueEnqueueService({
   listQueueItems: () => downloadQueue,
   ensureFolderPoster: (folderPath, posterUrl) => libraryAssetService.ensureFolderPoster(folderPath, posterUrl),
   ensureFolderBanner: (folderPath, bannerUrl) => libraryAssetService.ensureFolderBanner(folderPath, bannerUrl),
-  resolveAniListMeta: (input, onFailure) => resolveAniListBannerResult(input, undefined, onFailure),
+  resolveAniListMeta: (input, onFailure) => resolveAniListWithLink(input, database, undefined, onFailure),
   getFolderNameSource: () => normalizeFolderNameSource(SettingsManager.get().download?.folderNameSource),
   getFolderMetaSlug: (folderPath) => libraryAssetService.readFolderLibraryMeta(folderPath)?.slug ?? null,
   urlToFilePath: (url) => LibraryAssetService.urlToFilePath(url),
@@ -749,6 +749,7 @@ registerIpcHandlers({
   downloadQueue,
   appUpdateService,
   storageService,
+  aniLinkStore: database,
   getMainWindow,
   getAllowedBaseDirs: () => {
     const settings = SettingsManager.get();
