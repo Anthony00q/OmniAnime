@@ -80,6 +80,7 @@ export const HistoryTable = memo(function HistoryTable({
             const canOpenDetails = Boolean(
               onSelectAnime && group.slug && group.providerId && group.providerId === activeProvider,
             );
+            const detailId = `history-detail-table-${encodeURIComponent(group.key)}`;
             const groupProviderName =
               group.providerId === 'jkanime'
                 ? 'JkAnime'
@@ -96,6 +97,7 @@ export const HistoryTable = memo(function HistoryTable({
                         type="button"
                         onClick={() => onToggleGroup(group.key)}
                         aria-expanded={isExpanded}
+                        aria-controls={detailId}
                         aria-label={isExpanded ? 'Colapsar grupo' : 'Expandir grupo'}
                         className="relative inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors after:absolute after:-inset-2 after:content-[''] hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
                       >
@@ -206,7 +208,13 @@ export const HistoryTable = memo(function HistoryTable({
 
                 <tr>
                   <td colSpan={8} className="p-0">
-                    <div className="history-detail-shell" data-state={isExpanded ? 'open' : 'closed'}>
+                    <div
+                      id={detailId}
+                      className="history-detail-shell"
+                      data-state={isExpanded ? 'open' : 'closed'}
+                      aria-hidden={!isExpanded}
+                      inert={!isExpanded ? true : undefined}
+                    >
                       <div className="history-detail-shell-content">
                         <ul className="space-y-2 px-4 pb-4 pt-1">
                           {visibleRecords.map(({ record, originalIndex }) => {

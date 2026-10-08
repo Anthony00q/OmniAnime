@@ -40,6 +40,7 @@ export const HistoryGroupCard = memo(function HistoryGroupCard({
   const canOpenDetails = Boolean(
     onSelectAnime && group.slug && group.providerId && group.providerId === activeProvider,
   );
+  const detailId = `history-detail-card-${encodeURIComponent(group.key)}`;
   const groupProviderName =
     group.providerId === 'jkanime' ? 'JkAnime' : group.providerId === 'animeav1' ? 'AnimeAV1' : 'el proveedor original';
   return (
@@ -50,6 +51,7 @@ export const HistoryGroupCard = memo(function HistoryGroupCard({
             type="button"
             onClick={() => onToggleGroup(group.key)}
             aria-expanded={isExpanded}
+            aria-controls={detailId}
             aria-label={isExpanded ? 'Colapsar grupo' : 'Expandir grupo'}
             className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
           >
@@ -127,9 +129,11 @@ export const HistoryGroupCard = memo(function HistoryGroupCard({
         </div>
       </div>
       <div
+        id={detailId}
         className="history-detail-shell border-t border-transparent"
         data-state={isExpanded ? 'open' : 'closed'}
         aria-hidden={!isExpanded}
+        inert={!isExpanded ? true : undefined}
       >
         <div className="history-detail-shell-content">
           <div className="px-4 pb-4 pt-1">
