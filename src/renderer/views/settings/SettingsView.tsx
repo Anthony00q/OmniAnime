@@ -533,8 +533,8 @@ export function SettingsView({
 
             {activeTab === 'atajos' && <ShortcutsTab settings={settings} onChange={handleChange} />}
 
-            {/* Al final para no mover las posiciones del stagger de los demás tabs.
-                animation:none en línea: `.settings-tab-enter > *` gana a Tailwind y el wrapper animaría encima del stagger. */}
+            {/* Al final para no mover el orden de los demás tabs.
+                animation:none en línea: `.settings-tab-enter > *` gana a Tailwind y el wrapper re-fadearía encima. */}
             {downloadsMounted && (
               <div hidden={activeTab !== 'descargas'} style={{ animation: 'none' }}>
                 <DownloadsTab

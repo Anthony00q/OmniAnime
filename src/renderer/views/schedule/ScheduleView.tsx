@@ -6,6 +6,8 @@ import { useAtomCallback } from 'jotai/utils';
 import { activeProviderAtom } from '@/renderer/store/atoms';
 import { useAppNavigation } from '@/renderer/hooks/useAppNavigation';
 import { prefetchAnimeDetails, useConnectivityStatus, useSchedule } from '@/renderer/hooks/useQueries';
+import { useDeferredProvider } from '@/renderer/hooks/queries/internal';
+import { useStaggerIn } from '@/renderer/utils/motion';
 import { shouldShowOfflineEmpty } from '@/renderer/utils/offlineEmpty';
 import {
   WEEKDAY_LABELS,
@@ -39,6 +41,7 @@ function ScheduleNowMarker({ nowMs }: { nowMs: number }) {
 
 export function ScheduleView({ isActive }: { isActive?: boolean }) {
   const providerId = useAtomValue(activeProviderAtom);
+  const dataProvider = useDeferredProvider();
   const getProviderId = useAtomCallback((get) => get(activeProviderAtom));
   const providerName = providerId === 'jkanime' ? 'JkAnime' : 'AnimeAV1';
   const { openAnime, navigateToCatalog } = useAppNavigation();
@@ -48,13 +51,14 @@ export function ScheduleView({ isActive }: { isActive?: boolean }) {
   const entries = useMemo(() => visibleScheduleEntries(data?.entries ?? []), [data]);
 
   const [selectedDay, setSelectedDay] = useState(() => todayIsoWeekday());
+  const [dayProvider, setDayProvider] = useState(dataProvider);
+  // El día elegido se resetea al cambiar de proveedor, en el commit de los datos nuevos.
+  if (dayProvider !== dataProvider) {
+    setDayProvider(dataProvider);
+    setSelectedDay(todayIsoWeekday());
+  }
   const [nowMs, setNowMs] = useState(() => Date.now());
   const todayDay = todayIsoWeekday(new Date(nowMs));
-
-  // El día elegido persiste en la sesión y se resetea al cambiar de proveedor.
-  useEffect(() => {
-    setSelectedDay(todayIsoWeekday());
-  }, [providerId]);
 
   // Tick acotado a la vista activa: refresca los estados Emitido/Retrasado.
   useEffect(() => {
@@ -74,6 +78,7 @@ export function ScheduleView({ isActive }: { isActive?: boolean }) {
     [entries, selectedDay],
   );
   const groups = useMemo(() => groupDayEntriesByTime(dayEntries), [dayEntries]);
+  const scheduleRef = useStaggerIn<HTMLUListElement>(groups.length, { replay: `${dataProvider}:${selectedDay}` });
 
   // "Sigue" y la marca de ahora solo informan sobre el día de hoy.
   const isTodaySelected = selectedDay === todayDay;
@@ -174,7 +179,7 @@ export function ScheduleView({ isActive }: { isActive?: boolean }) {
                 Sin emisiones programadas para {WEEKDAY_LABELS[selectedDay - 1].toLowerCase()}.
               </p>
             ) : (
-              <ul>
+              <ul ref={scheduleRef}>
                 {groups.map((group, idx) => (
                   <li key={group.time ?? 'sin-hora'}>
                     {idx === nowIndex && <ScheduleNowMarker nowMs={nowMs} />}

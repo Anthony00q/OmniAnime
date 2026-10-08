@@ -1,4 +1,4 @@
-import { memo, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { Gauge, Server, Layers, Eye, SlidersHorizontal, Info, ChevronDown, FolderDown, FileText } from 'lucide-react';
 import { CustomSelect } from '@/renderer/components/CustomSelect';
 import { CustomSwitch } from '@/renderer/components/CustomSwitch';
@@ -16,6 +16,7 @@ import { AppTooltip } from '@/renderer/components/ui/AppTooltip';
 import { DEFAULT_DOWNLOAD_SETTINGS, normalizeAdaptiveConnections } from '@/utils/downloads/downloadSettings';
 import { normalizeFolderNameSource } from '@/utils/downloads/folderNaming';
 import { folderNameSourceHint, snapToClosestOption } from '@/renderer/views/settings/utils/settingsHelpers';
+import { useStaggerIn } from '@/renderer/utils/motion';
 import animeav1Icon from '@assets/provider-icons/animeav1-32.png';
 import jkanimeIcon from '@assets/provider-icons/jkanime-32.png';
 import {
@@ -566,43 +567,13 @@ function downloadsTabPropsEqual(prev: DownloadsTabProps, next: DownloadsTabProps
 // Escalonado por bloques: los cuatro en un solo commit congelan la UI.
 export const DownloadsTab = memo(function DownloadsTab({ visible = true, ...props }: DownloadsTabProps) {
   const [mountedBlocks, setMountedBlocks] = useState(0);
-  const contentRef = useRef<HTMLDivElement | null>(null);
-  const wasVisibleRef = useRef(false);
-  const animatedCountRef = useRef(0);
+  const contentRef = useStaggerIn<HTMLDivElement>(mountedBlocks, { disabled: !visible, replay: visible, flat: true });
 
   useEffect(() => {
     if (mountedBlocks >= 4) return;
     const timer = setTimeout(() => setMountedBlocks((n) => n + 1), 32);
     return () => clearTimeout(timer);
   }, [mountedBlocks]);
-
-  // WAAPI desde useLayoutEffect: en useEffect se veía un frame en opacidad 0 al
-  // re-entrar. Stagger de 30 ms, igual que la CSS de los demás tabs.
-  useLayoutEffect(() => {
-    if (!visible) {
-      wasVisibleRef.current = false;
-      animatedCountRef.current = 0;
-      return;
-    }
-    const el = contentRef.current;
-    if (!el) return;
-    const blocks = Array.from(el.children);
-    const from = wasVisibleRef.current ? animatedCountRef.current : 0;
-    const entering = blocks.slice(from);
-    wasVisibleRef.current = true;
-    animatedCountRef.current = blocks.length;
-    if (entering.length === 0) return;
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    entering.forEach((block, idx) => {
-      block.animate(
-        [
-          { opacity: 0, transform: 'translate3d(0, 8px, 0)' },
-          { opacity: 1, transform: 'translate3d(0, 0, 0)' },
-        ],
-        { duration: 200, delay: idx * 30, easing: 'cubic-bezier(0.23, 1, 0.32, 1)', fill: 'backwards' },
-      );
-    });
-  }, [visible, mountedBlocks]);
 
   return (
     <div ref={contentRef} className="flex flex-col gap-6">

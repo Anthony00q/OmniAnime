@@ -1,7 +1,8 @@
-import type { MouseEvent as ReactMouseEvent } from 'react';
+import { useState, type MouseEvent as ReactMouseEvent } from 'react';
 import { FolderOpen } from 'lucide-react';
 import { toast } from 'sonner';
 import { PosterImage } from '@/renderer/components/anime/PosterImage';
+import { useHeroReveal } from '@/renderer/utils/motion';
 import { getLibraryPrimaryAlternative } from '@/renderer/utils/libraryFilter';
 
 interface LibraryHeroBannerProps {
@@ -12,6 +13,9 @@ interface LibraryHeroBannerProps {
 
 // Fondo fijo del hero: vive fuera del scroller para que el banner no se mueva.
 export function LibraryHeroBanner({ title, bannerSrc, onDimNode }: LibraryHeroBannerProps) {
+  const [readySrc, setReadySrc] = useState<string | null>(null);
+  const bannerReady = !!bannerSrc && readySrc === bannerSrc;
+  const revealRef = useHeroReveal<HTMLDivElement>(bannerReady ? bannerSrc : null);
   return (
     <div
       aria-hidden="true"
@@ -19,12 +23,16 @@ export function LibraryHeroBanner({ title, bannerSrc, onDimNode }: LibraryHeroBa
     >
       {bannerSrc && (
         <div ref={onDimNode} className="absolute inset-0">
-          <PosterImage
-            src={bannerSrc}
-            alt={`Banner de ${title}`}
-            fallbackLabel={title}
-            className="h-full w-full object-cover object-[center_20%]"
-          />
+          <div ref={revealRef} className={`absolute inset-0 ${bannerReady ? '' : 'invisible opacity-0'}`}>
+            <PosterImage
+              src={bannerSrc}
+              alt={`Banner de ${title}`}
+              fallbackLabel={title}
+              onLoad={() => setReadySrc(bannerSrc)}
+              onError={() => setReadySrc(bannerSrc)}
+              className="h-full w-full object-cover object-[center_20%]"
+            />
+          </div>
         </div>
       )}
       {bannerSrc ? (

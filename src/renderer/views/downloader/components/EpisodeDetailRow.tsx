@@ -2,6 +2,7 @@ import { SkipForward, Loader2, XCircle, X, CheckCircle2, Clock, Play, Pause, Pau
 import { memo } from 'react';
 import { AppTooltip } from '@/renderer/components/ui/AppTooltip';
 import { ProgressBar } from '@/renderer/components/ui/ProgressBar';
+import { MOTION_DURATION, useEmphasis } from '@/renderer/utils/motion';
 import { type DetailRow } from '@/renderer/utils/downloaderRows';
 
 interface EpisodeDetailRowProps {
@@ -41,6 +42,9 @@ export const EpisodeDetailRow = memo(
     const showActions = !isEpCancelled && !isEpDone;
     const showSkip = e.state === 'active' && !!e.server;
     const isSwitching = isEpSwitching && e.state === 'active';
+    const isEpEmphatic = isEpCompleted || isEpFailed;
+    const stateFadeRef = useEmphasis<HTMLSpanElement>(e.state, { mode: 'fade', duration: MOTION_DURATION.base });
+    const statePulseRef = useEmphasis<HTMLSpanElement>(isEpEmphatic ? e.state : null, { mode: 'pulse' });
     return (
       <div className="episode-list-item flex flex-col justify-center gap-1 py-1" data-ep-state={e.state}>
         <div className="flex items-center gap-1.5 text-[11px] tabular-nums text-muted-foreground">
@@ -56,38 +60,48 @@ export const EpisodeDetailRow = memo(
             !isEpCancelled &&
             !isEpDone &&
             !isEpQueued && (
-              <span className="min-w-0 flex-1 truncate">
+              <span ref={stateFadeRef} className="min-w-0 flex-1 truncate">
                 {isAssembling ? `Ensamblando${e.server ? ` · ${e.server}` : ''}` : e.server}
               </span>
             )
           )}
           {isEpPaused && (
-            <span className="inline-flex min-w-0 flex-1 items-center gap-1 text-muted-foreground">
-              <PauseCircle className="h-3 w-3 shrink-0" />
+            <span ref={stateFadeRef} className="inline-flex min-w-0 flex-1 items-center gap-1 text-muted-foreground">
+              <span ref={statePulseRef} className="inline-flex shrink-0">
+                <PauseCircle className="h-3 w-3 shrink-0" />
+              </span>
               <span className="truncate">Pausado{e.server ? ` · ${e.server}` : ''}</span>
             </span>
           )}
           {isEpQueued && (
-            <span className="inline-flex min-w-0 flex-1 items-center gap-1 text-muted-foreground">
-              <Clock className="h-3 w-3 shrink-0" />
+            <span ref={stateFadeRef} className="inline-flex min-w-0 flex-1 items-center gap-1 text-muted-foreground">
+              <span ref={statePulseRef} className="inline-flex shrink-0">
+                <Clock className="h-3 w-3 shrink-0" />
+              </span>
               <span className="truncate">En cola</span>
             </span>
           )}
           {isEpCompleted && (
-            <span className="inline-flex min-w-0 flex-1 items-center gap-1 text-success">
-              <CheckCircle2 className="h-3 w-3 shrink-0" />
+            <span ref={stateFadeRef} className="inline-flex min-w-0 flex-1 items-center gap-1 text-success">
+              <span ref={statePulseRef} className="inline-flex shrink-0">
+                <CheckCircle2 className="h-3 w-3 shrink-0" />
+              </span>
               <span className="truncate">Completado</span>
             </span>
           )}
           {isEpFailed && (
-            <span className="inline-flex min-w-0 flex-1 items-center gap-1 text-destructive-fg">
-              <XCircle className="h-3 w-3 shrink-0" />
+            <span ref={stateFadeRef} className="inline-flex min-w-0 flex-1 items-center gap-1 text-destructive-fg">
+              <span ref={statePulseRef} className="inline-flex shrink-0">
+                <XCircle className="h-3 w-3 shrink-0" />
+              </span>
               <span className="truncate">Fallido{e.server ? ` · ${e.server}` : ''}</span>
             </span>
           )}
           {isEpCancelled && (
-            <span className="inline-flex min-w-0 flex-1 items-center gap-1 text-muted-foreground">
-              <Ban className="h-3 w-3 shrink-0" />
+            <span ref={stateFadeRef} className="inline-flex min-w-0 flex-1 items-center gap-1 text-muted-foreground">
+              <span ref={statePulseRef} className="inline-flex shrink-0">
+                <Ban className="h-3 w-3 shrink-0" />
+              </span>
               <span className="truncate">Cancelado</span>
             </span>
           )}

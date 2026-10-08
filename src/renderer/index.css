@@ -517,8 +517,40 @@ html[dir='ltr'] {
   }
 }
 
+@keyframes view-rise-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 10px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
 .view-enter {
-  animation: view-fade-in 160ms var(--ease-out);
+  animation: view-rise-in 320ms var(--ease-out);
+  animation-fill-mode: both;
+}
+
+@keyframes empty-icon-rise {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 8px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.empty-state-enter {
+  animation: view-fade-in 320ms var(--ease-out);
+  animation-fill-mode: both;
+}
+
+.empty-state-enter-icon {
+  animation: empty-icon-rise 320ms var(--ease-out);
   animation-fill-mode: both;
 }
 
@@ -547,40 +579,19 @@ html[dir='ltr'] {
   --tw-enter-opacity: 0;
 }
 
-/* === Entrada de pestañas de Configuración (fade + slide sutil) === */
+/* === Entrada de pestañas de Configuración (fade sutil) === */
 @keyframes settings-tab-in {
   from {
     opacity: 0;
-    transform: translate3d(0, 8px, 0);
   }
   to {
     opacity: 1;
-    transform: translate3d(0, 0, 0);
   }
 }
 
-/* El contenedor se re-monta por tab (key); animan sus hijos directos:
-   secciones escalonadas en tabs con fragment, bloque único en tabs con raíz simple */
 .settings-tab-enter > * {
   animation: settings-tab-in 200ms var(--ease-out);
   animation-fill-mode: both;
-}
-
-/* Stagger sutil de bloques directos (30ms hasta 6 bloques) */
-.settings-tab-enter > *:nth-child(2) {
-  animation-delay: 30ms;
-}
-.settings-tab-enter > *:nth-child(3) {
-  animation-delay: 60ms;
-}
-.settings-tab-enter > *:nth-child(4) {
-  animation-delay: 90ms;
-}
-.settings-tab-enter > *:nth-child(5) {
-  animation-delay: 120ms;
-}
-.settings-tab-enter > *:nth-child(n + 6) {
-  animation-delay: 150ms;
 }
 .zoom-in-95 {
   --tw-enter-scale: 0.95;
@@ -621,6 +632,11 @@ html[dir='ltr'] {
   }
 
   .view-enter {
+    animation: none;
+  }
+
+  .empty-state-enter,
+  .empty-state-enter-icon {
     animation: none;
   }
 

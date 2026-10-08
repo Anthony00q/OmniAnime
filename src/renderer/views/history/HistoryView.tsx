@@ -111,11 +111,13 @@ export function HistoryView({ isActive, activeProvider, onSelectAnime }: History
             <span>
               {totalGroups > 0 ? (
                 <>
-                  {`${totalGroups} anime${totalGroups !== 1 ? 's' : ''} `}
+                  {totalGroups}
+                  {` anime${totalGroups !== 1 ? 's' : ''} `}
                   <span aria-hidden="true" className="text-border-strong">
                     |
-                  </span>
-                  {` ${totalEpisodes} episodio${totalEpisodes !== 1 ? 's' : ''} en total`}
+                  </span>{' '}
+                  {totalEpisodes}
+                  {` episodio${totalEpisodes !== 1 ? 's' : ''} en total`}
                 </>
               ) : (
                 'Registro de los resultados de tus descargas'

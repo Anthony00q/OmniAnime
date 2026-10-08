@@ -3,6 +3,85 @@ import { BarChart3, Database, Eraser, Eye, HardDrive, Loader2, Shield, Trash2 } 
 import { toast } from 'sonner';
 import { AppTooltip } from '@/renderer/components/ui/AppTooltip';
 
+const StorageDiskRow = memo(function StorageDiskRow({
+  disk,
+  formatBytes,
+  formatDiskPercent,
+}: {
+  disk: any;
+  formatBytes: (bytes: number) => string;
+  formatDiskPercent: (free: number | null, total: number | null) => number | null;
+}) {
+  const pct = formatDiskPercent(disk.free, disk.total);
+  const free = disk.free != null ? disk.free : null;
+  const total = disk.total != null ? disk.total : null;
+  const used = disk.free != null && disk.total != null ? disk.total - disk.free : null;
+  const freeText = free != null ? formatBytes(free) : '—';
+  const totalText = total != null ? formatBytes(total) : '—';
+  const usedText = used != null ? formatBytes(used) : null;
+
+  return (
+    <div className="rounded-xl border border-border/60 bg-background p-3.5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex gap-3">
+          <div className="w-8 h-8 flex items-center justify-center bg-secondary rounded-lg border border-border/50 shrink-0">
+            <HardDrive className="w-4 h-4 text-muted-foreground" />
+          </div>
+          <div className="min-w-0">
+            <div className="text-sm font-semibold truncate">{disk.label}</div>
+            <div className="text-xs text-muted-foreground truncate select-text">{disk.path}</div>
+            {disk.error ? (
+              <div className="text-[11px] text-destructive-fg mt-1">{disk.error}</div>
+            ) : (
+              <div className="text-[11px] text-muted-foreground mt-1">
+                {used != null ? (
+                  <>
+                    {usedText}
+                    {' usados'}
+                  </>
+                ) : (
+                  ''
+                )}
+                {usedText && totalText && (
+                  <>
+                    {' '}
+                    <span aria-hidden="true" className="text-border-strong">
+                      |
+                    </span>{' '}
+                  </>
+                )}
+                {totalText}
+                {' total '}
+                <span aria-hidden="true" className="text-border-strong">
+                  |
+                </span>{' '}
+                {freeText}
+                {' libres'}
+              </div>
+            )}
+          </div>
+        </div>
+        {pct != null && (
+          <span
+            className={`shrink-0 text-xs font-bold px-2 py-1 rounded-full border ${pct > 85 ? 'bg-destructive/10 text-destructive-fg border-destructive/20' : pct > 70 ? 'bg-warning/10 text-warning border-warning/20' : 'bg-success/10 text-success border-success/20'}`}
+          >
+            {Math.round(pct)}
+            {'% usado'}
+          </span>
+        )}
+      </div>
+      {pct != null && (
+        <div className="mt-3 h-2 rounded-full bg-secondary overflow-hidden border border-border/40">
+          <div
+            className={`h-full rounded-full origin-left transition-[transform,background-color] ${pct > 85 ? 'bg-destructive' : pct > 70 ? 'bg-warning' : 'bg-primary'}`}
+            style={{ width: '100%', transform: `scaleX(${pct / 100})` }}
+          />
+        </div>
+      )}
+    </div>
+  );
+});
+
 interface StorageTabProps {
   storageStatsQuery: any;
   storageActions: any;
@@ -49,62 +128,9 @@ export const StorageTab = memo(function StorageTab({
           <div className={`space-y-4 ${storageStatsQuery.isFetching && !storageStatsQuery.data ? 'opacity-60' : ''}`}>
             {(storageStatsQuery.data as any)?.disks?.length > 0 && (
               <div className="space-y-2.5">
-                {(storageStatsQuery.data as any).disks.map((d: any, idx: number) => {
-                  const pct = formatDiskPercent(d.free, d.total);
-                  const freeText = d.free != null ? formatBytes(d.free) : '—';
-                  const totalText = d.total != null ? formatBytes(d.total) : '—';
-                  const usedText = d.free != null && d.total != null ? formatBytes(d.total - d.free) : null;
-                  return (
-                    <div key={idx} className="rounded-xl border border-border/60 bg-background p-3.5">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0 flex gap-3">
-                          <div className="w-8 h-8 flex items-center justify-center bg-secondary rounded-lg border border-border/50 shrink-0">
-                            <HardDrive className="w-4 h-4 text-muted-foreground" />
-                          </div>
-                          <div className="min-w-0">
-                            <div className="text-sm font-semibold truncate">{d.label}</div>
-                            <div className="text-xs text-muted-foreground truncate select-text">{d.path}</div>
-                            {d.error ? (
-                              <div className="text-[11px] text-destructive-fg mt-1">{d.error}</div>
-                            ) : (
-                              <div className="text-[11px] text-muted-foreground mt-1">
-                                {usedText ? `${usedText} usados` : ''}
-                                {usedText && totalText && (
-                                  <>
-                                    {' '}
-                                    <span aria-hidden="true" className="text-border-strong">
-                                      |
-                                    </span>{' '}
-                                  </>
-                                )}
-                                {totalText} total{' '}
-                                <span aria-hidden="true" className="text-border-strong">
-                                  |
-                                </span>{' '}
-                                {freeText} libres
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                        {pct != null && (
-                          <span
-                            className={`shrink-0 text-xs font-bold px-2 py-1 rounded-full border ${pct > 85 ? 'bg-destructive/10 text-destructive-fg border-destructive/20' : pct > 70 ? 'bg-warning/10 text-warning border-warning/20' : 'bg-success/10 text-success border-success/20'}`}
-                          >
-                            {pct}% usado
-                          </span>
-                        )}
-                      </div>
-                      {pct != null && (
-                        <div className="mt-3 h-2 rounded-full bg-secondary overflow-hidden border border-border/40">
-                          <div
-                            className={`h-full rounded-full origin-left transition-[transform,background-color] ${pct > 85 ? 'bg-destructive' : pct > 70 ? 'bg-warning' : 'bg-primary'}`}
-                            style={{ width: '100%', transform: `scaleX(${pct / 100})` }}
-                          />
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+                {(storageStatsQuery.data as any).disks.map((d: any, idx: number) => (
+                  <StorageDiskRow key={idx} disk={d} formatBytes={formatBytes} formatDiskPercent={formatDiskPercent} />
+                ))}
               </div>
             )}
 

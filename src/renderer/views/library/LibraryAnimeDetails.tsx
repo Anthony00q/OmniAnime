@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback, type MouseEvent as ReactMouseEvent } from 'react';
-import { HERO_DIM_MAX, HERO_DIM_DISTANCE } from '@/renderer/utils/heroDim';
+import { HERO_DIM_MAX, HERO_DIM_DISTANCE, createHeroDimSmoother } from '@/renderer/utils/heroDim';
+import { useReducedMotion } from '@/renderer/utils/motion';
 import { ArrowLeft, FolderOpen, Settings, Wand2, ListOrdered, Info, FileText, Hash, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 import { isIpcFailError } from '@/renderer/hooks/queries/unwrap';
@@ -74,18 +75,24 @@ export function LibraryAnimeDetails({
 
   // Dim continuo del banner: una escritura de opacidad por frame sobre el
   // wrapper de la imagen (fade hacia el fondo), sin transición ni estado
-  // React, leyendo scrollTop.
+  // React, leyendo scrollTop. El valor escrito sale suavizado del aproximador
+  // de heroDim (identidad con reduced-motion).
   const [listScrollNode, setListScrollNode] = useState<HTMLDivElement | null>(null);
   const [bannerFadeNode, setBannerFadeNode] = useState<HTMLDivElement | null>(null);
+  const reducedMotion = useReducedMotion();
 
   useEffect(() => {
     if (!listScrollNode || !bannerFadeNode) return;
+    const smoother = createHeroDimSmoother(reducedMotion);
     let raf = 0;
     const apply = () => {
       raf = 0;
       const { scrollTop } = listScrollNode;
       const ratio = Math.min(1, Math.max(0, scrollTop / HERO_DIM_DISTANCE));
-      bannerFadeNode.style.opacity = String(1 - ratio * HERO_DIM_MAX);
+      const target = ratio * HERO_DIM_MAX;
+      const dim = smoother.step(target);
+      bannerFadeNode.style.opacity = String(1 - dim);
+      if (dim !== target) raf = requestAnimationFrame(apply);
     };
     const onScroll = () => {
       if (raf === 0) raf = requestAnimationFrame(apply);
@@ -96,7 +103,7 @@ export function LibraryAnimeDetails({
       listScrollNode.removeEventListener('scroll', onScroll);
       if (raf !== 0) cancelAnimationFrame(raf);
     };
-  }, [listScrollNode, bannerFadeNode, folderData.path]);
+  }, [listScrollNode, bannerFadeNode, folderData.path, reducedMotion]);
   const [reorderStart, setReorderStart] = useState('1');
   const [debouncedReorderStart, setDebouncedReorderStart] = useState('1');
   // thumbEpoch: re-pide miniaturas tras renombrar/renumerar.

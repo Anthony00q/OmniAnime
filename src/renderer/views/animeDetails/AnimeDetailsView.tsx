@@ -40,7 +40,8 @@ import { parseEpisodeFilter } from '@/renderer/utils/episodeFilter';
 import { useEpisodeView } from '@/renderer/utils/episodeView';
 import { EpisodeViewMenu } from '@/renderer/views/library/components/EpisodeViewMenu';
 import { normalizeSeasonLabel } from '@/renderer/utils/seasonLabel';
-import { HERO_DIM_MAX, HERO_DIM_DISTANCE } from '@/renderer/utils/heroDim';
+import { HERO_DIM_MAX, HERO_DIM_DISTANCE, createHeroDimSmoother } from '@/renderer/utils/heroDim';
+import { useHeroReveal, useReducedMotion } from '@/renderer/utils/motion';
 import { buildExternalUrl, buildAniListUrl } from '@/utils/security/externalUrl';
 import {
   useAnimeDetails,
@@ -123,6 +124,8 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
   const awaitingBanner = !bannerShown && !bannerFailed && (isBannerFetching || !!anilistBanner);
   const showBanner = bannerShown && !!bannerUrl;
   const showShimmer = !bannerShown && awaitingBanner && !graceExpired;
+  const revealRef = useHeroReveal<HTMLDivElement>(showBanner ? bannerUrl : null);
+  const reducedMotion = useReducedMotion();
   const isActiveRef = useRef(isActive);
   useEffect(() => {
     isActiveRef.current = isActive;
@@ -206,15 +209,19 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
   // Dim continuo del banner: una escritura de opacidad por frame sobre el
   // wrapper de la imagen (fade hacia el fondo, fundido por debajo de los
   // scrims), sin transición ni estado React, leyendo scrollTop y, en listas
-  // virtualizadas, el offset del VList.
+  // virtualizadas, el offset del VList. El valor escrito sale suavizado del
+  // aproximador de heroDim (identidad con reduced-motion).
   useEffect(() => {
     if (!scrollNode || !bannerFadeNode) return;
+    const smoother = createHeroDimSmoother(reducedMotion);
     let raf = 0;
     const apply = () => {
       raf = 0;
       const ratio = Math.min(1, Math.max(0, scrollNode.scrollTop / HERO_DIM_DISTANCE));
-      const dim = Math.max(ratio * HERO_DIM_MAX, innerDimRef.current);
+      const target = Math.max(ratio * HERO_DIM_MAX, innerDimRef.current);
+      const dim = smoother.step(target);
       bannerFadeNode.style.opacity = String(1 - dim);
+      if (dim !== target) raf = requestAnimationFrame(apply);
     };
     applyDimRef.current = apply;
     const onScroll = () => {
@@ -227,7 +234,7 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
       if (raf !== 0) cancelAnimationFrame(raf);
       applyDimRef.current = () => {};
     };
-  }, [scrollNode, bannerFadeNode, slug]);
+  }, [scrollNode, bannerFadeNode, slug, reducedMotion]);
 
   // Pasados 2 s sin banner, el hero queda en plano; si llega, disuelve igual.
   useEffect(() => {
@@ -553,16 +560,16 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
       >
         {bannerUrl && (
           <div ref={setBannerFadeNode} className="absolute inset-0">
-            <PosterImage
-              src={bannerUrl}
-              alt={`Banner de ${data.title}`}
-              priority={!!isActive}
-              onLoad={() => setBannerShown(true)}
-              onError={() => setBannerFailed(true)}
-              className={`h-full w-full object-cover object-[center_20%] transition-opacity duration-200 ${
-                showBanner ? 'opacity-100' : 'invisible opacity-0'
-              }`}
-            />
+            <div ref={revealRef} className={`absolute inset-0 ${showBanner ? '' : 'invisible opacity-0'}`}>
+              <PosterImage
+                src={bannerUrl}
+                alt={`Banner de ${data.title}`}
+                priority={!!isActive}
+                onLoad={() => setBannerShown(true)}
+                onError={() => setBannerFailed(true)}
+                className="h-full w-full object-cover object-[center_20%]"
+              />
+            </div>
           </div>
         )}
         {showShimmer && <div aria-hidden="true" className="absolute inset-0 animate-pulse bg-secondary/40" />}

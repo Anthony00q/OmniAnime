@@ -8,6 +8,8 @@ import { activeProviderAtom } from '@/renderer/store/atoms';
 import { useAppNavigation } from '@/renderer/hooks/useAppNavigation';
 import { useConnectivityStatus, useHomeData, useSearchAnime, prefetchAnimeDetails } from '@/renderer/hooks/useQueries';
 import { shouldShowOfflineEmpty } from '@/renderer/utils/offlineEmpty';
+import { useStaggerIn } from '@/renderer/utils/motion';
+import { useDeferredProvider } from '@/renderer/hooks/queries/internal';
 import { filterHomeBySection, homeSectionLabel, listHomeSections } from '@/renderer/utils/homeSections';
 import { PosterCard } from '@/renderer/components/anime/PosterCard';
 import { PosterImage } from '@/renderer/components/anime/PosterImage';
@@ -53,6 +55,7 @@ const HomePosterItem = memo(function HomePosterItem({ item, priority }: { item: 
 
 export function HomeView({ isActive }: { isActive?: boolean }) {
   const providerId = useAtomValue(activeProviderAtom);
+  const dataProvider = useDeferredProvider();
   const { openAnime, navigateToCatalog } = useAppNavigation();
 
   const providerName = providerId === 'jkanime' ? 'JkAnime' : 'AnimeAV1';
@@ -67,10 +70,18 @@ export function HomeView({ isActive }: { isActive?: boolean }) {
 
   // Sección elegida del home (Jkanime trae varias); se resetea al cambiar de proveedor.
   const [homeSection, setHomeSection] = useState('anime');
+  const [sectionProvider, setSectionProvider] = useState(dataProvider);
+  // El reset ocurre en el commit donde caen los datos nuevos: una sola entrada en cascada.
+  if (sectionProvider !== dataProvider) {
+    setSectionProvider(dataProvider);
+    setHomeSection('anime');
+  }
   const sections = useMemo(() => listHomeSections(items), [items]);
   // Si la sección elegida ya no existe, cae a la primera.
   const activeSection = sections.includes(homeSection) ? homeSection : (sections[0] ?? 'anime');
   const visibleItems = useMemo(() => filterHomeBySection(items, activeSection), [items, activeSection]);
+
+  const gridRef = useStaggerIn<HTMLDivElement>(visibleItems.length, { replay: `${dataProvider}:${activeSection}` });
 
   const isProviderChanging = previousProviderRef.current !== providerId;
 
@@ -82,7 +93,6 @@ export function HomeView({ isActive }: { isActive?: boolean }) {
   useEffect(() => {
     const providerChanged = previousProviderRef.current !== providerId;
     previousProviderRef.current = providerId;
-    if (providerChanged) setHomeSection('anime');
 
     if (isActive === false || providerChanged) {
       setSearchQuery('');
@@ -328,7 +338,7 @@ export function HomeView({ isActive }: { isActive?: boolean }) {
                 {providerName}
               </p>
             </div>
-            <PosterGrid>
+            <PosterGrid ref={gridRef}>
               {visibleItems.map((item: any, idx: number) => (
                 <HomePosterItem key={`${item.slug}-${item.episode || idx}`} item={item} priority={idx < 6} />
               ))}

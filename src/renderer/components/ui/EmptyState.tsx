@@ -25,14 +25,14 @@ export function EmptyState({
   return (
     <div
       className={clsx(
-        'flex h-64 flex-col items-center justify-center gap-3 p-6 text-center text-muted-foreground select-none',
+        'empty-state-enter flex h-64 flex-col items-center justify-center gap-3 p-6 text-center text-muted-foreground select-none',
         className,
       )}
       role="region"
       aria-label={title}
     >
       {icon && (
-        <div className="sala-empty-icon mb-2 shrink-0" aria-hidden="true">
+        <div className="sala-empty-icon empty-state-enter-icon mb-2 shrink-0" aria-hidden="true">
           {icon}
         </div>
       )}

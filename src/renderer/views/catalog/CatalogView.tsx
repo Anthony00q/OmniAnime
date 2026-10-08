@@ -11,6 +11,8 @@ import { useAppNavigation } from '@/renderer/hooks/useAppNavigation';
 import { useCatalogFilters } from '@/renderer/hooks/useCatalogFilters';
 import { useCatalog, useConnectivityStatus, useFiltersData, prefetchAnimeDetails } from '@/renderer/hooks/useQueries';
 import { shouldShowOfflineEmpty } from '@/renderer/utils/offlineEmpty';
+import { useStaggerIn } from '@/renderer/utils/motion';
+import { useDeferredProvider } from '@/renderer/hooks/queries/internal';
 import { PosterCard } from '@/renderer/components/anime/PosterCard';
 import { PosterGrid } from '@/renderer/components/anime/PosterGrid';
 import { PosterGridSkeleton } from '@/renderer/components/anime/PosterGridSkeleton';
@@ -58,6 +60,7 @@ export function CatalogView() {
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const providerId = useAtomValue(activeProviderAtom);
+  const dataProvider = useDeferredProvider();
   const [pendingCatalogGenre, setPendingCatalogGenre] = useAtom(pendingCatalogGenreAtom);
   const location = useLocation();
   // El foco del buscador viaja en el estado de la entrada de historial.
@@ -76,6 +79,7 @@ export function CatalogView() {
 
   const pages = data?.pages;
   const items = useMemo(() => dedupeCatalogPages(pages ?? []), [pages]);
+  const gridRef = useStaggerIn<HTMLDivElement>(items.length, { replay: dataProvider });
   const providerName = providerId === 'jkanime' ? 'JkAnime' : 'AnimeAV1';
   const isCatalogEmpty = !isLoading && !isError && items.length === 0;
   const { data: isOnline } = useConnectivityStatus(isCatalogEmpty);
@@ -509,7 +513,7 @@ export function CatalogView() {
                 />
               )
             ) : (
-              <PosterGrid>
+              <PosterGrid ref={gridRef}>
                 {items.map((item: any, idx: number) => (
                   <CatalogPosterItem
                     key={getCatalogResultKey(item) || `catalog-item-${idx}`}

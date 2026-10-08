@@ -13,10 +13,10 @@ export function ErrorState({
 }: ErrorStateProps) {
   return (
     <div
-      className="flex h-64 flex-col items-center justify-center gap-3 p-6 text-center text-muted-foreground select-none"
+      className="empty-state-enter flex h-64 flex-col items-center justify-center gap-3 p-6 text-center text-muted-foreground select-none"
       role="alert"
     >
-      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10 text-destructive-fg">
+      <div className="empty-state-enter-icon flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10 text-destructive-fg">
         <AlertTriangle className="h-6 w-6" aria-hidden="true" />
       </div>
       <div>

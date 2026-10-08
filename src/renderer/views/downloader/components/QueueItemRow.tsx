@@ -3,9 +3,6 @@ import {
   SkipForward,
   Loader2,
   XCircle,
-  CheckCircle2,
-  Clock,
-  PlayCircle,
   Play,
   Pause,
   PauseCircle,
@@ -13,7 +10,6 @@ import {
   FolderOpen,
   Server,
   RefreshCw,
-  Ban,
   ChevronDown,
   ChevronRight,
 } from 'lucide-react';
@@ -22,7 +18,6 @@ import { toast } from 'sonner';
 import { AppTooltip } from '@/renderer/components/ui/AppTooltip';
 import { PosterImage } from '@/renderer/components/anime/PosterImage';
 import { ProgressBar } from '@/renderer/components/ui/ProgressBar';
-import { StatusBadge } from '@/renderer/components/ui/StatusBadge';
 import { buildDetailRows } from '@/renderer/utils/downloaderRows';
 import { formatSpeedBps, totalSpeedBps } from '@/renderer/utils/formatSpeed';
 import {
@@ -36,6 +31,7 @@ import {
 import { useIsTitleTruncated } from '@/renderer/views/downloader/hooks/useIsTitleTruncated';
 import { EMPTY_DETAIL_ROWS, formatEpisodeList } from '@/renderer/views/downloader/model/downloaderModel';
 import { EpisodeDetailRow } from './EpisodeDetailRow';
+import { QueueStatusBadge, type QueueBadgeKind } from './QueueStatusBadge';
 
 import animeav1Icon from '@assets/provider-icons/animeav1-32.png';
 import jkanimeIcon from '@assets/provider-icons/jkanime-32.png';
@@ -44,6 +40,8 @@ const PROVIDER_ICONS: Record<string, string> = {
   animeav1: animeav1Icon,
   jkanime: jkanimeIcon,
 };
+
+const pctFormat = (value: number) => `${Math.round(value)}%`;
 
 interface QueueRowProps {
   item: any;
@@ -106,6 +104,19 @@ export const QueueItemRow = memo(
     const isCancelled = item.status === 'cancelled';
     const isDownloading = item.status === 'downloading';
     const isPaused = item.status === 'paused';
+    const badgeKind: QueueBadgeKind = isDone
+      ? 'done'
+      : isFailed
+        ? 'failed'
+        : isCancelled
+          ? 'cancelled'
+          : isPaused
+            ? 'paused'
+            : isDownloading
+              ? 'downloading'
+              : 'queued';
+    const completedCount = item.completedEps?.length || 0;
+    const episodesCount = item.episodes?.length || 0;
     const activeEps = useMemo(
       () =>
         isDownloading && Array.isArray(item.activeEps)
@@ -577,61 +588,23 @@ export const QueueItemRow = memo(
 
             <div className="mb-2 flex items-center justify-between gap-2">
               <div className="flex min-w-0 items-center gap-2">
-                {isDone ? (
-                  <StatusBadge
-                    variant="success"
-                    label="Finalizado"
-                    icon={<CheckCircle2 className="h-3.5 w-3.5" />}
-                    className="px-2 py-0.5 text-[11px]"
-                  />
-                ) : isFailed ? (
-                  <StatusBadge
-                    variant="danger"
-                    label="Con errores"
-                    icon={<XCircle className="h-3.5 w-3.5" />}
-                    className="px-2 py-0.5 text-[11px]"
-                  />
-                ) : isCancelled ? (
-                  <StatusBadge
-                    variant="cancelled"
-                    label="Cancelado"
-                    icon={<Ban className="h-3.5 w-3.5" />}
-                    className="px-2 py-0.5 text-[11px]"
-                  />
-                ) : isPaused ? (
-                  <StatusBadge
-                    variant="neutral"
-                    label="Pausada"
-                    icon={<PauseCircle className="h-3.5 w-3.5" />}
-                    className="px-2 py-0.5 text-[11px]"
-                  />
-                ) : isDownloading ? (
-                  <StatusBadge
-                    variant="info"
-                    label="Descargando"
-                    icon={<PlayCircle className="h-3.5 w-3.5" />}
-                    className="px-2 py-0.5 text-[11px]"
-                  />
-                ) : (
-                  <StatusBadge
-                    variant="neutral"
-                    label="En Cola"
-                    icon={<Clock className="h-3.5 w-3.5" />}
-                    className="px-2 py-0.5 text-[11px]"
-                  />
-                )}
+                <QueueStatusBadge kind={badgeKind} />
               </div>
 
               <div className="whitespace-nowrap text-[11px] tabular-nums text-muted-foreground">
-                {isCardActive ? `${detailRows.length > 1 ? 'Total ' : ''}${pct}% ` : ''}
+                {isCardActive && (
+                  <>
+                    {detailRows.length > 1 ? 'Total ' : ''}
+                    {pctFormat(pct)}{' '}
+                  </>
+                )}
                 {isCardActive && (
                   <span aria-hidden="true" className="text-border-strong">
                     |
                   </span>
                 )}
                 {isCardActive && ' '}
-                {item.completedEps?.length || 0}/{item.episodes?.length || 0}{' '}
-                {(item.episodes?.length || 0) === 1 ? 'ep' : 'eps'}
+                {completedCount}/{episodesCount} {episodesCount === 1 ? 'ep' : 'eps'}
                 {isDownloading && (
                   <span className="ml-1 inline-block min-w-[10ch] tabular-nums">
                     <span aria-hidden="true" className="text-border-strong">

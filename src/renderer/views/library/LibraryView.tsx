@@ -16,6 +16,7 @@ import { settingsAtom } from '@/renderer/store/atoms';
 import { useAppNavigation } from '@/renderer/hooks/useAppNavigation';
 import { useLibrary } from '@/renderer/hooks/useQueries';
 import { isIpcFailError, unwrap } from '@/renderer/hooks/queries/unwrap';
+import { useStaggerIn } from '@/renderer/utils/motion';
 import { LibraryAnimeDetails } from './LibraryAnimeDetails';
 import { PosterCard } from '@/renderer/components/anime/PosterCard';
 import { PosterGrid } from '@/renderer/components/anime/PosterGrid';
@@ -140,6 +141,8 @@ export function LibraryView({ onSelectAnime, activeProvider, isActive }: Library
     () => sortLibraryItems(filterLibraryItems(items, selectedDirFilter, searchQuery), sortKey),
     [items, selectedDirFilter, searchQuery, sortKey],
   );
+
+  const gridRef = useStaggerIn<HTMLDivElement>(visibleItems.length);
 
   useEffect(() => {
     if (selectedDirFilter !== 'all' && !dirs.includes(selectedDirFilter)) {
@@ -336,20 +339,31 @@ export function LibraryView({ onSelectAnime, activeProvider, isActive }: Library
               className="px-0 pt-2 text-[13px] font-medium normal-case tracking-normal text-text-tertiary tabular-nums select-none"
               role="status"
             >
-              {trimmedQuery
-                ? `${visibleItems.length} de ${items.length} ${items.length === 1 ? 'anime' : 'animes'}`
-                : `${visibleItems.length} ${visibleItems.length === 1 ? 'anime' : 'animes'}`}
+              {trimmedQuery ? (
+                <>
+                  {visibleItems.length}
+                  {' de '}
+                  {items.length}
+                  {` ${items.length === 1 ? 'anime' : 'animes'}`}
+                </>
+              ) : (
+                <>
+                  {visibleItems.length}
+                  {` ${visibleItems.length === 1 ? 'anime' : 'animes'}`}
+                </>
+              )}
               {selectedDirFilter === 'all' && dirs.length > 1 && (
                 <>
                   {' '}
                   <span aria-hidden="true" className="text-border-strong">
                     |
                   </span>{' '}
-                  {dirs.length} carpetas
+                  {dirs.length}
+                  {' carpetas'}
                 </>
               )}
             </p>
-            <PosterGrid>
+            <PosterGrid ref={gridRef}>
               {visibleItems.map((item: any, idx: number) => (
                 <LibraryPosterItem
                   key={item.path || idx}
