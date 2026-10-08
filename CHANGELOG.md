@@ -1,5 +1,32 @@
 # Changelog
 
+## [1.2.0] - 2026-10-08
+
+### Interfaz
+
+- Las vistas, fichas y estados de carga presentan transiciones más uniformes y suaves.
+- Los elementos de las listas aparecen de forma escalonada, con movimientos más discretos.
+
+### Búsqueda
+
+- Los filtros del catálogo se conservan al cambiar de proveedor.
+
+### Librería
+
+- Los detalles de cada carpeta muestran información ampliada y controles más claros.
+
+### Historial
+
+- La información secundaria de las descargas se oculta inicialmente para facilitar la lectura.
+
+### Ajustes
+
+- La dirección **/settings** abre directamente la pestaña predeterminada.
+
+### General
+
+- La ficha permite vincular manualmente un anime con AniList y mejorar la asociación de títulos.
+
 ## [1.1.7] - 2026-10-06
 
 ### Catálogo
