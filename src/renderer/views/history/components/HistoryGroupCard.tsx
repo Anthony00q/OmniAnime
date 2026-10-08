@@ -83,7 +83,9 @@ export const HistoryGroupCard = memo(function HistoryGroupCard({
             )}
             <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs tabular-nums text-muted-foreground">
               <span>{group.lastDate}</span>
-              <span aria-hidden="true">•</span>
+              <span aria-hidden="true" className="text-border-strong">
+                |
+              </span>
               <ProviderBadge providerId={group.providerId} />
             </div>
             {group.dirLabel && (

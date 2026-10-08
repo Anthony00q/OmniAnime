@@ -693,7 +693,7 @@ export const QueueItemRow = memo(
                       showValue={false}
                       aria-valuetext={
                         isPaused
-                          ? `${pct}% • ${item.completedEps?.length || 0}/${item.episodes?.length || 0} episodios`
+                          ? `${pct}% · ${item.completedEps?.length || 0}/${item.episodes?.length || 0} episodios`
                           : undefined
                       }
                     />

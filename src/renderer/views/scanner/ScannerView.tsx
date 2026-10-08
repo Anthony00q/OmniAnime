@@ -389,7 +389,9 @@ export function ScannerView({ isActive = true }: { isActive?: boolean }) {
                     </AppTooltip>
                     <div className="text-xs text-muted-foreground mt-1 flex items-center gap-2">
                       <span className="uppercase font-bold">{item.category || 'ANIME'}</span>
-                      <span>•</span>
+                      <span aria-hidden="true" className="text-border-strong">
+                        |
+                      </span>
                       <span>{item.year || item.status || 'Desconocido'}</span>
                     </div>
                   </div>
