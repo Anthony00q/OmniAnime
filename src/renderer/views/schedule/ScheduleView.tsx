@@ -78,7 +78,8 @@ export function ScheduleView({ isActive }: { isActive?: boolean }) {
     [entries, selectedDay],
   );
   const groups = useMemo(() => groupDayEntriesByTime(dayEntries), [dayEntries]);
-  const scheduleRef = useStaggerIn<HTMLUListElement>(groups.length, { replay: `${dataProvider}:${selectedDay}` });
+  const staggerKeys = useMemo(() => groups.map((group) => group.time ?? 'sin-hora'), [groups]);
+  const scheduleRef = useStaggerIn<HTMLUListElement>(staggerKeys, { replay: `${dataProvider}:${selectedDay}` });
 
   // "Sigue" y la marca de ahora solo informan sobre el día de hoy.
   const isTodaySelected = selectedDay === todayDay;

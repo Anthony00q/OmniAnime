@@ -10,7 +10,7 @@ function AnimeDetailsRoute() {
   const { id } = Route.useParams();
   const { onSelectAnime, onDetailsBack } = useAppShell();
   return (
-    <ViewPanel scope="ui:details" titlebarOffset={false}>
+    <ViewPanel scope="ui:details" titlebarOffset={false} animateEntry={false}>
       <MemoAnimeDetailsView isActive slug={id} onBack={onDetailsBack} onSelectAnime={onSelectAnime} />
     </ViewPanel>
   );

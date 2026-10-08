@@ -1,4 +1,4 @@
-import { memo, useEffect, useState } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
 import { Gauge, Server, Layers, Eye, SlidersHorizontal, Info, ChevronDown, FolderDown, FileText } from 'lucide-react';
 import { CustomSelect } from '@/renderer/components/CustomSelect';
 import { CustomSwitch } from '@/renderer/components/CustomSwitch';
@@ -565,9 +565,12 @@ function downloadsTabPropsEqual(prev: DownloadsTabProps, next: DownloadsTabProps
 }
 
 // Escalonado por bloques: los cuatro en un solo commit congelan la UI.
+const DOWNLOADS_BLOCK_KEYS = ['concurrencia', 'servidores', 'nombres', 'avanzado'] as const;
+
 export const DownloadsTab = memo(function DownloadsTab({ visible = true, ...props }: DownloadsTabProps) {
   const [mountedBlocks, setMountedBlocks] = useState(0);
-  const contentRef = useStaggerIn<HTMLDivElement>(mountedBlocks, { disabled: !visible, replay: visible, flat: true });
+  const staggerKeys = useMemo(() => DOWNLOADS_BLOCK_KEYS.slice(0, mountedBlocks), [mountedBlocks]);
+  const contentRef = useStaggerIn<HTMLDivElement>(staggerKeys, { disabled: !visible, replay: visible, flat: true });
 
   useEffect(() => {
     if (mountedBlocks >= 4) return;

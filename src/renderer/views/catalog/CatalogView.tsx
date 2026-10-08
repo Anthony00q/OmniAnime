@@ -79,7 +79,8 @@ export function CatalogView() {
 
   const pages = data?.pages;
   const items = useMemo(() => dedupeCatalogPages(pages ?? []), [pages]);
-  const gridRef = useStaggerIn<HTMLDivElement>(items.length, { replay: dataProvider });
+  const staggerKeys = useMemo(() => items.map((item: any) => getCatalogResultKey(item)), [items]);
+  const gridRef = useStaggerIn<HTMLDivElement>(staggerKeys, { replay: dataProvider, scopeKey: activeFilters });
   const providerName = providerId === 'jkanime' ? 'JkAnime' : 'AnimeAV1';
   const isCatalogEmpty = !isLoading && !isError && items.length === 0;
   const { data: isOnline } = useConnectivityStatus(isCatalogEmpty);

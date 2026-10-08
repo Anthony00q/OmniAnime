@@ -85,12 +85,16 @@ export function LibraryAnimeDetails({
     if (!listScrollNode || !bannerFadeNode) return;
     const smoother = createHeroDimSmoother(reducedMotion);
     let raf = 0;
-    const apply = () => {
+    let previousFrameTime: number | null = null;
+    const apply = (timestamp?: number) => {
       raf = 0;
+      const frameTime = timestamp ?? performance.now();
+      const deltaMs = previousFrameTime === null ? 1000 / 60 : frameTime - previousFrameTime;
+      previousFrameTime = frameTime;
       const { scrollTop } = listScrollNode;
       const ratio = Math.min(1, Math.max(0, scrollTop / HERO_DIM_DISTANCE));
       const target = ratio * HERO_DIM_MAX;
-      const dim = smoother.step(target);
+      const dim = smoother.step(target, deltaMs);
       bannerFadeNode.style.opacity = String(1 - dim);
       if (dim !== target) raf = requestAnimationFrame(apply);
     };

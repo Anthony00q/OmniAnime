@@ -8,7 +8,7 @@ export const Route = createFileRoute('/')({
 
 function HomeRoute() {
   return (
-    <ViewPanel scope="ui:home">
+    <ViewPanel scope="ui:home" animateEntry={false}>
       <MemoHomeView />
     </ViewPanel>
   );

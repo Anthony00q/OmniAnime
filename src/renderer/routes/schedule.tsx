@@ -8,7 +8,7 @@ export const Route = createFileRoute('/schedule')({
 
 function ScheduleRoute() {
   return (
-    <ViewPanel scope="ui:schedule">
+    <ViewPanel scope="ui:schedule" animateEntry={false}>
       <MemoScheduleView />
     </ViewPanel>
   );

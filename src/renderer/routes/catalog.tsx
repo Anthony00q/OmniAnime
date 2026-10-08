@@ -8,7 +8,7 @@ export const Route = createFileRoute('/catalog')({
 
 function CatalogRoute() {
   return (
-    <ViewPanel scope="ui:catalog">
+    <ViewPanel scope="ui:catalog" animateEntry={false}>
       <MemoCatalogView />
     </ViewPanel>
   );

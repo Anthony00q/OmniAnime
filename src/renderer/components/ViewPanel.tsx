@@ -9,10 +9,12 @@ export function ViewPanel({
   scope,
   children,
   titlebarOffset = true,
+  animateEntry = true,
 }: {
   scope: string;
   children: ReactNode;
   titlebarOffset?: boolean;
+  animateEntry?: boolean;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const { pathname } = useLocation();
@@ -22,7 +24,11 @@ export function ViewPanel({
     <ErrorBoundary scope={scope}>
       <div
         ref={containerRef}
-        className={clsx('flex-1 overflow-hidden flex flex-col view-enter', titlebarOffset && 'pt-10')}
+        className={clsx(
+          'flex-1 overflow-hidden flex flex-col',
+          animateEntry && 'view-enter',
+          titlebarOffset && 'pt-10',
+        )}
       >
         <Suspense fallback={null}>{children}</Suspense>
       </div>

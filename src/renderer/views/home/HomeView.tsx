@@ -20,6 +20,10 @@ import { SearchField } from '@/renderer/components/ui/SearchField';
 import { ErrorState } from '@/renderer/components/ui/ErrorState';
 import { EmptyState } from '@/renderer/components/ui/EmptyState';
 
+function getHomeStaggerKey(item: any): string | null {
+  return typeof item.slug === 'string' && item.slug.trim() ? `${item.slug}:${String(item.episode ?? '')}` : null;
+}
+
 const HomePosterItem = memo(function HomePosterItem({ item, priority }: { item: any; priority: boolean }) {
   const { openAnime } = useAppNavigation();
   const queryClient = useQueryClient();
@@ -80,8 +84,9 @@ export function HomeView({ isActive }: { isActive?: boolean }) {
   // Si la sección elegida ya no existe, cae a la primera.
   const activeSection = sections.includes(homeSection) ? homeSection : (sections[0] ?? 'anime');
   const visibleItems = useMemo(() => filterHomeBySection(items, activeSection), [items, activeSection]);
+  const staggerKeys = useMemo(() => visibleItems.map(getHomeStaggerKey), [visibleItems]);
 
-  const gridRef = useStaggerIn<HTMLDivElement>(visibleItems.length, { replay: `${dataProvider}:${activeSection}` });
+  const gridRef = useStaggerIn<HTMLDivElement>(staggerKeys, { replay: `${dataProvider}:${activeSection}` });
 
   const isProviderChanging = previousProviderRef.current !== providerId;
 
@@ -340,7 +345,7 @@ export function HomeView({ isActive }: { isActive?: boolean }) {
             </div>
             <PosterGrid ref={gridRef}>
               {visibleItems.map((item: any, idx: number) => (
-                <HomePosterItem key={`${item.slug}-${item.episode || idx}`} item={item} priority={idx < 6} />
+                <HomePosterItem key={getHomeStaggerKey(item) ?? `home-item-${idx}`} item={item} priority={idx < 6} />
               ))}
             </PosterGrid>
           </>

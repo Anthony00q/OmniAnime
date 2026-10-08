@@ -112,7 +112,7 @@ export function ToastPositionSelector({ value, onChange }: ToastPositionSelector
 
         <div
           style={{ transform: getToastTransform(value) }}
-          className={`absolute left-0 top-0 w-[5rem] h-[1.85rem] bg-popover border border-primary/25 rounded-full shadow-xl shadow-primary/15 backdrop-blur-sm flex items-center px-2 gap-1.5 will-change-transform pointer-events-none z-10 ${isReady ? 'transition-[transform] duration-[220ms] motion-reduce:transition-none [transition-timing-function:var(--ease-out)]' : 'transition-none motion-reduce:transition-none'}`}
+          className={`absolute left-0 top-0 w-[5rem] h-[1.85rem] bg-popover border border-primary/25 rounded-full shadow-xl shadow-primary/15 backdrop-blur-sm flex items-center px-2 gap-1.5 pointer-events-none z-10 ${isReady ? 'transition-[transform] duration-[220ms] motion-reduce:transition-none [transition-timing-function:var(--ease-out)]' : 'transition-none motion-reduce:transition-none'}`}
         >
           <div className="w-5 h-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center shrink-0 shadow-sm shadow-primary/20">
             <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />

@@ -8,6 +8,8 @@ export {
   springEase,
   staggerDelay,
 } from './tokens';
+export { resolveStaggerPlan } from './staggerSequence';
+export type { StaggerPlan, StaggerSnapshot } from './staggerSequence';
 export { useReducedMotion } from './useReducedMotion';
 export { useStaggerIn } from './useStaggerIn';
 export { useEmphasis } from './useEmphasis';

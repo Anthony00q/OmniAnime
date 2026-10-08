@@ -141,8 +141,16 @@ export function LibraryView({ onSelectAnime, activeProvider, isActive }: Library
     () => sortLibraryItems(filterLibraryItems(items, selectedDirFilter, searchQuery), sortKey),
     [items, selectedDirFilter, searchQuery, sortKey],
   );
+  const staggerKeys = useMemo(
+    () => visibleItems.map((item: any) => (typeof item.path === 'string' && item.path.trim() ? item.path : null)),
+    [visibleItems],
+  );
+  const staggerScopeKey = useMemo(
+    () => ({ dirs, selectedDirFilter, search: trimmedQuery, sortKey }),
+    [dirs, selectedDirFilter, trimmedQuery, sortKey],
+  );
 
-  const gridRef = useStaggerIn<HTMLDivElement>(visibleItems.length);
+  const gridRef = useStaggerIn<HTMLDivElement>(staggerKeys, { scopeKey: staggerScopeKey });
 
   useEffect(() => {
     if (selectedDirFilter !== 'all' && !dirs.includes(selectedDirFilter)) {

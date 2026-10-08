@@ -18,6 +18,10 @@ export function springEase(duration: number, bounce = 0.2) {
   return spring({ duration, bounce });
 }
 
-export function staggerDelay(index: number): number {
-  return Math.min(Math.max(0, index) * MOTION_STAGGER_STEP, MOTION_STAGGER_CAP);
+export function staggerDelay(index: number, batchSize: number): number {
+  if (!Number.isFinite(index) || !Number.isFinite(batchSize)) return 0;
+  const size = Math.max(0, Math.floor(batchSize));
+  if (size <= 1) return 0;
+  const step = Math.min(MOTION_STAGGER_STEP, MOTION_STAGGER_CAP / (size - 1));
+  return Math.min(Math.max(0, index), size - 1) * step;
 }

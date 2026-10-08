@@ -12,7 +12,7 @@ function LibraryRoute() {
   const { onSelectAnime } = useAppShell();
   const activeProvider = useAtomValue(activeProviderAtom);
   return (
-    <ViewPanel scope="ui:library" titlebarOffset={false}>
+    <ViewPanel scope="ui:library" titlebarOffset={false} animateEntry={false}>
       <MemoLibraryView isActive onSelectAnime={onSelectAnime} activeProvider={activeProvider} />
     </ViewPanel>
   );

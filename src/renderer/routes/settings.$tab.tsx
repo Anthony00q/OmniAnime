@@ -18,7 +18,7 @@ function SettingsTabRoute() {
   }
 
   return (
-    <ViewPanel scope="ui:settings">
+    <ViewPanel scope="ui:settings" animateEntry={false}>
       <MemoSettingsView activeTab={tab} onTabChange={setSettingsTab} />
     </ViewPanel>
   );

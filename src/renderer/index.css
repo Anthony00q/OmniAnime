@@ -48,6 +48,7 @@
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  --duration-motion-fade: 150ms;
 
   --font-display: 'Bricolage Grotesque', 'Instrument Sans', system-ui, sans-serif;
 }
@@ -517,19 +518,8 @@ html[dir='ltr'] {
   }
 }
 
-@keyframes view-rise-in {
-  from {
-    opacity: 0;
-    transform: translate3d(0, 10px, 0);
-  }
-  to {
-    opacity: 1;
-    transform: translate3d(0, 0, 0);
-  }
-}
-
-.view-enter {
-  animation: view-rise-in 320ms var(--ease-out);
+.view-enter:not(:has(.empty-state-enter)) {
+  animation: view-fade-in var(--duration-motion-fade) var(--ease-out);
   animation-fill-mode: both;
 }
 
@@ -631,7 +621,8 @@ html[dir='ltr'] {
     scroll-behavior: auto !important;
   }
 
-  .view-enter {
+  .view-enter,
+  .view-enter:not(:has(.empty-state-enter)) {
     animation: none;
   }
 
@@ -980,7 +971,6 @@ html[dir='ltr'] {
 
 .progress-fill {
   transform-origin: left;
-  will-change: transform;
 }
 
 @keyframes progress-shimmer {
