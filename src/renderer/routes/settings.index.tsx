@@ -1,17 +1,10 @@
-import { createFileRoute } from '@tanstack/react-router';
-import { ViewPanel } from '@/renderer/components/ViewPanel';
-import { MemoSettingsView } from '@/renderer/App';
-import { useAppNavigation } from '@/renderer/hooks/useAppNavigation';
+import { createFileRoute, Navigate } from '@tanstack/react-router';
 
 export const Route = createFileRoute('/settings/')({
   component: SettingsRoute,
 });
 
+// La vista vive en /settings/$tab: aquí solo se aterriza en la pestaña por defecto.
 function SettingsRoute() {
-  const { setSettingsTab } = useAppNavigation();
-  return (
-    <ViewPanel scope="ui:settings">
-      <MemoSettingsView onTabChange={setSettingsTab} />
-    </ViewPanel>
-  );
+  return <Navigate to="/settings/$tab" params={{ tab: 'sistema' }} replace />;
 }

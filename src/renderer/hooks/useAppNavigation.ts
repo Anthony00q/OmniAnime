@@ -86,11 +86,7 @@ export function useAppNavigation(): AppNavigation {
       // Cambiar de pestaña reemplaza la entrada: atrás sale de Ajustes en vez de
       // recorrer las pestañas ya visitadas.
       const state = { from: router.state.location.state.from };
-      if (tab === 'sistema') {
-        void router.navigate({ to: '/settings', replace: true, state });
-      } else {
-        void router.navigate({ to: '/settings/$tab', params: { tab }, replace: true, state });
-      }
+      void router.navigate({ to: '/settings/$tab', params: { tab }, replace: true, state });
     },
     [router],
   );
