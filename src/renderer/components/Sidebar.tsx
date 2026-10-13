@@ -185,11 +185,15 @@ export function Sidebar({ currentView, setCurrentView }: SidebarProps) {
               type="button"
               onClick={() => setUpdateModalOpen(true)}
               aria-label={`Ver actualización disponible ${updateAvailable.version}`}
-              className="sidebar-nav-item relative w-full flex items-center gap-3 px-4 py-2.5 mb-1 rounded-lg text-sm font-bold border border-transparent bg-primary text-primary-foreground transition-[background-color,border-color,color] duration-150 [transition-timing-function:var(--ease-out)] outline-none focus-visible:ring-2 focus-visible:ring-primary/60 cursor-pointer hover:bg-[color-mix(in_srgb,var(--color-primary)_88%,black)]"
+              className="sidebar-nav-item group relative isolate min-h-11 w-full flex items-center gap-3 px-3 py-0 mb-1 rounded-lg text-sm font-bold border border-transparent bg-transparent text-primary-foreground transition-colors duration-150 [transition-timing-function:var(--ease-out)] outline-none focus-visible:ring-2 focus-visible:ring-primary/60 cursor-pointer"
             >
-              <CircleArrowUp strokeWidth={2} className="w-[18px] h-[18px] shrink-0" aria-hidden="true" />
-              <span className="sidebar-label">Actualizar</span>
-              <span className="sidebar-label ml-auto text-[11px] font-bold tabular-nums whitespace-nowrap">
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-x-0 top-1/2 z-0 h-[38px] -translate-y-1/2 rounded-lg bg-primary transition-colors duration-150 [transition-timing-function:var(--ease-out)] group-hover:bg-[color-mix(in_srgb,var(--color-primary)_88%,black)]"
+              />
+              <CircleArrowUp strokeWidth={2} className="relative z-10 h-4 w-4 shrink-0" aria-hidden="true" />
+              <span className="sidebar-label relative z-10">Actualizar</span>
+              <span className="sidebar-label relative z-10 ml-auto rounded-full border border-primary-foreground/15 px-1.5 py-px text-[11px] font-medium tabular-nums whitespace-nowrap opacity-75">
                 {updateAvailable.version}
               </span>
             </button>
