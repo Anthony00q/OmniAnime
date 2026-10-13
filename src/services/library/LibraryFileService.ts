@@ -31,6 +31,7 @@ export interface LibraryFolder {
   category?: string | null;
   season?: string | null;
   providerId?: string | null;
+  hasProviderMetadata?: boolean;
   sourceDir: string;
 }
 
@@ -224,6 +225,7 @@ export class LibraryFileService {
                 category: (meta as any)?.category || null,
                 season: (meta as any)?.season || null,
                 providerId: (meta as any)?.providerId || 'animeav1',
+                hasProviderMetadata: Boolean(meta?.providerId || meta?.slug),
                 sourceDir: baseDir,
               };
             }),

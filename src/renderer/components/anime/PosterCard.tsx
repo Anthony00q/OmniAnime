@@ -11,6 +11,8 @@ interface PosterCardProps {
   topOverlay?: ReactNode;
   actionLabel?: string;
   actionAlwaysVisible?: boolean;
+  disabled?: boolean;
+  describedBy?: string;
   priority?: boolean;
   ariaLabel?: string;
   progress?: number;
@@ -27,6 +29,8 @@ export function PosterCard({
   topOverlay,
   actionLabel,
   actionAlwaysVisible = false,
+  disabled = false,
+  describedBy,
   priority = false,
   ariaLabel,
   progress,
@@ -39,6 +43,8 @@ export function PosterCard({
   return (
     <button
       type="button"
+      disabled={disabled}
+      aria-describedby={describedBy}
       onClick={onClick}
       onContextMenu={onContextMenu}
       aria-label={
@@ -46,7 +52,12 @@ export function PosterCard({
           ? `${ariaLabel || `Abrir ${title}`}. Clic derecho para más opciones.`
           : ariaLabel || `Abrir ${title}`
       }
-      className="anime-poster-card sala-frame poster-list-item group relative isolate flex aspect-[2/3] min-w-0 cursor-pointer flex-col overflow-hidden border border-transparent bg-transparent text-left shadow-none transition-[border-color,box-shadow] duration-200 ease-out hover:border-white/15 hover:shadow-[0_8px_24px_rgba(0,0,0,0.35)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+      className={clsx(
+        'anime-poster-card sala-frame poster-list-item group relative isolate flex aspect-[2/3] w-full min-w-0 flex-col overflow-hidden border border-transparent bg-transparent text-left shadow-none transition-[border-color,box-shadow] duration-200 ease-out',
+        disabled
+          ? 'cursor-not-allowed'
+          : 'cursor-pointer hover:border-white/15 hover:shadow-[0_8px_24px_rgba(0,0,0,0.35)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+      )}
     >
       <PosterImage
         src={poster}
@@ -58,7 +69,10 @@ export function PosterCard({
 
       <div
         aria-hidden="true"
-        className="absolute inset-0 z-10 bg-gradient-to-t from-black/90 via-black/40 via-55% to-black/5 opacity-90 transition-opacity duration-200 group-hover:opacity-100"
+        className={clsx(
+          'absolute inset-0 z-10 bg-gradient-to-t from-black/90 via-black/40 via-55% to-black/5 opacity-90 transition-opacity duration-200',
+          !disabled && 'group-hover:opacity-100',
+        )}
       />
 
       {showProgress && (
@@ -76,7 +90,14 @@ export function PosterCard({
             actionAlwaysVisible ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100',
           )}
         >
-          <span className="block rounded-lg bg-primary/90 px-3 py-2 text-center text-xs font-bold tracking-tight text-primary-foreground shadow-[0_8px_24px_rgba(0,0,0,0.35)]">
+          <span
+            className={clsx(
+              'block rounded-lg px-3 py-2 text-center text-xs font-bold tracking-tight',
+              disabled
+                ? 'bg-surface-elevated text-muted-foreground'
+                : 'bg-primary/90 text-primary-foreground shadow-[0_8px_24px_rgba(0,0,0,0.35)]',
+            )}
+          >
             {actionLabel}
           </span>
         </div>
@@ -88,7 +109,10 @@ export function PosterCard({
           actionLabel && actionAlwaysVisible && 'pb-14',
           // Acción al hover: el texto sube al aparecer el botón en vez de
           // quedar tapado debajo (también con foco por teclado)
-          actionLabel && !actionAlwaysVisible && 'group-hover:pb-14 group-focus-visible:pb-14 group-focus-within:pb-14',
+          actionLabel &&
+            !actionAlwaysVisible &&
+            !disabled &&
+            'group-hover:pb-14 group-focus-visible:pb-14 group-focus-within:pb-14',
         )}
       >
         {badge && <div className="mb-1.5 flex min-w-0 flex-wrap items-center gap-1.5">{badge}</div>}

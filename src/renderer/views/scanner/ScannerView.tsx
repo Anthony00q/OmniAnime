@@ -1,8 +1,11 @@
-import { memo, useCallback, useState, useEffect, useMemo, useRef } from 'react';
-import { ScanSearch, RefreshCcw, AlertTriangle, Link, Search, Loader2 } from 'lucide-react';
+import { memo, useCallback, useState, useEffect, useMemo, useRef, useId } from 'react';
+import { ScanSearch, RefreshCcw, AlertTriangle, Link, Link2, Search, Loader2, LockKeyhole } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAtomValue } from 'jotai';
-import { settingsAtom } from '@/renderer/store/atoms';
+import { useAtomCallback } from 'jotai/utils';
+import { activeProviderAtom, settingsAtom } from '@/renderer/store/atoms';
+import type { LibraryFolder } from '@/services/library/LibraryFileService';
+import { resolveScannerRelinkProvider } from '@/renderer/views/scanner/model/relinkPolicy';
 import { Dialog } from '@/renderer/components/Dialog';
 import { useAppNavigation } from '@/renderer/hooks/useAppNavigation';
 import { useLibrary, useSearchAnime, useLibraryActions } from '@/renderer/hooks/useQueries';
@@ -27,24 +30,31 @@ function prettifyFolderName(name: unknown): string {
 const ScannerPosterItem = memo(
   function ScannerPosterItem({
     folder,
+    activeProvider,
+    disabledReasonId,
     onRelink,
   }: {
     folder: any;
-    onRelink: (folderPath: string, folderName: string, providerId?: string | null) => void;
+    activeProvider: string;
+    disabledReasonId: string;
+    onRelink: (folder: LibraryFolder) => void;
   }) {
     const isOrphan = !folder.metaSlug;
     // Jerarquía: título limpio primero, carpeta cruda en tenue. La pastilla
     // superior queda solo para huérfanas; el proveedor vive en la meta.
     const displayTitle = (!isOrphan && folder.metaTitle) || prettifyFolderName(folder.name) || folder.name;
     const providerLabel = folder.providerId === 'jkanime' ? 'JkAnime' : 'AnimeAV1';
+    const relinkDisabled = resolveScannerRelinkProvider(folder, activeProvider) === null;
 
     return (
       <PosterCard
         title={displayTitle}
         poster={folder.posterLocal || folder.poster}
         fallbackLabel={displayTitle}
-        actionLabel={isOrphan ? 'Vincular a un Anime' : 'Cambiar Vínculo'}
-        actionAlwaysVisible={isOrphan}
+        actionLabel={relinkDisabled ? undefined : isOrphan ? 'Vincular a un Anime' : 'Cambiar Vínculo'}
+        actionAlwaysVisible={isOrphan && !relinkDisabled}
+        disabled={relinkDisabled}
+        describedBy={relinkDisabled ? disabledReasonId : undefined}
         ariaLabel={
           isOrphan
             ? `Vincular ${folder.name}`
@@ -66,16 +76,21 @@ const ScannerPosterItem = memo(
           ) : undefined
         }
         meta={
-          !isOrphan && folder.metaTitle && folder.metaTitle !== folder.name ? (
-            <span className="flex min-w-0 items-center gap-1 truncate text-[11px] text-white/50">
-              <Link className="h-3 w-3 shrink-0" />
+          relinkDisabled || (!isOrphan && folder.metaTitle && folder.metaTitle !== folder.name) ? (
+            <span className="flex min-w-0 items-center gap-1 truncate text-[11px] text-white/70">
+              {relinkDisabled ? (
+                <LockKeyhole className="h-3 w-3 shrink-0" aria-hidden="true" />
+              ) : (
+                <Link className="h-3 w-3 shrink-0" aria-hidden="true" />
+              )}
               <span className="truncate">
-                {providerLabel} · {folder.name}
+                {providerLabel}
+                {!relinkDisabled && ` · ${folder.name}`}
               </span>
             </span>
           ) : undefined
         }
-        onClick={() => onRelink(folder.path, folder.name, folder.providerId ?? null)}
+        onClick={() => onRelink(folder)}
       />
     );
   },
@@ -88,6 +103,9 @@ const ScannerPosterItem = memo(
     prev.folder.name === next.folder.name &&
     prev.folder.episodeCount === next.folder.episodeCount &&
     prev.folder.providerId === next.folder.providerId &&
+    prev.folder.hasProviderMetadata === next.folder.hasProviderMetadata &&
+    prev.activeProvider === next.activeProvider &&
+    prev.disabledReasonId === next.disabledReasonId &&
     prev.onRelink === next.onRelink,
 );
 
@@ -95,6 +113,7 @@ export function ScannerView({ isActive = true }: { isActive?: boolean }) {
   const [selectedDirFilter, setSelectedDirFilter] = useState<string>('all');
 
   const globalSettings = useAtomValue(settingsAtom);
+  const activeProvider = useAtomValue(activeProviderAtom);
   const dirs: string[] = useMemo(() => {
     const outputDirs = globalSettings?.outputDirs;
     const configuredDirs = Array.isArray(outputDirs)
@@ -109,6 +128,12 @@ export function ScannerView({ isActive = true }: { isActive?: boolean }) {
     if (selectedDirFilter === 'all') return folders;
     return folders.filter((f: any) => f.sourceDir === selectedDirFilter);
   }, [folders, selectedDirFilter]);
+  const hasBlockedLinks = useMemo(
+    () => filteredFolders.some((folder) => resolveScannerRelinkProvider(folder, activeProvider) === null),
+    [filteredFolders, activeProvider],
+  );
+  const blockedProviderLabel = activeProvider === 'jkanime' ? 'AnimeAV1' : 'JkAnime';
+  const disabledReasonId = useId();
   const libActions = useLibraryActions();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const { setView } = useAppNavigation();
@@ -133,18 +158,21 @@ export function ScannerView({ isActive = true }: { isActive?: boolean }) {
     return last.length > 20 ? last.slice(0, 17) + '...' : last;
   };
 
-  const [relinkFolder, setRelinkFolder] = useState<{ path: string; name: string; providerId?: string | null } | null>(
-    null,
-  );
+  const [relinkFolder, setRelinkFolder] = useState<{ path: string; name: string; providerId: string } | null>(null);
   const [relinkQuery, setRelinkQuery] = useState('');
   const [submittedSearch, setSubmittedSearch] = useState('');
   const [relinkResults, setRelinkResults] = useState<any[]>([]);
   const isActiveRef = useRef(isActive);
+  const relinkAllowed = relinkFolder !== null && relinkFolder.providerId === activeProvider;
 
   // La búsqueda de vínculo va contra el proveedor de la carpeta, no el activo.
-  const { data: searchData, isFetching: isSearching } = useSearchAnime(
+  const {
+    data: searchData,
+    isFetching: isSearching,
+    isError: isSearchError,
+  } = useSearchAnime(
     submittedSearch,
-    Boolean(relinkFolder && submittedSearch.trim().length >= 3),
+    isActive && relinkAllowed && submittedSearch.trim().length >= 3,
     relinkFolder?.providerId ?? null,
   );
 
@@ -153,13 +181,13 @@ export function ScannerView({ isActive = true }: { isActive?: boolean }) {
   }, [isActive]);
 
   useEffect(() => {
-    if (isActive === false) {
+    if (!isActive || !relinkAllowed) {
       setRelinkFolder(null);
       setRelinkQuery('');
       setSubmittedSearch('');
       setRelinkResults([]);
     }
-  }, [isActive]);
+  }, [isActive, relinkAllowed]);
 
   const lastToastedQueryRef = useRef<string | null>(null);
 
@@ -170,16 +198,15 @@ export function ScannerView({ isActive = true }: { isActive?: boolean }) {
   }, [relinkFolder]);
 
   useEffect(() => {
-    if (searchData) {
-      setRelinkResults(searchData);
-      if (searchData.length === 0 && submittedSearch && lastToastedQueryRef.current !== submittedSearch) {
-        lastToastedQueryRef.current = submittedSearch;
-        toast.error('No se encontraron resultados para: ' + submittedSearch);
-      } else if (searchData.length > 0) {
-        lastToastedQueryRef.current = null;
-      }
+    if (!relinkAllowed || !searchData) return;
+    setRelinkResults(searchData);
+    if (searchData.length === 0 && submittedSearch && lastToastedQueryRef.current !== submittedSearch) {
+      lastToastedQueryRef.current = submittedSearch;
+      toast.error('No se encontraron resultados para: ' + submittedSearch);
+    } else if (searchData.length > 0) {
+      lastToastedQueryRef.current = null;
     }
-  }, [searchData, submittedSearch]);
+  }, [searchData, submittedSearch, relinkAllowed]);
 
   useEffect(() => {
     const handleClose = (e: Event) => {
@@ -192,49 +219,67 @@ export function ScannerView({ isActive = true }: { isActive?: boolean }) {
     return () => window.removeEventListener('close-modals', handleClose);
   }, [relinkFolder]);
 
-  const openRelinkModal = useCallback((folderPath: string, folderName: string, providerId?: string | null) => {
-    setRelinkFolder({ path: folderPath, name: folderName, providerId: providerId ?? null });
-    const cleanName = folderName
-      .replace(/\[.*?\]|\(.*?\)/g, '')
-      .replace(/[_-]/g, ' ')
-      .trim();
-    setRelinkQuery(cleanName);
-    setSubmittedSearch('');
-    setRelinkResults([]);
-  }, []);
-
-  const executeSearch = () => {
-    const query = relinkQuery.trim();
-    if (query.length < 3) {
+  const openRelinkModal = useAtomCallback(
+    useCallback((get, _set, folder: LibraryFolder) => {
+      if (!isActiveRef.current) return;
+      const providerId = resolveScannerRelinkProvider(folder, get(activeProviderAtom));
+      if (!providerId) return;
+      setRelinkFolder({ path: folder.path, name: folder.name, providerId });
+      const cleanName = folder.name
+        .replace(/\[.*?\]|\(.*?\)/g, '')
+        .replace(/[_-]/g, ' ')
+        .trim();
+      setRelinkQuery(cleanName);
+      setSubmittedSearch('');
       setRelinkResults([]);
-      toast.error('Escribe al menos 3 caracteres para buscar');
-      return;
-    }
+    }, []),
+  );
 
-    if (query === submittedSearch) {
-      if (searchData) setRelinkResults(searchData);
-      return;
-    }
+  const executeSearch = useAtomCallback(
+    useCallback(
+      (get) => {
+        if (!isActiveRef.current || !relinkFolder || relinkFolder.providerId !== get(activeProviderAtom)) return;
+        const query = relinkQuery.trim();
+        if (query.length < 3) {
+          setRelinkResults([]);
+          toast.error('Escribe al menos 3 caracteres para buscar');
+          return;
+        }
 
-    setRelinkResults([]);
-    setSubmittedSearch(query);
-  };
+        if (query === submittedSearch) {
+          if (searchData) setRelinkResults(searchData);
+          return;
+        }
 
-  const confirmRelink = async (slug: string) => {
-    if (!relinkFolder) return;
-    libActions.relinkFolder.mutate(
-      { folderPath: relinkFolder.path, slug, providerId: relinkFolder.providerId ?? null },
-      {
-        onSuccess: () => {
-          toast.success('Carpeta vinculada exitosamente');
-          setRelinkFolder(null);
-        },
-        onError: (error) => {
-          if (!isIpcFailError(error)) toast.error('Error al vincular la carpeta');
-        },
+        setRelinkResults([]);
+        setSubmittedSearch(query);
       },
-    );
-  };
+      [relinkFolder, relinkQuery, submittedSearch, searchData],
+    ),
+  );
+
+  const confirmRelink = useAtomCallback(
+    useCallback(
+      (get, _set, slug: string) => {
+        if (!isActiveRef.current || !relinkFolder || libActions.relinkFolder.isPending) return;
+        const providerId = resolveScannerRelinkProvider(relinkFolder, get(activeProviderAtom));
+        if (providerId !== relinkFolder.providerId) return;
+        libActions.relinkFolder.mutate(
+          { folderPath: relinkFolder.path, slug, providerId },
+          {
+            onSuccess: () => {
+              toast.success('Carpeta vinculada exitosamente');
+              setRelinkFolder((current) => (current === relinkFolder ? null : current));
+            },
+            onError: (error) => {
+              if (!isIpcFailError(error)) toast.error('Error al vincular la carpeta');
+            },
+          },
+        );
+      },
+      [relinkFolder, libActions.relinkFolder],
+    ),
+  );
 
   return (
     <div className="flex flex-col h-full bg-background">
@@ -285,6 +330,20 @@ export function ScannerView({ isActive = true }: { isActive?: boolean }) {
       )}
 
       <div className="flex-1 overflow-y-auto p-4 sm:p-6 [scrollbar-gutter:stable]">
+        {(isLoading || (!isError && filteredFolders.length > 0)) && (
+          <div className="mb-3 min-h-10 sm:min-h-6">
+            {!isLoading && hasBlockedLinks && (
+              <p
+                id={disabledReasonId}
+                role="note"
+                className="flex items-start gap-2 text-[13px] leading-5 text-muted-foreground"
+              >
+                <LockKeyhole className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                <span>Para modificar vínculos de {blockedProviderLabel}, cambia a ese proveedor.</span>
+              </p>
+            )}
+          </div>
+        )}
         {isLoading ? (
           <PosterGridSkeleton
             count={12}
@@ -315,23 +374,34 @@ export function ScannerView({ isActive = true }: { isActive?: boolean }) {
         ) : (
           <PosterGrid className="w-full">
             {filteredFolders.map((folder, idx) => (
-              <ScannerPosterItem key={folder.path || idx} folder={folder} onRelink={openRelinkModal} />
+              <ScannerPosterItem
+                key={folder.path || idx}
+                folder={folder}
+                activeProvider={activeProvider}
+                disabledReasonId={disabledReasonId}
+                onRelink={openRelinkModal}
+              />
             ))}
           </PosterGrid>
         )}
       </div>
 
       <Dialog
-        open={isActive && relinkFolder !== null}
+        open={isActive && relinkAllowed}
         onOpenChange={(open) => {
           if (!open) setRelinkFolder(null);
         }}
-        title="Vincular Directorio"
-        message={relinkFolder?.name ?? ''}
+        title="Vincular directorio"
+        message={
+          relinkFolder
+            ? `${relinkFolder.name}${relinkFolder.providerId ? ` · ${relinkFolder.providerId === 'jkanime' ? 'JkAnime' : 'AnimeAV1'}` : ''}`
+            : ''
+        }
+        icon={<Link2 className="h-5 w-5 text-primary" aria-hidden="true" />}
         showFooter={false}
         className="max-w-2xl"
       >
-        <div className="flex gap-3 mb-6 -mt-1">
+        <div className="flex gap-3 mb-4 -mt-1">
           <div className="relative flex-1 group">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
             <input
@@ -341,7 +411,7 @@ export function ScannerView({ isActive = true }: { isActive?: boolean }) {
               value={relinkQuery}
               onChange={(e) => setRelinkQuery(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && executeSearch()}
-              className="search-input w-full bg-background border border-border rounded-lg py-2.5 pl-9 pr-4 text-sm focus:outline-none transition-[border-color,box-shadow] hover:border-border-strong"
+              className="search-input h-10 w-full rounded-lg border border-border bg-surface py-0 pl-9 pr-4 text-sm focus:outline-none transition-[border-color,box-shadow] hover:border-border-strong"
             />
           </div>
           <button
@@ -349,14 +419,14 @@ export function ScannerView({ isActive = true }: { isActive?: boolean }) {
             onClick={executeSearch}
             disabled={isSearching}
             aria-busy={isSearching}
-            className="px-6 py-2.5 bg-primary text-primary-foreground hover:bg-[color-mix(in_srgb,var(--color-primary)_88%,black)] disabled:opacity-50 rounded-lg font-bold text-sm transition-colors flex items-center gap-2"
+            className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-bold text-primary-foreground transition-colors hover:bg-[color-mix(in_srgb,var(--color-primary)_88%,black)] disabled:opacity-50"
           >
             {isSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
             Buscar
           </button>
         </div>
 
-        <div className="overflow-y-auto max-h-[40vh] custom-scrollbar border border-border/30 rounded-lg bg-background/50 p-2">
+        <div className="max-h-[48vh] overflow-y-auto custom-scrollbar px-1">
           {isSearching ? (
             <div
               className="flex flex-col items-center justify-center py-12 text-muted-foreground"
@@ -368,43 +438,62 @@ export function ScannerView({ isActive = true }: { isActive?: boolean }) {
             </div>
           ) : relinkResults.length > 0 ? (
             <div className="grid grid-cols-1 gap-2">
-              {relinkResults.map((item, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  aria-label={`Vincular ${item.title}`}
-                  className="group flex w-full items-center gap-4 rounded-lg border border-transparent p-3 text-left transition-colors hover:border-border/50 hover:bg-secondary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
-                  onClick={() => confirmRelink(item.slug)}
-                >
-                  <PosterImage
-                    src={item.poster}
-                    alt={item.title}
-                    className="h-14 w-10 rounded bg-secondary object-cover shadow-sm"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <AppTooltip content={item.title} align="start" sideOffset={2}>
-                      <h4 className="font-bold text-sm text-foreground truncate w-fit max-w-full group-hover:text-primary transition-colors">
-                        {item.title}
-                      </h4>
-                    </AppTooltip>
-                    <div className="text-xs text-muted-foreground mt-1 flex items-center gap-2">
-                      <span className="uppercase font-bold">{item.category || 'ANIME'}</span>
-                      <span aria-hidden="true" className="text-border-strong">
-                        |
+              {relinkResults.map((item, idx) => {
+                const category = item.category?.toLowerCase() === 'anime' ? null : item.category;
+                const detail = item.year || item.status;
+                const visibleDetail = detail && detail !== 'Desconocido' ? detail : null;
+
+                return (
+                  <button
+                    key={idx}
+                    type="button"
+                    aria-label={`Vincular ${item.title}`}
+                    disabled={libActions.relinkFolder.isPending || !relinkAllowed}
+                    className="group flex w-full items-center gap-4 rounded-lg p-3 text-left transition-colors hover:bg-secondary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-50"
+                    onClick={() => confirmRelink(item.slug)}
+                  >
+                    <PosterImage
+                      src={item.poster}
+                      alt={item.title}
+                      className="h-24 w-16 shrink-0 rounded-lg bg-secondary object-cover sm:h-30 sm:w-20"
+                    />
+                    <div className="flex min-w-0 flex-1 flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                      <div className="min-w-0 flex-1">
+                        <AppTooltip content={item.title} align="start" sideOffset={2}>
+                          <h4 className="line-clamp-2 break-words text-base font-semibold leading-snug text-foreground transition-colors group-hover:text-primary">
+                            {item.title}
+                          </h4>
+                        </AppTooltip>
+                        {(category || visibleDetail) && (
+                          <div className="mt-2 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-muted-foreground">
+                            {category && <span className="shrink-0 font-bold uppercase">{category}</span>}
+                            {category && visibleDetail && (
+                              <span aria-hidden="true" className="shrink-0 text-border-strong">
+                                |
+                              </span>
+                            )}
+                            {visibleDetail && <span className="break-words">{visibleDetail}</span>}
+                          </div>
+                        )}
+                      </div>
+                      <span className="shrink-0 text-sm font-semibold text-primary transition-colors group-hover:text-foreground group-focus-visible:text-foreground">
+                        Vincular
                       </span>
-                      <span>{item.year || item.status || 'Desconocido'}</span>
                     </div>
-                  </div>
-                  <div className="px-4 text-xs font-bold text-primary opacity-0 group-hover:opacity-100 transition-opacity">
-                    VINCULAR
-                  </div>
-                </button>
-              ))}
+                  </button>
+                );
+              })}
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-              <Link className="w-10 h-10 mb-4 opacity-20" />
-              <p className="text-sm">Realiza una búsqueda para encontrar el anime correcto.</p>
+            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground" role="status">
+              <Link className="w-10 h-10 mb-4 opacity-20" aria-hidden="true" />
+              <p className="text-sm text-center">
+                {isSearchError
+                  ? 'No se pudo completar la búsqueda. Inténtalo de nuevo.'
+                  : submittedSearch
+                    ? `No se encontraron resultados para «${submittedSearch}». Prueba con otro nombre.`
+                    : 'Realiza una búsqueda para encontrar el anime correcto.'}
+              </p>
             </div>
           )}
         </div>
