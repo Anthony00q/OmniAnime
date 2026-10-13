@@ -1,10 +1,11 @@
-import { memo, useRef, useCallback } from 'react';
+import { memo, useCallback } from 'react';
 import { Palette, Eye, Check, AlertCircle, Copy, LayoutGrid, List } from 'lucide-react';
 import { THEME_META, THEME_IDS, ACCENT_PRESETS, THEME_SUGGESTED_ACCENT } from '@/renderer/views/settings/constants';
 import type { ThemeId } from '@/types/settings';
 import { isActiveTheme } from '@/renderer/views/settings/utils/settingsHelpers';
 import { AppTooltip } from '@/renderer/components/ui/AppTooltip';
 import { useEpisodeView, type EpisodeView } from '@/renderer/utils/episodeView';
+import { AccentColorPicker } from '@/renderer/views/settings/components/AccentColorPicker';
 
 // Controlada por SettingsView: el cambio se estadía hasta Guardar (desde
 // Detalles aplica al instante). El valor en vivo sincroniza sola al guardar
@@ -125,19 +126,7 @@ export const AppearanceTab = memo(
     epViewPending,
     onEpViewChange,
   }: AppearanceTabProps) {
-    const colorInputRef = useRef<HTMLInputElement>(null);
     const normalizedAccentLower = accentHex.toLowerCase();
-
-    const handleSwatchClick = useCallback(() => {
-      colorInputRef.current?.click();
-    }, []);
-
-    const handleSwatchKeyDown = useCallback((e: React.KeyboardEvent) => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        colorInputRef.current?.click();
-      }
-    }, []);
 
     const copyAccent = useCallback(async () => {
       try {
@@ -272,33 +261,7 @@ export const AppearanceTab = memo(
                     Color de acento
                   </label>
                   <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={handleSwatchClick}
-                      onKeyDown={handleSwatchKeyDown}
-                      aria-label={`Selector de color de acento, actual ${accentHex}. Pulsa Enter para abrir`}
-                      aria-haspopup="dialog"
-                      className="relative w-11 h-11 rounded-xl shrink-0 border border-border bg-secondary p-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-card transition-[transform,border-color,box-shadow] duration-150 active:scale-[0.97] hover:border-border-strong hover:shadow-sm group"
-                    >
-                      <span
-                        className="block w-full h-full rounded-lg border border-black/10 shadow-inner transition-[background-color] duration-200 ease-out"
-                        style={{ background: accentHex }}
-                        aria-hidden="true"
-                      />
-                      <span
-                        className="absolute inset-0 rounded-xl ring-1 ring-black/5 pointer-events-none"
-                        aria-hidden="true"
-                      />
-                    </button>
-                    <input
-                      ref={colorInputRef}
-                      type="color"
-                      value={accentHex}
-                      onChange={(e) => onAccentPreset(e.target.value)}
-                      tabIndex={-1}
-                      aria-hidden="true"
-                      className="sr-only"
-                    />
+                    <AccentColorPicker accentHex={accentHex} onChange={onAccentPreset} />
                     <div className="flex-1 relative">
                       <input
                         id="accent-color-text"
