@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, Loader2, Search } from 'lucide-react';
+import { Link, Link2, Loader2, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { Dialog } from '@/renderer/components/Dialog';
 import { PosterImage } from '@/renderer/components/anime/PosterImage';
@@ -79,6 +79,7 @@ export function AniListLinkDialog({
       }}
       title="Vincular con AniList"
       message={defaultQuery}
+      icon={<Link2 className="h-5 w-5 text-primary" aria-hidden="true" />}
       showFooter={false}
       className="max-w-2xl"
     >
@@ -92,7 +93,7 @@ export function AniListLinkDialog({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && executeSearch()}
-            className="search-input w-full bg-background border border-border rounded-lg py-2.5 pl-9 pr-4 text-sm focus:outline-none transition-[border-color,box-shadow] hover:border-border-strong"
+            className="search-input h-10 w-full rounded-lg border border-border bg-surface py-0 pl-9 pr-4 text-sm focus:outline-none transition-[border-color,box-shadow] hover:border-border-strong"
           />
         </div>
         <button
@@ -100,7 +101,7 @@ export function AniListLinkDialog({
           onClick={executeSearch}
           disabled={isFetching}
           aria-busy={isFetching}
-          className="px-6 py-2.5 bg-primary text-primary-foreground hover:bg-[color-mix(in_srgb,var(--color-primary)_88%,black)] disabled:opacity-50 rounded-lg font-bold text-sm transition-colors flex items-center gap-2"
+          className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-bold text-primary-foreground transition-colors hover:bg-[color-mix(in_srgb,var(--color-primary)_88%,black)] disabled:opacity-50"
         >
           {isFetching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
           Buscar
@@ -124,7 +125,7 @@ export function AniListLinkDialog({
         </div>
       )}
 
-      <div className="overflow-y-auto max-h-[40vh] custom-scrollbar border border-border/30 rounded-lg bg-background/50 p-2">
+      <div className="max-h-[48vh] overflow-y-auto custom-scrollbar px-1">
         {isFetching ? (
           <div
             className="flex flex-col items-center justify-center py-12 text-muted-foreground"
@@ -142,36 +143,39 @@ export function AniListLinkDialog({
                 type="button"
                 aria-label={`Vincular ${item.romaji || item.english || 'entrada sin título'}`}
                 disabled={setLink.isPending}
-                className="group flex w-full items-center gap-4 rounded-lg border border-transparent p-3 text-left transition-colors hover:border-border/50 hover:bg-secondary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-50"
+                className="group flex w-full items-center gap-4 rounded-lg p-3 text-left transition-colors hover:bg-secondary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-50"
                 onClick={() => handleSelect(item.id)}
               >
                 <PosterImage
                   src={item.cover}
                   alt={item.romaji || item.english || 'Entrada de AniList'}
-                  className="h-14 w-10 rounded bg-secondary object-cover shadow-sm"
+                  className="h-24 w-16 shrink-0 rounded-lg bg-secondary object-cover sm:h-30 sm:w-20"
                 />
-                <div className="flex-1 min-w-0">
-                  <h4 className="font-bold text-sm text-foreground truncate w-fit max-w-full group-hover:text-primary transition-colors">
-                    {item.romaji || item.english || 'Sin título'}
-                  </h4>
-                  <div className="text-xs text-muted-foreground mt-1 flex items-center gap-2">
-                    <span className="uppercase font-bold">{item.format || 'TV'}</span>
-                    <span aria-hidden="true" className="text-border-strong">
-                      |
-                    </span>
-                    <span className="tabular-nums">{item.startYear || 'Desconocido'}</span>
+                <div className="flex min-w-0 flex-1 flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                  <div className="min-w-0 flex-1">
+                    <h4 className="line-clamp-2 break-words text-base font-semibold leading-snug text-foreground transition-colors group-hover:text-primary">
+                      {item.romaji || item.english || 'Sin título'}
+                    </h4>
+                    <div className="mt-2 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-muted-foreground">
+                      <span className="shrink-0 font-bold uppercase">{item.format || 'TV'}</span>
+                      {item.startYear && (
+                        <>
+                          <span aria-hidden="true" className="shrink-0 text-border-strong">
+                            |
+                          </span>
+                          <span className="shrink-0 tabular-nums">{item.startYear}</span>
+                        </>
+                      )}
+                    </div>
                     {item.english && item.romaji && (
-                      <>
-                        <span aria-hidden="true" className="text-border-strong">
-                          |
-                        </span>
-                        <span className="truncate">{item.english}</span>
-                      </>
+                      <p className="mt-1 line-clamp-2 break-words text-[13px] leading-snug text-muted-foreground">
+                        {item.english}
+                      </p>
                     )}
                   </div>
-                </div>
-                <div className="px-4 text-xs font-bold text-primary opacity-0 group-hover:opacity-100 transition-opacity">
-                  VINCULAR
+                  <span className="shrink-0 text-sm font-semibold text-primary transition-colors group-hover:text-foreground group-focus-visible:text-foreground">
+                    Vincular
+                  </span>
                 </div>
               </button>
             ))}
@@ -179,10 +183,12 @@ export function AniListLinkDialog({
         ) : (
           <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
             <Link className="w-10 h-10 mb-4 opacity-20" aria-hidden="true" />
-            <p className="text-sm">
-              {hasSearched
-                ? `No hay entradas de AniList para «${submitted.trim()}». Prueba con otro nombre.`
-                : 'Realiza una búsqueda para encontrar la entrada de AniList correcta.'}
+            <p className="text-sm text-center">
+              {isError
+                ? 'No se pudo completar la búsqueda. Inténtalo de nuevo.'
+                : hasSearched
+                  ? `No hay entradas de AniList para «${submitted.trim()}». Prueba con otro nombre.`
+                  : 'Realiza una búsqueda para encontrar la entrada de AniList correcta.'}
             </p>
           </div>
         )}
