@@ -860,7 +860,7 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
               </div>
             </section>
 
-            <section ref={episodesRef}>
+            <section ref={episodesRef} className="@container/episodes">
               <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
                 <h3 className="flex shrink-0 items-center gap-2 text-xl font-bold text-foreground">
                   <Clock className="h-5 w-5 text-primary" /> Episodios
@@ -922,68 +922,66 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
                 </div>
               </div>
 
-              <div className="mb-4 flex min-w-0 flex-wrap items-center gap-1">
-                <button
-                  type="button"
-                  onClick={selectAll}
-                  className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 cursor-pointer"
-                >
-                  <CheckSquare className="w-3.5 h-3.5" /> Todos
-                </button>
-                <button
-                  type="button"
-                  onClick={selectNone}
-                  className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 cursor-pointer"
-                >
-                  <Square className="w-3.5 h-3.5" /> Ninguno
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowRangeModal(true)}
-                  className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 cursor-pointer"
-                >
-                  <List className="w-3.5 h-3.5" /> Rango...
-                </button>
-
-                {supportsDub && (
-                  <div
-                    role="group"
-                    aria-label="Idioma de descarga"
-                    className="ml-0 flex items-center rounded-full border border-border/60 bg-secondary/50 p-0.5 sm:ml-2"
+              <div
+                data-episode-selection-toolbar
+                className="mb-4 grid min-w-0 grid-cols-1 items-center gap-x-4 gap-y-2 @[720px]/episodes:grid-cols-[minmax(0,1fr)_auto]"
+              >
+                <div className="flex min-w-0 flex-wrap items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={selectAll}
+                    className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 cursor-pointer"
                   >
-                    {(['SUB', 'DUB'] as const).map((lang) => (
-                      <button
-                        key={lang}
-                        type="button"
-                        onClick={() => changeLanguage(lang)}
-                        aria-label={lang === 'SUB' ? 'Descargar subtitulado' : 'Descargar doblado'}
-                        aria-pressed={selectedLang === lang}
-                        className={`relative rounded-full px-3 py-1 text-[11px] font-semibold transition-colors before:absolute before:inset-x-0 before:-inset-y-2 before:content-[''] ${selectedLang === lang ? 'bg-surface-elevated text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-                      >
-                        {lang}
-                      </button>
-                    ))}
-                  </div>
-                )}
+                    <CheckSquare className="w-3.5 h-3.5" /> Todos
+                  </button>
+                  <button
+                    type="button"
+                    onClick={selectNone}
+                    className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 cursor-pointer"
+                  >
+                    <Square className="w-3.5 h-3.5" /> Ninguno
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowRangeModal(true)}
+                    className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 cursor-pointer"
+                  >
+                    <List className="w-3.5 h-3.5" /> Rango...
+                  </button>
 
-                <div className="flex w-full min-w-0 flex-wrap items-center justify-between gap-2 sm:ml-auto sm:w-auto sm:flex-nowrap sm:justify-end sm:gap-3">
-                  <span className="shrink-0 whitespace-nowrap text-xs font-medium text-muted-foreground">
+                  {supportsDub && (
+                    <div
+                      role="group"
+                      aria-label="Idioma de descarga"
+                      className="ml-0 flex items-center rounded-full border border-border/60 bg-secondary/50 p-0.5 sm:ml-2"
+                    >
+                      {(['SUB', 'DUB'] as const).map((lang) => (
+                        <button
+                          key={lang}
+                          type="button"
+                          onClick={() => changeLanguage(lang)}
+                          aria-label={lang === 'SUB' ? 'Descargar subtitulado' : 'Descargar doblado'}
+                          aria-pressed={selectedLang === lang}
+                          className={`relative rounded-full px-3 py-1 text-[11px] font-semibold transition-colors before:absolute before:inset-x-0 before:-inset-y-2 before:content-[''] ${selectedLang === lang ? 'bg-surface-elevated text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                        >
+                          {lang}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className="flex min-w-0 flex-wrap items-center justify-end gap-3 @[720px]/episodes:flex-nowrap">
+                  <span className="w-[20ch] shrink-0 whitespace-nowrap text-right text-xs font-medium tabular-nums text-muted-foreground">
                     {selected.size} seleccionado(s)
                   </span>
                   <button
                     type="button"
                     onClick={handleDownloadSelected}
                     disabled={selected.size === 0 || addToQueue.isPending}
-                    className="flex flex-1 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-[0_8px_24px_rgba(0,0,0,0.35)] transition-colors hover:bg-[color-mix(in_srgb,var(--color-primary)_88%,black)] disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none sm:flex-none sm:px-4"
+                    className="flex w-40 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold tabular-nums text-primary-foreground shadow-[0_8px_24px_rgba(0,0,0,0.35)] transition-colors hover:bg-[color-mix(in_srgb,var(--color-primary)_88%,black)] disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
                   >
                     <Download className="w-3.5 h-3.5" />
-                    {selected.size === 0
-                      ? 'Sin selección'
-                      : selectedLang !== 'DUB' &&
-                          visibleSelectable.length > 0 &&
-                          selected.size === visibleSelectable.length
-                        ? `Descargar Todo (${selected.size})`
-                        : `Descargar (${selected.size})`}
+                    Descargar ({selected.size})
                   </button>
                 </div>
               </div>
