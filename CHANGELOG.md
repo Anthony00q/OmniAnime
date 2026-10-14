@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.2.1] - 2026-10-13
+
+### Ajustes
+
+- El color de acento incorpora un selector con cuentagotas.
+- Las vistas previas de renombrado de la librería muestran pósters y comparaciones de los nombres.
+
+### Librería
+
+- El escáner protege los vínculos de las carpetas según el proveedor activo.
+
+### Interfaz
+
+- Los resultados de vinculación con AniList presentan una lectura más clara y mejoras de foco y color.
+- El botón de actualización del menú lateral presenta ajustes visuales.
+
 ## [1.2.0] - 2026-10-08
 
 ### Interfaz
