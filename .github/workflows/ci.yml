@@ -1,6 +1,6 @@
 name: CI (validación)
 
-run-name: "CI ${{ github.ref_name }}"
+run-name: 'CI ${{ github.ref_name }}'
 
 on:
   push:
@@ -30,23 +30,36 @@ jobs:
           node-version: '22'
           cache: npm
 
+      - name: Instalar npm declarado en package.json
+        shell: pwsh
+        run: |
+          $packageManager = node -p "require('./package.json').packageManager"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm install --global $packageManager
+
       - name: Instalar dependencias (npm ci)
         run: npm ci
 
-      - name: Tipos del renderer
+      - name: Comprobar preloads versionados antes de regenerarlos
+        run: node scripts/generate-preload.mjs --check
+
+      - name: Formato (Prettier)
+        run: npm run format:check
+
+      - name: Formato del workflow
+        run: npx --no-install prettier --check .github/workflows/ci.yml
+
+      - name: Compilar renderer (Vite)
+        run: npm run build:vite
+
+      - name: Tipos del renderer con rutas generadas
         run: npm run typecheck:renderer
 
       - name: Compilar main (tsc)
         run: npm run build:main
 
-      - name: Preloads generados al día
-        run: node scripts/generate-preload.mjs --check
+      - name: Comprobar preloads compilados
+        run: node scripts/generate-preload.mjs --check --dist
 
       - name: Lint (ESLint)
         run: npm run lint
-
-      - name: Formato (Prettier)
-        run: npm run format:check
-
-      - name: Compilar renderer (Vite)
-        run: npm run build:vite
