@@ -82,6 +82,14 @@ export function AniListLinkDialog({
       icon={<Link2 className="h-5 w-5 text-primary" aria-hidden="true" />}
       showFooter={false}
       className="max-w-2xl"
+      onOpenAutoFocus={(event) => {
+        event.preventDefault();
+        const input = (event.currentTarget as HTMLElement).querySelector('input');
+        if (input) {
+          input.focus({ preventScroll: true });
+          input.setSelectionRange(input.value.length, input.value.length);
+        }
+      }}
     >
       <div className="flex gap-3 mb-4 -mt-1">
         <div className="relative flex-1 group">
@@ -153,7 +161,7 @@ export function AniListLinkDialog({
                 />
                 <div className="flex min-w-0 flex-1 flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
                   <div className="min-w-0 flex-1">
-                    <h4 className="line-clamp-2 break-words text-base font-semibold leading-snug text-foreground transition-colors group-hover:text-primary">
+                    <h4 className="line-clamp-2 break-words text-base font-semibold leading-snug text-foreground">
                       {item.romaji || item.english || 'Sin título'}
                     </h4>
                     <div className="mt-2 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-muted-foreground">
@@ -173,9 +181,7 @@ export function AniListLinkDialog({
                       </p>
                     )}
                   </div>
-                  <span className="shrink-0 text-sm font-semibold text-primary transition-colors group-hover:text-foreground group-focus-visible:text-foreground">
-                    Vincular
-                  </span>
+                  <span className="shrink-0 text-sm font-semibold text-primary">Vincular</span>
                 </div>
               </button>
             ))}

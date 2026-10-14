@@ -20,6 +20,7 @@ interface DialogProps {
   icon?: React.ReactNode;
   hideDefaultIcon?: boolean;
   headerAlign?: 'start' | 'center';
+  onOpenAutoFocus?: React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>['onOpenAutoFocus'];
   onPointerDownOutside?: React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>['onPointerDownOutside'];
   onEscapeKeyDown?: React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>['onEscapeKeyDown'];
 }
@@ -42,6 +43,7 @@ export function Dialog({
   icon,
   hideDefaultIcon = false,
   headerAlign = 'start',
+  onOpenAutoFocus,
   onPointerDownOutside,
   onEscapeKeyDown,
 }: DialogProps) {
@@ -52,6 +54,7 @@ export function Dialog({
         <DialogPrimitive.Content
           className={`fixed left-1/2 top-1/2 z-[9999] max-h-[calc(100vh-2rem)] w-[calc(100vw-2rem)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl border border-border/70 bg-popover shadow-2xl animate-in zoom-in-95 duration-200 select-none ${className || 'max-w-sm'}`}
           onPointerDownOutside={onPointerDownOutside}
+          onOpenAutoFocus={onOpenAutoFocus}
           onEscapeKeyDown={onEscapeKeyDown}
         >
           <div className="p-6 disable-shortcuts">
