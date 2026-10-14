@@ -3,7 +3,7 @@ import { memo } from 'react';
 import { StatusBadge, type StatusVariant } from '@/renderer/components/ui/StatusBadge';
 import { MOTION_DURATION, useEmphasis } from '@/renderer/utils/motion';
 
-export type QueueBadgeKind = 'done' | 'failed' | 'cancelled' | 'paused' | 'downloading' | 'queued';
+export type QueueBadgeKind = 'done' | 'failed' | 'cancelled' | 'paused' | 'downloading' | 'preparing' | 'queued';
 
 const BADGES: Record<QueueBadgeKind, { variant: StatusVariant; label: string; Icon: LucideIcon }> = {
   done: { variant: 'success', label: 'Finalizado', Icon: CheckCircle2 },
@@ -11,7 +11,8 @@ const BADGES: Record<QueueBadgeKind, { variant: StatusVariant; label: string; Ic
   cancelled: { variant: 'cancelled', label: 'Cancelado', Icon: Ban },
   paused: { variant: 'neutral', label: 'Pausada', Icon: PauseCircle },
   downloading: { variant: 'info', label: 'Descargando', Icon: PlayCircle },
-  queued: { variant: 'neutral', label: 'En Cola', Icon: Clock },
+  preparing: { variant: 'neutral', label: 'Preparando archivo', Icon: Clock },
+  queued: { variant: 'neutral', label: 'En cola', Icon: Clock },
 };
 
 export const QueueStatusBadge = memo(function QueueStatusBadge({ kind }: { kind: QueueBadgeKind }) {

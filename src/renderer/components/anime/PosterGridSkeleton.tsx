@@ -48,27 +48,38 @@ export function EpisodeListSkeleton({ count = 6 }: { count?: number }) {
 export function QueueSkeleton({ count = 3 }: { count?: number }) {
   return (
     <div
-      className="mx-auto w-full max-w-4xl space-y-2.5 xl:max-w-6xl 2xl:max-w-7xl"
+      className="mx-auto w-full max-w-[1600px] space-y-3"
       role="status"
       aria-label="Cargando descargas"
       aria-busy="true"
     >
       {Array.from({ length: count }).map((_, idx) => (
-        <div
-          key={idx}
-          className="overflow-hidden rounded-xl border border-border/50 bg-card shadow-sm"
-          aria-hidden="true"
-        >
-          <div className="flex min-w-0 flex-row">
-            <div className="w-16 shrink-0 self-stretch animate-pulse bg-secondary/40 sm:w-[72px] min-h-[108px]" />
-            <div className="min-w-0 flex-1 p-3">
-              <div className="mb-2 h-4 w-2/3 animate-pulse rounded bg-secondary/60" />
-              <div className="mb-2 flex gap-1.5">
-                <div className="h-5 w-16 animate-pulse rounded-full bg-secondary/50" />
-                <div className="h-5 w-20 animate-pulse rounded-md bg-secondary/50" />
+        <div key={idx} className="overflow-hidden rounded-xl border border-border/50 bg-card" aria-hidden="true">
+          <div className="flex min-w-0 items-start gap-3 px-3 pt-3 pb-2 sm:gap-4 sm:px-4 sm:pt-4">
+            <div className="aspect-[2/3] w-16 shrink-0 animate-pulse rounded-lg bg-secondary/40 sm:w-[72px]" />
+            <div className="min-w-0 flex-1">
+              <div className="mb-3 flex flex-wrap justify-between gap-3">
+                <div className="min-w-0 flex-[1_1_220px] space-y-2">
+                  <div className="h-5 w-2/3 animate-pulse rounded bg-secondary/60" />
+                  <div className="h-4 w-3/4 animate-pulse rounded bg-secondary/30" />
+                </div>
+                <div className="flex gap-0.5">
+                  {Array.from({ length: 3 }).map((_, action) => (
+                    <div key={action} className="h-11 w-11 animate-pulse rounded-lg bg-secondary/30" />
+                  ))}
+                </div>
               </div>
-              <div className="h-1.5 w-full animate-pulse rounded-full bg-secondary/50" />
-              <div className="mt-1.5 h-3 w-1/3 animate-pulse rounded bg-secondary/30" />
+              <div className="flex h-5 items-center gap-3">
+                <div className="h-2 flex-1 animate-pulse rounded-full bg-secondary/50" />
+                <div className="h-4 w-[4ch] animate-pulse rounded bg-secondary/30" />
+              </div>
+              <div className="flex min-h-7 items-center">
+                <div className="h-4 w-2/3 animate-pulse rounded bg-secondary/30" />
+              </div>
+              <div className="flex min-h-11 items-center justify-between gap-3">
+                <div className="h-3 w-16 animate-pulse rounded bg-secondary/30" />
+                <div className="h-4 w-24 animate-pulse rounded bg-secondary/30" />
+              </div>
             </div>
           </div>
         </div>

@@ -312,6 +312,7 @@ export function DownloaderView({ onSelectAnime, activeProvider, isActive = true 
   return (
     <div className="flex h-full min-w-0 flex-col bg-background">
       <PageHeader
+        className="overflow-y-hidden [scrollbar-gutter:stable] [&>div]:mx-auto [&>div]:w-full [&>div]:max-w-[1600px]"
         title="Descargas"
         description="Gestiona tu cola de descargas activas"
         actions={
@@ -319,15 +320,15 @@ export function DownloaderView({ onSelectAnime, activeProvider, isActive = true 
             type="button"
             onClick={handleClear}
             disabled={!hasCompleted || actions.clearQueue.isPending}
-            className="flex items-center gap-2 rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-2 text-sm font-medium text-destructive-fg transition-colors hover:bg-destructive/20 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive/60"
+            className="flex min-h-11 items-center gap-2 rounded-lg border border-border/60 px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
           >
             <Trash2 className="h-4 w-4" />
-            <span>Limpiar Finalizadas</span>
+            <span>Limpiar finalizadas</span>
           </button>
         }
       />
 
-      <div className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-6 [scrollbar-gutter:stable]">
+      <div className="min-w-0 flex-1 overflow-y-auto p-4 sm:px-8 sm:py-6 [scrollbar-gutter:stable]">
         {isLoading ? (
           <QueueSkeleton count={3} />
         ) : isError ? (
@@ -345,7 +346,7 @@ export function DownloaderView({ onSelectAnime, activeProvider, isActive = true 
             onAction={() => navigateToCatalog()}
           />
         ) : (
-          <div className="mx-auto w-full max-w-4xl space-y-2.5 xl:max-w-6xl 2xl:max-w-7xl">
+          <div className="mx-auto w-full max-w-[1600px] space-y-3">
             {queue.map((item: any, idx: number) => (
               <QueueItemRow
                 key={item.id}
