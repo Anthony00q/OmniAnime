@@ -107,5 +107,6 @@ Requisitos:
   en la raíz (viaja dentro del instalador vía `extraResources`).
 - Sin firma de código, Windows mostrará aviso SmartScreen en la primera
   instalación; las actualizaciones funcionan igual.
-- El instalador es asistido (`oneClick:false`): al instalar una
-  actualización se verá el asistente, es lo esperado.
+- El instalador es de un clic (`oneClick:true`) y solo para el usuario
+  actual (`perMachine:false`), sin elegir carpeta ni solicitar elevación.
+  Las actualizaciones usan el mismo instalador, sin asistente.

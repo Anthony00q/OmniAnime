@@ -156,11 +156,10 @@
       ]
     },
     "nsis": {
-      "oneClick": false,
+      "oneClick": true,
       "perMachine": false,
       "allowElevation": false,
       "allowToChangeInstallationDirectory": false,
-      "include": "scripts/installer.nsh",
       "artifactName": "OmniAnime-Setup-${version}.${ext}",
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
