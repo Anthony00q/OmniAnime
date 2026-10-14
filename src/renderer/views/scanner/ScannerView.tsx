@@ -85,7 +85,15 @@ const ScannerPosterItem = memo(
               )}
               <span className="truncate">
                 {providerLabel}
-                {!relinkDisabled && ` · ${folder.name}`}
+                {!relinkDisabled && (
+                  <>
+                    {' '}
+                    <span aria-hidden="true" className="text-white/30">
+                      |
+                    </span>{' '}
+                    {folder.name}
+                  </>
+                )}
               </span>
             </span>
           ) : undefined
@@ -394,7 +402,7 @@ export function ScannerView({ isActive = true }: { isActive?: boolean }) {
         title="Vincular directorio"
         message={
           relinkFolder
-            ? `${relinkFolder.name}${relinkFolder.providerId ? ` · ${relinkFolder.providerId === 'jkanime' ? 'JkAnime' : 'AnimeAV1'}` : ''}`
+            ? `${relinkFolder.name}${relinkFolder.providerId ? ` | ${relinkFolder.providerId === 'jkanime' ? 'JkAnime' : 'AnimeAV1'}` : ''}`
             : ''
         }
         icon={<Link2 className="h-5 w-5 text-primary" aria-hidden="true" />}

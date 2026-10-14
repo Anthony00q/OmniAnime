@@ -181,7 +181,11 @@ export function RenameLibraryFilesDialog({ open, onOpenChange, dirs, style }: Re
             </span>
           ) : (
             <span>
-              {renamable.length} carpetas con cambios · {plan.length - renamable.length} al día
+              {renamable.length} carpetas con cambios{' '}
+              <span aria-hidden="true" className="text-border-strong">
+                |
+              </span>{' '}
+              {plan.length - renamable.length} al día
             </span>
           )}
         </div>

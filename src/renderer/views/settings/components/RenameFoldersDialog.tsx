@@ -178,7 +178,11 @@ export function RenameFoldersDialog({ open, onOpenChange, dirs, source }: Rename
             </span>
           ) : (
             <span>
-              {renamable.length} cambiarían de nombre · {unchangedCount} sin cambios
+              {renamable.length} cambiarían de nombre{' '}
+              <span aria-hidden="true" className="text-border-strong">
+                |
+              </span>{' '}
+              {unchangedCount} sin cambios
             </span>
           )}
         </div>

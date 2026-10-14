@@ -448,9 +448,12 @@ export const QueueItemRow = memo(
                         {item.episodes?.length || 0} {(item.episodes?.length || 0) === 1 ? 'ep' : 'eps'}
                       </span>
                       {episodesLabel !== '—' && (
-                        <span className="max-w-[140px] truncate text-[11px] font-medium tabular-nums text-muted-foreground">
-                          · {episodesLabel}
-                        </span>
+                        <>
+                          <span aria-hidden="true" className="h-3 w-px shrink-0 bg-border-strong/70" />
+                          <span className="max-w-[140px] truncate text-[11px] font-medium tabular-nums text-muted-foreground">
+                            {episodesLabel}
+                          </span>
+                        </>
                       )}
                     </span>
                   </AppTooltip>
