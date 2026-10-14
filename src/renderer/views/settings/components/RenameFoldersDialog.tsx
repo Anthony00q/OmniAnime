@@ -9,6 +9,8 @@ import { ANILIST_BANNER_STALE_MS, getAniListBannerQuery, useLibrary } from '@/re
 import { computeFolderRenamePlan, anilistInputFromFolderMeta } from '@/renderer/utils/folderRename';
 import { FOLDER_NAME_SOURCE_OPTIONS } from '@/renderer/views/settings/constants';
 import type { AniListFolderTitles, FolderNameSource } from '@/utils/downloads/folderNaming';
+import { buildRenameLibraryVisuals } from '@/renderer/views/settings/utils/renameLibraryPresentation';
+import { RenameLibraryComparison, RenameLibraryPoster } from './RenameLibraryPreview';
 
 interface FolderRow {
   name: string;
@@ -35,6 +37,7 @@ function sourceLabel(source: FolderNameSource): string {
 export function RenameFoldersDialog({ open, onOpenChange, dirs, source }: RenameFoldersDialogProps) {
   const queryClient = useQueryClient();
   const { data: rows = [], isLoading } = useLibrary(dirs);
+  const visuals = useMemo(() => buildRenameLibraryVisuals(rows), [rows]);
   const [titlesByPath, setTitlesByPath] = useState<Record<string, AniListFolderTitles | null>>({});
   const [progress, setProgress] = useState({ done: 0, total: 0 });
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -182,27 +185,27 @@ export function RenameFoldersDialog({ open, onOpenChange, dirs, source }: Rename
           <ul className="rounded-xl border border-border/50 divide-y divide-border/40 max-h-[40vh] overflow-y-auto">
             {renamable.map((item) => {
               const result = results[item.folderPath];
+              const visual = visuals.get(item.folderPath);
+              const title = visual?.title || item.oldName;
               return (
                 <li key={item.folderPath}>
                   <label
-                    className={`flex items-center gap-3 px-3 py-2 transition-colors ${
+                    className={`flex items-start gap-3 px-3 py-4 transition-colors ${
                       renaming || result ? 'cursor-default' : 'cursor-pointer hover:bg-secondary/40'
                     }`}
                   >
-                    <CustomCheckbox
-                      checked={selected.has(item.folderPath)}
-                      disabled={renaming || Boolean(result)}
-                      onChange={() => toggle(item.folderPath)}
-                      ariaLabel={`Renombrar ${item.oldName}`}
-                    />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 text-xs">
-                        <span className="font-mono text-muted-foreground truncate">{item.oldName}</span>
-                        <span className="text-text-tertiary shrink-0" aria-hidden>
-                          →
-                        </span>
-                        <span className="font-mono text-foreground truncate">{item.newName}</span>
-                      </div>
+                    <span className="flex h-11 shrink-0 items-center">
+                      <CustomCheckbox
+                        checked={selected.has(item.folderPath)}
+                        disabled={renaming || Boolean(result)}
+                        onChange={() => toggle(item.folderPath)}
+                        ariaLabel={`Renombrar ${item.oldName}`}
+                      />
+                    </span>
+                    <RenameLibraryPoster poster={visual?.poster} title={title} />
+                    <div className="min-w-0 flex-1 space-y-2">
+                      <p className="text-sm font-semibold leading-snug break-words">{title}</p>
+                      <RenameLibraryComparison from={item.oldName} to={item.newName} />
                       {result && !result.ok && (
                         <p className="text-[11px] text-destructive-fg mt-0.5 leading-relaxed">{result.error}</p>
                       )}

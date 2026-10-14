@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Check, ChevronDown, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -7,6 +7,9 @@ import { Dialog } from '@/renderer/components/Dialog';
 import { CustomCheckbox } from '@/renderer/components/CustomCheckbox';
 import { useLibrary } from '@/renderer/hooks/useQueries';
 import { buildFilesRenameRows, type FilesRenamePreview } from '@/renderer/utils/filesRename';
+import { MOTION_DURATION, useReducedMotion } from '@/renderer/utils/motion';
+import { buildRenameLibraryVisuals, getRenameExample } from '@/renderer/views/settings/utils/renameLibraryPresentation';
+import { RenameLibraryComparison, RenameLibraryPoster } from './RenameLibraryPreview';
 
 interface FolderRow {
   name: string;
@@ -32,7 +35,11 @@ const STATUS_LABEL: Record<string, string> = {
 
 export function RenameLibraryFilesDialog({ open, onOpenChange, dirs, style }: RenameLibraryFilesDialogProps) {
   const queryClient = useQueryClient();
+  const detailsId = useId();
+  const reducedMotion = useReducedMotion();
+  const disclosureDuration = reducedMotion ? 0 : MOTION_DURATION.base;
   const { data: rows = [], isLoading } = useLibrary(dirs);
+  const visuals = useMemo(() => buildRenameLibraryVisuals(rows), [rows]);
   const [previews, setPreviews] = useState<Record<string, FilesRenamePreview | null>>({});
   const [progress, setProgress] = useState({ done: 0, total: 0 });
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -181,72 +188,96 @@ export function RenameLibraryFilesDialog({ open, onOpenChange, dirs, style }: Re
 
         {renamable.length > 0 && (
           <ul className="rounded-xl border border-border/50 divide-y divide-border/40 max-h-[40vh] overflow-y-auto">
-            {renamable.map((row) => {
+            {renamable.map((row, rowIndex) => {
               const result = results[row.folderPath];
               const isOpen = expanded.has(row.folderPath);
+              const visual = visuals.get(row.folderPath);
+              const title = visual?.title || row.folderName;
+              const example = getRenameExample(row.items);
+              const additionalItems = row.items.filter((item) => item !== example);
               return (
                 <li key={row.folderPath}>
-                  <label
-                    className={`flex items-center gap-3 px-3 py-2 transition-colors ${
-                      renaming || result ? 'cursor-default' : 'cursor-pointer hover:bg-secondary/40'
-                    }`}
-                  >
-                    <CustomCheckbox
-                      checked={selected.has(row.folderPath)}
-                      disabled={renaming || Boolean(result)}
-                      onChange={() => toggle(row.folderPath)}
-                      ariaLabel={`Renombrar archivos de ${row.folderName}`}
-                    />
-                    <span className="min-w-0 flex-1 text-xs">
-                      <span className="font-mono text-foreground truncate block">{row.folderName}</span>
-                      <span className="text-text-tertiary tabular-nums">
-                        {row.toRename} a renombrar
-                        {row.conflicts > 0 && ` · ${row.conflicts} en conflicto`}
-                        {row.skipped > 0 && ` · ${row.skipped} sin número`}
-                      </span>
-                    </span>
-                    {result?.ok && <Check className="w-3.5 h-3.5 text-success shrink-0" aria-label="Renombrado" />}
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        toggleExpanded(row.folderPath);
-                      }}
-                      aria-expanded={isOpen}
-                      aria-label={`Ver archivos de ${row.folderName}`}
-                      className="p-1 rounded-md text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                  <div className="flex items-start gap-1 pr-2">
+                    <label
+                      className={`flex min-w-0 flex-1 items-start gap-3 px-3 py-4 transition-colors ${
+                        renaming || result ? 'cursor-default' : 'cursor-pointer hover:bg-secondary/40'
+                      }`}
                     >
-                      <ChevronDown
-                        className={`w-3.5 h-3.5 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
-                      />
-                    </button>
-                  </label>
-                  <div
-                    className={`grid transition-[grid-template-rows] duration-200 ease-out ${
-                      isOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
-                    }`}
-                  >
-                    <div className="overflow-hidden">
-                      <ul className="px-3 pb-2 pt-1 space-y-1">
-                        {row.items.map((item) => (
-                          <li key={`${item.from}->${item.to}`} className="flex items-center gap-2 text-xs">
-                            <span className="font-mono text-muted-foreground truncate">{item.from}</span>
-                            <span className="text-text-tertiary shrink-0" aria-hidden>
-                              →
-                            </span>
-                            <span className="font-mono text-foreground truncate">
-                              {item.to || '—'}
-                              {STATUS_LABEL[item.status] && (
-                                <span className="ml-2 text-[10px] font-semibold uppercase tracking-widest text-warning">
-                                  {STATUS_LABEL[item.status]}
-                                </span>
-                              )}
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
+                      <span className="flex h-11 shrink-0 items-center">
+                        <CustomCheckbox
+                          checked={selected.has(row.folderPath)}
+                          disabled={renaming || Boolean(result)}
+                          onChange={() => toggle(row.folderPath)}
+                          ariaLabel={`Renombrar archivos de ${row.folderName}`}
+                        />
+                      </span>
+                      <RenameLibraryPoster poster={visual?.poster} title={title} />
+                      <div className="min-w-0 flex-1 space-y-2">
+                        <div>
+                          <p className="text-sm font-semibold leading-snug break-words">{title}</p>
+                          {title !== row.folderName && (
+                            <p className="mt-1 text-xs text-muted-foreground break-all">{row.folderName}</p>
+                          )}
+                          <p className="mt-1 text-xs text-text-tertiary tabular-nums">
+                            {row.toRename} {row.toRename === 1 ? 'archivo a renombrar' : 'archivos a renombrar'}
+                            {row.conflicts > 0 && ` · ${row.conflicts} en conflicto`}
+                            {row.skipped > 0 && ` · ${row.skipped} sin número`}
+                          </p>
+                        </div>
+                        {example && <RenameLibraryComparison from={example.from} to={example.to} filename />}
+                        {result && !result.ok && (
+                          <p className="text-[11px] text-destructive-fg leading-relaxed">{result.error}</p>
+                        )}
+                      </div>
+                      {result?.ok && <Check className="w-3.5 h-3.5 text-success shrink-0" aria-label="Renombrado" />}
+                    </label>
+                    {additionalItems.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          toggleExpanded(row.folderPath);
+                        }}
+                        aria-expanded={isOpen}
+                        aria-controls={`${detailsId}-${rowIndex}`}
+                        aria-label={`${isOpen ? 'Ocultar' : 'Ver'} otros archivos de ${row.folderName}`}
+                        className="mt-3 flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:bg-secondary/40 hover:text-foreground transition-colors shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                      >
+                        <ChevronDown
+                          style={{
+                            transitionDuration: `${disclosureDuration}ms`,
+                            transitionTimingFunction: 'var(--ease-out)',
+                          }}
+                          className={`w-3.5 h-3.5 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+                        />
+                      </button>
+                    )}
                   </div>
+                  {additionalItems.length > 0 && (
+                    <div
+                      id={`${detailsId}-${rowIndex}`}
+                      inert={!isOpen}
+                      style={{
+                        gridTemplateRows: isOpen ? '1fr' : '0fr',
+                        opacity: isOpen ? 1 : 0,
+                        transitionDuration: `${disclosureDuration}ms`,
+                        transitionTimingFunction: 'var(--ease-out)',
+                      }}
+                      className="grid transition-[grid-template-rows,opacity]"
+                    >
+                      <div className="min-h-0 overflow-hidden">
+                        <ul className="mx-3 mb-3 border-t border-border/40 divide-y divide-border/40">
+                          {additionalItems.map((item) => (
+                            <li key={`${item.from}->${item.to}`} className="py-3 space-y-1.5">
+                              <RenameLibraryComparison from={item.from} to={item.to} filename />
+                              {STATUS_LABEL[item.status] && (
+                                <p className="text-[11px] font-medium text-warning">{STATUS_LABEL[item.status]}</p>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  )}
                 </li>
               );
             })}
