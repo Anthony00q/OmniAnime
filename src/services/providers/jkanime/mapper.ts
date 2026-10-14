@@ -160,6 +160,7 @@ export function mapJkDetails(
     votes: 0,
     // DUB desactivado: solo SUB
     availableLanguages: ['SUB'],
+    spokenLanguages: raw.spokenLanguages ?? [],
     // Estudio solo desde AniList; el proveedor no aporta.
     studio: 'Desconocido',
     type: raw.type || 'TV',

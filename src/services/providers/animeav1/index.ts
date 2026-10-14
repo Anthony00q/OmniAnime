@@ -6,6 +6,8 @@ import {
   CatalogFilters,
   CatalogFiltersData,
   ScheduleData,
+  AnimeLanguage,
+  EpisodeAvailability,
 } from '../../../types/anime';
 import { AnimeProvider, type ProviderModule } from '../AnimeProvider';
 import { noopScopedLogger, type ScopedLogger } from '../../logging/AppLogger';
@@ -26,12 +28,14 @@ import {
   parseAv1Filters,
   parseAv1HomeRaw,
   parseAv1LinkEntries,
+  parseAv1AvailabilityEntries,
   parseAv1ResultBlocks,
   parseAv1Schedule,
   parseCatalogFallback,
   parseCategoryDict,
 } from './parser';
 import { mapAv1Details, mapAv1DownloadLinks, mapAv1FiltersData, mapAv1HomeEpisode, mapAv1SearchResult } from './mapper';
+import { normalizeServerName, SERVER_CANDIDATES_ANIMEAV1 } from '../../../utils/serverUtils';
 
 export class AnimeAV1Provider implements AnimeProvider {
   private readonly logger: ScopedLogger;
@@ -47,6 +51,15 @@ export class AnimeAV1Provider implements AnimeProvider {
 
   private client: OutboundClient = createAv1Client();
   private pendingSearchController: AbortController | null = null;
+  private readonly availabilityCache = new Map<string, { state: EpisodeAvailability; expires: number }>();
+  private readonly availabilityRequests = new Map<
+    string,
+    {
+      controller: AbortController;
+      promise: Promise<EpisodeAvailability>;
+      consumers: number;
+    }
+  >();
 
   private cache: {
     home: { data: HomeEpisode[]; timestamp: number } | null;
@@ -215,15 +228,82 @@ export class AnimeAV1Provider implements AnimeProvider {
   }
 
   async getLinks(slug: string, ep: number, lang: 'SUB' | 'DUB' = 'SUB', signal?: AbortSignal): Promise<DownloadLink[]> {
-    // DUB desactivado: solo SUB
-    if (lang === 'DUB') lang = 'SUB';
+    if (
+      !/^[a-z0-9][a-z0-9-]*$/i.test(slug) ||
+      !Number.isSafeInteger(ep) ||
+      ep < 1 ||
+      (lang !== 'SUB' && lang !== 'DUB')
+    )
+      return [];
     try {
       const r = await this.client.get(av1EpisodeUrl(slug, ep), { signal });
-      return mapAv1DownloadLinks(parseAv1LinkEntries(r.data, lang));
+      return mapAv1DownloadLinks(parseAv1LinkEntries(r.data, lang), lang);
     } catch (error) {
       this.logger.error('animeav1 links: ' + String(error));
       return [];
     }
+  }
+
+  async getEpisodeAvailability(
+    slug: string,
+    ep: number,
+    lang: AnimeLanguage,
+    signal?: AbortSignal,
+  ): Promise<EpisodeAvailability> {
+    if (signal?.aborted || !/^[a-z0-9][a-z0-9-]*$/i.test(slug) || !Number.isSafeInteger(ep) || ep < 1) return 'error';
+    const key = `${slug}|${ep}|${lang}`;
+    const cached = this.availabilityCache.get(key);
+    if (cached && cached.expires > Date.now()) return cached.state;
+    let request = this.availabilityRequests.get(key);
+    if (request?.controller.signal.aborted) request = undefined;
+    if (!request) {
+      const controller = new AbortController();
+      const entry = { controller, consumers: 0, promise: Promise.resolve<EpisodeAvailability>('error') };
+      entry.promise = (async (): Promise<EpisodeAvailability> => {
+        try {
+          const { data: html } = await this.client.get(av1EpisodeUrl(slug, ep), { signal: controller.signal });
+          if (controller.signal.aborted || typeof html !== 'string') return 'error';
+          const raw = parseAv1AvailabilityEntries(html, lang);
+          if (raw === null) return 'error';
+          const links = mapAv1DownloadLinks(raw, lang);
+          const supported = links.some((link) =>
+            (SERVER_CANDIDATES_ANIMEAV1 as readonly string[]).includes(normalizeServerName(link.server)),
+          );
+          const state: EpisodeAvailability = supported
+            ? 'available'
+            : raw.some((link) => !!link.url)
+              ? 'unsupported'
+              : 'unavailable';
+          this.availabilityCache.delete(key);
+          this.availabilityCache.set(key, { state, expires: Date.now() + (state === 'available' ? 30 : 5) * 60_000 });
+          if (this.availabilityCache.size > 512)
+            this.availabilityCache.delete(this.availabilityCache.keys().next().value!);
+          return state;
+        } catch {
+          return 'error';
+        } finally {
+          if (this.availabilityRequests.get(key) === entry) this.availabilityRequests.delete(key);
+        }
+      })();
+      this.availabilityRequests.set(key, entry);
+      request = entry;
+    }
+    const shared = request;
+    shared.consumers++;
+    return new Promise((resolve) => {
+      let settled = false;
+      const finish = (state: EpisodeAvailability) => {
+        if (settled) return;
+        settled = true;
+        signal?.removeEventListener('abort', abort);
+        if (--shared.consumers === 0) shared.controller.abort();
+        resolve(state);
+      };
+      const abort = () => finish('error');
+      signal?.addEventListener('abort', abort, { once: true });
+      void shared.promise.then(finish);
+      if (signal?.aborted) abort();
+    });
   }
 }
 

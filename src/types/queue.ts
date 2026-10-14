@@ -12,7 +12,6 @@ export interface QueueItem {
   poster?: string | null;
   preferredServer?: string;
   episodes: number[];
-  // DUB desactivado: solo SUB
   lang?: 'SUB' | 'DUB';
   status: QueueStatus;
   currentEp: number | null;

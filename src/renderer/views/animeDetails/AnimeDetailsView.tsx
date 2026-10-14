@@ -46,6 +46,7 @@ import { useHeroReveal, useReducedMotion } from '@/renderer/utils/motion';
 import { buildExternalUrl, buildAniListUrl } from '@/utils/security/externalUrl';
 import {
   useAnimeDetails,
+  useDubAvailability,
   useAddToQueue,
   useConnectivityStatus,
   useJkEpisodeThumbs,
@@ -66,6 +67,7 @@ import type { AnimeDetails, AnimeLanguage } from '@/types/anime';
 
 import { getStatusStyles } from '@/renderer/views/animeDetails/model/animeDetailsModel';
 import { EpisodeGridItem } from '@/renderer/views/animeDetails/components/EpisodeGridItem';
+import { EpisodeAvailabilityControl } from '@/renderer/views/animeDetails/components/EpisodeAvailabilityControl';
 import { FranchiseRelationItem } from '@/renderer/views/animeDetails/components/FranchiseRelationItem';
 import { AniListLinkDialog } from '@/renderer/views/animeDetails/components/AniListLinkDialog';
 import { useGridCols } from '@/renderer/views/animeDetails/hooks/useGridCols';
@@ -153,14 +155,14 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
   const [showFullSynopsis, setShowFullSynopsis] = useState(false);
   const [synopsisNode, setSynopsisNode] = useState<HTMLParagraphElement | null>(null);
   const [isSynopsisClamped, setIsSynopsisClamped] = useState(false);
-  const [selectedLang, setSelectedLang] = useState<'SUB'>('SUB'); // DUB desactivado: solo SUB
+  const [selectedLang, setSelectedLang] = useState<AnimeLanguage>('SUB');
+  const selectionsRef = useRef<Record<AnimeLanguage, Set<number>>>({ SUB: new Set(), DUB: new Set() });
   const [showDirPicker, setShowDirPicker] = useState(false);
   const [selectedDirIndex, setSelectedDirIndex] = useState(0);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [epQuery, setEpQuery] = useState('');
   const [epView, setEpView] = useEpisodeView();
   const [viewMenu, setViewMenu] = useState<{ x: number; y: number } | null>(null);
-
   const handleEpContextMenu = useCallback((event: ReactMouseEvent) => {
     event.preventDefault();
     setViewMenu({ x: event.clientX, y: event.clientY });
@@ -169,6 +171,8 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
 
   useEffect(() => {
     setSelected(new Set());
+    selectionsRef.current = { SUB: new Set(), DUB: new Set() };
+    setSelectedLang('SUB');
     setBannerFailed(false);
     setBannerShown(false);
     innerDimRef.current = 0;
@@ -185,7 +189,7 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
     setViewMenu(null);
     setThumbWindow(null);
     lastThumbReqRef.current = '';
-  }, [slug]);
+  }, [slug, activeProviderId]);
 
   // El póster del hero pasa de 46vh en ventanas bajas: el banner crece hasta
   // cubrirlo para que su fundido cierre la ficha en vez de dejar banda plana.
@@ -261,7 +265,7 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
     return () => clearTimeout(timer);
   }, [anilistEnabled, isAnilistSettled, anilistGraceExpired, slug]);
 
-  const availableLanguages: AnimeLanguage[] = ['SUB']; // DUB desactivado: solo SUB
+  const supportsDub = activeProviderId === 'animeav1' && data?.supportsDub === true;
 
   const outputDirs = useAtomValue(outputDirsAtom);
   const { navigateToCatalog } = useAppNavigation();
@@ -312,8 +316,6 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
       setRangeTo(String(maxEpNum));
     }
   }, [data?.episodes]);
-
-  // DUB desactivado: solo SUB — selectedLang fijo en SUB
 
   useEffect(() => {
     const handleClose = (e: Event) => {
@@ -382,6 +384,115 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
   const deferredProvider = useDeferredValue(useAtomValue(activeProviderAtom));
   const [thumbWindow, setThumbWindow] = useState<{ from: number; to: number } | null>(null);
   const vlistRef = useRef<VListHandle | null>(null);
+  const [dubVisible, setDubVisible] = useState<number[]>([]);
+  const dubEnabled =
+    selectedLang === 'DUB' &&
+    supportsDub &&
+    isActive !== false &&
+    dataSlug === slug &&
+    activeProviderId === deferredProvider;
+  const dub = useDubAvailability(queryClient, deferredProvider, slug, allEpNums, dubVisible, dubEnabled);
+  const selectableEpNums = useMemo(
+    () => (selectedLang === 'DUB' ? allEpNums.filter((num) => dub.states[num] === 'available') : allEpNums),
+    [selectedLang, allEpNums, dub.states],
+  );
+  const selectableSet = useMemo(() => new Set(selectableEpNums), [selectableEpNums]);
+  const selectableSetRef = useRef(selectableSet);
+  useLayoutEffect(() => {
+    selectableSetRef.current = selectableSet;
+  }, [selectableSet]);
+  const visibleSelectable = useMemo(
+    () => visibleEpNums.filter((num) => selectableSet.has(num)),
+    [visibleEpNums, selectableSet],
+  );
+  const dubCounts = useMemo(() => {
+    let available = 0,
+      pending = 0,
+      errors = 0,
+      unsupported = 0;
+    for (const num of allEpNums) {
+      const state = dub.states[num];
+      if (state === 'available') available++;
+      else if (!state) pending++;
+      else if (state === 'error') errors++;
+      else if (state === 'unsupported') unsupported++;
+    }
+    return { available, pending, errors, unsupported };
+  }, [allEpNums, dub.states]);
+
+  useEffect(() => {
+    if (!dubEnabled || !episodesRef.current) {
+      setDubVisible([]);
+      return;
+    }
+    const container = episodesRef.current;
+    const visible = new Set<number>();
+    const observed = new Set<Element>();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const publish = () => {
+      clearTimeout(timer);
+      timer = setTimeout(
+        () =>
+          setDubVisible((prev) => {
+            const next = [...visible].sort((a, b) => a - b);
+            return prev.length === next.length && prev.every((num, index) => num === next[index]) ? prev : next;
+          }),
+        80,
+      );
+    };
+    const observer = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        const num = Number((entry.target as HTMLElement).dataset.episodeNumber);
+        if (entry.isIntersecting) visible.add(num);
+        else visible.delete(num);
+      }
+      publish();
+    });
+    const sync = () => {
+      for (const node of observed) {
+        if (!container.contains(node)) {
+          observer.unobserve(node);
+          observed.delete(node);
+          visible.delete(Number((node as HTMLElement).dataset.episodeNumber));
+        }
+      }
+      for (const node of Array.from(container.querySelectorAll('[data-episode-number]'))) {
+        if (!observed.has(node)) {
+          observed.add(node);
+          observer.observe(node);
+        }
+      }
+      publish();
+    };
+    sync();
+    const mutations = new MutationObserver(sync);
+    mutations.observe(container, { childList: true, subtree: true });
+    return () => {
+      clearTimeout(timer);
+      observer.disconnect();
+      mutations.disconnect();
+    };
+  }, [dubEnabled, episodesRef, shouldVirtualize, epView, rows, isLoading, isAnilistSettled, anilistGraceExpired]);
+
+  const changeLanguage = useCallback(
+    (lang: AnimeLanguage) => {
+      if (lang === selectedLang || (lang === 'DUB' && !supportsDub)) return;
+      selectionsRef.current[selectedLang] = new Set(selected);
+      setSelectedLang(lang);
+      setSelected(new Set(selectionsRef.current[lang]));
+      setShowRangeModal(false);
+      setShowDirPicker(false);
+    },
+    [selectedLang, selected, supportsDub],
+  );
+
+  useEffect(() => {
+    if (selectedLang !== 'DUB') return;
+    setSelected((prev) => {
+      const next = new Set([...prev].filter((num) => selectableSet.has(num)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [selectedLang, selectableSet]);
   const lastThumbReqRef = useRef<string>('');
   const requestTailThumbs = useCallback(() => {
     if (!isActive || deferredProvider !== 'jkanime' || !withThumbs || !data) return;
@@ -447,6 +558,7 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
   }, [tailThumbs, slug, dataSlug, deferredProvider, queryClient]);
 
   const toggleEp = useCallback((num: number) => {
+    if (!selectableSetRef.current.has(num)) return;
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(num)) next.delete(num);
@@ -455,7 +567,7 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
     });
   }, []);
 
-  const selectAll = useCallback(() => setSelected(new Set<number>(visibleEpNums)), [visibleEpNums]);
+  const selectAll = useCallback(() => setSelected(new Set<number>(visibleSelectable)), [visibleSelectable]);
   const selectNone = useCallback(() => setSelected(new Set<number>()), []);
 
   const applyRange = useCallback(() => {
@@ -465,10 +577,10 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
       toast.error('Rango inválido');
       return;
     }
-    const inRange = new Set<number>(allEpNums.filter((n: number) => n >= from && n <= to));
+    const inRange = new Set<number>(selectableEpNums.filter((n: number) => n >= from && n <= to));
     setSelected(inRange);
     setShowRangeModal(false);
-  }, [rangeFrom, rangeTo, allEpNums]);
+  }, [rangeFrom, rangeTo, selectableEpNums]);
 
   const handleDownloadSelected = async () => {
     if (selected.size === 0) return toast.error('No hay episodios seleccionados');
@@ -487,7 +599,10 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
       return;
     }
     setShowDirPicker(false);
-    const eps = Array.from(selected).sort((a, b) => a - b);
+    const eps = Array.from(selected)
+      .filter((num) => selectableSet.has(num))
+      .sort((a, b) => a - b);
+    if (!eps.length || activeProviderId !== deferredProvider) return;
     const loadingId = `add-queue-${data.slug}`;
     toast.loading(`Agregando ${eps.length} episodios a la cola...`, { id: loadingId });
     addToQueue.mutate(
@@ -751,11 +866,23 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
                   <Clock className="h-5 w-5 text-primary" /> Episodios
                 </h3>
                 <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-                  <span className="shrink-0 whitespace-nowrap text-xs font-medium tabular-nums text-muted-foreground">
-                    {episodeFilter
-                      ? `${visibleEpisodes.length} de ${allEpisodes.length}`
-                      : `${allEpisodes.length} disponibles`}
-                  </span>
+                  <EpisodeAvailabilityControl
+                    lang={selectedLang}
+                    scopeKey={`${activeProviderId}:${slug}`}
+                    isActive={isActive}
+                    subLabel={
+                      episodeFilter
+                        ? `${visibleEpisodes.length} de ${allEpisodes.length}`
+                        : `${allEpisodes.length} disponibles`
+                    }
+                    totalEpisodes={allEpNums.length}
+                    counts={dubCounts}
+                    checking={dub.checking}
+                    checkAll={dub.checkAll}
+                    onStop={dub.stop}
+                    onCheckRemaining={dub.checkRemaining}
+                    onRetry={dub.retry}
+                  />
                   <div className="group relative">
                     <Search
                       className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-primary"
@@ -818,21 +945,26 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
                   <List className="w-3.5 h-3.5" /> Rango...
                 </button>
 
-                <div className="ml-0 flex items-center rounded-full border border-border/60 bg-secondary/50 p-0.5 sm:ml-2">
-                  {availableLanguages.includes('SUB') && (
-                    <AppTooltip content="SUB disponible para este anime">
+                {supportsDub && (
+                  <div
+                    role="group"
+                    aria-label="Idioma de descarga"
+                    className="ml-0 flex items-center rounded-full border border-border/60 bg-secondary/50 p-0.5 sm:ml-2"
+                  >
+                    {(['SUB', 'DUB'] as const).map((lang) => (
                       <button
+                        key={lang}
                         type="button"
-                        onClick={() => setSelectedLang('SUB')}
-                        aria-label="Seleccionar subtítulos SUB"
-                        className={`px-3 py-1 text-[11px] font-bold rounded-full transition-colors cursor-pointer ${selectedLang === 'SUB' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                        onClick={() => changeLanguage(lang)}
+                        aria-label={lang === 'SUB' ? 'Descargar subtitulado' : 'Descargar doblado'}
+                        aria-pressed={selectedLang === lang}
+                        className={`relative rounded-full px-3 py-1 text-[11px] font-semibold transition-colors before:absolute before:inset-x-0 before:-inset-y-2 before:content-[''] ${selectedLang === lang ? 'bg-surface-elevated text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
                       >
-                        SUB
+                        {lang}
                       </button>
-                    </AppTooltip>
-                  )}
-                  {/* DUB desactivado: solo SUB */}
-                </div>
+                    ))}
+                  </div>
+                )}
 
                 <div className="flex w-full min-w-0 flex-wrap items-center justify-between gap-2 sm:ml-auto sm:w-auto sm:flex-nowrap sm:justify-end sm:gap-3">
                   <span className="shrink-0 whitespace-nowrap text-xs font-medium text-muted-foreground">
@@ -847,7 +979,9 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
                     <Download className="w-3.5 h-3.5" />
                     {selected.size === 0
                       ? 'Sin selección'
-                      : visibleEpNums.length > 0 && selected.size === visibleEpNums.length
+                      : selectedLang !== 'DUB' &&
+                          visibleSelectable.length > 0 &&
+                          selected.size === visibleSelectable.length
                         ? `Descargar Todo (${selected.size})`
                         : `Descargar (${selected.size})`}
                   </button>
@@ -896,6 +1030,7 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
                           thumbnail={withThumbs ? thumbnail : undefined}
                           isChecked={selected.has(num)}
                           isListView={!withThumbs}
+                          availability={selectedLang === 'DUB' ? dub.states[num] || 'pending' : undefined}
                           onToggle={toggleEp}
                           onContextMenu={handleEpContextMenu}
                         />
@@ -919,6 +1054,7 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
                       thumbnail={withThumbs ? thumbnail : undefined}
                       isChecked={selected.has(num)}
                       isListView={!withThumbs}
+                      availability={selectedLang === 'DUB' ? dub.states[num] || 'pending' : undefined}
                       onToggle={toggleEp}
                       onContextMenu={handleEpContextMenu}
                     />
@@ -959,10 +1095,10 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
                     </span>
                   </li>
                 )}
-                {data.availableLanguages && data.availableLanguages.length > 0 && (
+                {activeProviderId === 'jkanime' && data.spokenLanguages && data.spokenLanguages.length > 0 && (
                   <li className="flex items-center justify-between gap-3 border-b border-border/40 py-2.5 last:border-0">
                     <span className="text-[13px] text-muted-foreground">Idioma</span>
-                    <span className="text-sm font-medium text-foreground">{data.availableLanguages.join(' · ')}</span>
+                    <span className="text-sm font-medium text-foreground">{data.spokenLanguages.join(', ')}</span>
                   </li>
                 )}
                 {externalUrl &&

@@ -404,6 +404,7 @@ export function LibraryAnimeDetails({
           episodeCount={episodes.length}
           metaSlug={folderData.metaSlug}
           providerId={folderData.providerId}
+          lang={folderData.lang}
           secondaryTitle={folderData.secondaryTitle}
           alternativeTitles={folderData.alternativeTitles}
           activeProvider={activeProvider}
@@ -513,6 +514,7 @@ export function LibraryAnimeDetails({
           year: folderData.year ?? null,
           category: folderData.category ?? null,
           season: folderData.season ?? null,
+          lang: folderData.lang,
         }}
         onRenamed={onBack}
       />

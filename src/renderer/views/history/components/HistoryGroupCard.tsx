@@ -88,7 +88,7 @@ export const HistoryGroupCard = memo(function HistoryGroupCard({
               <span aria-hidden="true" className="text-border-strong">
                 |
               </span>
-              <ProviderBadge providerId={group.providerId} />
+              <ProviderBadge providerId={group.providerId} lang={group.lang} />
             </div>
             {group.dirLabel && (
               <AppTooltip content={group.dirFullPath} side="bottom" align="start">

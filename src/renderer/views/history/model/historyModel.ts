@@ -7,6 +7,7 @@ export interface HistoryRecord {
   status: 'ok' | 'fail' | 'cancelled';
   path: string;
   providerId?: string;
+  lang?: 'SUB' | 'DUB';
   scope?: 'episode' | 'queue';
   queueId?: string;
   reason?: string;
@@ -25,6 +26,7 @@ export interface HistoryGroup {
   anime: string;
   slug: string;
   providerId?: string;
+  lang?: 'SUB' | 'DUB';
   dirLabel?: string;
   dirFullPath?: string;
   records: GroupedRecord[];
@@ -42,7 +44,7 @@ export function groupHistory(history: HistoryRecord[]): HistoryGroup[] {
   const map = new Map<string, HistoryGroup>();
 
   history.forEach((record, originalIndex) => {
-    const key = `${record.providerId || 'unknown'}:${record.slug || record.anime}:${record.dirFullPath || ''}`;
+    const key = `${record.providerId || 'unknown'}:${record.slug || record.anime}:${record.dirFullPath || ''}${record.lang === 'DUB' ? ':DUB' : ''}`;
     const existing = map.get(key);
 
     if (existing) {
@@ -53,6 +55,7 @@ export function groupHistory(history: HistoryRecord[]): HistoryGroup[] {
         anime: record.anime,
         slug: record.slug,
         providerId: record.providerId,
+        lang: record.lang || 'SUB',
         dirLabel: record.dirLabel,
         dirFullPath: record.dirFullPath,
         records: [{ record, originalIndex }],

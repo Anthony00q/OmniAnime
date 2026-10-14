@@ -10,6 +10,7 @@ export interface HistoryWriteRecord {
   status: HistoryStatus;
   path: string;
   providerId?: string;
+  lang?: 'SUB' | 'DUB';
   scope?: HistoryScope;
   queueId?: string;
   reason?: string;
@@ -25,6 +26,7 @@ export interface HistoryDatabaseRow {
   status: HistoryStatus;
   path: string;
   provider_id: string | null;
+  lang?: 'SUB' | 'DUB';
   scope: HistoryScope;
   queue_id: string | null;
   reason: string | null;
@@ -39,6 +41,7 @@ export interface HistoryViewRecord {
   status: HistoryStatus;
   path: string;
   providerId?: string;
+  lang?: 'SUB' | 'DUB';
   _dbId: number;
   scope: HistoryScope;
   queueId?: string;

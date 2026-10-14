@@ -43,6 +43,7 @@ export class FolderMetaRows {
         posterUrl: row.poster_url || undefined,
         bannerUrl: row.banner_url || undefined,
         providerId: row.provider_id || null,
+        lang: row.lang === 'DUB' ? 'DUB' : 'SUB',
         anilistId: typeof row.anilist_id === 'number' ? row.anilist_id : null,
         folderPath: row.folder_path || folderPath,
       };
@@ -55,8 +56,8 @@ export class FolderMetaRows {
         .prepare(
           `INSERT OR REPLACE INTO folder_meta
                (folder_path_hash, folder_path, slug, title, secondary_title, alternative_titles, category, year,
-                status, season, poster_url, banner_url, provider_id, anilist_id, updated_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                 status, season, poster_url, banner_url, provider_id, anilist_id, lang, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .run(
           folderHash(folderPath),
@@ -73,6 +74,7 @@ export class FolderMetaRows {
           (data.bannerUrl as string) || null,
           (data.providerId as string) || null,
           Number.isInteger(data.anilistId) ? (data.anilistId as number) : null,
+          data.lang === 'DUB' ? 'DUB' : 'SUB',
           Date.now(),
         );
     });

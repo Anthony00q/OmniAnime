@@ -474,6 +474,12 @@ export const QueueItemRow = memo(
                         />
                       )}
                       {sourceLabel}
+                      {item.lang === 'DUB' && (
+                        <>
+                          <span aria-hidden="true" className="h-3 w-px shrink-0 bg-border-strong/70" />
+                          <span>DUB</span>
+                        </>
+                      )}
                     </span>
                   </AppTooltip>
                 </div>

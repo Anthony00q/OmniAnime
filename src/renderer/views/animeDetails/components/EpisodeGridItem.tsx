@@ -1,6 +1,7 @@
 import { memo, type MouseEvent as ReactMouseEvent } from 'react';
 import { CheckSquare } from 'lucide-react';
 import { PosterImage } from '@/renderer/components/anime/PosterImage';
+import type { EpisodeAvailability } from '@/types/anime';
 
 interface EpisodeGridItemProps {
   num: number;
@@ -8,6 +9,7 @@ interface EpisodeGridItemProps {
   thumbnail?: string;
   isChecked: boolean;
   isListView: boolean;
+  availability?: EpisodeAvailability | 'pending';
   onToggle: (num: number) => void;
   onContextMenu?: (event: ReactMouseEvent) => void;
 }
@@ -19,22 +21,41 @@ export const EpisodeGridItem = memo(
     thumbnail,
     isChecked,
     isListView,
+    availability,
     onToggle,
     onContextMenu,
   }: EpisodeGridItemProps) {
+    const blocked = availability !== undefined && availability !== 'available';
+    const stateLabel =
+      availability === 'pending'
+        ? 'Pendiente'
+        : availability === 'unavailable'
+          ? 'Sin DUB'
+          : availability === 'unsupported'
+            ? 'No compatible'
+            : availability === 'error'
+              ? 'Sin verificar'
+              : '';
     return (
       <button
         type="button"
-        onClick={() => onToggle(num)}
+        onClick={() => {
+          if (!blocked) onToggle(num);
+        }}
         onContextMenu={onContextMenu}
         aria-pressed={isChecked}
-        aria-label={`Episodio ${num}${title && title !== 'Sin título' ? `: ${title}` : ''}. Clic derecho para cambiar la vista.`}
-        className={`${isListView ? 'details-episode-row' : 'details-episode-card'} group relative flex flex-col overflow-hidden rounded-xl border text-left transition-[background-color,border-color,box-shadow,color] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 ${
+        aria-disabled={blocked || undefined}
+        aria-describedby={availability ? 'dub-availability-note' : undefined}
+        data-episode-number={num}
+        aria-label={`Episodio ${num}${title && title !== 'Sin título' ? `: ${title}` : ''}${stateLabel ? `. ${stateLabel}` : ''}. Clic derecho para cambiar la vista.`}
+        className={`${isListView ? 'details-episode-row' : 'details-episode-card'} ${blocked ? 'cursor-not-allowed' : ''} group relative flex flex-col overflow-hidden rounded-xl border text-left transition-[background-color,border-color,box-shadow,color] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 ${
           isChecked
             ? isListView
               ? 'bg-primary/15 border-primary/70 shadow-[0_8px_24px_rgba(0,0,0,0.35)]'
               : 'bg-primary/10 border-primary shadow-[0_8px_24px_rgba(0,0,0,0.35)]'
-            : 'bg-card border-border/50 hover:border-primary/50 hover:bg-secondary/50'
+            : blocked
+              ? 'bg-card border-border/50'
+              : 'bg-card border-border/50 hover:border-primary/50 hover:bg-secondary/50'
         }`}
       >
         <span className="relative block aspect-video w-full shrink-0 overflow-hidden bg-secondary/50">
@@ -89,6 +110,13 @@ export const EpisodeGridItem = memo(
               </span>
             </>
           )}
+          {stateLabel && (
+            <span
+              className={`absolute right-1.5 ${isListView ? 'bottom-1.5' : 'top-1.5'} max-w-[calc(100%-1rem)] truncate rounded-md bg-background px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground`}
+            >
+              {stateLabel}
+            </span>
+          )}
         </span>
         {title && title !== 'Sin título' && (
           <span className="block w-full truncate px-2.5 py-1.5 text-left text-xs font-medium text-muted-foreground">
@@ -104,6 +132,7 @@ export const EpisodeGridItem = memo(
     prev.title === next.title &&
     prev.thumbnail === next.thumbnail &&
     prev.isListView === next.isListView &&
+    prev.availability === next.availability &&
     prev.onToggle === next.onToggle &&
     prev.onContextMenu === next.onContextMenu,
 );

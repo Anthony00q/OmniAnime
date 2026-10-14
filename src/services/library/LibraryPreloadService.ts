@@ -253,6 +253,7 @@ export class LibraryPreloadService {
               status: folder.localMeta.status || '',
               season: folder.localMeta.season || '',
               providerId: folder.localMeta.providerId ?? null,
+              lang: folder.localMeta.lang,
               updatedAt: Date.now(),
             };
           }
@@ -282,6 +283,7 @@ export class LibraryPreloadService {
               status: folder.localMeta.status || '',
               season: folder.localMeta.season || '',
               providerId: folder.localMeta.providerId ?? null,
+              lang: folder.localMeta.lang,
               updatedAt: Date.now(),
             };
           }
@@ -306,6 +308,7 @@ export class LibraryPreloadService {
             status: folder.localMeta?.status || '',
             season: folder.localMeta?.season || '',
             providerId: folder.localMeta?.providerId ?? null,
+            lang: folder.localMeta?.lang,
             updatedAt: Date.now(),
           });
 
@@ -405,6 +408,7 @@ export class LibraryPreloadService {
             posterUrl,
             bannerUrl: anilistBannerUrl,
             providerId: matchingProviderId,
+            lang: folder.localMeta?.lang,
             anilistId: anilist?.anilistId ?? null,
           });
 
@@ -431,6 +435,7 @@ export class LibraryPreloadService {
             status: details?.status || '',
             season: details?.season || '',
             providerId: matchingProviderId,
+            lang: folder.localMeta?.lang,
             updatedAt: Date.now(),
           };
         },

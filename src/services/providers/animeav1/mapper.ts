@@ -139,14 +139,14 @@ export function mapAv1Details(raw: Av1DetailsRaw, slug: string): AnimeDetails {
     score: raw.score,
     votes: raw.votes,
     episodeThumbnails,
-    // DUB desactivado: solo SUB
     availableLanguages: ['SUB'],
+    supportsDub: true,
     studio: 'Desconocido',
     type: category || 'TV',
   };
 }
 
-export function mapAv1DownloadLinks(raws: Av1LinkRaw[]): DownloadLink[] {
+export function mapAv1DownloadLinks(raws: Av1LinkRaw[], lang: 'SUB' | 'DUB' = 'SUB'): DownloadLink[] {
   const links: DownloadLink[] = [];
   const seen = new Set<string>();
   for (const raw of raws) {
@@ -162,8 +162,7 @@ export function mapAv1DownloadLinks(raws: Av1LinkRaw[]): DownloadLink[] {
       const dedupeKey = `${raw.server.toLowerCase()}|${url}`;
       if (seen.has(dedupeKey)) continue;
       seen.add(dedupeKey);
-      // DUB desactivado: solo SUB
-      links.push({ server: raw.server, url, lang: 'SUB' });
+      links.push({ server: raw.server, url, lang });
     } catch {
       continue;
     }

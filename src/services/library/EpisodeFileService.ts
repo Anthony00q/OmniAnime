@@ -127,6 +127,7 @@ export class EpisodeFileService {
     );
 
     const folderName = path.basename(animePath);
+    const folderLang = (await this.options.assetService.readFolderLibraryMetaAsync(animePath))?.lang;
     const style = (overrideStyle || this.options.getSettings().namingStyle || 'descriptive') as
       'minimal' | 'descriptive';
     const occupiedNames = new Set(dirents.map((d) => d.name.toLowerCase()));
@@ -152,7 +153,13 @@ export class EpisodeFileService {
         });
         continue;
       }
-      const canonicalName = this.buildCanonicalName(episodeNumber, ext, folderName, overrideStyle);
+      const canonicalName = this.buildCanonicalName(
+        episodeNumber,
+        ext,
+        folderName,
+        overrideStyle,
+        /_DUB\.[^.]+$/i.test(currentName) ? 'DUB' : folderLang,
+      );
       if (currentName.toLowerCase() === canonicalName.toLowerCase()) {
         alreadyCorrect += 1;
         futureNames.add(canonicalName.toLowerCase());
@@ -420,9 +427,16 @@ export class EpisodeFileService {
     if (firstName.startsWith('EP_')) currentStyle = 'minimal';
     else if (firstName.includes(' EP_')) currentStyle = 'descriptive';
 
+    const folderLang = (await this.options.assetService.readFolderLibraryMetaAsync(folderPath))?.lang;
     const items: ReorderPreviewItem[] = files.map((file, idx) => {
       const toNum = start + idx;
-      const finalName = this.buildCanonicalName(toNum, file.ext, path.basename(folderPath), currentStyle);
+      const finalName = this.buildCanonicalName(
+        toNum,
+        file.ext,
+        path.basename(folderPath),
+        currentStyle,
+        /_DUB\.[^.]+$/i.test(file.name) ? 'DUB' : folderLang,
+      );
       return {
         from: file.name,
         to: finalName,
@@ -449,8 +463,6 @@ export class EpisodeFileService {
       if (!preview.success) {
         return { success: false, error: preview.error || 'No se pudo previsualizar el reorden.' };
       }
-      const start = preview.startNumber;
-
       const files = (await fsp.readdir(folderPath, { withFileTypes: true }))
         .filter((entry) => entry.isFile() && VIDEO_EXTENSIONS.has(path.extname(entry.name).toLowerCase()))
         .map((entry) => ({
@@ -467,6 +479,12 @@ export class EpisodeFileService {
         });
 
       if (files.length === 0) return { success: false, error: 'No se encontraron archivos de video.' };
+      if (
+        files.length !== preview.items.length ||
+        files.some((file, index) => file.name !== preview.items[index].from)
+      ) {
+        return { success: false, error: 'El contenido de la carpeta cambió. Vuelve a intentarlo.' };
+      }
 
       // Secuencial a propósito: el rollback restaura en orden inverso exacto.
       const tempNames: Array<{ tempPath: string; ext: string; originalPath: string }> = [];
@@ -491,15 +509,10 @@ export class EpisodeFileService {
         }
       }
 
-      let currentStyle: 'minimal' | 'descriptive' | undefined;
-      const firstName = files[0].name;
-      if (firstName.startsWith('EP_')) currentStyle = 'minimal';
-      else if (firstName.includes(' EP_')) currentStyle = 'descriptive';
-
       const finalNames: string[] = [];
       const appliedRenames: Array<{ finalPath: string; tempPath: string }> = [];
       for (let i = 0; i < tempNames.length; i += 1) {
-        const finalName = this.buildCanonicalName(start + i, tempNames[i].ext, path.basename(folderPath), currentStyle);
+        const finalName = preview.items[i].to;
         const finalPath = path.join(folderPath, finalName);
         try {
           await fsp.rename(tempNames[i].tempPath, finalPath);
@@ -561,10 +574,11 @@ export class EpisodeFileService {
     ext: string,
     folderName: string,
     overrideStyle?: 'minimal' | 'descriptive',
+    lang?: 'SUB' | 'DUB',
   ): string {
     const settings = this.options.getSettings();
     const style = overrideStyle || settings.namingStyle || 'descriptive';
-    return buildCanonicalEpisodeFileName(episodeNumber, ext, folderName, style);
+    return buildCanonicalEpisodeFileName(episodeNumber, ext, folderName, style, lang);
   }
 }
 

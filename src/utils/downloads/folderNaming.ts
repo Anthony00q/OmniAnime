@@ -25,6 +25,16 @@ export const FALLBACK_FOLDER_NAME = 'Sin_titulo';
 
 export const MAX_FOLDER_NAME_LENGTH = 100;
 
+export function withFolderLanguage(name: string, lang?: 'SUB' | 'DUB'): string {
+  if (lang !== 'DUB') return name;
+  const base = name
+    .replace(/\s+\[DUB\]$/i, '')
+    .slice(0, MAX_FOLDER_NAME_LENGTH - 6)
+    .trim()
+    .replace(/[. ]+$/g, '');
+  return `${base} [DUB]`;
+}
+
 export interface AniListFolderTitles {
   romaji?: string | null;
   english?: string | null;

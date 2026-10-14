@@ -534,8 +534,7 @@ const SERVER_SPEED: Record<string, string> = {
 };
 
 function buildQueueEpisodePath(item: QueueItem, episode: number): string {
-  // DUB desactivado: solo SUB
-  const lang = item.lang === 'DUB' ? 'SUB' : item.lang || 'SUB';
+  const lang = item.lang || 'SUB';
   return path.join(
     item.targetPath,
     buildCanonicalEpisodeFileName(episode, '.mp4', path.basename(item.targetPath), undefined, lang as 'SUB' | 'DUB'),
@@ -568,6 +567,7 @@ const queueEnqueueService = new QueueEnqueueService({
   resolveAniListMeta: (input, onFailure) => resolveAniListWithLink(input, database, undefined, onFailure),
   getFolderNameSource: () => normalizeFolderNameSource(SettingsManager.get().download?.folderNameSource),
   getFolderMetaSlug: (folderPath) => libraryAssetService.readFolderLibraryMeta(folderPath)?.slug ?? null,
+  getFolderMeta: (folderPath) => libraryAssetService.readFolderLibraryMeta(folderPath),
   urlToFilePath: (url) => LibraryAssetService.urlToFilePath(url),
   writeFolderLibraryMeta: (folderPath, data) => libraryAssetService.writeFolderLibraryMeta(folderPath, data),
   addItem: (item) => queueStore.add(item),
@@ -782,8 +782,7 @@ function buildCanonicalEpisodeFileName(
   overrideStyle?: 'minimal' | 'descriptive',
   lang?: 'SUB' | 'DUB',
 ): string {
-  // DUB desactivado: solo SUB
-  const normalizedLang = lang === 'DUB' ? 'SUB' : lang || 'SUB';
+  const normalizedLang = lang || 'SUB';
   const settings = SettingsManager.get();
   const style = overrideStyle || settings.namingStyle || 'descriptive';
   return buildCanonicalEpisodeFileNameUtil(episodeNumber, ext, folderName, style, normalizedLang as 'SUB' | 'DUB');

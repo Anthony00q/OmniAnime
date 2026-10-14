@@ -14,6 +14,7 @@ export interface LibraryPreloadRow {
   poster?: unknown;
   banner?: unknown;
   providerId?: unknown;
+  lang?: unknown;
 }
 
 export interface LibrarySeedFolder {
@@ -28,6 +29,7 @@ export interface LibrarySeedFolder {
   secondaryTitle: string | null;
   alternativeTitles: string[];
   providerId: string | null;
+  lang?: 'SUB' | 'DUB';
   sourceDir: string;
   sourceDirIndex: number;
 }
@@ -72,6 +74,7 @@ export function adaptLibraryPreloadToFolders(rows: unknown): LibrarySeedFolder[]
         ? (row.alternativeTitles as unknown[]).filter((v): v is string => typeof v === 'string' && !!v.trim())
         : [],
       providerId: asNullableString(row.providerId),
+      ...(row.lang === 'DUB' ? { lang: 'DUB' as const } : {}),
       sourceDir,
       sourceDirIndex: Math.max(0, Math.floor(asNumber(row.sourceDirIndex, 0))),
     });

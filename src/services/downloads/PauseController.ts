@@ -624,6 +624,7 @@ export class PauseController {
       status: 'cancelled',
       path: item.targetPath,
       providerId: item.providerId,
+      lang: item.lang || 'SUB',
       scope: 'queue',
       queueId: item.id,
       reason: 'user',

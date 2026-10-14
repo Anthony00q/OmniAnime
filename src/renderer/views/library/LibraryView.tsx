@@ -70,8 +70,14 @@ const LibraryPosterItem = memo(
         }
         meta={
           episodeCount !== undefined ? (
-            <span className="text-[12px] font-medium normal-case tracking-normal text-white/55 tabular-nums">
+            <span className="inline-flex items-center gap-1 text-[12px] font-medium normal-case tracking-normal text-white/55 tabular-nums">
               {episodeCount} {episodeCount === 1 ? 'EP' : 'EPs'}
+              {item.lang === 'DUB' && (
+                <>
+                  <span aria-hidden="true" className="h-3 w-px shrink-0 bg-white/30" />
+                  <span>DUB</span>
+                </>
+              )}
             </span>
           ) : undefined
         }
@@ -87,6 +93,7 @@ const LibraryPosterItem = memo(
     prev.item.name === next.item.name &&
     prev.item.hasNew === next.item.hasNew &&
     prev.item.episodeCount === next.item.episodeCount &&
+    prev.item.lang === next.item.lang &&
     prev.item.alternativeTitles === next.item.alternativeTitles &&
     prev.setSelectedFolder === next.setSelectedFolder &&
     prev.onContextMenu === next.onContextMenu,

@@ -13,7 +13,13 @@ const PROVIDER_NAMES: Record<string, string> = {
   jkanime: 'JkAnime',
 };
 
-export const ProviderBadge = memo(function ProviderBadge({ providerId }: { providerId?: string }) {
+export const ProviderBadge = memo(function ProviderBadge({
+  providerId,
+  lang,
+}: {
+  providerId?: string;
+  lang?: 'SUB' | 'DUB';
+}) {
   if (!providerId || !PROVIDER_NAMES[providerId]) {
     return <span className="text-xs text-muted-foreground/40 italic">Desconocido</span>;
   }
@@ -36,6 +42,12 @@ export const ProviderBadge = memo(function ProviderBadge({ providerId }: { provi
           />
         )}
         {name}
+        {lang === 'DUB' && (
+          <>
+            <span aria-hidden="true" className="h-3 w-px shrink-0 bg-border-strong/70" />
+            <span>DUB</span>
+          </>
+        )}
       </span>
     </AppTooltip>
   );

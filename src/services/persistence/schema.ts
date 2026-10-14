@@ -1,6 +1,6 @@
 import type Database from 'better-sqlite3';
 
-export const SCHEMA_VERSION = 6;
+export const SCHEMA_VERSION = 7;
 
 export function applyBaseSchema(db: Database.Database): void {
   db.exec(`
@@ -73,7 +73,8 @@ export function applyBaseSchema(db: Database.Database): void {
             scope TEXT NOT NULL DEFAULT 'episode' CHECK (scope IN ('episode', 'queue')),
             queue_id TEXT,
             reason TEXT,
-            episode_list TEXT NOT NULL DEFAULT '[]'
+            episode_list TEXT NOT NULL DEFAULT '[]',
+            lang TEXT NOT NULL DEFAULT 'SUB'
         )
     `);
 
@@ -93,6 +94,7 @@ export function applyBaseSchema(db: Database.Database): void {
             banner_url TEXT,
             provider_id TEXT,
             anilist_id INTEGER,
+            lang TEXT NOT NULL DEFAULT 'SUB',
             updated_at INTEGER NOT NULL
         )
     `);

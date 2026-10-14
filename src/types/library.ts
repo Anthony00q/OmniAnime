@@ -16,6 +16,7 @@ export interface LibraryMetaPreloadRow {
   status?: string;
   season?: string;
   providerId?: string | null;
+  lang?: 'SUB' | 'DUB';
   updatedAt: number;
 }
 
@@ -32,6 +33,7 @@ export interface FolderLibraryMeta {
   posterUrl?: string | null;
   bannerUrl?: string | null;
   providerId?: string | null;
+  lang?: 'SUB' | 'DUB';
   anilistId?: number | null;
   folderPath?: string;
 }

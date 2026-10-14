@@ -61,6 +61,7 @@ interface LibraryHeroProps {
   episodeCount: number;
   metaSlug?: string | null;
   providerId?: string | null;
+  lang?: 'SUB' | 'DUB';
   secondaryTitle?: string | null;
   alternativeTitles?: string[];
   activeProvider?: string;
@@ -74,6 +75,7 @@ export function LibraryHero({
   episodeCount,
   metaSlug,
   providerId,
+  lang,
   secondaryTitle,
   alternativeTitles,
   activeProvider,
@@ -131,6 +133,15 @@ export function LibraryHero({
             |
           </span>{' '}
           {providerName}
+          {lang === 'DUB' && (
+            <>
+              {' '}
+              <span aria-hidden="true" className="text-border-strong">
+                |
+              </span>{' '}
+              DUB
+            </>
+          )}
         </p>
       </div>
     </div>

@@ -510,6 +510,21 @@ export interface Av1LinkRaw {
   url: string;
 }
 
+export function parseAv1AvailabilityEntries(html: string, lang: string): Av1LinkRaw[] | null {
+  let recognized = false;
+  for (const section of ['embeds', 'downloads']) {
+    if (!html.includes(`${section}:{`)) continue;
+    const body = extractBalancedBlock(html, `${section}:{`, '{', '}');
+    if (body === null) return null;
+    for (const language of ['SUB', 'DUB']) {
+      if (!body.includes(`${language}:[`)) continue;
+      if (extractBalancedBlock(body, `${language}:[`, '[', ']') === null) return null;
+      recognized = true;
+    }
+  }
+  return recognized ? parseAv1LinkEntries(html, lang) : null;
+}
+
 export function parseAv1LinkEntries(html: string, lang: string): Av1LinkRaw[] {
   const out: Av1LinkRaw[] = [];
   // Secciones `embeds:{...}` y `downloads:{...}` por balanceo: el orden

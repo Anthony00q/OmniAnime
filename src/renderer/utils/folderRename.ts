@@ -3,6 +3,7 @@ import {
   extractFolderNameYear,
   listFolderNameCandidates,
   nextAvailableFolderName,
+  withFolderLanguage,
   type AniListFolderTitles,
   type FolderCandidateKey,
   type FolderNameSource,
@@ -15,6 +16,7 @@ export interface FolderRenameMeta {
   year?: string | number | null;
   category?: string | null;
   season?: string | null;
+  lang?: 'SUB' | 'DUB';
 }
 
 // Input de AniList para el rename; formato y temporada de la meta ayudan a desempatar.
@@ -64,7 +66,7 @@ export function computeFolderRenamePlan(
   const plan: FolderRenamePlanItem[] = [];
   for (const entry of entries) {
     const meta = entry.meta || {};
-    const base = buildFolderName(
+    const titleBase = buildFolderName(
       {
         providerTitle: meta.title ?? null,
         providerAlternativeTitles: meta.alternativeTitles ?? null,
@@ -74,6 +76,7 @@ export function computeFolderRenamePlan(
       },
       source,
     );
+    const base = withFolderLanguage(titleBase, meta.lang);
     let newName = base;
     let status: FolderRenamePlanItem['status'] = base === entry.folderName ? 'unchanged' : 'will_rename';
     try {
@@ -119,5 +122,9 @@ export function folderRenameCandidates(
     japaneseTitle: entry.meta?.secondaryTitle ?? null,
     anilist: anilistTitles ?? null,
     year: entry.meta?.year ?? null,
-  }).map((candidate) => ({ ...candidate, label: FOLDER_CANDIDATE_LABELS[candidate.key] }));
+  }).map((candidate) => ({
+    ...candidate,
+    name: withFolderLanguage(candidate.name, entry.meta?.lang),
+    label: FOLDER_CANDIDATE_LABELS[candidate.key],
+  }));
 }

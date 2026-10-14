@@ -354,9 +354,8 @@ export class JkAnimeProvider implements AnimeProvider {
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async getLinks(slug: string, episode: number, lang = 'SUB', signal?: AbortSignal): Promise<DownloadLink[]> {
-    // DUB desactivado: solo SUB
+    if (lang !== 'SUB') return [];
     try {
       const { data } = await this.http.get(jkEpisodePageUrl(slug, episode), { signal });
       const servers = extractJkServersArray(data, slug, episode, this.logger);

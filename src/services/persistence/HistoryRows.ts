@@ -40,8 +40,8 @@ export class HistoryRows {
         this.db
           .prepare(
             `INSERT INTO download_history
-                (date, anime, slug, episode, status, path, provider_id, scope, queue_id, reason, episode_list)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                (date, anime, slug, episode, status, path, provider_id, scope, queue_id, reason, episode_list, lang)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           )
           .run(
             record.date,
@@ -55,6 +55,7 @@ export class HistoryRows {
             record.queueId || null,
             sanitizedReason,
             JSON.stringify(record.episodeList || []),
+            record.lang === 'DUB' ? 'DUB' : 'SUB',
           );
         this.db
           .prepare(

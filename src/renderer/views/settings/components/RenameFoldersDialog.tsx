@@ -21,6 +21,7 @@ interface FolderRow {
   year?: string | null;
   category?: string | null;
   season?: string | null;
+  lang?: 'SUB' | 'DUB';
 }
 
 interface RenameFoldersDialogProps {
@@ -57,6 +58,7 @@ export function RenameFoldersDialog({ open, onOpenChange, dirs, source }: Rename
         year: row.year ?? null,
         category: row.category ?? null,
         season: row.season ?? null,
+        lang: row.lang,
       },
     }));
   }, [rows]);

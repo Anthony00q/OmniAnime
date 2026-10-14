@@ -401,6 +401,7 @@ export class SlotScheduler {
       status,
       path: dest,
       providerId: item.providerId,
+      lang: item.lang || 'SUB',
       scope: 'episode',
       queueId: item.id,
       reason: status === 'fail' ? reason || 'No se pudo completar la descarga' : undefined,

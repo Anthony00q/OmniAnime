@@ -152,6 +152,17 @@ export const MIGRATIONS: MigrationStep[] = [
       applyAniLinkTable(db);
     },
   },
+  {
+    version: 7,
+    run: (db) => {
+      if (!tableHasColumn(db, 'download_history', 'lang')) {
+        db.exec("ALTER TABLE download_history ADD COLUMN lang TEXT NOT NULL DEFAULT 'SUB'");
+      }
+      if (!tableHasColumn(db, 'folder_meta', 'lang')) {
+        db.exec("ALTER TABLE folder_meta ADD COLUMN lang TEXT NOT NULL DEFAULT 'SUB'");
+      }
+    },
+  },
 ];
 
 export function migrateToLatest(db: Database.Database, options: MigrateOptions): void {

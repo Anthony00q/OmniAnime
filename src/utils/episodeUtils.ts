@@ -58,7 +58,6 @@ export function buildCanonicalEpisodeFileName(
     prefix = `${cleanName} EP_`;
   }
 
-  // DUB desactivado: solo SUB
   const langSuffix = lang === 'DUB' ? '_DUB' : '';
   return `${prefix}${episodeNumber}${langSuffix}${safeExt}`;
 }

@@ -18,8 +18,9 @@ export interface AnimeRelation {
   poster: string;
 }
 
-// DUB desactivado: solo SUB
 export type AnimeLanguage = 'SUB' | 'DUB';
+
+export type EpisodeAvailability = 'available' | 'unavailable' | 'unsupported' | 'error';
 
 export interface AnimeDetails {
   id: string;
@@ -41,6 +42,8 @@ export interface AnimeDetails {
   score: number;
   votes: number;
   availableLanguages: AnimeLanguage[];
+  spokenLanguages?: string[];
+  supportsDub?: boolean;
   studio: string;
   type: string;
   episodeThumbnails?: Record<number, string>;
@@ -55,7 +58,6 @@ export type DownloadAnimeDetails = AnimeDetails & {
 export interface DownloadLink {
   server: string;
   url: string;
-  // DUB desactivado: solo SUB
   lang?: 'SUB' | 'DUB';
 }
 

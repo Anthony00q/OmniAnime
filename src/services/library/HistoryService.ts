@@ -46,6 +46,7 @@ export class HistoryService {
         status: row.status,
         path: row.path,
         providerId: row.provider_id || undefined,
+        lang: row.lang === 'DUB' ? ('DUB' as const) : ('SUB' as const),
         _dbId: row.id,
       };
       const info = this.options.getDirInfo(record.path || '');

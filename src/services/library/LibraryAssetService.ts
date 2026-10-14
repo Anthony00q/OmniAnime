@@ -237,6 +237,7 @@ export class LibraryAssetService {
       const secondary = String(data.secondaryTitle || '').trim();
       const normalized: FolderLibraryMeta = {
         ...data,
+        lang: (data.lang ?? this.readFolderLibraryMeta(folderPath)?.lang) === 'DUB' ? 'DUB' : 'SUB',
         secondaryTitle: secondary,
         alternativeTitles: normalizeFolderAlternativeTitles(data.alternativeTitles, data.title),
       };
@@ -251,6 +252,7 @@ export class LibraryAssetService {
           secondaryTitle: normalized.secondaryTitle,
           alternativeTitles: normalized.alternativeTitles,
           providerId: normalized.providerId || null,
+          lang: normalized.lang,
           anilistId: Number.isInteger(normalized.anilistId) ? normalized.anilistId : null,
           updatedAt: Date.now(),
         },

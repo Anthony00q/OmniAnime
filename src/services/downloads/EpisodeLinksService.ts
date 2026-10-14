@@ -43,12 +43,12 @@ export class EpisodeLinksService {
 
   async getEpisodeLinks(item: QueueItem, ep: number, signal?: AbortSignal): Promise<ProviderDownloadLink[]> {
     const slug = String(item.downloadSlug || item.slug || '').trim();
-    // DUB desactivado: solo SUB
-    const lang = item.lang === 'DUB' ? 'SUB' : item.lang || 'SUB';
+    const lang = item.lang || 'SUB';
     if (!slug || signal?.aborted) return [];
 
     // Usa providerId del QueueItem, no el activo global.
     const targetProviderId = (item.providerId || this.options.getActiveProviderId()) as DownloadProvider;
+    if (lang === 'DUB' && targetProviderId !== 'animeav1') return [];
     const order = this.getServerPriorityOrder(targetProviderId);
     const provider = this.options.getProviderById(targetProviderId) || this.options.getActiveProvider();
     this.options.log(`EP ${ep}: buscando servidores en ${targetProviderId}...`, 'info');
@@ -60,6 +60,7 @@ export class EpisodeLinksService {
     if (signal?.aborted) return [];
 
     for (const l of rows) {
+      if (l.lang && l.lang !== lang) continue;
       const rawName = String(l.server || '').trim() || '?';
       this.traceServerStage(ep, targetProviderId, rawName, 'found');
       this.options.recordFound(targetProviderId, rawName);

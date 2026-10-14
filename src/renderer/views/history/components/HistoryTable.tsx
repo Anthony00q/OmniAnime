@@ -113,7 +113,7 @@ export const HistoryTable = memo(function HistoryTable({
                     {group.lastDate}
                   </td>
                   <td className="px-4 py-3.5 whitespace-nowrap">
-                    <ProviderBadge providerId={group.providerId} />
+                    <ProviderBadge providerId={group.providerId} lang={group.lang} />
                   </td>
                   <td className="px-4 py-3.5">
                     <button

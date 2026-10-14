@@ -45,6 +45,8 @@ export const INVOKE_CHANNELS = [
   'search-anime',
   'get-details',
   'get-episode-thumbs',
+  'get-episode-availability',
+  'cancel-episode-availability',
   'get-anilist-banner',
   'search-anilist',
   'set-anilist-link',

@@ -1,12 +1,12 @@
 import { dialog } from 'electron';
 import { handleIpc } from '../ipcGuard';
 import axios from 'axios';
-import { ok } from '../../../types/api';
+import { ok, fail } from '../../../types/api';
 import { USER_AGENT } from '../../../utils/windowUtils';
 import { safeErrorMessage } from '../../../utils/logging/redactLog';
 import { assertAllowedImageRedirect, isAllowedImageUrl } from '../../../utils/security/networkSecurity';
 import { JkAnimeProvider } from '../../../services/providers/JkAnimeProvider';
-import type { CatalogFilters } from '../../../types/anime';
+import type { CatalogFilters, EpisodeAvailability } from '../../../types/anime';
 import type { IpcRegistryDependencies } from '../../IpcRegistry';
 
 export function registerCatalogHandlers({
@@ -16,6 +16,7 @@ export function registerCatalogHandlers({
   getAnimeDetailsBySlug,
   writeGlobalLog,
 }: IpcRegistryDependencies): void {
+  const availabilityRuns = new Map<number, { id: string; controller: AbortController }>();
   const resolveProvider = (id: unknown) => {
     const key = typeof id === 'string' ? id.trim() : '';
     if (!key) return providerGateway.activeProvider;
@@ -210,6 +211,62 @@ export function registerCatalogHandlers({
       }
     },
   );
+
+  handleIpc(
+    'get-episode-availability',
+    async (
+      event,
+      payload: {
+        provider?: string;
+        slug?: string;
+        episodes?: number[];
+        lang?: string;
+        requestId?: string;
+      },
+    ) => {
+      if (
+        payload?.provider !== 'animeav1' ||
+        payload.lang !== 'DUB' ||
+        typeof payload.slug !== 'string' ||
+        !/^[a-z0-9][a-z0-9-]{0,199}$/i.test(payload.slug) ||
+        !Array.isArray(payload.episodes) ||
+        payload.episodes.length > 2 ||
+        !payload.episodes.every((ep) => Number.isSafeInteger(ep) && ep > 0 && ep <= 100_000) ||
+        typeof payload.requestId !== 'string' ||
+        !/^[a-z0-9-]{1,100}$/i.test(payload.requestId)
+      ) {
+        return fail('INVALID_INPUT', 'La consulta de doblaje no es válida.');
+      }
+      const provider = providerGateway.getProvider(payload.provider);
+      if (!provider?.getEpisodeAvailability) return ok(null);
+      const sender = event.sender;
+      if (sender.isDestroyed?.()) return ok(null);
+      const senderId: number = sender.id;
+      availabilityRuns.get(senderId)?.controller.abort();
+      const run = { id: payload.requestId, controller: new AbortController() };
+      availabilityRuns.set(senderId, run);
+      const abort = () => run.controller.abort();
+      sender.once('destroyed', abort);
+      try {
+        const result: Record<number, EpisodeAvailability> = {};
+        await Promise.all(
+          [...new Set(payload.episodes)].map(async (ep) => {
+            result[ep] = await provider.getEpisodeAvailability!(payload.slug!, ep, 'DUB', run.controller.signal);
+          }),
+        );
+        return ok(run.controller.signal.aborted ? null : result);
+      } finally {
+        sender.removeListener('destroyed', abort);
+        if (availabilityRuns.get(senderId) === run) availabilityRuns.delete(senderId);
+      }
+    },
+  );
+
+  handleIpc('cancel-episode-availability', (event, requestId: unknown) => {
+    const run = availabilityRuns.get(event.sender.id);
+    if (run && run.id === requestId) run.controller.abort();
+    return ok(null);
+  });
 
   handleIpc('select-folder', async () => {
     const result = await dialog.showOpenDialog({ properties: ['openDirectory'] });

@@ -37,7 +37,7 @@
 
 **OmniAnime** es una aplicación de escritorio para **Windows** para buscar, descargar y organizar anime en una librería local. Sin cuentas ni nube: eliges la fuente, encuentras lo que quieres ver y lo guardas en tu disco con control total sobre carpetas y nombres.
 
-Solo maneja anime con subtítulos (SUB). No hay doblaje.
+Permite descargar anime subtitulado (SUB) y episodios doblados (DUB) en AnimeAV1 cuando están disponibles. JkAnime mantiene solo SUB.
 
 > OmniAnime no aloja nada — solo busca en sitios públicos como [AnimeAV1](https://animeav1.com/) y [JkAnime](https://jkanime.net/). Úsalo con responsabilidad.
 
@@ -124,7 +124,7 @@ Usa Agregar o quitar programas de Windows. Tus videos y la base de datos de `%AP
 
 ### ¿Tiene doblaje?
 
-No, solo subtítulos (SUB).
+Sí, en AnimeAV1. Selecciona DUB en la ficha para comprobar los episodios disponibles. Las versiones SUB y DUB se guardan en carpetas separadas.
 
 ### ¿Necesito cuenta?
 

@@ -393,6 +393,7 @@ export interface JkDetailsRaw {
   type: string | null;
   temporadaValue: string;
   emitidoText: string;
+  spokenLanguages?: string[];
   relations: Array<{ type: string; title: string; slug: string }>;
 }
 
@@ -460,15 +461,29 @@ export function parseJkDetails($: ReturnType<typeof cheerio.load>, slug: string)
   let temporadaValue = '';
   let emitidoText = '';
   const seasonRows = $('.anime_data.pc li').length > 0 ? $('.anime_data.pc li') : $('.anime_data li');
+  const spokenLanguages: string[] = [];
   seasonRows.each((_: any, el: any) => {
     const liText = $(el).text().replace(/\s+/g, ' ').trim();
+    if (/^Idiomas?:/i.test(liText)) {
+      for (const value of liText.replace(/^Idiomas?:\s*/i, '').split(',')) {
+        const label = value.trim();
+        if (!label) continue;
+        const key = label
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .toLowerCase();
+        const normalized = key === 'japones' ? 'Japonés' : key === 'espanol latino' ? 'Español latino' : label;
+        if (!spokenLanguages.some((language) => language.toLowerCase() === normalized.toLowerCase())) {
+          spokenLanguages.push(normalized);
+        }
+      }
+    }
     if (!temporadaValue && /^Temporada:/i.test(liText)) {
       temporadaValue = liText.replace(/^Temporada:\s*/i, '').trim();
     }
     if (!emitidoText && /^Emitido:/i.test(liText)) {
       emitidoText = liText.replace(/^Emitido:\s*/i, '').trim();
     }
-    if (temporadaValue && emitidoText) return false;
   });
 
   const relations: JkDetailsRaw['relations'] = [];
@@ -506,6 +521,7 @@ export function parseJkDetails($: ReturnType<typeof cheerio.load>, slug: string)
     type,
     temporadaValue,
     emitidoText,
+    spokenLanguages,
     relations,
   };
 }

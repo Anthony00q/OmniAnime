@@ -5,6 +5,8 @@ import {
   HomeEpisode,
   CatalogFiltersData,
   ScheduleData,
+  AnimeLanguage,
+  EpisodeAvailability,
 } from '../../types/anime';
 import type { ScopedLogger } from '../logging/AppLogger';
 
@@ -18,6 +20,12 @@ export interface AnimeProvider {
   search(query: string): Promise<AnimeSearchResult[]>;
   getDetails(slug: string): Promise<AnimeDetails | null>;
   getLinks(slug: string, episode: number, lang?: string, signal?: AbortSignal): Promise<DownloadLink[]>;
+  getEpisodeAvailability?(
+    slug: string,
+    episode: number,
+    lang: AnimeLanguage,
+    signal?: AbortSignal,
+  ): Promise<EpisodeAvailability>;
   getFiltersData(force?: boolean): Promise<CatalogFiltersData>;
 }
 

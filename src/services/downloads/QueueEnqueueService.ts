@@ -9,6 +9,7 @@ import {
   normalizeFolderAlternativeTitles,
 } from '../../utils/titleUtils';
 import { errorDetailForLog } from '../../utils/logging/redactLog';
+import { isPathSafeForDestructiveOperation } from '../../utils/security/pathSecurity';
 import {
   anilistBannerInputFromDetails,
   type AniListBannerInput,
@@ -18,6 +19,7 @@ import {
   buildFolderName,
   extractFolderNameYear,
   nextAvailableFolderName,
+  withFolderLanguage,
   type FolderNameSource,
 } from '../../utils/downloads/folderNaming';
 
@@ -57,6 +59,7 @@ export interface QueueEnqueueServiceOptions {
   ) => Promise<AniListBannerResult | null>;
   getFolderNameSource: () => FolderNameSource;
   getFolderMetaSlug: (folderPath: string) => string | null;
+  getFolderMeta?: (folderPath: string) => FolderLibraryMeta | null;
   urlToFilePath: (url: string) => string | null;
   writeFolderLibraryMeta: (folderPath: string, data: FolderLibraryMeta) => void;
   addItem: (item: QueueItem) => void;
@@ -68,12 +71,19 @@ export interface QueueEnqueueServiceOptions {
 }
 
 export class QueueEnqueueService {
+  private enqueueTail: Promise<unknown> = Promise.resolve();
   constructor(private readonly options: QueueEnqueueServiceOptions) {}
 
-  async enqueue(payload: QueueEnqueuePayload): Promise<QueueEnqueueResult | false> {
+  enqueue(payload: QueueEnqueuePayload): Promise<QueueEnqueueResult | false> {
+    const task = this.enqueueTail.then(() => this.enqueueItem(payload));
+    this.enqueueTail = task.catch(() => undefined);
+    return task;
+  }
+
+  private async enqueueItem(payload: QueueEnqueuePayload): Promise<QueueEnqueueResult | false> {
     const { slug, episodes, preferredServer, lang: rawLang, outputDirIndex } = payload;
-    // DUB desactivado: solo SUB
-    const lang = rawLang === 'DUB' ? 'SUB' : rawLang || 'SUB';
+    if (rawLang !== undefined && rawLang !== 'SUB' && rawLang !== 'DUB') return false;
+    const lang = rawLang || 'SUB';
     // El provider del payload (el de la ficha visible) manda; el activo es fallback.
     const requestedProvider = String(payload.provider || '')
       .trim()
@@ -83,6 +93,7 @@ export class QueueEnqueueService {
         ? requestedProvider
         : this.options.getActiveProviderId()
     ) as DownloadProvider;
+    if (lang === 'DUB' && queueProvider !== 'animeav1') return false;
     const details = await this.options.getAnimeDetails(slug, queueProvider);
     if (!details) return false;
 
@@ -90,6 +101,7 @@ export class QueueEnqueueService {
     const dirs = outputDirs || [defaultOutputDir];
     const resolvedIndex = outputDirIndex ?? 0;
     const baseDir = dirs[resolvedIndex] || defaultOutputDir;
+    if (!Array.isArray(episodes) || !episodes.every((ep) => Number.isSafeInteger(ep) && ep > 0)) return false;
     const normalizedEpisodes = Array.from(new Set(episodes)).sort((a, b) => a - b);
     if (normalizedEpisodes.length === 0) return false;
 
@@ -108,7 +120,7 @@ export class QueueEnqueueService {
 
     let folderName: string;
     try {
-      folderName = this.resolveFolderName(details, slug, anilist, baseDir);
+      folderName = this.resolveFolderName(details, slug, anilist, baseDir, lang, queueProvider);
     } catch (error) {
       this.options.logError(`Error resolviendo carpeta para ${slug}: ${errorDetailForLog(error)}`);
       return false;
@@ -128,8 +140,12 @@ export class QueueEnqueueService {
     if (duplicateQueueItem) return false;
 
     try {
+      if (!isPathSafeForDestructiveOperation(targetPath, [...dirs, defaultOutputDir])) return false;
       await fs.promises.mkdir(targetPath, { recursive: true });
-    } catch {}
+      if (!isPathSafeForDestructiveOperation(targetPath, [...dirs, defaultOutputDir])) return false;
+    } catch {
+      return false;
+    }
     let localPosterUrl: string | null = null;
     let localBannerUrl: string | null = null;
     const anilistBannerUrl = anilist?.banner ?? null;
@@ -165,6 +181,7 @@ export class QueueEnqueueService {
       posterUrl: details.poster || null,
       bannerUrl: anilistBannerUrl,
       providerId: queueProvider,
+      lang,
       anilistId: anilist?.anilistId ?? null,
     });
 
@@ -217,8 +234,10 @@ export class QueueEnqueueService {
     payloadSlug: string,
     anilist: AniListBannerResult | null,
     baseDir: string,
+    lang: 'SUB' | 'DUB',
+    provider: DownloadProvider,
   ): string {
-    const base = buildFolderName(
+    const titleBase = buildFolderName(
       {
         providerTitle: details.title,
         providerAlternativeTitles: details.alternativeTitles,
@@ -228,16 +247,33 @@ export class QueueEnqueueService {
       },
       this.options.getFolderNameSource(),
     );
+    const base = withFolderLanguage(titleBase, lang);
     const animeSlug = String(details.slug || payloadSlug || '').trim();
     return nextAvailableFolderName(base, extractFolderNameYear(details.year), (name) => {
       const candidatePath = path.join(baseDir, name);
+      const activeOwner = this.options
+        .listQueueItems()
+        .find(
+          (item) =>
+            ['pending', 'downloading', 'paused'].includes(item.status) &&
+            path.resolve(item.targetPath).toLowerCase() === path.resolve(candidatePath).toLowerCase(),
+        );
+      if (
+        activeOwner &&
+        (activeOwner.providerId !== provider ||
+          (activeOwner.lang || 'SUB') !== lang ||
+          (activeOwner.downloadSlug || activeOwner.slug) !== animeSlug)
+      )
+        return true;
       try {
         if (!fs.existsSync(candidatePath)) return false;
       } catch {
         return false;
       }
       const ownerSlug = String(this.options.getFolderMetaSlug(candidatePath) || '').trim();
-      // Sin meta se comparte carpeta: solo otro anime empuja el nombre.
+      const meta = this.options.getFolderMeta?.(candidatePath);
+      if (meta && ((meta.lang || 'SUB') !== lang || (meta.providerId || 'animeav1') !== provider)) return true;
+      if (lang === 'DUB' && !meta) return true;
       return ownerSlug !== '' && ownerSlug !== animeSlug;
     });
   }
