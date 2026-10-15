@@ -16,7 +16,6 @@ import {
 import clsx from 'clsx';
 import { activeProviderAtom, appUpdateAvailableAtom, appUpdateModalOpenAtom } from '@/renderer/store/atoms';
 import { useProvidersList, useProviderSwitch } from '@/renderer/hooks/useQueries';
-import { AppTooltip } from './ui/AppTooltip';
 import animeav1Icon from '@assets/provider-icons/animeav1-32.png';
 import animeav1Icon2x from '@assets/provider-icons/animeav1-64.png';
 import jkanimeIcon from '@assets/provider-icons/jkanime-32.png';
@@ -180,24 +179,22 @@ export function Sidebar({ currentView, setCurrentView }: SidebarProps) {
       <div className="sidebar-settings px-3 mt-auto pt-4">
         <div aria-hidden="true" className="mx-1 mb-3 h-px bg-border/30" />
         {updateAvailable && !updateModalOpen && (
-          <AppTooltip content={`Actualización disponible (${updateAvailable.version})`} side="right" align="center">
-            <button
-              type="button"
-              onClick={() => setUpdateModalOpen(true)}
-              aria-label={`Ver actualización disponible ${updateAvailable.version}`}
-              className="sidebar-nav-item group relative isolate min-h-11 w-full flex items-center gap-3 px-3 py-0 mb-1 rounded-lg text-sm font-bold border border-transparent bg-transparent text-primary-foreground transition-colors duration-150 [transition-timing-function:var(--ease-out)] outline-none focus-visible:ring-2 focus-visible:ring-primary/60 cursor-pointer"
-            >
-              <span
-                aria-hidden="true"
-                className="pointer-events-none absolute inset-x-0 top-1/2 z-0 h-[38px] -translate-y-1/2 rounded-lg bg-primary transition-colors duration-150 [transition-timing-function:var(--ease-out)] group-hover:bg-[color-mix(in_srgb,var(--color-primary)_88%,black)]"
-              />
-              <CircleArrowUp strokeWidth={2} className="relative z-10 h-4 w-4 shrink-0" aria-hidden="true" />
-              <span className="sidebar-label relative z-10">Actualizar</span>
-              <span className="sidebar-label relative z-10 ml-auto rounded-full border border-primary-foreground/15 px-1.5 py-px text-[11px] font-medium tabular-nums whitespace-nowrap opacity-75">
-                {updateAvailable.version}
-              </span>
-            </button>
-          </AppTooltip>
+          <button
+            type="button"
+            onClick={() => setUpdateModalOpen(true)}
+            aria-label={`Ver actualización disponible ${updateAvailable.version}`}
+            className="sidebar-nav-item group relative isolate min-h-11 w-full flex items-center gap-3 px-3 py-0 mb-1 rounded-lg text-sm font-bold border border-transparent bg-transparent text-primary-foreground transition-colors duration-150 [transition-timing-function:var(--ease-out)] outline-none focus-visible:ring-2 focus-visible:ring-primary/60 cursor-pointer"
+          >
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-x-0 top-1/2 z-0 h-[38px] -translate-y-1/2 rounded-lg bg-primary transition-colors duration-150 [transition-timing-function:var(--ease-out)] group-hover:bg-[color-mix(in_srgb,var(--color-primary)_88%,black)]"
+            />
+            <CircleArrowUp strokeWidth={2} className="relative z-10 h-4 w-4 shrink-0" aria-hidden="true" />
+            <span className="sidebar-label relative z-10">Actualizar</span>
+            <span className="sidebar-label relative z-10 ml-auto rounded-full border border-primary-foreground/15 px-1.5 py-px text-[11px] font-medium tabular-nums whitespace-nowrap opacity-75">
+              {updateAvailable.version}
+            </span>
+          </button>
         )}
         <button
           type="button"
