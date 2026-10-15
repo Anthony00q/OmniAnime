@@ -188,9 +188,7 @@ export class SlotScheduler {
       const dest = this.options.buildEpisodePath(item, episode);
       if (this.options.attemptService.hasCompletedFile(dest)) {
         this.options.sendLog(`EP ${episode} ya existe en disco. Omitiendo.`, 'info');
-        removeEpisode(item.failedEps, episode);
-        pushUniqueEpisode(item.completedEps, episode);
-        removeFailureReason(item, episode);
+        this.finalizeEpisodeResult(item, episode, dest, 'ok', undefined, false);
         continue;
       }
 
@@ -356,7 +354,14 @@ export class SlotScheduler {
     }
   }
 
-  finalizeEpisodeResult(item: QueueItem, episode: number, dest: string, status: HistoryStatus, reason?: string): void {
+  finalizeEpisodeResult(
+    item: QueueItem,
+    episode: number,
+    dest: string,
+    status: HistoryStatus,
+    reason?: string,
+    notifyResult = true,
+  ): void {
     ensureEpArrays(item);
     try {
       (this.options.attemptService as unknown as { forgetEpisode?: (id: string, ep: number) => void }).forgetEpisode?.(
@@ -406,6 +411,7 @@ export class SlotScheduler {
       queueId: item.id,
       reason: status === 'fail' ? reason || 'No se pudo completar la descarga' : undefined,
     });
+    if (!notifyResult) return;
     if (status !== 'cancelled') {
       this.options.sendEpisodeDownloaded(item, episode, status === 'ok');
     }
@@ -559,9 +565,7 @@ export class SlotScheduler {
         const dest = this.options.buildEpisodePath(item, episode);
         if (this.options.attemptService.hasCompletedFile(dest)) {
           this.options.sendLog(`EP ${episode} ya existe en disco. Omitiendo.`, 'info');
-          removeEpisode(item.failedEps, episode);
-          pushUniqueEpisode(item.completedEps, episode);
-          removeFailureReason(item, episode);
+          this.finalizeEpisodeResult(item, episode, dest, 'ok', undefined, false);
           return;
         }
 

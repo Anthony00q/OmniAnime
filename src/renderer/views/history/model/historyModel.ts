@@ -19,6 +19,7 @@ export interface HistoryRecord {
 export interface GroupedRecord {
   record: HistoryRecord;
   originalIndex: number;
+  isPreviousAttempt: boolean;
 }
 
 export interface HistoryGroup {
@@ -48,7 +49,7 @@ export function groupHistory(history: HistoryRecord[]): HistoryGroup[] {
     const existing = map.get(key);
 
     if (existing) {
-      existing.records.push({ record, originalIndex });
+      existing.records.push({ record, originalIndex, isPreviousAttempt: false });
     } else {
       map.set(key, {
         key,
@@ -58,7 +59,7 @@ export function groupHistory(history: HistoryRecord[]): HistoryGroup[] {
         lang: record.lang || 'SUB',
         dirLabel: record.dirLabel,
         dirFullPath: record.dirFullPath,
-        records: [{ record, originalIndex }],
+        records: [{ record, originalIndex, isPreviousAttempt: false }],
         okCount: 0,
         failCount: 0,
         cancelledCount: 0,
@@ -73,11 +74,13 @@ export function groupHistory(history: HistoryRecord[]): HistoryGroup[] {
 
   for (const group of map.values()) {
     const latestByEpisode = new Map<number, HistoryRecord>();
-    for (const { record } of group.records) {
+    for (const entry of group.records) {
+      const { record } = entry;
       if (record.scope === 'queue' || record.episode === null || record.episode === undefined) continue;
       const episode = Number(record.episode);
-      if (!Number.isNaN(episode) && !latestByEpisode.has(episode)) {
-        latestByEpisode.set(episode, record);
+      if (!Number.isNaN(episode)) {
+        entry.isPreviousAttempt = latestByEpisode.has(episode);
+        if (!entry.isPreviousAttempt) latestByEpisode.set(episode, record);
       }
     }
 
@@ -91,14 +94,14 @@ export function groupHistory(history: HistoryRecord[]): HistoryGroup[] {
     ).length;
     group.totalCount = latestByEpisode.size;
 
-    const requestedEpisodes = new Set<number>();
+    const requestedEpisodes = new Set<number>(latestByEpisode.keys());
     for (const { record } of group.records) {
       if (record.scope !== 'queue') continue;
       for (const episode of record.episodeList || []) {
         requestedEpisodes.add(Number(episode));
       }
     }
-    group.requestedCount = Math.max(group.totalCount, requestedEpisodes.size);
+    group.requestedCount = requestedEpisodes.size;
     group.unstartedCount = Array.from(requestedEpisodes).filter((episode) => !latestByEpisode.has(episode)).length;
   }
 
@@ -113,9 +116,6 @@ export function getGroupStatus(group: HistoryGroup) {
   if (group.cancelledCount === group.totalCount && group.failCount === 0) {
     return { label: 'Cancelado', variant: 'cancelled' as const };
   }
-  if (group.queueCancellationCount > 0) {
-    return { label: 'Parcial', variant: 'neutral' as const };
-  }
   if (group.failCount === 0 && group.cancelledCount === 0) return { label: 'Completado', variant: 'success' as const };
   if (group.okCount === 0 && group.cancelledCount === 0) return { label: 'Fallido', variant: 'danger' as const };
   return { label: 'Parcial', variant: 'neutral' as const };
@@ -129,21 +129,6 @@ export function formatHistoryReason(record: HistoryRecord): string | null {
   }
   if (record.status === 'fail') return reason || 'Motivo no disponible';
   return reason || null;
-}
-
-export function getGroupDisplayReason(group: HistoryGroup): { text: string | null; extra: number } {
-  const failReasons = group.records
-    .map(({ record }) => (record.status === 'fail' ? formatHistoryReason(record) : null))
-    .filter((r): r is string => Boolean(r));
-  if (failReasons.length > 0) {
-    return { text: failReasons[failReasons.length - 1], extra: Math.max(0, failReasons.length - 1) };
-  }
-  const anyReason = group.records.map(({ record }) => formatHistoryReason(record)).find((r): r is string => Boolean(r));
-  // El estado y el badge de episodios ya comunican la cancelación; no repetir un genérico en Motivo.
-  if (!anyReason || anyReason === 'Cancelada' || anyReason === 'Cancelada por el usuario') {
-    return { text: null, extra: 0 };
-  }
-  return { text: anyReason, extra: 0 };
 }
 
 export function deriveGroupDisplay(group: HistoryGroup) {

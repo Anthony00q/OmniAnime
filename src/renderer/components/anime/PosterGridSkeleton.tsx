@@ -113,7 +113,7 @@ export function ScheduleSkeleton({ count = 7 }: { count?: number }) {
 export function HistorySkeleton({ count = 5 }: { count?: number }) {
   return (
     <div
-      className="mx-auto w-full max-w-5xl space-y-3 xl:max-w-6xl 2xl:max-w-7xl"
+      className="mx-auto w-full max-w-2xl space-y-3 lg:max-w-5xl xl:max-w-6xl 2xl:max-w-7xl"
       role="status"
       aria-label="Cargando historial"
       aria-busy="true"
@@ -122,15 +122,19 @@ export function HistorySkeleton({ count = 5 }: { count?: number }) {
         className="hidden overflow-hidden rounded-xl border border-border/50 bg-card shadow-sm lg:block"
         aria-hidden="true"
       >
-        <div className="h-10 animate-pulse bg-secondary/50" />
+        <div className="h-16 animate-pulse bg-secondary/50" />
         {Array.from({ length: count }).map((_, idx) => (
-          <div key={`t-${idx}`} className="flex items-center gap-4 border-t border-border/30 px-4 py-3.5">
-            <div className="h-7 w-7 animate-pulse rounded-md bg-secondary/40" />
-            <div className="h-3 w-20 animate-pulse rounded bg-secondary/40" />
-            <div className="h-5 w-16 animate-pulse rounded-md bg-secondary/30" />
-            <div className="h-4 flex-1 max-w-[260px] animate-pulse rounded bg-secondary/50" />
-            <div className="h-6 w-20 animate-pulse rounded-md bg-secondary/40" />
-            <div className="h-5 w-16 animate-pulse rounded-full bg-secondary/30" />
+          <div
+            key={`t-${idx}`}
+            className="flex min-h-[84px] min-w-[860px] items-center gap-4 border-t border-border/30 px-4 py-3.5"
+          >
+            <div className="h-7 w-7 shrink-0 animate-pulse rounded-md bg-secondary/40" />
+            <div className="h-8 w-24 shrink-0 animate-pulse rounded bg-secondary/40" />
+            <div className="h-5 w-24 shrink-0 animate-pulse rounded-md bg-secondary/30" />
+            <div className="h-8 min-w-[220px] flex-1 animate-pulse rounded bg-secondary/50" />
+            <div className="h-8 w-36 shrink-0 animate-pulse rounded bg-secondary/40" />
+            <div className="h-5 w-20 shrink-0 animate-pulse rounded-full bg-secondary/30" />
+            <div className="h-7 w-24 shrink-0 animate-pulse rounded-md bg-secondary/40" />
           </div>
         ))}
       </div>
@@ -141,14 +145,21 @@ export function HistorySkeleton({ count = 5 }: { count?: number }) {
             className="overflow-hidden rounded-xl border border-border/50 bg-card p-4 shadow-sm"
             aria-hidden="true"
           >
-            <div className="mb-3 flex items-start justify-between gap-3">
-              <div className="h-4 w-32 animate-pulse rounded bg-secondary/60" />
-              <div className="h-5 w-16 animate-pulse rounded-full bg-secondary/40" />
+            <div className="flex items-start gap-3">
+              <div className="h-8 w-8 shrink-0 animate-pulse rounded-md bg-secondary/40" />
+              <div className="min-w-0 flex-1 space-y-2">
+                <div className="h-5 w-2/3 animate-pulse rounded bg-secondary/60" />
+                <div className="h-5 w-48 max-w-full animate-pulse rounded bg-secondary/40" />
+                <div className="h-3 w-20 animate-pulse rounded bg-secondary/40" />
+              </div>
             </div>
-            <div className="h-5 w-48 animate-pulse rounded bg-secondary/50" />
-            <div className="mt-3 flex gap-2">
-              <div className="h-6 w-20 animate-pulse rounded-md bg-secondary/40" />
-              <div className="h-6 w-24 animate-pulse rounded-md bg-secondary/30" />
+            <div className="mt-3 flex items-center justify-between gap-2">
+              <div className="h-6 w-32 animate-pulse rounded bg-secondary/40" />
+              <div className="h-5 w-20 animate-pulse rounded-full bg-secondary/30" />
+            </div>
+            <div className="mt-3 flex items-center justify-between border-t border-border/50 pt-3">
+              <div className="h-7 w-20 animate-pulse rounded-md bg-secondary/40" />
+              <div className="h-8 w-8 animate-pulse rounded-md bg-secondary/30" />
             </div>
           </div>
         ))}

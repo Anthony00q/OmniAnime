@@ -53,7 +53,7 @@ export const HistoryGroupCard = memo(function HistoryGroupCard({
             aria-expanded={isExpanded}
             aria-controls={detailId}
             aria-label={isExpanded ? 'Colapsar grupo' : 'Expandir grupo'}
-            className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+            className="relative mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors after:absolute after:-inset-1.5 after:content-[''] hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
           >
             {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
           </button>
@@ -84,7 +84,7 @@ export const HistoryGroupCard = memo(function HistoryGroupCard({
               <p className="mt-0.5 text-[11px] font-medium text-warning">Cambiar a {groupProviderName}</p>
             )}
             <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs tabular-nums text-muted-foreground">
-              <span>{group.lastDate}</span>
+              <span aria-label={`Última actividad: ${group.lastDate}`}>{group.lastDate}</span>
               <span aria-hidden="true" className="text-border-strong">
                 |
               </span>
@@ -100,13 +100,15 @@ export const HistoryGroupCard = memo(function HistoryGroupCard({
             )}
           </div>
         </div>
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-          <HistoryEpisodesBadge
-            requestedCount={group.requestedCount}
-            failCount={group.failCount}
-            cancelledCount={group.cancelledCount}
-            unstartedCount={group.unstartedCount}
-          />
+        <div className="mt-3 flex flex-wrap items-start justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <HistoryEpisodesBadge
+              okCount={group.okCount}
+              failCount={group.failCount}
+              cancelledCount={group.cancelledCount}
+              unstartedCount={group.unstartedCount}
+            />
+          </div>
           <StatusBadge label={status.label} variant={status.variant} />
         </div>
         <div className="mt-3 flex items-center gap-2 border-t border-border/50 pt-3">
@@ -114,7 +116,7 @@ export const HistoryGroupCard = memo(function HistoryGroupCard({
             type="button"
             onClick={() => onOpenFolder(folderPath || '', folderIsDirectory)}
             disabled={!folderPath}
-            className="inline-flex items-center gap-1.5 rounded-md bg-secondary px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-secondary/80 disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+            className="relative inline-flex items-center gap-1.5 rounded-md bg-secondary px-3 py-1.5 text-xs font-medium text-foreground transition-colors after:absolute after:inset-x-0 after:-inset-y-2 after:content-[''] hover:bg-secondary/80 disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
           >
             <FolderOpen className="h-3.5 w-3.5" /> Abrir
           </button>
@@ -122,7 +124,7 @@ export const HistoryGroupCard = memo(function HistoryGroupCard({
             type="button"
             onClick={() => onDeleteGroup(group.key)}
             aria-label={`Eliminar historial de ${group.anime}`}
-            className="ml-auto inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive/60"
+            className="relative ml-auto inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors after:absolute after:-inset-1.5 after:content-[''] hover:bg-destructive/10 hover:text-destructive-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive/60"
           >
             <Trash2 className="h-3.5 w-3.5" />
           </button>
@@ -138,7 +140,7 @@ export const HistoryGroupCard = memo(function HistoryGroupCard({
         <div className="history-detail-shell-content">
           <div className="px-4 pb-4 pt-1">
             <div className="space-y-2">
-              {visibleRecords.map(({ record, originalIndex }) => {
+              {visibleRecords.map(({ record, originalIndex, isPreviousAttempt }) => {
                 const isQueueEvent = record.scope === 'queue';
                 const queueLabel =
                   group.unstartedCount > 0 ? `Cola · ${group.unstartedCount} no iniciados` : 'Cola cancelada';
@@ -151,9 +153,14 @@ export const HistoryGroupCard = memo(function HistoryGroupCard({
                     className="history-detail-row flex items-center justify-between gap-3 rounded-lg border border-border/40 bg-card/50 px-3 py-2.5"
                   >
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold text-foreground">
-                        {isQueueEvent ? queueLabel : `Episodio ${record.episode}`}
-                      </p>
+                      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                        <p className="text-sm font-semibold text-foreground">
+                          {isQueueEvent ? queueLabel : `Episodio ${record.episode}`}
+                        </p>
+                        {isPreviousAttempt && (
+                          <span className="text-[11px] text-muted-foreground">Intento anterior</span>
+                        )}
+                      </div>
                       <p className="mt-0.5 text-[11px] tabular-nums text-muted-foreground">{record.date}</p>
                       {recordReason && (
                         <div className="mt-1 min-w-0 text-xs leading-relaxed text-muted-foreground">
@@ -162,7 +169,7 @@ export const HistoryGroupCard = memo(function HistoryGroupCard({
                               className={
                                 expandedReasons.has(String(record._dbId ?? originalIndex))
                                   ? 'block w-fit max-w-full break-words select-text'
-                                  : 'line-clamp-2 block w-fit max-w-full break-words select-text'
+                                  : 'line-clamp-2 w-fit max-w-full break-words select-text'
                               }
                             >
                               {recordReason}

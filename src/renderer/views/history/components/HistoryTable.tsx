@@ -8,7 +8,6 @@ import { ProviderBadge } from './ProviderBadge';
 import {
   deriveGroupDisplay,
   formatHistoryReason,
-  getGroupDisplayReason,
   getGroupStatus,
   type HistoryGroup,
 } from '@/renderer/views/history/model/historyModel';
@@ -48,23 +47,20 @@ export const HistoryTable = memo(function HistoryTable({
         <thead>
           <tr className="bg-secondary/50 text-muted-foreground text-xs uppercase tracking-wider">
             <th scope="col" className="p-4 font-semibold w-12"></th>
-            <th scope="col" className="p-4 font-semibold">
-              Fecha
+            <th scope="col" className="w-32 p-4 font-semibold">
+              Última actividad
             </th>
             <th scope="col" className="p-4 font-semibold">
               Proveedor
             </th>
-            <th scope="col" className="p-4 font-semibold">
+            <th scope="col" className="min-w-[220px] p-4 font-semibold">
               Anime
             </th>
-            <th scope="col" className="p-4 font-semibold">
+            <th scope="col" className="w-44 p-4 font-semibold">
               Episodios
             </th>
             <th scope="col" className="p-4 font-semibold">
               Estado
-            </th>
-            <th scope="col" className="p-4 font-semibold">
-              Motivo
             </th>
             <th scope="col" className="p-4 font-semibold text-center">
               Acciones
@@ -75,7 +71,6 @@ export const HistoryTable = memo(function HistoryTable({
           {grouped.map((group) => {
             const isExpanded = expandedGroups.has(group.key);
             const status = getGroupStatus(group);
-            const { text: groupReason, extra: groupReasonExtra } = getGroupDisplayReason(group);
             const { folderPath, folderIsDirectory, visibleRecords } = deriveGroupDisplay(group);
             const canOpenDetails = Boolean(
               onSelectAnime && group.slug && group.providerId && group.providerId === activeProvider,
@@ -109,7 +104,7 @@ export const HistoryTable = memo(function HistoryTable({
                       </button>
                     </AppTooltip>
                   </td>
-                  <td className="px-4 py-3.5 text-xs tabular-nums text-muted-foreground whitespace-nowrap">
+                  <td className="px-4 py-3.5 text-xs tabular-nums text-muted-foreground break-words">
                     {group.lastDate}
                   </td>
                   <td className="px-4 py-3.5 whitespace-nowrap">
@@ -129,7 +124,7 @@ export const HistoryTable = memo(function HistoryTable({
                           : `Cambiar a ${groupProviderName} para ver detalles de ${group.anime}`
                       }
                       aria-describedby={!canOpenDetails && group.providerId ? `hint-table-${group.key}` : undefined}
-                      className={`sala-poster-title line-clamp-2 max-w-[260px] text-left text-[15px] font-semibold leading-snug transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 ${
+                      className={`sala-poster-title line-clamp-2 w-fit max-w-full break-words text-left text-[15px] font-semibold leading-snug transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 ${
                         canOpenDetails
                           ? 'text-foreground hover:text-primary cursor-pointer'
                           : 'text-foreground/70 hover:text-foreground cursor-pointer'
@@ -153,7 +148,7 @@ export const HistoryTable = memo(function HistoryTable({
                   </td>
                   <td className="px-4 py-3.5">
                     <HistoryEpisodesBadge
-                      requestedCount={group.requestedCount}
+                      okCount={group.okCount}
                       failCount={group.failCount}
                       cancelledCount={group.cancelledCount}
                       unstartedCount={group.unstartedCount}
@@ -163,32 +158,12 @@ export const HistoryTable = memo(function HistoryTable({
                     <StatusBadge label={status.label} variant={status.variant} />
                   </td>
                   <td className="px-4 py-3.5">
-                    {groupReason ? (
-                      <div className="max-w-[180px]">
-                        <AppTooltip content={groupReason}>
-                          <span className="line-clamp-2 block w-fit max-w-full break-words text-xs leading-relaxed text-muted-foreground select-text">
-                            {groupReason}
-                          </span>
-                        </AppTooltip>
-                        {groupReasonExtra > 0 && (
-                          <span className="mt-0.5 inline-block text-[11px] font-medium text-destructive-fg">
-                            +{groupReasonExtra} más
-                          </span>
-                        )}
-                      </div>
-                    ) : (
-                      <span className="text-xs text-muted-foreground/30" aria-hidden="true">
-                        —
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3.5">
                     <div className="flex items-center justify-center gap-2">
                       <button
                         type="button"
                         onClick={() => onOpenFolder(folderPath || '', folderIsDirectory)}
                         disabled={!folderPath}
-                        className="inline-flex h-7 items-center justify-center gap-1.5 rounded-md bg-secondary px-3 text-xs font-medium text-foreground transition-colors hover:bg-secondary/80 disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                        className="relative inline-flex h-7 items-center justify-center gap-1.5 rounded-md bg-secondary px-3 text-xs font-medium text-foreground transition-colors after:absolute after:inset-x-0 after:-inset-y-2 after:content-[''] hover:bg-secondary/80 disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
                       >
                         <FolderOpen className="w-3.5 h-3.5" /> Abrir
                       </button>
@@ -207,7 +182,7 @@ export const HistoryTable = memo(function HistoryTable({
                 </tr>
 
                 <tr>
-                  <td colSpan={8} className="p-0">
+                  <td colSpan={7} className="p-0">
                     <div
                       id={detailId}
                       className="history-detail-shell"
@@ -217,7 +192,7 @@ export const HistoryTable = memo(function HistoryTable({
                     >
                       <div className="history-detail-shell-content">
                         <ul className="space-y-2 px-4 pb-4 pt-1">
-                          {visibleRecords.map(({ record, originalIndex }) => {
+                          {visibleRecords.map(({ record, originalIndex, isPreviousAttempt }) => {
                             const isQueueEvent = record.scope === 'queue';
                             const queueLabel =
                               group.unstartedCount > 0
@@ -236,9 +211,14 @@ export const HistoryTable = memo(function HistoryTable({
                                 className="history-detail-row flex items-center justify-between gap-3 rounded-lg border border-border/40 bg-card/50 px-3 py-2.5"
                               >
                                 <div className="min-w-0 flex-1">
-                                  <p className="truncate text-sm font-semibold text-foreground">
-                                    {isQueueEvent ? queueLabel : `Episodio ${record.episode}`}
-                                  </p>
+                                  <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                                    <p className="text-sm font-semibold text-foreground">
+                                      {isQueueEvent ? queueLabel : `Episodio ${record.episode}`}
+                                    </p>
+                                    {isPreviousAttempt && (
+                                      <span className="text-[11px] text-muted-foreground">Intento anterior</span>
+                                    )}
+                                  </div>
                                   <p className="mt-0.5 text-[11px] tabular-nums text-muted-foreground">{record.date}</p>
                                   {recordReason ? (
                                     <div className="mt-1">
@@ -247,7 +227,7 @@ export const HistoryTable = memo(function HistoryTable({
                                           className={
                                             expandedReasons.has(String(record._dbId ?? originalIndex))
                                               ? 'block w-fit max-w-full break-words text-xs leading-relaxed text-muted-foreground select-text'
-                                              : 'line-clamp-2 block w-fit max-w-full break-words text-xs leading-relaxed text-muted-foreground select-text'
+                                              : 'line-clamp-2 w-fit max-w-full break-words text-xs leading-relaxed text-muted-foreground select-text'
                                           }
                                         >
                                           {recordReason}
@@ -258,6 +238,7 @@ export const HistoryTable = memo(function HistoryTable({
                                           type="button"
                                           onClick={() => onToggleReason(String(record._dbId ?? originalIndex))}
                                           className="mt-1 text-[11px] font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/50"
+                                          aria-expanded={expandedReasons.has(String(record._dbId ?? originalIndex))}
                                         >
                                           {expandedReasons.has(String(record._dbId ?? originalIndex))
                                             ? 'Ver menos'
