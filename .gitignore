@@ -61,6 +61,7 @@ tests/
 # Workflow
 AGENTS.md
 Launch.bat
+scripts/dev-launch.mjs
 DESIGN.md
 PRODUCT.md
 .opencode/

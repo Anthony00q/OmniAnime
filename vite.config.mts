@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
 import { tanstackRouter } from '@tanstack/router-plugin/vite';
 import path from 'path';
 import fs from 'fs';
@@ -8,7 +9,6 @@ import fs from 'fs';
 // ESM siempre (.mts): rutas con import.meta.dirname (Node 20.11+).
 export default defineConfig({
   plugins: [
-    react(),
     tanstackRouter({
       target: 'react',
       routesDirectory: path.resolve(import.meta.dirname, 'src/renderer/routes'),
@@ -16,6 +16,8 @@ export default defineConfig({
       routeFileIgnorePattern: 'routeTree\\.gen\\.ts$',
       autoCodeSplitting: false,
     }),
+    react(),
+    tailwindcss(),
     {
       name: 'copy-splash-html',
       closeBundle() {
@@ -36,29 +38,7 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, 'dist/renderer'),
     emptyOutDir: true,
-    rolldownOptions: {
-      output: {
-        codeSplitting: {
-          groups: [
-            {
-              name: 'react-vendor',
-              test: /node_modules[\\/](react|react-dom|jotai|@tanstack[\\/]react-query)/,
-              priority: 20,
-            },
-            {
-              name: 'ui-vendor',
-              test: /node_modules[\\/](lucide-react|sonner|@radix-ui|clsx|tailwind-merge)/,
-              priority: 15,
-            },
-            {
-              name: 'vendor',
-              test: /node_modules[\\/]/,
-              priority: 10,
-            },
-          ],
-        },
-      },
-    },
+    reportCompressedSize: false,
   },
   resolve: {
     alias: {
