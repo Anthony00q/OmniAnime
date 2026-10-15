@@ -630,6 +630,44 @@ html[dir='ltr'] {
   }
 }
 
+.sidebar-update-slot {
+  display: flex;
+  padding: 0 16px 8px;
+}
+
+.sidebar-update-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  min-width: 44px;
+  min-height: 44px;
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-primary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.sidebar-update-version {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--color-muted-foreground);
+  font-size: 11px;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-update-action:hover .sidebar-update-label {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
 @media (max-width: 960px) {
   .omnianime-sidebar {
     width: 72px;
@@ -670,6 +708,20 @@ html[dir='ltr'] {
   .omnianime-sidebar .sidebar-nav-item {
     justify-content: center;
     padding-inline: 0;
+  }
+
+  .omnianime-sidebar .sidebar-update-slot {
+    justify-content: center;
+    padding-inline: 0;
+  }
+
+  .omnianime-sidebar .sidebar-update-action {
+    justify-content: center;
+    gap: 0;
+  }
+
+  .omnianime-sidebar .sidebar-update-arrow {
+    transform: rotate(-90deg);
   }
 }
 
