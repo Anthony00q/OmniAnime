@@ -1090,6 +1090,41 @@ html[dir='ltr'] {
   stroke-width: 1.5;
 }
 
+.empty-state-icon svg {
+  width: 40px;
+  height: 40px;
+  stroke-width: 1.5;
+}
+
+.empty-state-scroller:has(> [data-empty-variant='page']) {
+  display: flex;
+  flex-direction: column;
+}
+
+.empty-state-page:has(> .empty-state-scroller > [data-empty-variant='page']) > header,
+.empty-state-page:has(> .empty-state-scroller > [data-empty-variant='page']) > [data-empty-filters] {
+  display: none;
+}
+
+[data-titlebar-offset]:has(> .empty-state-page > .empty-state-scroller > [data-empty-variant='page']),
+.empty-state-page:has(> .empty-state-scroller > [data-empty-variant='page']) {
+  padding-top: 0;
+}
+
+.empty-state-page > .empty-state-scroller:has(> [data-empty-variant='page']) {
+  padding-block: 32px;
+}
+
+[data-empty-variant='page'] .empty-state-icon svg {
+  width: 64px;
+  height: 64px;
+}
+
+[data-empty-variant='contextual'] .empty-state-icon svg {
+  width: 48px;
+  height: 48px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .sala-frame,
   .sala-empty-icon {

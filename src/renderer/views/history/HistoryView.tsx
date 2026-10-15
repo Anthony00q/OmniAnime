@@ -7,12 +7,13 @@ import { isIpcFailError, unwrap } from '@/renderer/hooks/queries/unwrap';
 import { PageHeader } from '@/renderer/components/ui/PageHeader';
 import { ErrorState } from '@/renderer/components/ui/ErrorState';
 import { EmptyState } from '@/renderer/components/ui/EmptyState';
-import { HistorySkeleton } from '@/renderer/components/anime/PosterGridSkeleton';
+import { LoadingState } from '@/renderer/components/ui/LoadingState';
 import { groupHistory, type HistoryGroup } from './model/historyModel';
 import { HistoryGroupCard } from './components/HistoryGroupCard';
 import { HistoryTable } from './components/HistoryTable';
 import { useDesktopBreakpoint } from '@/renderer/hooks/useDesktopBreakpoint';
 import { useHistoryExpansion } from './hooks/useHistoryExpansion';
+import { useAppNavigation } from '@/renderer/hooks/useAppNavigation';
 
 interface HistoryViewProps {
   isActive?: boolean;
@@ -23,6 +24,7 @@ interface HistoryViewProps {
 export function HistoryView({ isActive, activeProvider, onSelectAnime }: HistoryViewProps) {
   const { data: history = [], isLoading, isFetching, isError, refetch } = useHistory(isActive ?? false);
   const actions = useHistoryActions();
+  const { navigateToCatalog } = useAppNavigation();
 
   const [clearModal, setClearModal] = useState(false);
   const [deleteGroupKey, setDeleteGroupKey] = useState<string | null>(null);
@@ -102,8 +104,12 @@ export function HistoryView({ isActive, activeProvider, onSelectAnime }: History
 
   const pendingDeleteGroup = deleteGroupKey ? grouped.find((g) => g.key === deleteGroupKey) : undefined;
 
+  if (isLoading) {
+    return <LoadingState className="min-h-0 flex-1 bg-background" label="Cargando historial" />;
+  }
+
   return (
-    <div className="flex h-full min-w-0 flex-col bg-background">
+    <div className="empty-state-page flex h-full min-w-0 flex-col bg-background">
       <PageHeader
         className="overflow-y-hidden [scrollbar-gutter:stable] [&>div]:mx-auto [&>div]:w-full [&>div]:max-w-2xl lg:[&>div]:max-w-5xl xl:[&>div]:max-w-6xl 2xl:[&>div]:max-w-7xl"
         title="Historial"
@@ -157,26 +163,26 @@ export function HistoryView({ isActive, activeProvider, onSelectAnime }: History
                 </button>
               </>
             )}
-            <button
-              type="button"
-              onClick={() => setClearModal(true)}
-              disabled={history.length === 0 || actions.clearHistory.isPending}
-              className="flex min-h-11 items-center gap-2 rounded-lg border border-border/60 px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
-            >
-              <Trash2 className="w-4 h-4" />
-              <span>Limpiar todo</span>
-            </button>
+            {history.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setClearModal(true)}
+                disabled={history.length === 0 || actions.clearHistory.isPending}
+                className="flex min-h-11 items-center gap-2 rounded-lg border border-border/60 px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>Limpiar todo</span>
+              </button>
+            )}
           </div>
         }
       />
 
       <div
-        className="min-w-0 flex-1 overflow-y-auto p-4 sm:px-8 sm:py-6 [scrollbar-gutter:stable]"
+        className="empty-state-scroller min-h-0 min-w-0 flex-1 overflow-y-auto p-4 sm:px-8 sm:py-6 [scrollbar-gutter:stable]"
         aria-busy={isLoading}
       >
-        {isLoading ? (
-          <HistorySkeleton count={4} />
-        ) : isError ? (
+        {isError ? (
           <ErrorState
             title="No se pudo cargar el historial"
             description="No pudimos leer el historial de descargas."
@@ -184,9 +190,13 @@ export function HistoryView({ isActive, activeProvider, onSelectAnime }: History
           />
         ) : history.length === 0 ? (
           <EmptyState
+            variant="page"
+            isActive={isActive}
             icon={<History className="h-6 w-6" aria-hidden="true" />}
             title="Registro aún en blanco"
-            description="Los resultados de tus descargas aparecerán aquí cuando completes la primera."
+            description="Aquí aparecerán los resultados de tus descargas, incluidos los fallos y las cancelaciones."
+            actionLabel="Explorar catálogo"
+            onAction={() => navigateToCatalog()}
           />
         ) : (
           <>

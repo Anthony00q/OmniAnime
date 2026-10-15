@@ -317,7 +317,11 @@ export const LogsTab = memo(function LogsTab({ isActive = true }: LogsTabProps) 
               </button>
             </div>
           ) : fileRows.length === 0 ? (
-            <EmptyState title="Registro vacío" description="Todavía no hay sesiones guardadas en este equipo." />
+            <EmptyState
+              variant="compact"
+              title="Registro vacío"
+              description="Todavía no hay sesiones guardadas en este equipo."
+            />
           ) : (
             <>
               <div className="px-4 py-2.5 border-b border-border/40 flex items-center gap-2.5">

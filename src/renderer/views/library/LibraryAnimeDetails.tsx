@@ -435,10 +435,11 @@ export function LibraryAnimeDetails({
             />
           ) : episodes.length === 0 ? (
             <EmptyState
+              variant="compact"
               icon={<FolderOpen className="h-10 w-10" aria-hidden="true" />}
               title="No hay episodios en esta carpeta"
               description="Esta carpeta no contiene vídeos reproducibles. Verifica que los archivos se descargaron correctamente."
-              className="h-auto py-12"
+              className="min-h-0 py-12"
             />
           ) : (
             <div>

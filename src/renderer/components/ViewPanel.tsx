@@ -24,6 +24,7 @@ export function ViewPanel({
     <ErrorBoundary scope={scope}>
       <div
         ref={containerRef}
+        data-titlebar-offset={titlebarOffset || undefined}
         className={clsx(
           'flex-1 overflow-hidden flex flex-col',
           animateEntry && 'view-enter',

@@ -171,7 +171,7 @@ export function HomeView({ isActive }: { isActive?: boolean }) {
   const showOfflineSearch = dropdownOpen && !isSearching && shouldShowOfflineEmpty(searchResults.length, isOnline);
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="empty-state-page flex flex-col h-full">
       <PageHeader
         align="center"
         title="Episodios recientes"
@@ -273,7 +273,7 @@ export function HomeView({ isActive }: { isActive?: boolean }) {
         </div>
       </PageHeader>
 
-      <div className="relative z-0 flex-1 overflow-y-auto px-4 pb-12 sm:px-8 [scrollbar-gutter:stable]">
+      <div className="empty-state-scroller relative z-0 min-h-0 flex-1 overflow-y-auto px-4 pb-12 sm:px-8 [scrollbar-gutter:stable]">
         {isLoading ? (
           <>
             {/* Espejo de la barra sticky: la rejilla de carga cae donde va la real. */}
@@ -294,6 +294,9 @@ export function HomeView({ isActive }: { isActive?: boolean }) {
         ) : items.length === 0 ? (
           showOfflineEmpty ? (
             <EmptyState
+              variant="page"
+              isActive={isActive}
+              breathing={false}
               icon={<Clapperboard className="h-6 w-6" aria-hidden="true" />}
               title="Sin conexión a internet"
               description={`No se pudo actualizar el contenido de ${providerName}. Comprueba tu conexión e inténtalo de nuevo. Tus descargas y librería siguen disponibles.`}
@@ -304,6 +307,8 @@ export function HomeView({ isActive }: { isActive?: boolean }) {
             />
           ) : (
             <EmptyState
+              variant="page"
+              isActive={isActive}
               icon={<Clapperboard className="h-6 w-6" aria-hidden="true" />}
               title="No hay contenido disponible"
               description={`Ahora mismo no hay novedades en ${providerName}. Vuelve a intentarlo más tarde.`}

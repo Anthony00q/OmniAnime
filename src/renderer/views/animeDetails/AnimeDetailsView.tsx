@@ -56,6 +56,7 @@ import {
   useAniListLinkSource,
 } from '@/renderer/hooks/useQueries';
 import { shouldShowOfflineEmpty } from '@/renderer/utils/offlineEmpty';
+import { EmptyState } from '@/renderer/components/ui/EmptyState';
 import { isIpcFailError, unwrap } from '@/renderer/hooks/queries/unwrap';
 import { Dialog } from '@/renderer/components/Dialog';
 import { CustomNumberInput } from '@/renderer/components/CustomNumberInput';
@@ -631,20 +632,16 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
 
   if (!slug) {
     return (
-      <div className="flex flex-col h-full items-center justify-center bg-background text-muted-foreground gap-4 p-8 text-center select-none">
-        <BookOpen className="w-16 h-16 opacity-25 text-primary animate-pulse" />
-        <h3 className="text-xl font-bold text-foreground mt-2">Ficha de Información</h3>
-        <p className="max-w-md text-sm opacity-60 leading-relaxed">
-          Selecciona cualquier anime de la sección de <strong>Inicio</strong> o <strong>Catálogo</strong> para ver sus
-          detalles completos, géneros, estado y gestionar las descargas de sus episodios.
-        </p>
-        <button
-          type="button"
-          onClick={() => navigateToCatalog()}
-          className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-[color-mix(in_srgb,var(--color-primary)_88%,black)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
-        >
-          Ir al catálogo
-        </button>
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-background p-8">
+        <EmptyState
+          variant="page"
+          isActive={isActive}
+          icon={<BookOpen aria-hidden="true" />}
+          title="Ficha de información"
+          description="Selecciona un anime en Inicio o Catálogo para consultar su ficha y descargar sus episodios."
+          actionLabel="Ir al catálogo"
+          onAction={() => navigateToCatalog()}
+        />
       </div>
     );
   }

@@ -221,7 +221,7 @@ export function CatalogView() {
   );
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="empty-state-page flex flex-col h-full">
       <PageHeader
         title="Catálogo"
         description={`Explora el catálogo disponible en ${providerName}`}
@@ -496,6 +496,7 @@ export function CatalogView() {
             {items.length === 0 && !isLoading ? (
               showOfflineEmpty ? (
                 <EmptyState
+                  variant="contextual"
                   icon={<SearchX className="h-6 w-6" aria-hidden="true" />}
                   title="Sin conexión a internet"
                   description={`No se pudo cargar el catálogo de ${providerName}. Comprueba tu conexión e inténtalo de nuevo. Tus descargas y librería siguen disponibles.`}
@@ -506,11 +507,18 @@ export function CatalogView() {
                 />
               ) : (
                 <EmptyState
+                  variant={activeFilterChips.length > 0 || activeFilters.search ? 'contextual' : 'page'}
                   icon={<SearchX className="h-6 w-6" aria-hidden="true" />}
-                  title="Sin resultados"
-                  description="No se encontraron resultados con los filtros actuales."
-                  actionLabel="Limpiar filtros"
-                  onAction={clearFilters}
+                  title={
+                    activeFilterChips.length > 0 || activeFilters.search ? 'Sin resultados' : 'Catálogo sin contenido'
+                  }
+                  description={
+                    activeFilterChips.length > 0 || activeFilters.search
+                      ? 'No se encontraron resultados con los filtros actuales.'
+                      : `No se obtuvo contenido de ${providerName}. Puedes volver a intentarlo.`
+                  }
+                  actionLabel={activeFilterChips.length > 0 || activeFilters.search ? 'Limpiar filtros' : 'Reintentar'}
+                  onAction={activeFilterChips.length > 0 || activeFilters.search ? clearFilters : () => refetch()}
                 />
               )
             ) : (

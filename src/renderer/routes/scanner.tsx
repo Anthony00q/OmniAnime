@@ -8,7 +8,7 @@ export const Route = createFileRoute('/scanner')({
 
 function ScannerRoute() {
   return (
-    <ViewPanel scope="ui:scanner">
+    <ViewPanel scope="ui:scanner" animateEntry={false}>
       <MemoScannerView />
     </ViewPanel>
   );

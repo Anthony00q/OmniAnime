@@ -104,7 +104,7 @@ export function ScheduleView({ isActive }: { isActive?: boolean }) {
   const showOfflineEmpty = shouldShowOfflineEmpty(isError ? 1 : entries.length, isOnline);
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="empty-state-page flex flex-col h-full">
       <PageHeader
         align="center"
         title="Horarios"
@@ -122,7 +122,7 @@ export function ScheduleView({ isActive }: { isActive?: boolean }) {
         }
       />
 
-      <div className="relative z-0 flex-1 overflow-y-auto px-4 pb-12 sm:px-8 [scrollbar-gutter:stable]">
+      <div className="empty-state-scroller relative z-0 min-h-0 flex-1 overflow-y-auto px-4 pb-12 sm:px-8 [scrollbar-gutter:stable]">
         {isLoading ? (
           <>
             {/* Espejo de la barra semanal: el skeleton arranca donde va el contenido real. */}
@@ -145,6 +145,9 @@ export function ScheduleView({ isActive }: { isActive?: boolean }) {
         ) : entries.length === 0 ? (
           showOfflineEmpty ? (
             <EmptyState
+              variant="page"
+              isActive={isActive}
+              breathing={false}
               icon={<CalendarDays className="h-6 w-6" aria-hidden="true" />}
               title="Sin conexión a internet"
               description={`No se pudo consultar la programación de ${providerName}. Comprueba tu conexión e inténtalo de nuevo.`}
@@ -153,6 +156,8 @@ export function ScheduleView({ isActive }: { isActive?: boolean }) {
             />
           ) : (
             <EmptyState
+              variant="page"
+              isActive={isActive}
               icon={<CalendarDays className="h-6 w-6" aria-hidden="true" />}
               title="No hay programación disponible"
               description={`Ahora mismo ${providerName} no publica horarios de emisión. Vuelve a intentarlo más tarde.`}
@@ -176,9 +181,12 @@ export function ScheduleView({ isActive }: { isActive?: boolean }) {
             </div>
 
             {dayEntries.length === 0 ? (
-              <p className="px-2 py-12 text-center text-[13px] text-muted-foreground">
-                Sin emisiones programadas para {WEEKDAY_LABELS[selectedDay - 1].toLowerCase()}.
-              </p>
+              <EmptyState
+                variant="contextual"
+                icon={<CalendarDays aria-hidden="true" />}
+                title="Sin emisiones programadas"
+                description={`No hay emisiones para ${WEEKDAY_LABELS[selectedDay - 1].toLowerCase()}. Selecciona otro día para consultar su programación.`}
+              />
             ) : (
               <ul ref={scheduleRef}>
                 {groups.map((group, idx) => (

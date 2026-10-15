@@ -18,6 +18,7 @@ import { ErrorState } from '@/renderer/components/ui/ErrorState';
 import { EmptyState } from '@/renderer/components/ui/EmptyState';
 import { PageHeader } from '@/renderer/components/ui/PageHeader';
 import { AppTooltip } from '@/renderer/components/ui/AppTooltip';
+import { useStaggerIn } from '@/renderer/utils/motion';
 
 // Nombre de carpeta legible para huérfanas sin título oficial
 function prettifyFolderName(name: unknown): string {
@@ -136,6 +137,13 @@ export function ScannerView({ isActive = true }: { isActive?: boolean }) {
     if (selectedDirFilter === 'all') return folders;
     return folders.filter((f: any) => f.sourceDir === selectedDirFilter);
   }, [folders, selectedDirFilter]);
+  const staggerKeys = useMemo(
+    () => filteredFolders.map((folder) => (typeof folder.path === 'string' && folder.path.trim() ? folder.path : null)),
+    [filteredFolders],
+  );
+  const staggerScopeKey = useMemo(() => ({ dirs, selectedDirFilter }), [dirs, selectedDirFilter]);
+  const gridRef = useStaggerIn<HTMLDivElement>(staggerKeys, { scopeKey: staggerScopeKey });
+
   const hasBlockedLinks = useMemo(
     () => filteredFolders.some((folder) => resolveScannerRelinkProvider(folder, activeProvider) === null),
     [filteredFolders, activeProvider],
@@ -290,7 +298,7 @@ export function ScannerView({ isActive = true }: { isActive?: boolean }) {
   );
 
   return (
-    <div className="flex flex-col h-full bg-background">
+    <div className="empty-state-page flex flex-col h-full bg-background">
       <PageHeader
         title="Escáner de Librería"
         description="Detecta problemas de vinculación en tus carpetas locales"
@@ -298,8 +306,8 @@ export function ScannerView({ isActive = true }: { isActive?: boolean }) {
         actions={
           <button
             onClick={handleRefresh}
-            disabled={isFetching || isRefreshing}
-            className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground hover:bg-[color-mix(in_srgb,var(--color-primary)_88%,black)] disabled:opacity-50 disabled:cursor-not-allowed rounded-lg font-medium transition-colors"
+            disabled={dirs.length === 0 || isFetching || isRefreshing}
+            className="flex min-h-11 items-center gap-2 rounded-lg border border-border/60 px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
           >
             <RefreshCcw className={`w-4 h-4 ${isFetching || isRefreshing ? 'animate-spin' : ''}`} />
             <span>Escanear Directorio</span>
@@ -308,7 +316,7 @@ export function ScannerView({ isActive = true }: { isActive?: boolean }) {
       />
 
       {dirs.length > 1 && (
-        <div className="px-4 py-2 sm:px-6 flex items-center gap-2 flex-wrap">
+        <div data-empty-filters className="px-4 py-2 sm:px-6 flex items-center gap-2 flex-wrap">
           <button
             onClick={() => setSelectedDirFilter('all')}
             aria-pressed={selectedDirFilter === 'all'}
@@ -337,7 +345,7 @@ export function ScannerView({ isActive = true }: { isActive?: boolean }) {
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6 [scrollbar-gutter:stable]">
+      <div className="empty-state-scroller min-h-0 flex-1 overflow-y-auto p-4 sm:p-6 [scrollbar-gutter:stable]">
         {(isLoading || (!isError && filteredFolders.length > 0)) && (
           <div className="mb-3 min-h-10 sm:min-h-6">
             {!isLoading && hasBlockedLinks && (
@@ -359,6 +367,8 @@ export function ScannerView({ isActive = true }: { isActive?: boolean }) {
           />
         ) : dirs.length === 0 ? (
           <EmptyState
+            variant="page"
+            isActive={isActive}
             icon={<ScanSearch className="h-10 w-10" aria-hidden="true" />}
             title="No hay carpetas configuradas"
             description="Configura al menos una carpeta de descarga en Ajustes para escanear tu librería."
@@ -373,14 +383,20 @@ export function ScannerView({ isActive = true }: { isActive?: boolean }) {
           />
         ) : filteredFolders.length === 0 ? (
           <EmptyState
+            variant={selectedDirFilter === 'all' ? 'page' : 'contextual'}
+            isActive={isActive}
             icon={<ScanSearch className="h-10 w-10" aria-hidden="true" />}
-            title="No se encontraron carpetas en esta ubicación"
-            description="No hay carpetas que coincidan con el filtro seleccionado. Prueba con otra ubicación."
-            actionLabel="Ver todas"
-            onAction={() => setSelectedDirFilter('all')}
+            title={selectedDirFilter === 'all' ? 'No se encontraron carpetas' : 'No hay carpetas en esta ubicación'}
+            description={
+              selectedDirFilter === 'all'
+                ? 'No se encontraron carpetas de anime en las ubicaciones configuradas. Puedes revisar las carpetas de descarga en Ajustes.'
+                : 'No hay carpetas que coincidan con el filtro seleccionado. Prueba con otra ubicación.'
+            }
+            actionLabel={selectedDirFilter !== 'all' ? 'Ver todas' : 'Abrir Ajustes'}
+            onAction={() => (selectedDirFilter !== 'all' ? setSelectedDirFilter('all') : setView('settings'))}
           />
         ) : (
-          <PosterGrid className="w-full">
+          <PosterGrid ref={gridRef} className="w-full">
             {filteredFolders.map((folder, idx) => (
               <ScannerPosterItem
                 key={folder.path || idx}

@@ -202,6 +202,7 @@ export default function App() {
             <main className="flex-1 min-w-0 overflow-hidden relative flex flex-col">
               <ErrorBoundary scope="ui:downloader">
                 <div
+                  data-titlebar-offset
                   className={clsx(
                     'flex-1 overflow-hidden flex flex-col pt-10',
                     currentView !== 'downloader' && 'hidden',

@@ -1,4 +1,4 @@
-import { Trash2, Clock } from 'lucide-react';
+import { Trash2, Download } from 'lucide-react';
 import { useCallback, useEffect, useState, useMemo, useRef } from 'react';
 import { toast } from 'sonner';
 
@@ -310,25 +310,27 @@ export function DownloaderView({ onSelectAnime, activeProvider, isActive = true 
   );
 
   return (
-    <div className="flex h-full min-w-0 flex-col bg-background">
+    <div className="empty-state-page flex h-full min-w-0 flex-col bg-background">
       <PageHeader
         className="overflow-y-hidden [scrollbar-gutter:stable] [&>div]:mx-auto [&>div]:w-full [&>div]:max-w-[1600px]"
         title="Descargas"
         description="Gestiona tu cola de descargas activas"
         actions={
-          <button
-            type="button"
-            onClick={handleClear}
-            disabled={!hasCompleted || actions.clearQueue.isPending}
-            className="flex min-h-11 items-center gap-2 rounded-lg border border-border/60 px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
-          >
-            <Trash2 className="h-4 w-4" />
-            <span>Limpiar finalizadas</span>
-          </button>
+          queue.length > 0 && (
+            <button
+              type="button"
+              onClick={handleClear}
+              disabled={!hasCompleted || actions.clearQueue.isPending}
+              className="flex min-h-11 items-center gap-2 rounded-lg border border-border/60 px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+            >
+              <Trash2 className="h-4 w-4" />
+              <span>Limpiar finalizadas</span>
+            </button>
+          )
         }
       />
 
-      <div className="min-w-0 flex-1 overflow-y-auto p-4 sm:px-8 sm:py-6 [scrollbar-gutter:stable]">
+      <div className="empty-state-scroller min-h-0 min-w-0 flex-1 overflow-y-auto p-4 sm:px-8 sm:py-6 [scrollbar-gutter:stable]">
         {isLoading ? (
           <QueueSkeleton count={3} />
         ) : isError ? (
@@ -339,7 +341,9 @@ export function DownloaderView({ onSelectAnime, activeProvider, isActive = true 
           />
         ) : queue.length === 0 ? (
           <EmptyState
-            icon={<Clock className="h-10 w-10" aria-hidden="true" />}
+            variant="page"
+            isActive={isActive}
+            icon={<Download aria-hidden="true" />}
             title="No hay descargas activas"
             description="Tu cola está vacía. Agrega anime desde el catálogo para comenzar a descargar."
             actionLabel="Explorar catálogo"
