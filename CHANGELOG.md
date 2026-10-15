@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.2.2] - 2026-10-15
+
+### Descargas
+
+- AnimeAV1 permite elegir entre episodios subtitulados y doblados, con comprobación de disponibilidad del doblaje por episodio.
+- Las descargas dobladas se guardan en carpetas separadas y conservan su idioma en la librería y el historial.
+- La cola reorganiza sus controles y permite ajustar la altura de la lista de episodios.
+- El estado **Preparando archivo** distingue la preparación final de la descarga y evita mostrar el 100 % antes de completarse.
+
+### Historial
+
+- El resumen distingue los episodios completados, fallidos, cancelados y sin iniciar, con una distribución que se adapta mejor al espacio disponible.
+- El detalle identifica los intentos anteriores sin alterar el resultado más reciente de cada episodio.
+- La carga se indica sin sustituir de inmediato el contenido por una pantalla de espera.
+
+### Interfaz
+
+- Las vistas sin contenido presentan mensajes y acciones más uniformes, con una animación discreta en sus iconos.
+- La barra de selección de episodios mantiene estables el contador y el botón de descarga al cambiar la selección.
+- La información secundaria utiliza separadores más claros en descargas, historial, librería, escáner y vistas previas de renombrado.
+- La ficha de Jkanime muestra los idiomas publicados por el proveedor cuando están disponibles.
+
 ## [1.2.1] - 2026-10-13
 
 ### Ajustes
