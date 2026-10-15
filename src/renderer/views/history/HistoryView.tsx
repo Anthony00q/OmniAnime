@@ -170,7 +170,10 @@ export function HistoryView({ isActive, activeProvider, onSelectAnime }: History
         }
       />
 
-      <div className="min-w-0 flex-1 overflow-y-auto p-4 sm:px-8 sm:py-6 [scrollbar-gutter:stable]">
+      <div
+        className="min-w-0 flex-1 overflow-y-auto p-4 sm:px-8 sm:py-6 [scrollbar-gutter:stable]"
+        aria-busy={isLoading}
+      >
         {isLoading ? (
           <HistorySkeleton count={4} />
         ) : isError ? (

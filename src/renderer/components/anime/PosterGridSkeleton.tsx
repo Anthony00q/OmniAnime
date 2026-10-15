@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { SkeletonCard } from '@/renderer/components/ui/Skeleton';
 
 interface PosterGridSkeletonProps {
@@ -111,6 +112,15 @@ export function ScheduleSkeleton({ count = 7 }: { count?: number }) {
 }
 
 export function HistorySkeleton({ count = 5 }: { count?: number }) {
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setVisible(true), 200);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (!visible) return null;
+
   return (
     <div
       className="mx-auto w-full max-w-2xl space-y-3 lg:max-w-5xl xl:max-w-6xl 2xl:max-w-7xl"
