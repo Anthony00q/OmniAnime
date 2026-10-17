@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.2.3] - 2026-10-17
+
+### Librería
+
+- La ficha renueva su cabecera y presenta los episodios en una cuadrícula que se adapta al espacio disponible.
+- El menú de cada episodio permite consultar el nombre del archivo y su tamaño.
+- Las carpetas con descargas en curso quedan protegidas frente a cambios que puedan interferir con ellas.
+- El renombrado y la renumeración comprueban que los archivos no hayan cambiado desde la vista previa antes de aplicar los cambios.
+- Los diálogos de gestión permanecen abiertos si una operación falla y muestran el problema para facilitar su revisión.
+
+### Actualizaciones
+
+- El aviso **Actualizar** de la barra lateral renueva su diseño y muestra la versión disponible con mayor claridad.
+
 ## [1.2.2] - 2026-10-15
 
 ### Descargas
