@@ -36,6 +36,7 @@ import { AppUpdateService } from '../services/update/AppUpdateService';
 import { ServerStatsStore } from '../services/persistence/ServerStatsStore';
 import { ConcurrencyExperimentStore, resolveCadenceProfile } from '../services/downloads/attemptExperiments';
 import { ThumbnailService } from '../services/library/ThumbnailService';
+import { LibraryMutationService } from '../services/library/LibraryMutationService';
 import { createRuntimeDirectories } from '../services/persistence/RuntimeDirectories';
 import { SettingsManager } from '../services/persistence/SettingsManager';
 import { DatabaseManager } from '../services/persistence/DatabaseManager';
@@ -330,6 +331,7 @@ const libraryFileService = new LibraryFileService({
   openPath: (targetPath) => shell.openPath(targetPath),
   userDataDir: app.getPath('userData'),
   log: writeGlobalLog,
+  onFilesRenamed: (pairs) => thumbnailService.moveThumbnailsStaged(pairs),
 });
 const episodeFileService = new EpisodeFileService({
   getSettings: () => SettingsManager.get(),
@@ -353,6 +355,22 @@ const thumbnailService = new ThumbnailService({
   registerProcess: (child) => activeChildProcesses.add(child),
   unregisterProcess: (child) => activeChildProcesses.delete(child),
   log: writeGlobalLog,
+});
+app.on('before-quit', () => {
+  void thumbnailService.close();
+});
+const libraryMutationService = new LibraryMutationService({
+  getAllowedBaseDirs: () => {
+    const settings = SettingsManager.get();
+    return settings.outputDirs || [settings.defaultOutputDir];
+  },
+  queueOwnsFolder: (folderPath) =>
+    downloadQueue.some(
+      (item) =>
+        ['pending', 'downloading', 'paused'].includes(item.status) &&
+        path.resolve(item.targetPath).toLowerCase() === folderPath,
+    ),
+  thumbnailService,
 });
 
 function cleanupThumbnails() {
@@ -552,6 +570,7 @@ const episodeLinksService = new EpisodeLinksService({
 });
 
 const queueEnqueueService = new QueueEnqueueService({
+  reserveFolder: (folderPath) => libraryMutationService.reserveDownload(folderPath),
   getAnimeDetails: (slug, providerId) => getAnimeDetailsBySlug(slug, providerId),
   getActiveProviderId: () => providerGateway.activeProviderIdName,
   getOutputDirs: () => {
@@ -734,6 +753,7 @@ function processQueue(): Promise<void> {
 }
 
 registerIpcHandlers({
+  libraryMutationService,
   preloadedData,
   providerGateway,
   homeFeedService,
@@ -788,6 +808,10 @@ function buildCanonicalEpisodeFileName(
   return buildCanonicalEpisodeFileNameUtil(episodeNumber, ext, folderName, style, normalizedLang as 'SUB' | 'DUB');
 }
 
-function normalizeEpisodeFilesInFolder(animePath: string, overrideStyle?: 'minimal' | 'descriptive') {
-  return episodeFileService.normalizeEpisodeFilesInFolder(animePath, overrideStyle);
+function normalizeEpisodeFilesInFolder(
+  animePath: string,
+  overrideStyle?: 'minimal' | 'descriptive',
+  expectedRevision?: string,
+) {
+  return episodeFileService.normalizeEpisodeFilesInFolder(animePath, overrideStyle, expectedRevision);
 }

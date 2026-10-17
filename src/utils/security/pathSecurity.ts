@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import { isValidFolderName } from '../downloads/folderNaming';
 
 function isPathInside(basePath: string, targetPath: string, allowBase: boolean): boolean {
   const base = path.resolve(basePath);
@@ -47,8 +48,7 @@ export function isPathWithinAnyDirectory(targetPath: string, baseDirectories: st
 }
 
 export function isSafeChildName(name: string): boolean {
-  const value = String(name || '').trim();
-  return Boolean(value) && value !== '.' && value !== '..' && path.basename(value) === value && !/[\\/]/.test(value);
+  return isValidFolderName(name);
 }
 
 export function isPathSafeForDestructiveOperation(

@@ -8,6 +8,7 @@ import { HistoryService } from '../services/library/HistoryService';
 import { LibraryFileService } from '../services/library/LibraryFileService';
 import { EpisodeFileService } from '../services/library/EpisodeFileService';
 import { ThumbnailService } from '../services/library/ThumbnailService';
+import type { LibraryMutationService } from '../services/library/LibraryMutationService';
 import { QueueStore } from '../services/persistence/QueueStore';
 import { ServerStatsStore } from '../services/persistence/ServerStatsStore';
 import { DownloadQueueProcessor } from '../services/downloads/DownloadQueueProcessor';
@@ -47,6 +48,7 @@ export interface IpcRegistryDependencies {
   libraryFileService: LibraryFileService;
   episodeFileService: EpisodeFileService;
   thumbnailService: ThumbnailService;
+  libraryMutationService: LibraryMutationService;
   queueStore: QueueStore;
   queueProcessor: DownloadQueueProcessor;
   queueEnqueueService: QueueEnqueueService;
@@ -59,7 +61,11 @@ export interface IpcRegistryDependencies {
   getAllowedBaseDirs: () => string[];
   getConnectivityStatus: () => boolean;
   getAnimeDetailsBySlug: (slug: string, providerId?: DownloadProvider) => Promise<DownloadAnimeDetails | null>;
-  normalizeEpisodeFilesInFolder: (animePath: string, overrideStyle?: 'minimal' | 'descriptive') => unknown;
+  normalizeEpisodeFilesInFolder: (
+    animePath: string,
+    overrideStyle?: 'minimal' | 'descriptive',
+    expectedRevision?: string,
+  ) => unknown;
   processQueue: () => Promise<void>;
   sendQueueUpdate: () => void;
   createTray: () => void;

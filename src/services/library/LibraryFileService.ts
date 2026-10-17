@@ -3,6 +3,8 @@ import * as fs from 'fs';
 import * as fsp from 'fs/promises';
 import * as path from 'path';
 import type { LibraryAssetService } from './LibraryAssetService';
+import { THUMBNAIL_DIR_NAME } from './ThumbnailService';
+import { withFolderLanguage } from '../../utils/downloads/folderNaming';
 import {
   anilistBannerInputFromDetails,
   type AniListBannerInput,
@@ -61,6 +63,7 @@ export interface LibraryFileServiceOptions {
   openPath: (targetPath: string) => Promise<string>;
   userDataDir: string;
   log: (error: unknown) => void;
+  onFilesRenamed?: (pairs: Array<{ from: string; to: string }>) => Promise<void>;
 }
 
 const VIDEO_EXTENSIONS = new Set(['.mp4', '.mkv', '.avi', '.flv', '.webm']);
@@ -254,7 +257,26 @@ export class LibraryFileService {
     }
   }
 
-  renameFolder(oldPath: string, newName: string): { success: boolean; newPath?: string; error?: string } {
+  resolveRenameTarget(oldPath: string, newName: string): string {
+    if (!isPathSafeForDestructiveOperation(oldPath, this.options.getAllowedBaseDirs(), false)) {
+      throw new Error('La carpeta está fuera de la librería configurada.');
+    }
+    if (!isSafeChildName(newName)) throw new Error('El nombre de carpeta no es válido en Windows.');
+    const meta = this.options.assetService.readFolderLibraryMeta(oldPath);
+    return path.join(path.dirname(oldPath), withFolderLanguage(newName, meta?.lang));
+  }
+
+  async renameFolder(
+    oldPath: string,
+    newName: string,
+  ): Promise<{
+    success: boolean;
+    newPath?: string;
+    name?: string;
+    posterLocal?: string | null;
+    bannerLocal?: string | null;
+    error?: string;
+  }> {
     try {
       const allowedBaseDirs = this.options.getAllowedBaseDirs();
       if (!isPathSafeForDestructiveOperation(oldPath, allowedBaseDirs, false)) {
@@ -267,12 +289,16 @@ export class LibraryFileService {
       if (this.options.queueOwnsFolder(path.resolve(oldPath).toLowerCase())) {
         return { success: false, error: 'No se puede renombrar una carpeta con una descarga activa.' };
       }
-      const baseDir = path.dirname(oldPath);
-      const newPath = path.join(baseDir, newName);
+      const newPath = this.resolveRenameTarget(oldPath, newName);
       if (!isPathSafeForDestructiveOperation(newPath, allowedBaseDirs, false)) {
         return { success: false, error: 'La nueva ruta está fuera de la librería configurada.' };
       }
-      if (fs.existsSync(newPath)) return { success: false, error: 'Ya existe una carpeta con ese nombre.' };
+      const sameFolder = path.resolve(oldPath).toLowerCase() === path.resolve(newPath).toLowerCase();
+      if (fs.existsSync(newPath) && !sameFolder)
+        return { success: false, error: 'Ya existe una carpeta con ese nombre.' };
+      const videoNames = (await fsp.readdir(oldPath, { withFileTypes: true }))
+        .filter((entry) => entry.isFile() && VIDEO_EXTENSIONS.has(path.extname(entry.name).toLowerCase()))
+        .map((entry) => entry.name);
 
       const oldAssetDir = path.join(
         this.options.assetService.getLibraryAssetRootPath(),
@@ -283,7 +309,7 @@ export class LibraryFileService {
         this.options.assetService.getFolderAssetKey(newPath),
       );
 
-      fs.renameSync(oldPath, newPath);
+      if (oldPath !== newPath) await fsp.rename(oldPath, newPath);
 
       try {
         if (fs.existsSync(oldAssetDir) && !fs.existsSync(newAssetDir)) {
@@ -295,7 +321,22 @@ export class LibraryFileService {
         );
       }
       this.options.assetService.renameFolderLibraryMeta(oldPath, newPath);
-      return { success: true, newPath };
+      try {
+        await this.options.onFilesRenamed?.(
+          videoNames.map((name) => ({ from: path.join(oldPath, name), to: path.join(newPath, name) })),
+        );
+      } catch (error) {
+        this.options.log(
+          `No se pudieron actualizar miniaturas en ${path.basename(newPath)}: ${errorDetailForLog(error)}`,
+        );
+      }
+      return {
+        success: true,
+        newPath,
+        name: path.basename(newPath),
+        posterLocal: this.options.assetService.getFolderPosterFileUrl(newPath),
+        bannerLocal: this.options.assetService.getFolderBannerFileUrl(newPath),
+      };
     } catch (error) {
       this.options.log(error);
       return { success: false, error: error instanceof Error ? error.message : String(error) };
@@ -429,7 +470,7 @@ export class LibraryFileService {
         );
       }
 
-      const thumbDir = path.join(this.options.userDataDir, 'thumbnails_v3');
+      const thumbDir = path.join(this.options.userDataDir, THUMBNAIL_DIR_NAME);
       const hash = crypto.createHash('md5').update(videoPath).digest('hex');
       const thumbPath = path.join(thumbDir, `${hash}.jpg`);
       if (fs.existsSync(thumbPath)) {

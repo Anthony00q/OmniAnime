@@ -25,6 +25,21 @@ export const FALLBACK_FOLDER_NAME = 'Sin_titulo';
 
 export const MAX_FOLDER_NAME_LENGTH = 100;
 
+export function isValidFolderName(name: unknown): name is string {
+  return (
+    typeof name === 'string' &&
+    Boolean(name) &&
+    name === name.trim() &&
+    name.length <= 255 &&
+    name !== '.' &&
+    name !== '..' &&
+    !/[<>:"/\\|?*]/.test(name) &&
+    ![...name].some((character) => character.charCodeAt(0) < 32) &&
+    !/[. ]$/.test(name) &&
+    !/^(?:con|prn|aux|nul|com[1-9¹²³]|lpt[1-9¹²³])(?:\.|$)/i.test(name)
+  );
+}
+
 export function withFolderLanguage(name: string, lang?: 'SUB' | 'DUB'): string {
   if (lang !== 'DUB') return name;
   const base = name

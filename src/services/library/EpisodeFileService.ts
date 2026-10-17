@@ -1,7 +1,8 @@
 import * as fsp from 'fs/promises';
 import * as path from 'path';
+import { createHash, randomUUID } from 'crypto';
 import { buildCanonicalEpisodeFileName, extractEpisodeNumberFromVideoFileName } from '../../utils/episodeUtils';
-import { errorDetailForLog } from '../../utils/logging/redactLog';
+import { errorDetailForLog, safeErrorMessage } from '../../utils/logging/redactLog';
 import type { LibraryAssetService } from './LibraryAssetService';
 
 export interface EpisodeFileSettings {
@@ -35,7 +36,7 @@ export interface ReorderFolder {
 export type ReorderResult = { success: true; renamed: number } | { success: false; error: string };
 
 export type RenameResult =
-  | { success: true; renamed: number; skippedConflicts: number; skippedNoNumber: number; total: number }
+  | { success: true; renamed: number; failed: number; skippedConflicts: number; skippedNoNumber: number; total: number }
   | { success: false; error: string };
 
 export interface RenamePreviewItem {
@@ -48,6 +49,7 @@ export interface RenamePreviewItem {
 
 export interface RenamePreviewResult {
   success: boolean;
+  revision?: string;
   error?: string;
   folderName: string;
   style: 'minimal' | 'descriptive';
@@ -72,6 +74,7 @@ export interface ReorderPreviewItem {
 
 export interface ReorderPreviewResult {
   success: boolean;
+  revision?: string;
   error?: string;
   startNumber: number;
   inferredStyle?: 'minimal' | 'descriptive';
@@ -118,7 +121,8 @@ export class EpisodeFileService {
         summary: { total: 0, toRename: 0, alreadyCorrect: 0, conflicts: 0, skippedNoNumber: 0 },
       };
     }
-    const dirents = (await fsp.readdir(animePath, { withFileTypes: true })).filter(
+    const allDirents = await fsp.readdir(animePath, { withFileTypes: true });
+    const dirents = allDirents.filter(
       (dirent) => dirent.isFile() && VIDEO_EXTENSIONS.has(path.extname(dirent.name).toLowerCase()),
     );
 
@@ -130,7 +134,7 @@ export class EpisodeFileService {
     const folderLang = (await this.options.assetService.readFolderLibraryMetaAsync(animePath))?.lang;
     const style = (overrideStyle || this.options.getSettings().namingStyle || 'descriptive') as
       'minimal' | 'descriptive';
-    const occupiedNames = new Set(dirents.map((d) => d.name.toLowerCase()));
+    const occupiedNames = new Set(allDirents.map((d) => d.name.toLowerCase()));
     const futureNames = new Set<string>();
     const items: RenamePreviewItem[] = [];
     let toRename = 0;
@@ -142,7 +146,7 @@ export class EpisodeFileService {
       const currentName = dirent.name;
       const ext = path.extname(currentName);
       const episodeNumber = extractEpisodeNumberFromVideoFileName(currentName);
-      if (!episodeNumber || episodeNumber <= 0) {
+      if (episodeNumber === null || !Number.isSafeInteger(episodeNumber) || episodeNumber < 0) {
         skippedNoNumber += 1;
         items.push({
           from: currentName,
@@ -207,6 +211,7 @@ export class EpisodeFileService {
 
     return {
       success: true,
+      revision: await this.revisionFor(animePath, items),
       folderName,
       style,
       items,
@@ -223,19 +228,25 @@ export class EpisodeFileService {
   async normalizeEpisodeFilesInFolder(
     animePath: string,
     overrideStyle?: 'minimal' | 'descriptive',
+    expectedRevision?: string,
   ): Promise<RenameResult | void> {
     if (!(await pathExists(animePath))) return { success: false, error: 'La carpeta no existe.' } as RenameResult;
 
     const preview = await this.previewRename(animePath, overrideStyle);
     if (!preview.success) return { success: false, error: preview.error || 'No se pudo inspeccionar la carpeta.' };
+    if (
+      (expectedRevision !== undefined && expectedRevision !== preview.revision) ||
+      preview.revision !== (await this.revisionFor(animePath, preview.items))
+    ) {
+      return { success: false, error: 'El contenido de la carpeta cambió. Revisa la vista previa de nuevo.' };
+    }
 
     const willRename = preview.items.filter((i) => i.status === 'will_rename');
     let renamed = 0;
+    let failed = 0;
     let conflicts = preview.summary.conflicts;
     const occupiedNames = new Set(
-      (await fsp.readdir(animePath, { withFileTypes: true }))
-        .filter((d) => d.isFile() && VIDEO_EXTENSIONS.has(path.extname(d.name).toLowerCase()))
-        .map((d) => d.name.toLowerCase()),
+      (await fsp.readdir(animePath, { withFileTypes: true })).map((d) => d.name.toLowerCase()),
     );
 
     // Re-validación secuencial antes de cada rename (mismo orden, sin TOCTOU con el preview)
@@ -252,13 +263,13 @@ export class EpisodeFileService {
       const oldPath = path.join(animePath, expectedCurrent);
       const newPath = path.join(animePath, canonicalName);
       try {
-        if (!(await pathExists(oldPath))) continue;
-        await fsp.rename(oldPath, newPath);
+        await this.renameWithoutOverwrite(oldPath, newPath);
         occupiedNames.delete(lowerCurrent);
         occupiedNames.add(lowerCanonical);
         renamed += 1;
         renamedPairs.push({ from: oldPath, to: newPath });
       } catch (error) {
+        failed++;
         this.options.log(
           `No se pudo renombrar ${path.basename(oldPath)} a ${path.basename(newPath)}: ${errorDetailForLog(error)}`,
         );
@@ -275,6 +286,7 @@ export class EpisodeFileService {
     const result: RenameResult = {
       success: true,
       renamed,
+      failed,
       skippedConflicts: conflicts,
       skippedNoNumber: preview.summary.skippedNoNumber,
       total: preview.summary.total,
@@ -387,8 +399,8 @@ export class EpisodeFileService {
         summary: { total: 0, toRename: 0, unchanged: 0 },
       };
     }
-    const start = parseInt(String(startNumber), 10);
-    if (isNaN(start) || start < 0) {
+    const start = startNumber;
+    if (!Number.isSafeInteger(start) || start < 0) {
       return {
         success: false,
         error: 'Número de inicio inválido.',
@@ -421,6 +433,14 @@ export class EpisodeFileService {
         summary: { total: 0, toRename: 0, unchanged: 0 },
       };
     }
+    if (!Number.isSafeInteger(start + files.length - 1))
+      return {
+        success: false,
+        error: 'La numeración supera el límite permitido.',
+        startNumber: start,
+        items: [],
+        summary: { total: 0, toRename: 0, unchanged: 0 },
+      };
 
     let currentStyle: 'minimal' | 'descriptive' | undefined;
     const firstName = files[0].name;
@@ -450,6 +470,7 @@ export class EpisodeFileService {
     const toRename = items.filter((i) => i.status === 'will_rename').length;
     return {
       success: true,
+      revision: await this.revisionFor(folderPath, items),
       startNumber: start,
       inferredStyle: currentStyle,
       items,
@@ -457,11 +478,14 @@ export class EpisodeFileService {
     };
   }
 
-  async reorderEpisodes(folderPath: string, startNumber: number): Promise<ReorderResult> {
+  async reorderEpisodes(folderPath: string, startNumber: number, expectedRevision?: string): Promise<ReorderResult> {
     try {
       const preview = await this.previewReorder(folderPath, startNumber);
       if (!preview.success) {
         return { success: false, error: preview.error || 'No se pudo previsualizar el reorden.' };
+      }
+      if (expectedRevision !== undefined && expectedRevision !== preview.revision) {
+        return { success: false, error: 'El contenido de la carpeta cambió. Revisa la vista previa de nuevo.' };
       }
       const files = (await fsp.readdir(folderPath, { withFileTypes: true }))
         .filter((entry) => entry.isFile() && VIDEO_EXTENSIONS.has(path.extname(entry.name).toLowerCase()))
@@ -481,23 +505,25 @@ export class EpisodeFileService {
       if (files.length === 0) return { success: false, error: 'No se encontraron archivos de video.' };
       if (
         files.length !== preview.items.length ||
-        files.some((file, index) => file.name !== preview.items[index].from)
+        files.some((file, index) => file.name !== preview.items[index].from) ||
+        preview.revision !== (await this.revisionFor(folderPath, preview.items))
       ) {
         return { success: false, error: 'El contenido de la carpeta cambió. Vuelve a intentarlo.' };
       }
+      if (preview.summary.toRename === 0) return { success: true, renamed: 0 };
 
       // Secuencial a propósito: el rollback restaura en orden inverso exacto.
       const tempNames: Array<{ tempPath: string; ext: string; originalPath: string }> = [];
       for (let i = 0; i < files.length; i += 1) {
-        const tempName = `_reorder_tmp_${Date.now()}_${i}${files[i].ext}`;
+        const tempName = `_reorder_tmp_${randomUUID()}_${i}${files[i].ext}`;
         const tempPath = path.join(folderPath, tempName);
         try {
-          await fsp.rename(files[i].fullPath, tempPath);
+          await this.renameWithoutOverwrite(files[i].fullPath, tempPath);
           tempNames.push({ tempPath, ext: files[i].ext, originalPath: files[i].fullPath });
         } catch (error) {
           for (const temp of tempNames) {
             try {
-              await fsp.rename(temp.tempPath, temp.originalPath);
+              await this.renameWithoutOverwrite(temp.tempPath, temp.originalPath);
             } catch (rollbackError) {
               this.options.log(
                 `Error revirtiendo ${path.basename(temp.tempPath)}: ${errorDetailForLog(rollbackError)}`,
@@ -515,14 +541,15 @@ export class EpisodeFileService {
         const finalName = preview.items[i].to;
         const finalPath = path.join(folderPath, finalName);
         try {
-          await fsp.rename(tempNames[i].tempPath, finalPath);
+          await this.renameWithoutOverwrite(tempNames[i].tempPath, finalPath);
           finalNames.push(finalName);
           appliedRenames.push({ finalPath, tempPath: tempNames[i].tempPath });
         } catch (error) {
           for (let j = appliedRenames.length - 1; j >= 0; j -= 1) {
             const applied = appliedRenames[j];
             try {
-              if (await pathExists(applied.finalPath)) await fsp.rename(applied.finalPath, applied.tempPath);
+              if (await pathExists(applied.finalPath))
+                await this.renameWithoutOverwrite(applied.finalPath, applied.tempPath);
             } catch (rollbackError) {
               this.options.log(
                 `Error revirtiendo ${path.basename(applied.finalPath)}: ${errorDetailForLog(rollbackError)}`,
@@ -531,7 +558,7 @@ export class EpisodeFileService {
           }
           for (const temp of tempNames) {
             try {
-              if (await pathExists(temp.tempPath)) await fsp.rename(temp.tempPath, temp.originalPath);
+              if (await pathExists(temp.tempPath)) await this.renameWithoutOverwrite(temp.tempPath, temp.originalPath);
             } catch (rollbackError) {
               this.options.log(
                 `Error restaurando ${path.basename(temp.tempPath)}: ${errorDetailForLog(rollbackError)}`,
@@ -562,11 +589,44 @@ export class EpisodeFileService {
           );
         }
       }
-      return { success: true, renamed: finalNames.length };
+      return { success: true, renamed: preview.summary.toRename };
     } catch (error) {
       this.options.log(error);
       return { success: false, error: errorMessage(error) };
     }
+  }
+
+  private async revisionFor(
+    folderPath: string,
+    items: Array<{ from: string; to: string; status: string }>,
+  ): Promise<string> {
+    const facts: unknown[] = [];
+    for (let i = 0; i < items.length; i += READ_BATCH_SIZE) {
+      facts.push(
+        ...(await Promise.all(
+          items.slice(i, i + READ_BATCH_SIZE).map(async (item) => {
+            const stat = await fsp.lstat(path.join(folderPath, item.from));
+            if (!stat.isFile()) throw new Error('El contenido de la carpeta cambió. Revisa la vista previa de nuevo.');
+            return [item.from, item.to, item.status, stat.size, stat.mtimeMs, stat.ino];
+          }),
+        )),
+      );
+    }
+    const names = (await fsp.readdir(folderPath)).sort();
+    return createHash('sha256')
+      .update(JSON.stringify([facts, names]))
+      .digest('hex');
+  }
+
+  private async renameWithoutOverwrite(from: string, to: string): Promise<void> {
+    try {
+      await fsp.lstat(to);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+      await fsp.rename(from, to);
+      return;
+    }
+    throw Object.assign(new Error('El nombre de destino ya está ocupado.'), { code: 'EEXIST' });
   }
 
   private buildCanonicalName(
@@ -583,5 +643,5 @@ export class EpisodeFileService {
 }
 
 function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
+  return safeErrorMessage(error) || 'No se pudo completar la operación.';
 }

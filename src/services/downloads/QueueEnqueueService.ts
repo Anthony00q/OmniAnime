@@ -47,6 +47,7 @@ export interface QueueEnqueueResult {
 }
 
 export interface QueueEnqueueServiceOptions {
+  reserveFolder?: (folderPath: string) => () => void;
   getAnimeDetails: (slug: string, providerId: DownloadProvider) => Promise<DownloadAnimeDetails | null>;
   getActiveProviderId: () => string;
   getOutputDirs: () => { outputDirs: string[]; defaultOutputDir: string };
@@ -139,94 +140,107 @@ export class QueueEnqueueService {
       );
     if (duplicateQueueItem) return false;
 
+    let release: () => void;
     try {
-      if (!isPathSafeForDestructiveOperation(targetPath, [...dirs, defaultOutputDir])) return false;
-      await fs.promises.mkdir(targetPath, { recursive: true });
-      if (!isPathSafeForDestructiveOperation(targetPath, [...dirs, defaultOutputDir])) return false;
+      release = this.options.reserveFolder?.(targetPath) ?? (() => {});
     } catch {
       return false;
     }
-    let localPosterUrl: string | null = null;
-    let localBannerUrl: string | null = null;
-    const anilistBannerUrl = anilist?.banner ?? null;
     try {
-      // Banner como en la ficha: solo AniList validado, sin fallback al póster.
-      [localPosterUrl, localBannerUrl] = await Promise.all([
-        this.options.ensureFolderPoster(targetPath, details.poster || null),
-        anilistBannerUrl ? this.options.ensureFolderBanner(targetPath, anilistBannerUrl) : Promise.resolve(null),
-      ]);
-    } catch (error) {
-      this.options.logError(`Error descargando portada para ${slug}: ${errorDetailForLog(error)}`);
-    }
-
-    if (localPosterUrl && (localPosterUrl.startsWith('file:') || localPosterUrl.startsWith('omni-media:'))) {
       try {
-        const filePath = this.options.urlToFilePath(localPosterUrl);
-        if (!filePath || !fs.existsSync(filePath)) localPosterUrl = null;
+        if (!isPathSafeForDestructiveOperation(targetPath, [...dirs, defaultOutputDir])) return false;
+        await fs.promises.mkdir(targetPath, { recursive: true });
+        if (!isPathSafeForDestructiveOperation(targetPath, [...dirs, defaultOutputDir])) return false;
       } catch {
-        localPosterUrl = null;
+        return false;
       }
-    }
+      let localPosterUrl: string | null = null;
+      let localBannerUrl: string | null = null;
+      const anilistBannerUrl = anilist?.banner ?? null;
+      try {
+        // Banner como en la ficha: solo AniList validado, sin fallback al póster.
+        [localPosterUrl, localBannerUrl] = await Promise.all([
+          this.options.ensureFolderPoster(targetPath, details.poster || null),
+          anilistBannerUrl ? this.options.ensureFolderBanner(targetPath, anilistBannerUrl) : Promise.resolve(null),
+        ]);
+      } catch (error) {
+        this.options.logError(`Error descargando portada para ${slug}: ${errorDetailForLog(error)}`);
+      }
 
-    const folderTitle = normalizeDisplayAnimeTitle(details.title || folderName);
-    this.options.writeFolderLibraryMeta(targetPath, {
-      slug: details.slug || slug,
-      title: folderTitle,
-      secondaryTitle: String(details.japaneseTitle || '').trim(),
-      alternativeTitles: normalizeFolderAlternativeTitles(details.alternativeTitles, folderTitle),
-      category: details.category || '',
-      year: details.year || '',
-      status: details.status || '',
-      season: details.season || '',
-      posterUrl: details.poster || null,
-      bannerUrl: anilistBannerUrl,
-      providerId: queueProvider,
-      lang,
-      anilistId: anilist?.anilistId ?? null,
-    });
+      if (localPosterUrl && (localPosterUrl.startsWith('file:') || localPosterUrl.startsWith('omni-media:'))) {
+        try {
+          const filePath = this.options.urlToFilePath(localPosterUrl);
+          if (!filePath || !fs.existsSync(filePath)) localPosterUrl = null;
+        } catch {
+          localPosterUrl = null;
+        }
+      }
 
-    const item: QueueItem = {
-      id: `q-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
-      slug,
-      downloadSlug: slug,
-      animeTitle: normalizeDisplayAnimeTitle(details.title),
-      poster: localPosterUrl || details.poster || null,
-      preferredServer: preferredServer || 'Auto',
-      lang: lang || 'SUB',
-      episodes: normalizedEpisodes,
-      status: 'pending',
-      currentEp: null,
-      providerId: queueProvider,
-      progress: 0,
-      completedEps: [],
-      failedEps: [],
-      targetPath,
-      outputDirIndex: resolvedIndex,
-    };
-
-    this.options.addItem(item);
-    this.options.sendQueueUpdate();
-    this.options.logQueue(`Agregado a la cola: ${item.animeTitle} (${formatEpisodeCountLabel(item.episodes.length)})`, {
-      queueId: item.id,
-      provider: queueProvider,
-    });
-
-    setImmediate(() => {
-      this.options.processQueue().catch((error) => {
-        this.options.logError(error);
-      });
-    });
-
-    return {
-      id: item.id,
-      libraryPreload: {
-        folderName,
-        title: normalizeDisplayAnimeTitle(details.title || folderName),
+      const folderTitle = normalizeDisplayAnimeTitle(details.title || folderName);
+      this.options.writeFolderLibraryMeta(targetPath, {
         slug: details.slug || slug,
+        title: folderTitle,
+        secondaryTitle: String(details.japaneseTitle || '').trim(),
+        alternativeTitles: normalizeFolderAlternativeTitles(details.alternativeTitles, folderTitle),
+        category: details.category || '',
+        year: details.year || '',
+        status: details.status || '',
+        season: details.season || '',
+        posterUrl: details.poster || null,
+        bannerUrl: anilistBannerUrl,
+        providerId: queueProvider,
+        lang,
+        anilistId: anilist?.anilistId ?? null,
+      });
+
+      const item: QueueItem = {
+        id: `q-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+        slug,
+        downloadSlug: slug,
+        animeTitle: normalizeDisplayAnimeTitle(details.title),
         poster: localPosterUrl || details.poster || null,
-        banner: localBannerUrl || null,
-      },
-    };
+        preferredServer: preferredServer || 'Auto',
+        lang: lang || 'SUB',
+        episodes: normalizedEpisodes,
+        status: 'pending',
+        currentEp: null,
+        providerId: queueProvider,
+        progress: 0,
+        completedEps: [],
+        failedEps: [],
+        targetPath,
+        outputDirIndex: resolvedIndex,
+      };
+
+      this.options.addItem(item);
+      this.options.sendQueueUpdate();
+      this.options.logQueue(
+        `Agregado a la cola: ${item.animeTitle} (${formatEpisodeCountLabel(item.episodes.length)})`,
+        {
+          queueId: item.id,
+          provider: queueProvider,
+        },
+      );
+
+      setImmediate(() => {
+        this.options.processQueue().catch((error) => {
+          this.options.logError(error);
+        });
+      });
+
+      return {
+        id: item.id,
+        libraryPreload: {
+          folderName,
+          title: normalizeDisplayAnimeTitle(details.title || folderName),
+          slug: details.slug || slug,
+          poster: localPosterUrl || details.poster || null,
+          banner: localBannerUrl || null,
+        },
+      };
+    } finally {
+      release();
+    }
   }
 
   private resolveFolderName(

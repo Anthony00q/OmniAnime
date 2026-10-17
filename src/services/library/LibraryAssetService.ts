@@ -284,7 +284,7 @@ export class LibraryAssetService {
       if (!meta) return;
 
       this.options.database.setFolderMeta(newPath, { ...meta, folderPath: newPath });
-      this.options.database.deleteFolderMeta?.(oldPath);
+      if (oldPath.toLowerCase() !== newPath.toLowerCase()) this.options.database.deleteFolderMeta?.(oldPath);
     } catch (error) {
       this.options.log(`No se pudo actualizar metadata de ${path.basename(newPath)}: ${errorDetailForLog(error)}`);
     }

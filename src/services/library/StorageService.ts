@@ -3,6 +3,7 @@ import * as fsp from 'fs/promises';
 import * as path from 'path';
 import { app } from 'electron';
 import { DatabaseManager } from '../persistence/DatabaseManager';
+import { THUMBNAIL_CACHE_DIR_NAMES, THUMBNAIL_DIR_NAME } from './ThumbnailService';
 
 export interface StorageDiskInfo {
   path: string;
@@ -39,7 +40,6 @@ export interface StorageStats {
   cache: StorageCacheInfo;
 }
 
-const THUMBNAIL_DIR_NAME = 'thumbnails_v3';
 const THUMBNAIL_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 const BATCH_SIZE = 16;
 
@@ -105,40 +105,43 @@ export class StorageService {
   }
 
   private async getThumbnailsInfo(): Promise<StorageThumbnailsInfo> {
-    const thumbDir = path.join(this.options.userDataDir, THUMBNAIL_DIR_NAME);
     let count = 0;
     let size = 0;
     let expiredCount = 0;
-    try {
-      if (!fs.existsSync(thumbDir)) return { count: 0, size: 0, expiredCount: 0 };
-      const files = await fsp.readdir(thumbDir);
-      const jpgFiles = files.filter((f) => f.endsWith('.jpg'));
-      const now = Date.now();
-      for (let i = 0; i < jpgFiles.length; i += BATCH_SIZE) {
-        const chunk = jpgFiles.slice(i, i + BATCH_SIZE);
-        const results = await Promise.all(
-          chunk.map(async (file) => {
-            const fp = path.join(thumbDir, file);
-            try {
-              const st = await fsp.stat(fp);
-              const isExpired = now - st.mtimeMs > THUMBNAIL_MAX_AGE_MS;
-              return { size: st.size, isExpired };
-            } catch {
-              return null;
+    for (const dirName of THUMBNAIL_CACHE_DIR_NAMES) {
+      const thumbDir = path.join(this.options.userDataDir, dirName);
+      try {
+        if (!fs.existsSync(thumbDir)) continue;
+        const files = await fsp.readdir(thumbDir);
+        const jpgFiles = files.filter((f) => f.endsWith('.jpg'));
+        const now = Date.now();
+        for (let i = 0; i < jpgFiles.length; i += BATCH_SIZE) {
+          const chunk = jpgFiles.slice(i, i + BATCH_SIZE);
+          const results = await Promise.all(
+            chunk.map(async (file) => {
+              const fp = path.join(thumbDir, file);
+              try {
+                const st = await fsp.stat(fp);
+                if (!st.isFile()) return null;
+                const isExpired = dirName !== THUMBNAIL_DIR_NAME || now - st.mtimeMs > THUMBNAIL_MAX_AGE_MS;
+                return { size: st.size, isExpired };
+              } catch {
+                return null;
+              }
+            }),
+          );
+          for (const r of results) {
+            if (r) {
+              count += 1;
+              size += r.size;
+              if (r.isExpired) expiredCount += 1;
             }
-          }),
-        );
-        for (const r of results) {
-          if (r) {
-            count += 1;
-            size += r.size;
-            if (r.isExpired) expiredCount += 1;
           }
         }
+      } catch (e) {
+        this.options.log(e);
+        throw e;
       }
-    } catch (e) {
-      this.options.log(e);
-      throw e;
     }
     return { count, size, expiredCount };
   }
@@ -265,41 +268,44 @@ export class StorageService {
   async cleanThumbnails(
     mode: 'expired' | 'all' = 'expired',
   ): Promise<{ cleaned: number; freed: number; errors: string[] }> {
-    const thumbDir = path.join(this.options.userDataDir, THUMBNAIL_DIR_NAME);
     let cleaned = 0;
     let freed = 0;
     const errors: string[] = [];
-    try {
-      if (!fs.existsSync(thumbDir)) return { cleaned: 0, freed: 0, errors: [] };
-      const files = await fsp.readdir(thumbDir);
-      const jpgFiles = files.filter((f) => f.endsWith('.jpg'));
-      const now = Date.now();
+    for (const dirName of THUMBNAIL_CACHE_DIR_NAMES) {
+      const thumbDir = path.join(this.options.userDataDir, dirName);
+      try {
+        if (!fs.existsSync(thumbDir)) continue;
+        const files = await fsp.readdir(thumbDir);
+        const jpgFiles = files.filter((f) => f.endsWith('.jpg'));
+        const now = Date.now();
 
-      for (let i = 0; i < jpgFiles.length; i += BATCH_SIZE) {
-        const chunk = jpgFiles.slice(i, i + BATCH_SIZE);
-        const results = await Promise.all(
-          chunk.map(async (file) => {
-            const fp = path.join(thumbDir, file);
-            try {
-              const st = await fsp.stat(fp);
-              const isExpired = now - st.mtimeMs > THUMBNAIL_MAX_AGE_MS;
-              if (mode === 'expired' && !isExpired) return { cleaned: 0, freed: 0 };
-              await fsp.unlink(fp);
-              return { cleaned: 1, freed: st.size };
-            } catch {
-              return { cleaned: 0, freed: 0 };
-            }
-          }),
-        );
-        for (const r of results) {
-          cleaned += r.cleaned;
-          freed += r.freed;
+        for (let i = 0; i < jpgFiles.length; i += BATCH_SIZE) {
+          const chunk = jpgFiles.slice(i, i + BATCH_SIZE);
+          const results = await Promise.all(
+            chunk.map(async (file) => {
+              const fp = path.join(thumbDir, file);
+              try {
+                const st = await fsp.stat(fp);
+                if (!st.isFile()) return { cleaned: 0, freed: 0 };
+                const isExpired = dirName !== THUMBNAIL_DIR_NAME || now - st.mtimeMs > THUMBNAIL_MAX_AGE_MS;
+                if (mode === 'expired' && !isExpired) return { cleaned: 0, freed: 0 };
+                await fsp.unlink(fp);
+                return { cleaned: 1, freed: st.size };
+              } catch {
+                return { cleaned: 0, freed: 0 };
+              }
+            }),
+          );
+          for (const r of results) {
+            cleaned += r.cleaned;
+            freed += r.freed;
+          }
         }
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        errors.push(msg);
+        this.options.log(e);
       }
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      errors.push(msg);
-      this.options.log(e);
     }
     return { cleaned, freed, errors };
   }
