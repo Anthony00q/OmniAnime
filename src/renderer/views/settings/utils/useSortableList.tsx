@@ -1,11 +1,6 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useReorderMotion } from '@/renderer/utils/motion';
 import { exceedsDragThreshold, resolveDropIndex, resolveDropLine } from './sortableList';
-
-// Arrastre único de Carpetas y Servidores: fila atenuada en su sitio,
-// línea de inserción en vivo y FLIP al soltar.
-
-const prefersReducedMotion = () =>
-  typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 interface UseSortableListOptions {
   /** Nº de filas arrastrables; con 1 o menos el agarre se desactiva. */
@@ -26,8 +21,7 @@ export function useSortableList({ count, disabled = false, onReorder }: UseSorta
   const [dropIndex, setDropIndex] = useState<number | null>(null);
 
   const listRef = useRef<HTMLDivElement>(null);
-  const rowKeys = useRef(new Map<string, HTMLElement>());
-  const flipBefore = useRef<Map<string, number> | null>(null);
+  const { registerRow, prepareFlip } = useReorderMotion();
 
   const pendingRef = useRef<number | null>(null);
   const draggingRef = useRef<number | null>(null);
@@ -110,9 +104,7 @@ export function useSortableList({ count, disabled = false, onReorder }: UseSorta
         if (e.type === 'pointerup') return;
       }
       if (from !== null && to !== null && from !== to && from >= 0 && to >= 0) {
-        const before = new Map<string, number>();
-        rowKeys.current.forEach((el, key) => before.set(key, el.getBoundingClientRect().top));
-        flipBefore.current = before;
+        prepareFlip();
         onReorderRef.current(from, to);
       }
       try {
@@ -120,7 +112,7 @@ export function useSortableList({ count, disabled = false, onReorder }: UseSorta
       } catch {}
       clearDrag();
     },
-    [clearDrag],
+    [clearDrag, prepareFlip],
   );
 
   useEffect(() => {
@@ -145,36 +137,6 @@ export function useSortableList({ count, disabled = false, onReorder }: UseSorta
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
     };
-  }, []);
-
-  useLayoutEffect(() => {
-    const before = flipBefore.current;
-    flipBefore.current = null;
-    if (!before || before.size === 0 || prefersReducedMotion()) return;
-    before.forEach((top, key) => {
-      const el = rowKeys.current.get(key);
-      if (!el) return;
-      const delta = top - el.getBoundingClientRect().top;
-      if (Math.abs(delta) < 1) return;
-      el.style.transition = 'none';
-      el.style.transform = `translateY(${delta}px)`;
-      requestAnimationFrame(() => {
-        el.style.transition = 'transform 180ms var(--ease-out)';
-        el.style.transform = '';
-      });
-    });
-  });
-
-  const registerRow = useCallback((key: string, el: HTMLElement | null) => {
-    if (el) rowKeys.current.set(key, el);
-    else rowKeys.current.delete(key);
-  }, []);
-
-  // Flechas y Restablecer también se deslizan con FLIP.
-  const prepareFlip = useCallback(() => {
-    const before = new Map<string, number>();
-    rowKeys.current.forEach((el, key) => before.set(key, el.getBoundingClientRect().top));
-    flipBefore.current = before;
   }, []);
 
   // Arriba de la fila destino, o debajo de la última al caer al final.

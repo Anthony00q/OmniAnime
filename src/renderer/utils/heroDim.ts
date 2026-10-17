@@ -24,3 +24,38 @@ export function createHeroDimSmoother(reduced: boolean): HeroDimSmoother {
     },
   };
 }
+
+export function createHeroDimController(
+  readTarget: () => number,
+  writeOpacity: (opacity: number) => void,
+  reduced: boolean,
+) {
+  const smoother = createHeroDimSmoother(reduced);
+  let frame: number | null = null;
+  let previousFrameTime: number | null = null;
+  let disposed = false;
+
+  const request = () => {
+    if (!disposed && frame === null) frame = requestAnimationFrame(apply);
+  };
+  const apply = (timestamp: number) => {
+    if (disposed) return;
+    frame = null;
+    const deltaMs = previousFrameTime === null ? 1000 / 60 : timestamp - previousFrameTime;
+    const target = readTarget();
+    const dim = smoother.step(target, deltaMs);
+    writeOpacity(1 - dim);
+    previousFrameTime = dim === target ? null : timestamp;
+    if (dim !== target) request();
+  };
+  apply(performance.now());
+
+  return {
+    request,
+    dispose: () => {
+      disposed = true;
+      if (frame !== null) cancelAnimationFrame(frame);
+      frame = null;
+    },
+  };
+}

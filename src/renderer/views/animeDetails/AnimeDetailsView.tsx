@@ -41,7 +41,7 @@ import { parseEpisodeFilter } from '@/renderer/utils/episodeFilter';
 import { useEpisodeView } from '@/renderer/utils/episodeView';
 import { EpisodeViewMenu } from '@/renderer/views/library/components/EpisodeViewMenu';
 import { normalizeSeasonLabel } from '@/renderer/utils/seasonLabel';
-import { HERO_DIM_MAX, HERO_DIM_DISTANCE, createHeroDimSmoother } from '@/renderer/utils/heroDim';
+import { HERO_DIM_MAX, HERO_DIM_DISTANCE, createHeroDimController } from '@/renderer/utils/heroDim';
 import { useHeroReveal, useReducedMotion } from '@/renderer/utils/motion';
 import { buildExternalUrl, buildAniListUrl } from '@/utils/security/externalUrl';
 import {
@@ -218,36 +218,24 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
     return () => observer.disconnect();
   }, [synopsisNode, data?.description, showFullSynopsis]);
 
-  // Dim continuo del banner: una escritura de opacidad por frame sobre el
-  // wrapper de la imagen (fade hacia el fondo, fundido por debajo de los
-  // scrims), sin transición ni estado React, leyendo scrollTop y, en listas
-  // virtualizadas, el offset del VList. El valor escrito sale suavizado del
-  // aproximador de heroDim (identidad con reduced-motion).
   useEffect(() => {
     if (!scrollNode || !bannerFadeNode) return;
-    const smoother = createHeroDimSmoother(reducedMotion);
-    let raf = 0;
-    let previousFrameTime: number | null = null;
-    const apply = (timestamp?: number) => {
-      raf = 0;
-      const frameTime = timestamp ?? performance.now();
-      const deltaMs = previousFrameTime === null ? 1000 / 60 : frameTime - previousFrameTime;
-      previousFrameTime = frameTime;
-      const ratio = Math.min(1, Math.max(0, scrollNode.scrollTop / HERO_DIM_DISTANCE));
-      const target = Math.max(ratio * HERO_DIM_MAX, innerDimRef.current);
-      const dim = smoother.step(target, deltaMs);
-      bannerFadeNode.style.opacity = String(1 - dim);
-      if (dim !== target) raf = requestAnimationFrame(apply);
-    };
-    applyDimRef.current = apply;
-    const onScroll = () => {
-      if (raf === 0) raf = requestAnimationFrame(apply);
-    };
+    const controller = createHeroDimController(
+      () => {
+        const ratio = Math.min(1, Math.max(0, scrollNode.scrollTop / HERO_DIM_DISTANCE));
+        return Math.max(ratio * HERO_DIM_MAX, innerDimRef.current);
+      },
+      (opacity) => {
+        bannerFadeNode.style.opacity = String(opacity);
+      },
+      reducedMotion,
+    );
+    applyDimRef.current = controller.request;
+    const onScroll = controller.request;
     scrollNode.addEventListener('scroll', onScroll, { passive: true });
-    apply();
     return () => {
       scrollNode.removeEventListener('scroll', onScroll);
-      if (raf !== 0) cancelAnimationFrame(raf);
+      controller.dispose();
       applyDimRef.current = () => {};
     };
   }, [scrollNode, bannerFadeNode, slug, reducedMotion]);

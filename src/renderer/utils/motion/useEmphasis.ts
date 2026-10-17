@@ -24,7 +24,7 @@ export function useEmphasis<T extends HTMLElement = HTMLElement>(
     const previous = previousRef.current;
     previousRef.current = trigger;
     const el = targetRef.current;
-    if (previous === UNSET || previous === trigger || !el || disabled || reduced) return;
+    if (previous === UNSET || previous === trigger || trigger == null || !el || disabled || reduced) return;
     const clear = () => {
       el.style.opacity = '';
       el.style.transform = '';

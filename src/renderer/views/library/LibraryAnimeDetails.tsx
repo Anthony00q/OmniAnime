@@ -8,7 +8,7 @@ import {
   type MouseEvent as ReactMouseEvent,
   type KeyboardEvent as ReactKeyboardEvent,
 } from 'react';
-import { HERO_DIM_MAX, HERO_DIM_DISTANCE, createHeroDimSmoother } from '@/renderer/utils/heroDim';
+import { HERO_DIM_MAX, HERO_DIM_DISTANCE, createHeroDimController } from '@/renderer/utils/heroDim';
 import { useReducedMotion } from '@/renderer/utils/motion';
 import { ArrowLeft, FolderOpen, Settings, Wand2, ListOrdered, Info, FileText, Hash, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
@@ -113,10 +113,6 @@ export function LibraryAnimeDetails({
   const closeHeroMenu = useCallback(() => setHeroMenu(null), []);
   const [renameStyle, setRenameStyle] = useState<'minimal' | 'descriptive'>('descriptive');
   const [deleteConfirmPath, setDeleteConfirmPath] = useState<string | null>(null);
-  // Dim continuo del banner: una escritura de opacidad por frame sobre el
-  // wrapper de la imagen (fade hacia el fondo), sin transición ni estado
-  // React, leyendo scrollTop. El valor escrito sale suavizado del aproximador
-  // de heroDim (identidad con reduced-motion).
   const [listScrollNode, setListScrollNode] = useState<HTMLDivElement | null>(null);
   const [bannerFadeNode, setBannerFadeNode] = useState<HTMLDivElement | null>(null);
   const [heroNode, setHeroNode] = useState<HTMLDivElement | null>(null);
@@ -138,29 +134,18 @@ export function LibraryAnimeDetails({
 
   useEffect(() => {
     if (!listScrollNode || !bannerFadeNode) return;
-    const smoother = createHeroDimSmoother(reducedMotion);
-    let raf = 0;
-    let previousFrameTime: number | null = null;
-    const apply = (timestamp?: number) => {
-      raf = 0;
-      const frameTime = timestamp ?? performance.now();
-      const deltaMs = previousFrameTime === null ? 1000 / 60 : frameTime - previousFrameTime;
-      previousFrameTime = frameTime;
-      const { scrollTop } = listScrollNode;
-      const ratio = Math.min(1, Math.max(0, scrollTop / HERO_DIM_DISTANCE));
-      const target = ratio * HERO_DIM_MAX;
-      const dim = smoother.step(target, deltaMs);
-      bannerFadeNode.style.opacity = String(1 - dim);
-      if (dim !== target) raf = requestAnimationFrame(apply);
-    };
-    const onScroll = () => {
-      if (raf === 0) raf = requestAnimationFrame(apply);
-    };
+    const controller = createHeroDimController(
+      () => Math.min(1, Math.max(0, listScrollNode.scrollTop / HERO_DIM_DISTANCE)) * HERO_DIM_MAX,
+      (opacity) => {
+        bannerFadeNode.style.opacity = String(opacity);
+      },
+      reducedMotion,
+    );
+    const onScroll = controller.request;
     listScrollNode.addEventListener('scroll', onScroll, { passive: true });
-    apply();
     return () => {
       listScrollNode.removeEventListener('scroll', onScroll);
-      if (raf !== 0) cancelAnimationFrame(raf);
+      controller.dispose();
     };
   }, [listScrollNode, bannerFadeNode, folderData.path, reducedMotion]);
   const [reorderStart, setReorderStart] = useState('1');

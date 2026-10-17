@@ -43,7 +43,7 @@ export function ProgressBar({
       >
         <div
           className={clsx(
-            'h-full w-full rounded-full progress-fill transition-transform duration-300 ease-out',
+            'h-full w-full rounded-full progress-fill transition-transform duration-(--duration-motion-base) ease-out',
             fillClasses[variant],
             indeterminate && 'progress-indeterminate opacity-60',
           )}

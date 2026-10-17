@@ -250,7 +250,7 @@ export function CatalogView() {
           </button>
         }
       >
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col">
           <SearchField
             value={searchInput}
             inputRef={searchInputRef}

@@ -19,7 +19,7 @@ export const SettingsHeader = memo(function SettingsHeader({ isDirty, onDiscard 
         </div>
         {isDirty && (
           <span className="hidden sm:inline-flex items-center gap-1 rounded-full bg-warning/10 border border-warning/20 pl-3 pr-1 py-1 text-xs font-semibold text-warning">
-            <span className="w-1.5 h-1.5 rounded-full bg-warning animate-pulse" /> Cambios sin guardar
+            <span className="w-1.5 h-1.5 rounded-full bg-warning" /> Cambios sin guardar
             <AppTooltip content="Descartar cambios" side="bottom">
               <button
                 type="button"

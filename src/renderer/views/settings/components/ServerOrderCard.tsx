@@ -4,6 +4,7 @@ import { AppTooltip } from '@/renderer/components/ui/AppTooltip';
 import { CustomSwitch } from '@/renderer/components/CustomSwitch';
 import { SortableHandle } from './SortableHandle';
 import { useSortableList } from '@/renderer/views/settings/utils/useSortableList';
+import { MOTION_DURATION } from '@/renderer/utils/motion';
 
 interface ServerOrderCardProps {
   providerLabel: string;
@@ -51,7 +52,7 @@ export const ServerOrderCard = memo(function ServerOrderCard({
       onToggle(name);
       setFlashName(name);
       if (flashTimer.current) window.clearTimeout(flashTimer.current);
-      flashTimer.current = window.setTimeout(() => setFlashName(null), 800);
+      flashTimer.current = window.setTimeout(() => setFlashName(null), MOTION_DURATION.emphatic);
     },
     [onToggle],
   );
