@@ -1,17 +1,18 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { isIpcFailError, unwrap } from '@/renderer/hooks/queries/unwrap';
+import { isIpcFailError } from '@/renderer/hooks/queries/unwrap';
 import { Dialog } from '@/renderer/components/Dialog';
 import { CustomInput } from '@/renderer/components/CustomInput';
 import { CustomRadio, CustomRadioGroup } from '@/renderer/components/CustomRadioGroup';
-import { ANILIST_BANNER_STALE_MS, getAniListBannerQuery } from '@/renderer/hooks/useQueries';
+import { ANILIST_BANNER_STALE_MS, getAniListBannerQuery, useLibraryActions } from '@/renderer/hooks/useQueries';
 import {
   folderRenameCandidates,
   anilistInputFromFolderMeta,
   type FolderRenameMeta,
 } from '@/renderer/utils/folderRename';
 import type { AniListFolderTitles } from '@/utils/downloads/folderNaming';
+import { isValidFolderName, withFolderLanguage } from '@/utils/downloads/folderNaming';
 
 interface RenameFolderDialogProps {
   open: boolean;
@@ -19,7 +20,7 @@ interface RenameFolderDialogProps {
   folderPath: string;
   folderName: string;
   meta: FolderRenameMeta | null;
-  onRenamed?: () => void;
+  onRenamed?: (newPath: string) => void;
 }
 
 export function RenameFolderDialog({
@@ -31,22 +32,32 @@ export function RenameFolderDialog({
   onRenamed,
 }: RenameFolderDialogProps) {
   const queryClient = useQueryClient();
+  const actions = useLibraryActions();
   const [titles, setTitles] = useState<AniListFolderTitles | null>(null);
   const [picked, setPicked] = useState<string>('');
   const [custom, setCustom] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const session = useRef(0);
+  const lookup = JSON.stringify(anilistInputFromFolderMeta(meta));
+  useEffect(() => {
+    const current = ++session.current;
+    return () => {
+      session.current = current + 1;
+    };
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
     setPicked('');
     setCustom('');
     setError(null);
+    setTitles(null);
     let cancelled = false;
     (async () => {
       try {
         const metaResult = await queryClient.fetchQuery({
-          ...getAniListBannerQuery(anilistInputFromFolderMeta(meta)),
+          ...getAniListBannerQuery(JSON.parse(lookup)),
           staleTime: ANILIST_BANNER_STALE_MS,
         });
         if (!cancelled) setTitles(metaResult?.titles ?? null);
@@ -57,30 +68,32 @@ export function RenameFolderDialog({
     return () => {
       cancelled = true;
     };
-  }, [open, meta, queryClient]);
+  }, [open, folderPath, lookup, queryClient]);
 
   const candidates = folderRenameCandidates({ folderPath, folderName, meta: meta ?? null }, titles);
-  const finalName = custom.trim() || picked;
+  const requestedName = custom.trim() || picked;
+  const validName = isValidFolderName(requestedName);
+  const finalName = validName ? withFolderLanguage(requestedName, meta?.lang) : requestedName;
 
   const handleConfirm = async () => {
-    if (!finalName || finalName === folderName) return;
+    if (!validName || finalName === folderName || saving || actions.isMutating) return;
+    const currentSession = session.current;
     setSaving(true);
     setError(null);
     try {
-      unwrap(
-        await window.api.invoke('rename-folder', {
-          oldPath: folderPath,
-          newName: finalName,
-        }),
-        { toast: false },
-      );
+      const result = await actions.renameFolder.mutateAsync({
+        oldPath: folderPath,
+        newName: finalName,
+      });
+      if (currentSession !== session.current) return;
       toast.success('Carpeta renombrada');
       onOpenChange(false);
-      onRenamed?.();
+      onRenamed?.(result.newPath);
     } catch (e: unknown) {
+      if (currentSession !== session.current) return;
       setError(isIpcFailError(e) ? e.message : 'No se pudo renombrar la carpeta.');
     } finally {
-      setSaving(false);
+      if (currentSession === session.current) setSaving(false);
     }
   };
 
@@ -91,8 +104,10 @@ export function RenameFolderDialog({
       title="Cambiar nombre de la carpeta"
       message="Elige uno de los nombres conocidos del anime o escribe el tuyo."
       confirmLabel={saving ? 'Guardando…' : 'Renombrar'}
-      confirmDisabled={!finalName || finalName === folderName || saving}
+      confirmDisabled={!validName || finalName === folderName || saving || actions.isMutating}
       confirmLoading={saving}
+      closeOnConfirm={false}
+      dismissDisabled={saving}
       onConfirm={handleConfirm}
       className="max-w-lg"
     >
@@ -139,7 +154,21 @@ export function RenameFolderDialog({
           />
         </div>
 
-        {error && <p className="text-[11px] text-destructive-fg leading-relaxed">{error}</p>}
+        {requestedName && !validName && (
+          <p role="alert" className="text-xs text-destructive-fg">
+            El nombre no es válido en Windows.
+          </p>
+        )}
+        {validName && finalName !== requestedName && (
+          <p className="text-xs text-muted-foreground">
+            Nombre final: <span className="font-mono">{finalName}</span>
+          </p>
+        )}
+        {error && (
+          <p role="alert" className="text-xs text-destructive-fg leading-relaxed">
+            {error}
+          </p>
+        )}
       </div>
     </Dialog>
   );

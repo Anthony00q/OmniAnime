@@ -26,20 +26,18 @@ export function PosterGridSkeleton({ count = 12, className }: PosterGridSkeleton
 
 export function EpisodeListSkeleton({ count = 6 }: { count?: number }) {
   return (
-    <div className="space-y-3" role="status" aria-label="Cargando episodios" aria-busy="true">
+    <div className="library-episodes-grid" role="status" aria-label="Cargando episodios" aria-busy="true">
       {Array.from({ length: count }).map((_, idx) => (
-        <div
-          key={idx}
-          className="library-episode-item flex min-w-0 flex-col gap-3 rounded-xl border border-transparent bg-transparent p-3 sm:flex-row sm:items-center"
-          aria-hidden="true"
-        >
-          <div className="h-24 w-full shrink-0 animate-pulse rounded-lg bg-secondary/60 sm:h-[108px] sm:w-48" />
-          <div className="min-w-0 flex-1 space-y-2">
-            <div className="h-3 w-24 animate-pulse rounded bg-secondary/40" />
-            <div className="h-4 w-3/4 animate-pulse rounded bg-secondary/60" />
-            <div className="h-3 w-full animate-pulse rounded bg-secondary/30" />
+        <div key={idx} className="library-episode-item min-w-0" aria-hidden="true">
+          <div className="library-episode-open">
+            <div className="aspect-video w-full animate-pulse rounded-lg bg-secondary/60" />
           </div>
-          <div className="hidden h-8 w-20 shrink-0 animate-pulse rounded-full bg-secondary/50 sm:block" />
+          <div className="library-episode-file flex min-w-0 items-start gap-3">
+            <div className="library-episode-title min-w-0">
+              <div className="h-5 w-3/4 animate-pulse rounded bg-secondary/60" />
+            </div>
+            <div className="h-11 w-11 shrink-0 animate-pulse rounded-lg bg-secondary/30" />
+          </div>
         </div>
       ))}
     </div>

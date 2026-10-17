@@ -6,9 +6,18 @@ interface LibraryFolderMenuProps {
   y: number;
   onDetails: () => void;
   onClose: () => void;
+  ariaLabel?: string;
+  description?: string;
 }
 
-export function LibraryFolderMenu({ x, y, onDetails, onClose }: LibraryFolderMenuProps) {
+export function LibraryFolderMenu({
+  x,
+  y,
+  onDetails,
+  onClose,
+  ariaLabel = 'Opciones de la carpeta',
+  description = 'Títulos y carpeta',
+}: LibraryFolderMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const prevFocusRef = useRef<Element | null>(null);
 
@@ -35,7 +44,7 @@ export function LibraryFolderMenu({ x, y, onDetails, onClose }: LibraryFolderMen
       document.removeEventListener('keydown', onKeyDown);
       document.removeEventListener('scroll', onScroll, true);
       window.removeEventListener('close-modals', onCloseModals);
-      (prevFocusRef.current as HTMLElement | null)?.focus?.();
+      (prevFocusRef.current as HTMLElement | null)?.focus?.({ preventScroll: true });
     };
   }, [onClose]);
 
@@ -46,7 +55,7 @@ export function LibraryFolderMenu({ x, y, onDetails, onClose }: LibraryFolderMen
     <div
       ref={menuRef}
       role="menu"
-      aria-label="Opciones de la carpeta"
+      aria-label={ariaLabel}
       style={{ left: posX, top: posY }}
       className="fixed z-[80] w-56 rounded-xl border border-border bg-popover p-1.5 shadow-2xl"
     >
@@ -63,7 +72,7 @@ export function LibraryFolderMenu({ x, y, onDetails, onClose }: LibraryFolderMen
         <Info className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
         <span className="min-w-0 flex-1">
           <span className="block text-sm font-semibold leading-none text-foreground">Detalles</span>
-          <span className="mt-1 block text-xs text-muted-foreground">Títulos y carpeta</span>
+          <span className="mt-1 block text-xs text-muted-foreground">{description}</span>
         </span>
       </button>
     </div>

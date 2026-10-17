@@ -1,88 +1,70 @@
-import { memo } from 'react';
-import { Play, Trash2 } from 'lucide-react';
+import { memo, type MouseEvent as ReactMouseEvent, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { Trash2 } from 'lucide-react';
 import { EpisodeThumbnail } from '@/renderer/components/EpisodeThumbnail';
 import { AppTooltip } from '@/renderer/components/ui/AppTooltip';
-
-export type EpisodeDensity = 'comfortable' | 'compact';
-
-// Nombre legible para el titular; el filename crudo vive en la línea mono.
-function prettifyEpisodeName(name: unknown): string {
-  const withoutExt = String(name || '').replace(/\.[a-z0-9]{2,5}$/i, '');
-  return withoutExt
-    .replace(/[_-]+/g, ' ')
-    .replace(/\s{2,}/g, ' ')
-    .trim();
-}
+import { buildLibraryEpisodeTitle } from '@/renderer/views/library/libraryEpisodePresentation';
 
 export const EpisodeRow = memo(
   function EpisodeRow({
     ep,
     onPlay,
     onDelete,
-    density = 'comfortable',
+    onContextMenu,
     thumbToken = 0,
   }: {
     ep: any;
     onPlay: (path: string) => void;
     onDelete: (path: string) => void;
-    density?: EpisodeDensity;
+    onContextMenu: (
+      event: ReactMouseEvent<HTMLButtonElement> | ReactKeyboardEvent<HTMLButtonElement>,
+      path: string,
+    ) => void;
     thumbToken?: number;
   }) {
-    const isCompact = density === 'compact';
-    const displayName = prettifyEpisodeName(ep.name) || String(ep.name || '');
+    const displayName = buildLibraryEpisodeTitle(ep.name, ep.episodeNumber);
+    const episodeLabel = `Episodio ${ep.episodeNumber ?? '?'}`;
 
     return (
-      <div className="library-episode-item group flex min-w-0 flex-col gap-3 rounded-xl border border-transparent bg-transparent p-3 transition-colors hover:bg-secondary/40 sm:flex-row sm:items-center">
+      <article className="library-episode-item min-w-0">
         <button
           type="button"
           onClick={() => onPlay(ep.path)}
+          onContextMenu={(event) => onContextMenu(event, ep.path)}
+          onKeyDown={(event) => {
+            if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) {
+              onContextMenu(event, ep.path);
+            }
+          }}
           aria-label={`Reproducir ${ep.name}`}
-          className="w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 sm:w-auto"
+          aria-description="Clic derecho para ver los detalles del archivo."
+          aria-keyshortcuts="Shift+F10"
+          data-keep-focus
+          className="library-episode-open group/episode-thumb w-full min-w-0 rounded-lg"
         >
-          <EpisodeThumbnail videoPath={ep.path} className={isCompact ? 'sm:w-40' : ''} thumbToken={thumbToken} />
+          <EpisodeThumbnail videoPath={ep.path} thumbToken={thumbToken} />
         </button>
-
-        <button
-          type="button"
-          onClick={() => onPlay(ep.path)}
-          className="min-w-0 flex-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 sm:ml-6"
-        >
-          <span className="mb-1 block truncate text-[12px] font-medium tabular-nums text-muted-foreground">
-            Episodio {ep.episodeNumber || '?'} · {ep.size}
-          </span>
-          <h4 className="line-clamp-2 text-[15px] font-semibold leading-snug tracking-tight text-foreground">
-            {displayName}
-          </h4>
-          {!isCompact && (
-            <span className="mt-1 block truncate font-mono text-[12px] text-muted-foreground/60 select-none">
-              {ep.name}
+        <div className="library-episode-file flex min-w-0 items-start gap-3">
+          <div className="library-episode-title min-w-0 select-none">
+            <span className="line-clamp-2 text-base font-semibold leading-snug tracking-tight text-foreground/75">
+              {displayName}
             </span>
-          )}
-        </button>
-
-        <div className="flex items-center justify-end gap-2 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
-          <AppTooltip content="Reproducir">
-            <button
-              type="button"
-              onClick={() => onPlay(ep.path)}
-              aria-label={`Reproducir ${ep.name}`}
-              className="rounded-full bg-primary p-3 text-primary-foreground transition-colors hover:bg-[color-mix(in_srgb,var(--color-primary)_88%,black)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
-            >
-              <Play className="h-5 w-5 fill-current" />
-            </button>
-          </AppTooltip>
+            {displayName !== episodeLabel && (
+              <span className="mt-1 block text-[13px] tabular-nums text-muted-foreground">{episodeLabel}</span>
+            )}
+          </div>
           <AppTooltip content="Eliminar archivo">
             <button
               type="button"
               onClick={() => onDelete(ep.path)}
               aria-label={`Eliminar ${ep.name}`}
-              className="ml-2 rounded-full p-3 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive/60"
+              data-keep-focus
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive-fg"
             >
-              <Trash2 className="w-5 h-5" />
+              <Trash2 className="h-4 w-4" />
             </button>
           </AppTooltip>
         </div>
-      </div>
+      </article>
     );
   },
   (prev, next) =>
@@ -91,8 +73,8 @@ export const EpisodeRow = memo(
     prev.ep.episodeNumber === next.ep.episodeNumber &&
     prev.ep.size === next.ep.size &&
     prev.ep.ext === next.ep.ext &&
-    prev.density === next.density &&
     prev.thumbToken === next.thumbToken &&
     prev.onPlay === next.onPlay &&
+    prev.onContextMenu === next.onContextMenu &&
     prev.onDelete === next.onDelete,
 );

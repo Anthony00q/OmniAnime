@@ -1,18 +1,8 @@
-import {
-  memo,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type Dispatch,
-  type MouseEvent as ReactMouseEvent,
-  type SetStateAction,
-} from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import { RefreshCcw, FolderOpen, Library, Search } from 'lucide-react';
-import { useAtomValue } from 'jotai';
+import { useAtom, useAtomValue } from 'jotai';
 import { toast } from 'sonner';
-import { settingsAtom } from '@/renderer/store/atoms';
+import { selectedLibraryFolderAtom, settingsAtom } from '@/renderer/store/atoms';
 import { useAppNavigation } from '@/renderer/hooks/useAppNavigation';
 import { useLibrary } from '@/renderer/hooks/useQueries';
 import { isIpcFailError, unwrap } from '@/renderer/hooks/queries/unwrap';
@@ -51,7 +41,7 @@ const LibraryPosterItem = memo(
     onContextMenu,
   }: {
     item: any;
-    setSelectedFolder: Dispatch<SetStateAction<any>>;
+    setSelectedFolder: (item: any) => void;
     onContextMenu: (event: ReactMouseEvent, item: any) => void;
   }) {
     const title = item.metaTitle || item.name;
@@ -100,7 +90,11 @@ const LibraryPosterItem = memo(
 );
 
 export function LibraryView({ onSelectAnime, activeProvider, isActive }: LibraryViewProps = {}) {
-  const [selectedFolder, setSelectedFolder] = useState<any>(null);
+  const [selectedFolderPath, setSelectedFolderPath] = useAtom(selectedLibraryFolderAtom);
+  const setSelectedFolder = useCallback(
+    (item: any) => setSelectedFolderPath(item?.path ?? null),
+    [setSelectedFolderPath],
+  );
   const [selectedDirFilter, setSelectedDirFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortKey, setSortKey] = useState<LibrarySortKey>(() => {
@@ -140,7 +134,8 @@ export function LibraryView({ onSelectAnime, activeProvider, isActive }: Library
     return globalSettings?.defaultOutputDir ? [globalSettings.defaultOutputDir] : [];
   }, [globalSettings?.defaultOutputDir, globalSettings?.outputDirs]);
 
-  const { data: items = [], isLoading, isError, isFetching, refetch } = useLibrary(dirs);
+  const { data: items = [], isLoading, isError, isFetching, isSuccess, refetch } = useLibrary(dirs);
+  const selectedFolder = items.find((item: any) => item.path === selectedFolderPath) ?? null;
   const [isRefreshing, setIsRefreshing] = useState(false);
   const trimmedQuery = searchQuery.trim();
 
@@ -166,10 +161,14 @@ export function LibraryView({ onSelectAnime, activeProvider, isActive }: Library
   }, [dirs, selectedDirFilter]);
 
   useEffect(() => {
-    if (selectedFolder?.sourceDir && !dirs.includes(selectedFolder.sourceDir)) {
+    if (!selectedFolderPath) return;
+    if (
+      (selectedFolder?.sourceDir && !dirs.includes(selectedFolder.sourceDir)) ||
+      (isSuccess && !isFetching && !selectedFolder)
+    ) {
       setSelectedFolder(null);
     }
-  }, [dirs, selectedFolder]);
+  }, [dirs, selectedFolder, selectedFolderPath, isSuccess, isFetching, setSelectedFolder]);
 
   useEffect(() => {
     if (isActive === false) {

@@ -1,7 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
 import { Play, Image as ImageIcon } from 'lucide-react';
-import { reportRendererError } from '@/renderer/utils/rendererErrorReporting';
-import { unwrap } from '@/renderer/hooks/queries/unwrap';
+import { useVideoThumbnail } from '@/renderer/hooks/useQueries';
 
 interface EpisodeThumbnailProps {
   videoPath: string;
@@ -12,64 +10,30 @@ interface EpisodeThumbnailProps {
 }
 
 export function EpisodeThumbnail({ videoPath, alt = '', className = '', thumbToken = 0 }: EpisodeThumbnailProps) {
-  const [thumbSrc, setThumbSrc] = useState<string | null>(null);
-  const imgRef = useRef<HTMLImageElement>(null);
-  const seenTokenRef = useRef(thumbToken);
-
-  useEffect(() => {
-    if (seenTokenRef.current !== thumbToken) {
-      seenTokenRef.current = thumbToken;
-      setThumbSrc(null);
-    }
-  }, [thumbToken]);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && !thumbSrc) {
-          window.api
-            .invoke('get-video-thumbnail', videoPath)
-            .then(unwrap)
-            .then((src: string) => {
-              if (isMounted && src) {
-                setThumbSrc(src);
-              }
-            })
-            .catch((err) => reportRendererError('ui:thumbnail', err));
-
-          observer.disconnect();
-        }
-      },
-      { rootMargin: '50px' },
-    );
-
-    if (imgRef.current) {
-      observer.observe(imgRef.current);
-    }
-
-    return () => {
-      isMounted = false;
-      observer.disconnect();
-    };
-  }, [videoPath, thumbSrc]);
+  const { elementRef, src: thumbSrc, onImageError } = useVideoThumbnail(videoPath, thumbToken);
 
   return (
     <div
-      className={`relative h-24 w-full shrink-0 overflow-hidden rounded-lg bg-secondary/50 transition-[box-shadow] group-hover:ring-2 group-hover:ring-primary sm:h-auto sm:aspect-video sm:w-48 ${className}`}
+      ref={elementRef}
+      className={`library-episode-thumbnail relative aspect-video w-full overflow-hidden rounded-lg bg-secondary/50 ${className}`}
     >
       {thumbSrc ? (
-        <img ref={imgRef} src={thumbSrc} alt={alt} className="w-full h-full object-cover" />
+        <img src={thumbSrc} alt={alt} draggable={false} onError={onImageError} className="w-full h-full object-cover" />
       ) : (
-        <div ref={imgRef} className="w-full h-full flex items-center justify-center">
+        <div className="w-full h-full flex items-center justify-center">
           <ImageIcon className="w-6 h-6 text-muted-foreground/30" />
         </div>
       )}
-      <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors"></div>
-      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-        <div className="w-10 h-10 rounded-full bg-primary/90 flex items-center justify-center text-primary-foreground shadow-lg backdrop-blur-sm">
-          <Play className="w-5 h-5 fill-current ml-1" />
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 bg-black/10 transition-colors group-hover/episode-thumb:bg-transparent"
+      />
+      <div
+        aria-hidden="true"
+        className="library-episode-play absolute inset-0 flex items-center justify-center opacity-0 group-hover/episode-thumb:opacity-100 group-focus-visible/episode-thumb:opacity-100 transition-opacity duration-120"
+      >
+        <div className="flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-black/55 text-white">
+          <Play className="ml-0.5 h-5 w-5 fill-current" />
         </div>
       </div>
     </div>

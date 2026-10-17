@@ -6,6 +6,7 @@ export interface FilesRenameItem {
 
 export interface FilesRenamePreview {
   success: boolean;
+  revision?: string;
   items?: FilesRenameItem[];
   summary?: {
     total?: number;

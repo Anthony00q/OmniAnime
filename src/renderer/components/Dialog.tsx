@@ -13,6 +13,8 @@ interface DialogProps {
   danger?: boolean;
   confirmDisabled?: boolean;
   confirmLoading?: boolean;
+  closeOnConfirm?: boolean;
+  dismissDisabled?: boolean;
   onConfirm?: () => void;
   onCancel?: () => void;
   showFooter?: boolean;
@@ -36,6 +38,8 @@ export function Dialog({
   danger = false,
   confirmDisabled = false,
   confirmLoading = false,
+  closeOnConfirm = true,
+  dismissDisabled = false,
   onConfirm,
   onCancel,
   showFooter = true,
@@ -48,14 +52,25 @@ export function Dialog({
   onEscapeKeyDown,
 }: DialogProps) {
   return (
-    <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
+    <DialogPrimitive.Root
+      open={open}
+      onOpenChange={(value) => {
+        if (!dismissDisabled) onOpenChange(value);
+      }}
+    >
       <DialogPrimitive.Portal>
         <DialogPrimitive.Overlay className="fixed inset-0 bg-background/85 backdrop-blur-sm z-[9999] animate-in fade-in" />
         <DialogPrimitive.Content
           className={`fixed left-1/2 top-1/2 z-[9999] max-h-[calc(100vh-2rem)] w-[calc(100vw-2rem)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl border border-border/70 bg-popover shadow-2xl animate-in zoom-in-95 duration-200 select-none ${className || 'max-w-sm'}`}
-          onPointerDownOutside={onPointerDownOutside}
+          onPointerDownOutside={(event) => {
+            if (dismissDisabled) event.preventDefault();
+            onPointerDownOutside?.(event);
+          }}
           onOpenAutoFocus={onOpenAutoFocus}
-          onEscapeKeyDown={onEscapeKeyDown}
+          onEscapeKeyDown={(event) => {
+            if (dismissDisabled) event.preventDefault();
+            onEscapeKeyDown?.(event);
+          }}
         >
           <div className="p-6 disable-shortcuts">
             <div className={`flex gap-4 mb-4 ${headerAlign === 'center' || !message ? 'items-center' : 'items-start'}`}>
@@ -86,7 +101,9 @@ export function Dialog({
               <div className="flex justify-end gap-3 mt-6">
                 <button
                   type="button"
+                  disabled={dismissDisabled}
                   onClick={() => {
+                    if (dismissDisabled) return;
                     onCancel?.();
                     onOpenChange(false);
                   }}
@@ -105,7 +122,7 @@ export function Dialog({
                       reportRendererError('ui:dialog', err);
                       return;
                     }
-                    onOpenChange(false);
+                    if (closeOnConfirm) onOpenChange(false);
                   }}
                   className={`inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-50 disabled:cursor-not-allowed min-w-[148px] ${
                     danger

@@ -123,14 +123,18 @@ export function RenameLibraryFilesDialog({ open, onOpenChange, dirs, style }: Re
     for (const row of renamable) {
       if (!selected.has(row.folderPath) || nextResults[row.folderPath]) continue;
       try {
-        unwrap(
+        const result = unwrap(
           await window.api.invoke('rename-anime-files', {
             animePath: row.folderPath,
             style,
+            expectedRevision: previews[row.folderPath]?.revision,
           }),
           { toast: false },
         );
-        nextResults[row.folderPath] = { ok: true };
+        nextResults[row.folderPath] =
+          result?.failed > 0
+            ? { ok: false, error: `${result.renamed} archivos renombrados; ${result.failed} no se pudieron renombrar.` }
+            : { ok: true };
       } catch (e: unknown) {
         nextResults[row.folderPath] = {
           ok: false,
@@ -162,6 +166,8 @@ export function RenameLibraryFilesDialog({ open, onOpenChange, dirs, style }: Re
       confirmLabel={renaming ? 'Renombrando…' : `Renombrar (${pendingCount})`}
       confirmDisabled={pendingCount === 0 || renaming || inspecting}
       confirmLoading={renaming}
+      closeOnConfirm={false}
+      dismissDisabled={renaming}
       onConfirm={handleConfirm}
       className="max-w-2xl"
     >

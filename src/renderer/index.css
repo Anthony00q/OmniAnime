@@ -339,7 +339,55 @@ html[dir='ltr'] {
 
 .library-episode-item {
   content-visibility: auto;
-  contain-intrinsic-size: 0 150px;
+  contain-intrinsic-size: auto 340px;
+  display: flex;
+  flex-direction: column;
+}
+
+.library-episodes-section {
+  container-name: library-episodes;
+  container-type: inline-size;
+}
+
+.library-episodes-grid {
+  display: grid;
+  width: 100%;
+  max-width: 1520px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 24px;
+}
+
+.library-episode-open {
+  display: block;
+}
+
+.library-episode-title {
+  display: block;
+  flex: 1;
+  padding-block: 11px;
+}
+
+.library-episode-file {
+  margin-top: 4px;
+  min-height: 44px;
+}
+
+@media (hover: none) {
+  .library-episode-play {
+    opacity: 1;
+  }
+}
+
+@container library-episodes (min-width: 640px) {
+  .library-episodes-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container library-episodes (min-width: 1120px) {
+  .library-episodes-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 .schedule-row {

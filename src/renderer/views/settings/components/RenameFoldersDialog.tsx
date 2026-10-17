@@ -160,6 +160,8 @@ export function RenameFoldersDialog({ open, onOpenChange, dirs, source }: Rename
       confirmLabel={renaming ? 'Renombrando…' : `Renombrar (${pendingCount})`}
       confirmDisabled={pendingCount === 0 || renaming || resolving}
       confirmLoading={renaming}
+      closeOnConfirm={false}
+      dismissDisabled={renaming}
       onConfirm={handleConfirm}
       className="max-w-2xl"
     >

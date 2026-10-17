@@ -1,4 +1,13 @@
-import { useState, useEffect, useRef, useMemo, useCallback, type MouseEvent as ReactMouseEvent } from 'react';
+import {
+  useState,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useMemo,
+  useCallback,
+  type MouseEvent as ReactMouseEvent,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from 'react';
 import { HERO_DIM_MAX, HERO_DIM_DISTANCE, createHeroDimSmoother } from '@/renderer/utils/heroDim';
 import { useReducedMotion } from '@/renderer/utils/motion';
 import { ArrowLeft, FolderOpen, Settings, Wand2, ListOrdered, Info, FileText, Hash, Pencil } from 'lucide-react';
@@ -15,10 +24,11 @@ import {
 import { ErrorState } from '@/renderer/components/ui/ErrorState';
 import { EmptyState } from '@/renderer/components/ui/EmptyState';
 import { EpisodeListSkeleton } from '@/renderer/components/anime/PosterGridSkeleton';
-import { EpisodeRow, type EpisodeDensity } from './components/EpisodeRow';
+import { EpisodeRow } from './components/EpisodeRow';
 import { LibraryHero, LibraryHeroBanner } from './components/LibraryHero';
 import { LibraryFolderMenu } from './components/LibraryFolderMenu';
 import { LibraryFolderDetailsDialog } from './components/LibraryFolderDetailsDialog';
+import { LibraryEpisodeDetailsDialog } from './components/LibraryEpisodeDetailsDialog';
 import { RenameDialog } from './components/RenameDialog';
 import { ReorderDialog } from './components/ReorderDialog';
 import { RenameFolderDialog } from './components/RenameFolderDialog';
@@ -48,6 +58,52 @@ export function LibraryAnimeDetails({
   const [showFolderRename, setShowFolderRename] = useState(false);
   const [heroMenu, setHeroMenu] = useState<{ x: number; y: number } | null>(null);
   const [showFolderDetails, setShowFolderDetails] = useState(false);
+  const [episodeMenu, setEpisodeMenu] = useState<{
+    x: number;
+    y: number;
+    path: string;
+    folderPath: string;
+  } | null>(null);
+  const [episodeDetails, setEpisodeDetails] = useState<{ path: string; folderPath: string } | null>(null);
+  const episodeTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const closeEpisodeMenu = useCallback(() => setEpisodeMenu(null), []);
+  const handleEpisodeContextMenu = useCallback(
+    (event: ReactMouseEvent<HTMLButtonElement> | ReactKeyboardEvent<HTMLButtonElement>, path: string) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const target = event.currentTarget;
+      target.focus({ preventScroll: true });
+      episodeTriggerRef.current = target;
+      const bounds = target.getBoundingClientRect();
+      const pointer = 'clientX' in event && (event.clientX !== 0 || event.clientY !== 0);
+      setHeroMenu(null);
+      setShowMenu(false);
+      setEpisodeMenu({
+        x: pointer ? event.clientX : bounds.left,
+        y: pointer ? event.clientY : bounds.bottom,
+        path,
+        folderPath: folderData.path,
+      });
+    },
+    [folderData.path],
+  );
+  const handleEpisodeDetailsChange = useCallback((open: boolean) => {
+    if (open) return;
+    setEpisodeDetails(null);
+    const trigger = episodeTriggerRef.current;
+    requestAnimationFrame(() => {
+      if (trigger?.isConnected) trigger.focus({ preventScroll: true });
+    });
+  }, []);
+  const selectedEpisode =
+    episodeDetails && episodeDetails.folderPath === folderData.path
+      ? (episodes.find((episode: any) => episode.path === episodeDetails.path) ?? null)
+      : null;
+
+  useEffect(() => {
+    setEpisodeMenu(null);
+    setEpisodeDetails(null);
+  }, [folderData.path, isActive]);
 
   const handleHeroContextMenu = useCallback((event: ReactMouseEvent) => {
     event.preventDefault();
@@ -57,29 +113,28 @@ export function LibraryAnimeDetails({
   const closeHeroMenu = useCallback(() => setHeroMenu(null), []);
   const [renameStyle, setRenameStyle] = useState<'minimal' | 'descriptive'>('descriptive');
   const [deleteConfirmPath, setDeleteConfirmPath] = useState<string | null>(null);
-  // Preferencia solo-renderer: no toca settings/DB ni validación de esquema.
-  const [episodeDensity, setEpisodeDensity] = useState<EpisodeDensity>(() => {
-    try {
-      return window.localStorage.getItem('omnianime:episode-density') === 'compact' ? 'compact' : 'comfortable';
-    } catch {
-      return 'comfortable';
-    }
-  });
-
-  const handleDensityChange = useCallback((density: EpisodeDensity) => {
-    setEpisodeDensity(density);
-    try {
-      window.localStorage.setItem('omnianime:episode-density', density);
-    } catch {}
-  }, []);
-
   // Dim continuo del banner: una escritura de opacidad por frame sobre el
   // wrapper de la imagen (fade hacia el fondo), sin transición ni estado
   // React, leyendo scrollTop. El valor escrito sale suavizado del aproximador
   // de heroDim (identidad con reduced-motion).
   const [listScrollNode, setListScrollNode] = useState<HTMLDivElement | null>(null);
   const [bannerFadeNode, setBannerFadeNode] = useState<HTMLDivElement | null>(null);
+  const [heroNode, setHeroNode] = useState<HTMLDivElement | null>(null);
+  const [heroBottom, setHeroBottom] = useState(0);
+  const toolbarRef = useRef<HTMLDivElement | null>(null);
   const reducedMotion = useReducedMotion();
+
+  useLayoutEffect(() => {
+    if (!heroNode) return;
+    const measure = () => setHeroBottom(heroNode.offsetTop + heroNode.offsetHeight);
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(heroNode);
+    const toolbarNode = toolbarRef.current;
+    if (toolbarNode) observer.observe(toolbarNode);
+    return () => observer.disconnect();
+  }, [heroNode, folderData.path]);
 
   useEffect(() => {
     if (!listScrollNode || !bannerFadeNode) return;
@@ -112,6 +167,16 @@ export function LibraryAnimeDetails({
   const [debouncedReorderStart, setDebouncedReorderStart] = useState('1');
   // thumbEpoch: re-pide miniaturas tras renombrar/renumerar.
   const [thumbEpoch, setThumbEpoch] = useState(0);
+  const [fileError, setFileError] = useState<string | null>(null);
+  const mounted = useRef(true);
+  const folderPathRef = useRef(folderData.path);
+  folderPathRef.current = folderData.path;
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
   const isActiveRef = useRef(isActive);
 
   useEffect(() => {
@@ -123,6 +188,7 @@ export function LibraryAnimeDetails({
       setShowMenu(false);
       setShowRenameModal(false);
       setShowReorderModal(false);
+      setShowFolderRename(false);
       setDeleteConfirmPath(null);
       setHeroMenu(null);
       setShowFolderDetails(false);
@@ -150,28 +216,29 @@ export function LibraryAnimeDetails({
   } = usePreviewRename(folderData.path, renameStyle, renamePreviewEnabled);
 
   const reorderStartNum = useMemo(() => {
-    const n = parseInt(debouncedReorderStart, 10);
-    return isNaN(n) ? NaN : n;
+    const n = debouncedReorderStart.trim() ? Number(debouncedReorderStart) : NaN;
+    return Number.isSafeInteger(n) ? n : NaN;
   }, [debouncedReorderStart]);
   const isReorderInputPending = reorderStart !== debouncedReorderStart;
   const reorderPreviewEnabled = showReorderModal && Number.isFinite(reorderStartNum) && reorderStartNum >= 0;
-  const { data: reorderPreview, isFetching: isReorderPreviewFetching } = usePreviewReorder(
-    folderData.path,
-    Number.isFinite(reorderStartNum) ? reorderStartNum : 1,
-    reorderPreviewEnabled,
-  );
+  const {
+    data: reorderPreview,
+    isFetching: isReorderPreviewFetching,
+    isError: isReorderPreviewError,
+  } = usePreviewReorder(folderData.path, Number.isFinite(reorderStartNum) ? reorderStartNum : 1, reorderPreviewEnabled);
 
   useEffect(() => {
     const handleClose = (e: Event) => {
       if (!isActiveRef.current) return;
       e.preventDefault();
-      if (showRenameModal) setShowRenameModal(false);
+      if (episodeDetails) handleEpisodeDetailsChange(false);
+      else if (showRenameModal) setShowRenameModal(false);
       else if (showReorderModal) setShowReorderModal(false);
       else if (showMenu) setShowMenu(false);
     };
     window.addEventListener('close-modals', handleClose);
     return () => window.removeEventListener('close-modals', handleClose);
-  }, [showRenameModal, showReorderModal, showMenu]);
+  }, [showRenameModal, showReorderModal, showMenu, episodeDetails, handleEpisodeDetailsChange]);
 
   const handlePlay = useCallback(
     (videoPath: string) => {
@@ -196,7 +263,8 @@ export function LibraryAnimeDetails({
     });
   }, [libActions.openFolder, folderData.path]);
 
-  const submitRename = () => {
+  const submitRename = async () => {
+    if (libActions.isMutating || isRenamePreviewFetching || !renamePreview?.success || !renamePreview.revision) return;
     const summary = renamePreview?.summary;
     if (renamePreview && summary && summary.toRename === 0) {
       if (summary.conflicts > 0) toast.info('No hay cambios sin conflicto disponible');
@@ -205,82 +273,108 @@ export function LibraryAnimeDetails({
       else toast.info('No hay archivos que renombrar');
       return;
     }
-    setShowRenameModal(false);
-    libActions.renameFiles.mutate(
-      { animePath: folderData.path, style: renameStyle },
-      {
-        onSuccess: (res: any) => {
-          const renamed = typeof res === 'object' && res && 'renamed' in res ? res.renamed : null;
-          const conflicts = typeof res === 'object' && res && 'skippedConflicts' in res ? res.skippedConflicts : 0;
-          if (res && (res.success === true || res === true)) {
-            if (renamed === 0) {
-              if (conflicts > 0) toast.info(`Sin cambios — ${conflicts} conflicto(s) evitado(s)`);
-              else toast.info('No fue necesario renombrar archivos');
-            } else if (renamed !== null) {
-              toast.success(
-                `${renamed} archivo(s) renombrado(s) a ${renameStyle === 'minimal' ? 'Minimalista' : 'Descriptivo'}` +
-                  (conflicts ? ` · ${conflicts} conflicto(s) ignorado(s)` : ''),
-              );
-            } else {
-              toast.success(`Archivos renombrados a estilo ${renameStyle}`);
-            }
-            setThumbEpoch((v) => v + 1);
-            refetch();
-          } else {
-            toast.error(res?.error || 'Error al renombrar archivos');
-          }
-        },
-        onError: (e: any) => {
-          if (!isIpcFailError(e)) toast.error(e?.message || 'Error al comunicarse con el sistema');
-        },
-      },
-    );
+    const origin = folderData.path;
+    const style = renameStyle;
+    setFileError(null);
+    try {
+      const res = await libActions.renameFiles.mutateAsync({
+        animePath: origin,
+        style,
+        expectedRevision: renamePreview.revision,
+      });
+      if (!mounted.current || folderPathRef.current !== origin) return;
+      const renamed = typeof res === 'object' && res && 'renamed' in res ? res.renamed : null;
+      const conflicts = typeof res === 'object' && res && 'skippedConflicts' in res ? res.skippedConflicts : 0;
+      if (res && (res.success === true || res === true)) {
+        setThumbEpoch((v) => v + 1);
+        if (res.failed > 0) {
+          setFileError(
+            `${renamed ?? 0} archivos renombrados; ${res.failed} no se pudieron renombrar. Revisa la vista previa.`,
+          );
+          return;
+        }
+        setShowRenameModal(false);
+        if (renamed === 0) {
+          if (conflicts > 0) toast.info(`Sin cambios — ${conflicts} conflicto(s) evitado(s)`);
+          else toast.info('No fue necesario renombrar archivos');
+        } else if (renamed !== null) {
+          toast.success(
+            `${renamed} archivo(s) renombrado(s) a ${style === 'minimal' ? 'Minimalista' : 'Descriptivo'}` +
+              (conflicts ? ` · ${conflicts} conflicto(s) ignorado(s)` : ''),
+          );
+        } else {
+          toast.success(`Archivos renombrados a estilo ${renameStyle}`);
+        }
+      } else {
+        toast.error(res?.error || 'Error al renombrar archivos');
+      }
+    } catch (error) {
+      if (!mounted.current || folderPathRef.current !== origin) return;
+      setThumbEpoch((v) => v + 1);
+      setFileError(error instanceof Error ? error.message : 'No se pudieron renombrar los archivos.');
+    }
   };
 
-  const submitReorder = () => {
-    const startNum = parseInt(reorderStart, 10);
-    if (isNaN(startNum) || startNum < 0) return toast.error('Número inválido — usa 0 o mayor');
+  const submitReorder = async () => {
+    const startNum = reorderStart.trim() ? Number(reorderStart) : NaN;
+    if (!Number.isSafeInteger(startNum) || startNum < 0) return;
+    if (
+      libActions.isMutating ||
+      isReorderInputPending ||
+      isReorderPreviewFetching ||
+      !reorderPreview?.success ||
+      !reorderPreview.revision ||
+      reorderPreview.startNumber !== startNum
+    )
+      return;
     const summary = reorderPreview?.summary;
     if (reorderPreview && summary && summary.toRename === 0) {
       toast.info('Todos los archivos ya están en esa numeración');
       return;
     }
-    setShowReorderModal(false);
-    libActions.reorderEpisodes.mutate(
-      { folderPath: folderData.path, startNumber: startNum },
-      {
-        onSuccess: (res) => {
-          if (res && res.success) {
-            toast.success(`Episodios renumerados — ${res.renamed} archivo(s) desde EP_${startNum}`);
-            setThumbEpoch((v) => v + 1);
-            refetch();
-          } else {
-            toast.error(res?.error || 'Error al renumerar episodios');
-          }
-        },
-        onError: (e: any) => {
-          if (!isIpcFailError(e)) toast.error('Error al comunicarse con el sistema');
-        },
-      },
-    );
+    const origin = folderData.path;
+    setFileError(null);
+    try {
+      const res = await libActions.reorderEpisodes.mutateAsync({
+        folderPath: origin,
+        startNumber: startNum,
+        expectedRevision: reorderPreview.revision,
+      });
+      if (!mounted.current || folderPathRef.current !== origin) return;
+      if (res && res.success) {
+        toast.success(`Episodios renumerados — ${res.renamed} archivo(s) desde EP_${startNum}`);
+        setThumbEpoch((v) => v + 1);
+        setShowReorderModal(false);
+      } else {
+        toast.error(res?.error || 'Error al renumerar episodios');
+      }
+    } catch (error) {
+      if (!mounted.current || folderPathRef.current !== origin) return;
+      setThumbEpoch((v) => v + 1);
+      setFileError(error instanceof Error ? error.message : 'No se pudieron renumerar los episodios.');
+    }
   };
 
   const title = folderData.metaTitle || folderData.name;
   // Sin fallback al póster: sin banner local, el hero queda en plano,
   // igual que la ficha de Detalles.
   const bannerSrc = folderData.bannerLocal;
-  const episodeCountLabel = episodes.length === 1 ? '1 episodio' : `${episodes.length} episodios`;
+  const displayedEpisodeCount = isLoading ? Math.max(0, Number(folderData.episodeCount) || 0) : episodes.length;
+  const episodeCountLabel = displayedEpisodeCount === 1 ? '1 episodio' : `${displayedEpisodeCount} episodios`;
   const skeletonRows = Math.min(Math.max(Number(folderData.episodeCount) || 6, 1), 6);
 
   return (
     <div className="relative flex h-full min-w-0 flex-col overflow-hidden bg-background">
-      <LibraryHeroBanner bannerSrc={bannerSrc} title={title} onDimNode={setBannerFadeNode} />
+      <LibraryHeroBanner bannerSrc={bannerSrc} title={title} heroBottom={heroBottom} onDimNode={setBannerFadeNode} />
 
       <div
         ref={setListScrollNode}
         className="library-scroll relative z-10 flex h-full min-w-0 flex-col overflow-y-auto"
       >
-        <div className="sticky top-0 z-20 flex shrink-0 flex-wrap items-center justify-between gap-3 px-4 pb-4 pt-12 sm:px-6 sm:pb-6 sm:pt-14">
+        <div
+          ref={toolbarRef}
+          className="sticky top-0 z-20 flex shrink-0 flex-wrap items-center justify-between gap-3 px-4 pb-4 pt-12 sm:px-6 sm:pb-6 sm:pt-14"
+        >
           <button
             type="button"
             onClick={onBack}
@@ -303,6 +397,7 @@ export function LibraryAnimeDetails({
               <button
                 type="button"
                 onClick={() => setShowMenu(!showMenu)}
+                disabled={libActions.isMutating}
                 aria-label="Abrir gestión de archivos"
                 aria-expanded={showMenu}
                 className="group flex items-center justify-center rounded-full border border-border bg-secondary/80 p-2 text-foreground backdrop-blur-md transition-[background-color,border-color,box-shadow,transform] duration-200 hover:bg-secondary hover:border-border-strong hover:shadow-md hover:shadow-black/10 active:scale-[0.95] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
@@ -314,7 +409,7 @@ export function LibraryAnimeDetails({
             {showMenu && (
               <>
                 <div className="fixed inset-0 z-40 disable-shortcuts" onClick={() => setShowMenu(false)}></div>
-                <div className="absolute right-0 top-full mt-2 w-[300px] bg-popover border border-border/70 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2">
+                <div className="absolute right-0 top-full mt-2 w-[300px] max-w-[calc(100vw-6rem)] max-h-[calc(100dvh-6rem)] bg-popover border border-border/70 rounded-2xl shadow-2xl z-50 overflow-y-auto animate-in fade-in slide-in-from-top-2">
                   <div className="px-4 py-3 border-b border-border/50 bg-secondary/20">
                     <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-[0.09em] flex items-center gap-1.5">
                       <Wand2 className="w-3.5 h-3.5" /> Gestión de Archivos
@@ -328,8 +423,10 @@ export function LibraryAnimeDetails({
                     <button
                       onClick={() => {
                         setShowMenu(false);
+                        setFileError(null);
                         setShowRenameModal(true);
                       }}
+                      disabled={libActions.isMutating}
                       className="w-full text-left flex items-start gap-3 p-3 rounded-xl hover:bg-secondary transition-colors group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
                     >
                       <span className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/15 flex items-center justify-center shrink-0 group-hover:bg-primary/15 transition-colors">
@@ -351,8 +448,10 @@ export function LibraryAnimeDetails({
                     <button
                       onClick={() => {
                         setShowMenu(false);
+                        setFileError(null);
                         setShowReorderModal(true);
                       }}
+                      disabled={libActions.isMutating}
                       className="w-full text-left flex items-start gap-3 p-3 rounded-xl hover:bg-secondary transition-colors group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 mt-1"
                     >
                       <span className="w-9 h-9 rounded-xl bg-secondary border border-border/60 flex items-center justify-center shrink-0 group-hover:bg-secondary/80 transition-colors">
@@ -374,6 +473,7 @@ export function LibraryAnimeDetails({
                         setShowMenu(false);
                         setShowFolderRename(true);
                       }}
+                      disabled={libActions.isMutating}
                       className="w-full text-left flex items-start gap-3 p-3 rounded-xl hover:bg-secondary transition-colors group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 mt-1"
                     >
                       <span className="w-9 h-9 rounded-xl bg-secondary border border-border/60 flex items-center justify-center shrink-0 group-hover:bg-secondary/80 transition-colors">
@@ -390,7 +490,7 @@ export function LibraryAnimeDetails({
 
                   <div className="px-3 py-2 border-t border-border/50 bg-secondary/10 flex items-center gap-1.5 text-[11px] text-muted-foreground">
                     <Info className="w-3 h-3 shrink-0" />
-                    <span>Vista previa antes de aplicar. Los conflictos por nombre se omiten.</span>
+                    <span>Revisa los cambios antes de aplicar. Las carpetas con descargas no se modifican.</span>
                   </div>
                 </div>
               </>
@@ -401,7 +501,7 @@ export function LibraryAnimeDetails({
         <LibraryHero
           title={title}
           posterLocal={folderData.posterLocal}
-          episodeCount={episodes.length}
+          episodeCount={displayedEpisodeCount}
           metaSlug={folderData.metaSlug}
           providerId={folderData.providerId}
           lang={folderData.lang}
@@ -410,6 +510,7 @@ export function LibraryAnimeDetails({
           activeProvider={activeProvider}
           onSelectAnime={onSelectAnime}
           onPosterContextMenu={handleHeroContextMenu}
+          onHeroNode={setHeroNode}
         />
         {heroMenu && (
           <LibraryFolderMenu
@@ -424,7 +525,15 @@ export function LibraryAnimeDetails({
           onOpenChange={(open) => !open && setShowFolderDetails(false)}
         />
 
-        <div className="hero-seam-fade relative min-w-0 shrink-0 bg-background px-4 py-4 sm:px-8 sm:py-6 md:px-10">
+        <div className="hero-seam-fade relative min-w-0 shrink-0 bg-background px-4 py-4 sm:px-8 sm:py-6 md:px-10 library-episodes-section">
+          {(isLoading || episodes.length > 0) && (
+            <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-baseline gap-3">
+                <h2 className="text-lg font-semibold tracking-tight text-foreground">Episodios</h2>
+                <span className="text-[13px] tabular-nums text-text-tertiary">{displayedEpisodeCount}</span>
+              </div>
+            </div>
+          )}
           {isLoading ? (
             <EpisodeListSkeleton count={skeletonRows} />
           ) : isError ? (
@@ -442,51 +551,35 @@ export function LibraryAnimeDetails({
               className="min-h-0 py-12"
             />
           ) : (
-            <div>
-              <div className="mb-3 flex items-center justify-end">
-                <div
-                  role="group"
-                  aria-label="Densidad de la lista de episodios"
-                  className="flex items-center gap-1 rounded-full border border-border/70 bg-surface p-1"
-                >
-                  {(
-                    [
-                      { value: 'comfortable', label: 'Cómoda' },
-                      { value: 'compact', label: 'Compacta' },
-                    ] as const
-                  ).map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      onClick={() => handleDensityChange(option.value)}
-                      aria-pressed={episodeDensity === option.value}
-                      className={`h-7 shrink-0 rounded-full px-3 text-[12px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 ${
-                        episodeDensity === option.value
-                          ? 'bg-primary/15 text-primary'
-                          : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
-                      }`}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className={episodeDensity === 'compact' ? 'grid gap-3 xl:grid-cols-2' : 'space-y-3'}>
-                {episodes.map((ep: any, i: number) => (
-                  <EpisodeRow
-                    key={ep.path || i}
-                    ep={ep}
-                    onPlay={handlePlay}
-                    onDelete={handleDelete}
-                    density={episodeDensity}
-                    thumbToken={thumbEpoch}
-                  />
-                ))}
-              </div>
+            <div className="library-episodes-grid">
+              {episodes.map((ep: any, i: number) => (
+                <EpisodeRow
+                  key={ep.path || i}
+                  ep={ep}
+                  onPlay={handlePlay}
+                  onDelete={handleDelete}
+                  onContextMenu={handleEpisodeContextMenu}
+                  thumbToken={thumbEpoch}
+                />
+              ))}
             </div>
           )}
         </div>
       </div>
+
+      {episodeMenu &&
+        episodeMenu.folderPath === folderData.path &&
+        episodes.some((episode: any) => episode.path === episodeMenu.path) && (
+          <LibraryFolderMenu
+            x={episodeMenu.x}
+            y={episodeMenu.y}
+            ariaLabel="Opciones del episodio"
+            description="Archivo y tamaño"
+            onDetails={() => setEpisodeDetails({ path: episodeMenu.path, folderPath: episodeMenu.folderPath })}
+            onClose={closeEpisodeMenu}
+          />
+        )}
+      <LibraryEpisodeDetailsDialog episode={selectedEpisode} onOpenChange={handleEpisodeDetailsChange} />
 
       <RenameDialog
         open={showRenameModal}
@@ -500,6 +593,7 @@ export function LibraryAnimeDetails({
         isFetching={isRenamePreviewFetching}
         isError={isRenamePreviewError}
         isPending={libActions.renameFiles.isPending}
+        error={fileError}
         onConfirm={submitRename}
       />
 
@@ -517,7 +611,6 @@ export function LibraryAnimeDetails({
           season: folderData.season ?? null,
           lang: folderData.lang,
         }}
-        onRenamed={onBack}
       />
 
       <ReorderDialog
@@ -530,6 +623,8 @@ export function LibraryAnimeDetails({
         reorderPreview={reorderPreview}
         isFetching={isReorderPreviewFetching}
         isPending={libActions.reorderEpisodes.isPending}
+        isError={isReorderPreviewError}
+        error={fileError}
         onConfirm={submitReorder}
       />
 

@@ -1,4 +1,5 @@
 import { AlertTriangle, Check, ArrowRight, Eye, ListOrdered, Hash, Info, Loader2 } from 'lucide-react';
+import { useRef } from 'react';
 import { Dialog } from '@/renderer/components/Dialog';
 import { CustomNumberInput } from '@/renderer/components/CustomNumberInput';
 
@@ -12,6 +13,8 @@ interface ReorderDialogProps {
   reorderPreview: any;
   isFetching: boolean;
   isPending: boolean;
+  isError?: boolean;
+  error?: string | null;
   onConfirm: () => void;
 }
 
@@ -25,8 +28,12 @@ export function ReorderDialog({
   reorderPreview,
   isFetching,
   isPending,
+  isError = false,
+  error,
   onConfirm,
 }: ReorderDialogProps) {
+  const contentRef = useRef<HTMLDivElement>(null);
+
   return (
     <Dialog
       open={open}
@@ -43,16 +50,34 @@ export function ReorderDialog({
       confirmDisabled={
         isFetching ||
         isPending ||
-        !Number.isFinite(reorderStartNum) ||
+        isInputPending ||
+        isError ||
+        !reorderPreview?.success ||
+        !reorderPreview?.revision ||
+        !Number.isSafeInteger(reorderStartNum) ||
         reorderStartNum < 0 ||
         (reorderPreview ? reorderPreview.summary.toRename === 0 : false)
       }
       confirmLoading={isPending}
+      closeOnConfirm={false}
+      dismissDisabled={isPending}
       icon={<ListOrdered className="w-5 h-5 text-primary" />}
       className="max-w-[640px]"
       onConfirm={onConfirm}
+      onOpenAutoFocus={(event) => {
+        const input = contentRef.current?.querySelector('input');
+        if (!input) return;
+        event.preventDefault();
+        input.focus({ preventScroll: true });
+        input.setSelectionRange(input.value.length, input.value.length);
+      }}
     >
-      <div className="space-y-4">
+      <div ref={contentRef} className="space-y-4">
+        {error && (
+          <p role="alert" className="text-sm text-destructive-fg">
+            {error}
+          </p>
+        )}
         <div className="rounded-xl border border-border/60 bg-secondary/20 p-3.5">
           <label className="block text-xs font-bold tracking-widest uppercase text-muted-foreground mb-2.5">
             Número inicial

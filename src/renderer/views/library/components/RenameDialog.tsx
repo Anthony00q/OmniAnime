@@ -15,6 +15,7 @@ interface RenameDialogProps {
   isFetching: boolean;
   isError: boolean;
   isPending: boolean;
+  error?: string | null;
   onConfirm: () => void;
 }
 
@@ -30,8 +31,19 @@ export function RenameDialog({
   isFetching,
   isError,
   isPending,
+  error,
   onConfirm,
 }: RenameDialogProps) {
+  const currentFiles: Array<{ from: string }> = renamePreview?.success && !isError ? (renamePreview.items ?? []) : [];
+  const activeStyle =
+    currentFiles.length === 0
+      ? null
+      : currentFiles.every((item) => /^EP_\d+(?:_DUB)?\.[^.]+$/i.test(item.from))
+        ? 'minimal'
+        : currentFiles.every((item) => /^.+ EP_\d+(?:_DUB)?\.[^.]+$/i.test(item.from))
+          ? 'descriptive'
+          : null;
+
   return (
     <Dialog
       open={open}
@@ -45,13 +57,27 @@ export function RenameDialog({
             ? 'Sin cambios'
             : `Aplicar estilo · ${renamePreview?.summary?.toRename ?? '—'} cambio(s)`
       }
-      confirmDisabled={isFetching || isPending || (renamePreview ? renamePreview.summary.toRename === 0 : false)}
+      confirmDisabled={
+        isFetching ||
+        isPending ||
+        isError ||
+        !renamePreview?.success ||
+        !renamePreview?.revision ||
+        renamePreview.summary.toRename === 0
+      }
       confirmLoading={isPending}
+      closeOnConfirm={false}
+      dismissDisabled={isPending}
       icon={<Wand2 className="w-5 h-5 text-primary" />}
       className="max-w-[640px]"
       onConfirm={onConfirm}
     >
       <div className="space-y-4">
+        {error && (
+          <p role="alert" className="text-sm text-destructive-fg">
+            {error}
+          </p>
+        )}
         <div className="flex flex-wrap items-center gap-2 text-xs">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-secondary border border-border px-2.5 py-1">
             <span className="w-2 h-2 rounded-full bg-primary" />
@@ -95,7 +121,7 @@ export function RenameDialog({
               <span className="flex items-center gap-2">
                 <CustomRadio value={opt.id} />
                 <span className="text-sm font-bold">{opt.title}</span>
-                {renameStyle === opt.id && (
+                {activeStyle === opt.id && (
                   <span className="ml-auto inline-flex items-center gap-1 text-[11px] font-bold tracking-widest uppercase bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full">
                     <Check className="w-3 h-3" /> Activo
                   </span>
@@ -115,13 +141,20 @@ export function RenameDialog({
               <Eye className="w-3.5 h-3.5" /> Vista previa
             </span>
             <span
-              className={`text-xs text-muted-foreground inline-flex items-center gap-1.5 transition-opacity duration-150 ease-out ${isFetching ? 'opacity-60' : 'opacity-100'}`}
+              className={`relative text-xs text-muted-foreground inline-flex items-center gap-1.5 tabular-nums transition-opacity duration-150 ease-out ${isFetching ? 'opacity-60' : 'opacity-100'}`}
             >
               {renamePreview?.success ? (
                 <>
-                  {renamePreview.summary.total} archivos · {renamePreview.summary.toRename} por renombrar
+                  <span>
+                    {renamePreview.summary.total} {renamePreview.summary.total === 1 ? 'archivo' : 'archivos'}
+                  </span>
+                  <span aria-hidden="true" className="h-3 w-px shrink-0 bg-border-strong/70" />
+                  <span>{renamePreview.summary.toRename} por renombrar</span>
                   {isFetching && (
-                    <Loader2 className="w-3 h-3 animate-spin text-muted-foreground ml-1" aria-hidden="true" />
+                    <Loader2
+                      className="absolute right-full mr-2 w-3 h-3 animate-spin text-muted-foreground"
+                      aria-hidden="true"
+                    />
                   )}
                 </>
               ) : isFetching ? (
