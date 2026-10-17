@@ -25,7 +25,14 @@ interface SliceWindow {
 }
 
 let sharedCtx: AudioContext | null = null;
-let activeOscs: Array<{ stop: () => void }> = [];
+let activeOscs: Array<{
+  source: OscillatorNode | AudioBufferSourceNode;
+  gainNode: GainNode;
+  startAt: number;
+  endAt: number;
+}> = [];
+let pendingSound: (() => void) | null = null;
+let playbackGeneration = 0;
 const bufferCache = new Map<string, AudioBuffer>();
 
 function getSharedContext(): AudioContext | null {
@@ -43,12 +50,63 @@ function getSharedContext(): AudioContext | null {
 }
 
 function stopActive() {
-  for (const node of activeOscs) {
+  const nodes = activeOscs;
+  activeOscs = [];
+  pendingSound = null;
+  const at = sharedCtx?.currentTime ?? 0;
+  for (const node of nodes) {
     try {
-      node.stop();
+      const gain = node.gainNode.gain;
+      if (node.startAt > at) {
+        gain.cancelScheduledValues(at);
+        gain.setValueAtTime(0, at);
+      } else {
+        gain.cancelAndHoldAtTime(at);
+        gain.linearRampToValueAtTime(0, at + FADE_S);
+      }
+      node.source.stop(Math.min(node.endAt, at + FADE_S));
     } catch {}
   }
-  activeOscs = [];
+}
+
+function trackSource(
+  source: OscillatorNode | AudioBufferSourceNode,
+  gainNode: GainNode,
+  startAt: number,
+  endAt: number,
+  filter?: BiquadFilterNode,
+): void {
+  const node = { source, gainNode, startAt, endAt };
+  activeOscs.push(node);
+  source.onended = () => {
+    source.disconnect();
+    gainNode.disconnect();
+    filter?.disconnect();
+    if (!activeOscs.includes(node)) return;
+    activeOscs = activeOscs.filter((entry) => entry !== node);
+    if (activeOscs.length === 0) {
+      const next = pendingSound;
+      pendingSound = null;
+      next?.();
+    }
+  };
+}
+
+function dispatchSound(audioCtx: AudioContext, play: () => void, preview: boolean): void {
+  const guardedPlay = () => {
+    try {
+      play();
+    } catch (e) {
+      reportRendererError('ui:sound', e);
+    }
+  };
+  const remaining = Math.max(0, ...activeOscs.map((node) => node.endAt - audioCtx.currentTime));
+  if (!preview && remaining > 0 && remaining <= 0.5) {
+    pendingSound = guardedPlay;
+    return;
+  }
+  stopActive();
+  guardedPlay();
 }
 
 function cacheBuffer(key: string, buffer: AudioBuffer) {
@@ -154,23 +212,29 @@ function playRecipe(audioCtx: AudioContext, recipe: SoundRecipe, volume: number)
     oscillator.type = recipe.wave as OscillatorType;
     oscillator.frequency.setValueAtTime(note.freq, at);
 
-    gainNode.gain.setValueAtTime(volume, at);
-    gainNode.gain.exponentialRampToValueAtTime(0.001, at + note.duration);
+    const end = at + note.duration;
+    const peak = volume * recipe.gain;
+    gainNode.gain.setValueAtTime(0, at);
+    gainNode.gain.linearRampToValueAtTime(peak, at + recipe.attack);
+    gainNode.gain.exponentialRampToValueAtTime(Math.min(0.0001, peak), end - FADE_S);
+    gainNode.gain.linearRampToValueAtTime(0, end);
 
-    oscillator.connect(gainNode);
+    let filter: BiquadFilterNode | undefined;
+    if (recipe.lowpassHz) {
+      filter = audioCtx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(recipe.lowpassHz, at);
+      filter.Q.setValueAtTime(0.707, at);
+      oscillator.connect(filter);
+      filter.connect(gainNode);
+    } else {
+      oscillator.connect(gainNode);
+    }
     gainNode.connect(audioCtx.destination);
 
-    const captured = oscillator as unknown as { stop: () => void; onended: (() => void) | null };
-    captured.onended = () => {
-      try {
-        (oscillator as unknown as { disconnect: () => void }).disconnect();
-        (gainNode as unknown as { disconnect: () => void }).disconnect();
-      } catch {}
-      activeOscs = activeOscs.filter((o) => o !== captured);
-    };
-    activeOscs.push(captured);
+    trackSource(oscillator, gainNode, at, end, filter);
     oscillator.start(at);
-    oscillator.stop(at + note.duration);
+    oscillator.stop(end);
 
     at += note.duration + recipe.gap;
   }
@@ -186,28 +250,23 @@ function playBuffer(audioCtx: AudioContext, buffer: AudioBuffer, volume: number,
   const offset = window ? window.startSec : 0;
   const length = window ? window.sec : buffer.duration;
   const end = at + length;
-  const fadeStart = Math.max(at, end - FADE_S);
-  gainNode.gain.setValueAtTime(volume, at);
+  const fadeDuration = Math.min(FADE_S, length / 2);
+  const fadeStart = end - fadeDuration;
+  gainNode.gain.setValueAtTime(0, at);
+  gainNode.gain.linearRampToValueAtTime(volume, at + fadeDuration);
   gainNode.gain.setValueAtTime(volume, fadeStart);
-  gainNode.gain.linearRampToValueAtTime(0.001, end);
+  gainNode.gain.linearRampToValueAtTime(0, end);
 
   source.connect(gainNode);
   gainNode.connect(audioCtx.destination);
 
-  const captured = source as unknown as { stop: () => void; onended: (() => void) | null };
-  captured.onended = () => {
-    try {
-      (source as unknown as { disconnect: () => void }).disconnect();
-      (gainNode as unknown as { disconnect: () => void }).disconnect();
-    } catch {}
-    activeOscs = activeOscs.filter((o) => o !== captured);
-  };
-  activeOscs.push(captured);
+  trackSource(source, gainNode, at, end);
   source.start(at, offset, length);
   source.stop(end);
 }
 
 export function stopPreviewSound(): void {
+  playbackGeneration += 1;
   stopActive();
 }
 
@@ -218,6 +277,7 @@ export function previewSoundSlice(buffer: AudioBuffer, startSec: number, sec: nu
     return;
   }
   if (!Number.isFinite(volume) || volume <= 0) return;
+  playbackGeneration += 1;
   stopActive();
   try {
     const trimmed = clampTrim(startSec, sec, buffer.duration);
@@ -237,6 +297,7 @@ export function playNotificationSound(
   settings: any,
   type?: NotificationSoundType,
   refOverride?: string,
+  options: { preview?: boolean } = {},
 ): void | Promise<void> {
   if (settings?.notificationsSound === false) return;
   if (type && settings?.soundEnabled?.[type] === false) return;
@@ -252,7 +313,10 @@ export function playNotificationSound(
     return;
   }
 
-  stopActive();
+  const generation = ++playbackGeneration;
+  pendingSound = null;
+  const preview = options.preview === true;
+  if (preview) stopActive();
 
   const assignedRef =
     refOverride ??
@@ -263,11 +327,7 @@ export function playNotificationSound(
   const recipe = getSoundRecipe(recipePack, type ?? 'info');
 
   if (!parsed) {
-    try {
-      playRecipe(audioCtx, recipe, volume);
-    } catch (e) {
-      reportRendererError('ui:sound', e);
-    }
+    dispatchSound(audioCtx, () => playRecipe(audioCtx, recipe, volume), preview);
     return;
   }
 
@@ -276,11 +336,12 @@ export function playNotificationSound(
   return (async () => {
     try {
       const buffer = await loadBuffer(audioCtx, ref, window);
+      if (generation !== playbackGeneration) return;
       if (!buffer) {
-        playRecipe(audioCtx, getSoundRecipe('sala', type ?? 'info'), volume);
+        dispatchSound(audioCtx, () => playRecipe(audioCtx, getSoundRecipe('sala', type ?? 'info'), volume), preview);
         return;
       }
-      playBuffer(audioCtx, buffer, volume * gainTrimFor(ref));
+      dispatchSound(audioCtx, () => playBuffer(audioCtx, buffer, volume * gainTrimFor(ref)), preview);
     } catch (e) {
       reportRendererError('ui:sound', e);
     }

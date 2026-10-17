@@ -11,6 +11,9 @@ export interface SoundRecipe {
   wave: 'sine' | 'triangle' | 'square';
   notes: SoundNote[];
   gap: number;
+  gain: number;
+  attack: number;
+  lowpassHz?: number;
 }
 
 export type SynthPackId = 'sala' | 'digital' | 'suave';
@@ -44,9 +47,11 @@ export const DEFAULT_TYPE_VOLUMES: Record<NotificationSoundType, number> = {
 
 const SOUND_PACKS: Record<SynthPackId, Record<NotificationSoundType, SoundRecipe>> = {
   sala: {
-    download: { wave: 'triangle', notes: [{ freq: 620, duration: 0.07 }], gap: 0 },
+    download: { wave: 'triangle', notes: [{ freq: 622.25, duration: 0.08 }], gap: 0, gain: 1, attack: 0.005 },
     success: {
       wave: 'triangle',
+      gain: 1,
+      attack: 0.005,
       notes: [
         { freq: 523.25, duration: 0.09 },
         { freq: 783.99, duration: 0.14 },
@@ -55,38 +60,62 @@ const SOUND_PACKS: Record<SynthPackId, Record<NotificationSoundType, SoundRecipe
     },
     error: {
       wave: 'sine',
+      gain: 0.85,
+      attack: 0.006,
       notes: [
-        { freq: 220, duration: 0.1 },
-        { freq: 220, duration: 0.1 },
+        { freq: 246.94, duration: 0.12 },
+        { freq: 246.94, duration: 0.12 },
       ],
       gap: 0.06,
     },
-    info: { wave: 'triangle', notes: [{ freq: 493.88, duration: 0.12 }], gap: 0 },
+    info: { wave: 'triangle', notes: [{ freq: 493.88, duration: 0.12 }], gap: 0, gain: 1, attack: 0.005 },
   },
   digital: {
-    download: { wave: 'square', notes: [{ freq: 1046.5, duration: 0.04 }], gap: 0 },
+    download: {
+      wave: 'square',
+      notes: [{ freq: 880, duration: 0.065 }],
+      gap: 0,
+      gain: 0.5,
+      attack: 0.004,
+      lowpassHz: 2400,
+    },
     success: {
       wave: 'square',
+      gain: 0.5,
+      attack: 0.004,
+      lowpassHz: 2800,
       notes: [
-        { freq: 880, duration: 0.05 },
-        { freq: 1318.5, duration: 0.08 },
+        { freq: 783.99, duration: 0.065 },
+        { freq: 1174.66, duration: 0.1 },
       ],
       gap: 0.015,
     },
     error: {
       wave: 'square',
+      gain: 0.55,
+      attack: 0.006,
+      lowpassHz: 1100,
       notes: [
-        { freq: 180, duration: 0.07 },
-        { freq: 180, duration: 0.07 },
+        { freq: 246.94, duration: 0.09 },
+        { freq: 220, duration: 0.1 },
       ],
       gap: 0.05,
     },
-    info: { wave: 'square', notes: [{ freq: 659.25, duration: 0.06 }], gap: 0 },
+    info: {
+      wave: 'square',
+      notes: [{ freq: 659.25, duration: 0.085 }],
+      gap: 0,
+      gain: 0.5,
+      attack: 0.004,
+      lowpassHz: 2000,
+    },
   },
   suave: {
-    download: { wave: 'sine', notes: [{ freq: 440, duration: 0.09 }], gap: 0 },
+    download: { wave: 'sine', notes: [{ freq: 440, duration: 0.09 }], gap: 0, gain: 0.6, attack: 0.012 },
     success: {
       wave: 'sine',
+      gain: 0.6,
+      attack: 0.014,
       notes: [
         { freq: 392, duration: 0.11 },
         { freq: 587.33, duration: 0.18 },
@@ -95,13 +124,15 @@ const SOUND_PACKS: Record<SynthPackId, Record<NotificationSoundType, SoundRecipe
     },
     error: {
       wave: 'sine',
+      gain: 0.65,
+      attack: 0.014,
       notes: [
-        { freq: 196, duration: 0.12 },
-        { freq: 174.61, duration: 0.14 },
+        { freq: 220, duration: 0.12 },
+        { freq: 196, duration: 0.14 },
       ],
       gap: 0.07,
     },
-    info: { wave: 'sine', notes: [{ freq: 349.23, duration: 0.15 }], gap: 0 },
+    info: { wave: 'sine', notes: [{ freq: 349.23, duration: 0.15 }], gap: 0, gain: 0.6, attack: 0.014 },
   },
 };
 

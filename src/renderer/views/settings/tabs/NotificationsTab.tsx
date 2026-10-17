@@ -298,7 +298,7 @@ export const NotificationsTab = memo(function NotificationsTab({
                             <div className="flex items-center gap-2 min-w-0">
                               <PlayButton
                                 label={`Probar sonido de ${item.label}`}
-                                onClick={() => onTestSound(item.key, undefined, soundCustom[item.key])}
+                                onClick={() => onTestSound(item.key)}
                               />
                               <div className="min-w-0">
                                 <div className="text-sm font-semibold leading-snug">{item.label}</div>
@@ -388,7 +388,7 @@ export const NotificationsTab = memo(function NotificationsTab({
                                 <div className="flex items-center gap-2 min-w-0">
                                   <PlayButton
                                     label={`Probar sonido de ${item.label}`}
-                                    onClick={() => onTestSound(item.key, undefined, soundCustom[item.key])}
+                                    onClick={() => onTestSound(item.key)}
                                   />
                                   <div className="min-w-0">
                                     <div className="text-sm font-semibold leading-snug">{item.label}</div>

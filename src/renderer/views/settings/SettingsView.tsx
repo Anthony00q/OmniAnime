@@ -389,7 +389,7 @@ export function SettingsView({
 
   const testSound = (type?: NotificationSoundType, pack?: SoundPackId, ref?: string) => {
     const withPack = pack ? { ...settings, soundPack: pack } : settings;
-    playNotificationSound(withPack, type ?? 'success', ref);
+    playNotificationSound(withPack, type ?? 'success', ref, { preview: true });
   };
 
   const handleSelectOutputDir = async (index: number) => {
