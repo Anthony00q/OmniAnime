@@ -1,5 +1,29 @@
 # Changelog
 
+## [1.2.4] - 2026-10-18
+
+### Descargas
+
+- Las tarjetas reúnen el estado, el servidor y el acceso al progreso por episodio en un resumen más compacto.
+
+### Búsqueda
+
+- El catálogo mantiene los resultados visibles mientras actualiza los filtros e indica cuándo está consultando los nuevos resultados.
+
+### Interfaz
+
+- Las vistas recuperan la posición de desplazamiento al regresar, incluso cuando el contenido tarda en cargar.
+- La navegación entre vistas con las flechas del teclado incluye ahora **Horarios**.
+- Las transiciones de controles, filtros y estados de carga presentan tiempos más uniformes.
+
+### Ajustes
+
+- La importación de la configuración recupera los atajos de teclado guardados.
+- Las preferencias de registros se conservan al reiniciar y se recuperan desde configuraciones anteriores.
+- Las listas de carpetas y servidores muestran movimientos más suaves al cambiar su orden.
+- Los avisos sonoros incorporan inicios y finales más suaves para reducir los cortes bruscos entre sonidos.
+- Las pruebas de sonido respetan el paquete seleccionado, sin reproducir sonidos personalizados de otro paquete.
+
 ## [1.2.3] - 2026-10-17
 
 ### Librería
