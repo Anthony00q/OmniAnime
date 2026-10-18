@@ -6,7 +6,17 @@ import { settingsAtom, showCloseConfirmAtom } from '@/renderer/store/atoms';
 import { useAppNavigation } from '@/renderer/hooks/useAppNavigation';
 import { viewIdFromPath } from '@/renderer/utils/viewRoutes';
 
-const NAVIGATION_VIEWS = ['home', 'catalog', 'details', 'downloader', 'history', 'scanner', 'player', 'settings'];
+const NAVIGATION_VIEWS = [
+  'home',
+  'schedule',
+  'catalog',
+  'details',
+  'downloader',
+  'history',
+  'scanner',
+  'player',
+  'settings',
+];
 
 export function useKeyboardNavigation(): void {
   const { pathname } = useLocation();
