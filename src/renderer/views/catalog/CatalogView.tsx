@@ -74,8 +74,17 @@ export function CatalogView() {
 
   const { data: filterData } = useFiltersData();
 
-  const { data, isLoading, isError, refetch, isFetchingNextPage, hasNextPage, fetchNextPage } =
-    useCatalog(activeFilters);
+  const {
+    data,
+    isLoading,
+    isError,
+    refetch,
+    isFetching,
+    isPlaceholderData,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+  } = useCatalog(activeFilters);
 
   const pages = data?.pages;
   const items = useMemo(() => dedupeCatalogPages(pages ?? []), [pages]);
@@ -142,19 +151,20 @@ export function CatalogView() {
       scrollRafRef.current = window.requestAnimationFrame(() => {
         scrollRafRef.current = null;
         const { scrollTop, clientHeight, scrollHeight } = target;
-        if (scrollHeight - scrollTop <= clientHeight + 100 && hasNextPage && !isFetchingNextPage) {
-          fetchNextPage();
+        if (scrollHeight - scrollTop <= clientHeight + 100 && hasNextPage && !isFetching && !isPlaceholderData) {
+          void fetchNextPage({ cancelRefetch: false });
         }
       });
     },
-    [hasNextPage, isFetchingNextPage, fetchNextPage],
+    [hasNextPage, isFetching, isPlaceholderData, fetchNextPage],
   );
 
   useEffect(() => {
     return () => {
       if (scrollRafRef.current !== null) window.cancelAnimationFrame(scrollRafRef.current);
+      scrollRafRef.current = null;
     };
-  }, []);
+  }, [handleScroll]);
 
   const updateFilter = (key: string, value: any) => {
     setActiveFilters((prev) => ({ ...prev, [key]: value }));
@@ -484,6 +494,7 @@ export function CatalogView() {
 
       <div
         data-view-scroller
+        aria-busy={isFetching}
         className="flex-1 overflow-y-auto px-4 pb-12 sm:px-8 [scrollbar-gutter:stable]"
         onScroll={handleScroll}
       >
@@ -537,14 +548,18 @@ export function CatalogView() {
               </PosterGrid>
             )}
 
-            {!hasNextPage && items.length > 0 && (
+            {!hasNextPage && !isPlaceholderData && items.length > 0 && (
               <div className="flex items-center justify-center py-8 text-muted-foreground text-sm">
                 Has llegado al final del catálogo.
               </div>
             )}
 
-            {isFetchingNextPage && (
-              <div className="flex items-center justify-center py-8" role="status" aria-label="Cargando más resultados">
+            {isFetching && items.length > 0 && (
+              <div
+                className="flex items-center justify-center py-8"
+                role="status"
+                aria-label={isFetchingNextPage ? 'Cargando más resultados' : 'Actualizando resultados'}
+              >
                 <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" aria-hidden="true" />
               </div>
             )}

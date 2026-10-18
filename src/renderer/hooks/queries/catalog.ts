@@ -38,5 +38,7 @@ export function useCatalog(filters: Record<string, unknown>) {
       return allPages.length + 1;
     },
     staleTime: 2 * 60 * 1000,
+    placeholderData: (previousData, previousQuery) =>
+      previousQuery?.queryKey[1] === provider ? previousData : undefined,
   });
 }
