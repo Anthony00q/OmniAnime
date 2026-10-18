@@ -122,7 +122,10 @@ export function ScheduleView({ isActive }: { isActive?: boolean }) {
         }
       />
 
-      <div className="empty-state-scroller relative z-0 min-h-0 flex-1 overflow-y-auto px-4 pb-12 sm:px-8 [scrollbar-gutter:stable]">
+      <div
+        data-view-scroller
+        className="empty-state-scroller relative z-0 min-h-0 flex-1 overflow-y-auto px-4 pb-12 sm:px-8 [scrollbar-gutter:stable]"
+      >
         {isLoading ? (
           <>
             {/* Espejo de la barra semanal: el skeleton arranca donde va el contenido real. */}

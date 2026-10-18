@@ -485,6 +485,7 @@ export function SettingsView({
 
         <div
           ref={tabScrollRef}
+          data-view-scroller
           className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-6 min-[960px]:p-8 min-[960px]:pt-6 custom-scrollbar [scrollbar-gutter:stable]"
         >
           <div className="settings-tab-enter mx-auto flex w-full max-w-4xl flex-col gap-6 pb-16 xl:max-w-6xl 2xl:max-w-7xl">

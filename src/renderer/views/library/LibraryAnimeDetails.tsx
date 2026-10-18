@@ -354,6 +354,7 @@ export function LibraryAnimeDetails({
 
       <div
         ref={setListScrollNode}
+        data-view-scroller
         className="library-scroll relative z-10 flex h-full min-w-0 flex-col overflow-y-auto"
       >
         <div

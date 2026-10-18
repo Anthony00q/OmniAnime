@@ -345,7 +345,10 @@ export function ScannerView({ isActive = true }: { isActive?: boolean }) {
         </div>
       )}
 
-      <div className="empty-state-scroller min-h-0 flex-1 overflow-y-auto p-4 sm:p-6 [scrollbar-gutter:stable]">
+      <div
+        data-view-scroller
+        className="empty-state-scroller min-h-0 flex-1 overflow-y-auto p-4 sm:p-6 [scrollbar-gutter:stable]"
+      >
         {(isLoading || (!isError && filteredFolders.length > 0)) && (
           <div className="mb-3 min-h-10 sm:min-h-6">
             {!isLoading && hasBlockedLinks && (

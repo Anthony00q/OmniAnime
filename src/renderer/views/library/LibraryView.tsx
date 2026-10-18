@@ -304,7 +304,10 @@ export function LibraryView({ onSelectAnime, activeProvider, isActive }: Library
         </div>
       )}
 
-      <div className="empty-state-scroller min-h-0 min-w-0 flex-1 overflow-y-auto p-4 sm:p-6 [scrollbar-gutter:stable]">
+      <div
+        data-view-scroller
+        className="empty-state-scroller min-h-0 min-w-0 flex-1 overflow-y-auto p-4 sm:p-6 [scrollbar-gutter:stable]"
+      >
         {isLoading ? (
           <PosterGridSkeleton count={12} />
         ) : dirs.length === 0 ? (

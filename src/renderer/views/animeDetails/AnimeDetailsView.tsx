@@ -702,7 +702,11 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
         )}
       </div>
 
-      <div ref={setScrollNode} className="details-scroll isolate z-10 flex h-full min-w-0 flex-col overflow-y-auto">
+      <div
+        data-view-scroller
+        ref={setScrollNode}
+        className="details-scroll isolate z-10 flex h-full min-w-0 flex-col overflow-y-auto"
+      >
         <div className="sticky top-0 z-20 flex items-center justify-between px-4 pb-4 pt-12 sm:px-6 sm:pb-6 sm:pt-14">
           <button
             type="button"

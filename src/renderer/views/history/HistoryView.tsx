@@ -179,6 +179,7 @@ export function HistoryView({ isActive, activeProvider, onSelectAnime }: History
       />
 
       <div
+        data-view-scroller
         className="empty-state-scroller min-h-0 min-w-0 flex-1 overflow-y-auto p-4 sm:px-8 sm:py-6 [scrollbar-gutter:stable]"
         aria-busy={isLoading}
       >
