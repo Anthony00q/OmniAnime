@@ -9,6 +9,7 @@ import {
   matchAtTopLevel,
 } from '../../../utils/scrapeParse';
 import type { ScopedLogger } from '../../logging/AppLogger';
+import { errorDetailForLog } from '../../../utils/logging/redactLog';
 import { av1CoverUrl } from './client';
 
 const REGEX = {
@@ -305,7 +306,7 @@ export function parseCatalogFallback(html: string, logger: ScopedLogger): AnimeS
       }
     });
   } catch (e) {
-    logger.error('animeav1 parse catalog: ' + String(e));
+    logger.error('animeav1 parse catalog: ' + errorDetailForLog(e));
   }
   return results;
 }

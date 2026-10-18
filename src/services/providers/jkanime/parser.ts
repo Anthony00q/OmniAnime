@@ -2,6 +2,7 @@ import * as cheerio from 'cheerio';
 import { HomeEpisode, HomeEpisodeKind, ScheduleData, ScheduleEntry } from '../../../types/anime';
 import { extractBalancedBlock, extractBalancedObjects } from '../../../utils/scrapeParse';
 import type { ScopedLogger } from '../../logging/AppLogger';
+import { errorDetailForLog } from '../../../utils/logging/redactLog';
 import { JK_BASE_URL, jkImageUrl } from './client';
 
 // `select[name]` del formulario de /directorio/ → cubo de filtros.
@@ -264,7 +265,7 @@ export function extractJkAnimesEntries(data: string, logger: ScopedLogger): JkCa
     }
     return { entries: recovered, recovered: true };
   } catch (error) {
-    logger.error(`jkanime catalog: ${error}`);
+    logger.error(`jkanime catalog: ${errorDetailForLog(error)}`);
     return { entries: [], recovered: true };
   }
 }
@@ -298,7 +299,7 @@ export function extractJkServersArray(
     }
     return recovered;
   } catch (error) {
-    logger.error(`jkanime links: ${error}`);
+    logger.error(`jkanime links: ${errorDetailForLog(error)}`);
     return null;
   }
 }
@@ -334,7 +335,7 @@ export function parseJkFilterOptions(
         });
       out[bucket as JkFilterBucket] = options;
     } catch (error) {
-      logger.warn(`jkanime filters: select ${bucket} ilegible, se omite. ${error}`);
+      logger.warn(`jkanime filters: select ${bucket} ilegible, se omite. ${errorDetailForLog(error)}`);
     }
     return true;
   };

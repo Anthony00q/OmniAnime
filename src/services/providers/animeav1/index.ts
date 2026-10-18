@@ -36,6 +36,7 @@ import {
 } from './parser';
 import { mapAv1Details, mapAv1DownloadLinks, mapAv1FiltersData, mapAv1HomeEpisode, mapAv1SearchResult } from './mapper';
 import { normalizeServerName, SERVER_CANDIDATES_ANIMEAV1 } from '../../../utils/serverUtils';
+import { errorDetailForLog } from '../../../utils/logging/redactLog';
 
 export class AnimeAV1Provider implements AnimeProvider {
   private readonly logger: ScopedLogger;
@@ -103,7 +104,7 @@ export class AnimeAV1Provider implements AnimeProvider {
       }
       return eps;
     } catch (e) {
-      this.logger.error('animeav1 home: ' + String(e));
+      this.logger.error('animeav1 home: ' + errorDetailForLog(e));
       return [];
     }
   }
@@ -119,7 +120,7 @@ export class AnimeAV1Provider implements AnimeProvider {
       this.cache.schedule = { data, timestamp: now };
       return data;
     } catch (e) {
-      this.logger.error('animeav1 schedule: ' + String(e));
+      this.logger.error('animeav1 schedule: ' + errorDetailForLog(e));
       return null;
     }
   }
@@ -139,7 +140,7 @@ export class AnimeAV1Provider implements AnimeProvider {
       }
       return data;
     } catch (e) {
-      this.logger.error('animeav1 filters: ' + String(e));
+      this.logger.error('animeav1 filters: ' + errorDetailForLog(e));
       return { categories: [], genres: [], years: [] };
     }
   }
@@ -163,7 +164,7 @@ export class AnimeAV1Provider implements AnimeProvider {
           const catDict = parseCategoryDict(html);
           results = parseAv1ResultBlocks(content).map((raw) => mapAv1SearchResult(raw, catDict));
         } catch (e) {
-          this.logger.error('animeav1 parse svelte: ' + String(e));
+          this.logger.error('animeav1 parse svelte: ' + errorDetailForLog(e));
           results = [];
         }
       }
@@ -181,7 +182,7 @@ export class AnimeAV1Provider implements AnimeProvider {
       }
       return results;
     } catch (e) {
-      this.logger.error('animeav1 search: ' + String(e));
+      this.logger.error('animeav1 search: ' + errorDetailForLog(e));
       return [];
     }
   }
@@ -210,7 +211,7 @@ export class AnimeAV1Provider implements AnimeProvider {
       ) {
         return [];
       }
-      this.logger.error('animeav1 search: ' + String(error));
+      this.logger.error('animeav1 search: ' + errorDetailForLog(error));
       return [];
     } finally {
       if (this.pendingSearchController === controller) this.pendingSearchController = null;
@@ -222,7 +223,7 @@ export class AnimeAV1Provider implements AnimeProvider {
       const response = await this.client.get(av1MediaUrl(slug), { signal });
       return mapAv1Details(parseAv1Details(response.data, slug), slug);
     } catch (error) {
-      this.logger.error('animeav1 details: ' + String(error));
+      this.logger.error('animeav1 details: ' + errorDetailForLog(error));
       return null;
     }
   }
@@ -239,7 +240,7 @@ export class AnimeAV1Provider implements AnimeProvider {
       const r = await this.client.get(av1EpisodeUrl(slug, ep), { signal });
       return mapAv1DownloadLinks(parseAv1LinkEntries(r.data, lang), lang);
     } catch (error) {
-      this.logger.error('animeav1 links: ' + String(error));
+      this.logger.error('animeav1 links: ' + errorDetailForLog(error));
       return [];
     }
   }

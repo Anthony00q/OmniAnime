@@ -9,6 +9,7 @@ import {
 } from '../../../types/anime';
 import { AnimeProvider, type ProviderModule } from '../AnimeProvider';
 import { noopScopedLogger, type ScopedLogger } from '../../logging/AppLogger';
+import { errorDetailForLog } from '../../../utils/logging/redactLog';
 import {
   createJkHttpClient,
   jkAnimePageUrl,
@@ -85,7 +86,7 @@ export class JkAnimeProvider implements AnimeProvider {
       const { data } = await this.http.get(jkHomeUrl());
       return collectJkHomeEpisodes(cheerio.load(data));
     } catch (error) {
-      this.logger.error(`jkanime home: ${error}`);
+      this.logger.error(`jkanime home: ${errorDetailForLog(error)}`);
       return [];
     }
   }
@@ -95,7 +96,7 @@ export class JkAnimeProvider implements AnimeProvider {
       const { data } = await this.http.get(jkScheduleUrl());
       return collectJkSchedule(cheerio.load(data));
     } catch (error) {
-      this.logger.error(`jkanime schedule: ${error}`);
+      this.logger.error(`jkanime schedule: ${errorDetailForLog(error)}`);
       return null;
     }
   }
@@ -122,7 +123,7 @@ export class JkAnimeProvider implements AnimeProvider {
       }
       return results;
     } catch (error) {
-      this.logger.error(`jkanime catalog: ${error}`);
+      this.logger.error(`jkanime catalog: ${errorDetailForLog(error)}`);
       return [];
     }
   }
@@ -148,7 +149,7 @@ export class JkAnimeProvider implements AnimeProvider {
       ) {
         return [];
       }
-      this.logger.error(`jkanime search: ${error}`);
+      this.logger.error(`jkanime search: ${errorDetailForLog(error)}`);
       return [];
     } finally {
       if (this.pendingSearchController === controller) this.pendingSearchController = null;
@@ -342,14 +343,14 @@ export class JkAnimeProvider implements AnimeProvider {
           }
         }
       } catch (e) {
-        this.logger.warn(`jkanime details: sin conteo exacto de episodios, fallback. ${e}`);
+        this.logger.warn(`jkanime details: sin conteo exacto de episodios, fallback. ${errorDetailForLog(e)}`);
       }
 
       // Sin dato real del AJAX no se inventa cantidad: [] = desconocido.
       const episodes = epsCount !== null ? Array.from({ length: epsCount }, (_, i) => i + 1) : [];
       return mapJkDetails(parseJkDetails($, slug), slug, { episodes, episodeThumbnails });
     } catch (error) {
-      this.logger.error(`jkanime details: ${error}`);
+      this.logger.error(`jkanime details: ${errorDetailForLog(error)}`);
       return null;
     }
   }
@@ -370,7 +371,7 @@ export class JkAnimeProvider implements AnimeProvider {
       ) {
         return [];
       }
-      this.logger.error(`jkanime links: ${error}`);
+      this.logger.error(`jkanime links: ${errorDetailForLog(error)}`);
       return [];
     }
   }
@@ -380,7 +381,7 @@ export class JkAnimeProvider implements AnimeProvider {
       const { data } = await this.http.get(jkDirectoryUrl());
       return mapJkFiltersData(parseJkFilterOptions(cheerio.load(data), this.logger));
     } catch (error) {
-      this.logger.error(`jkanime filters: ${error}`);
+      this.logger.error(`jkanime filters: ${errorDetailForLog(error)}`);
       return { genres: [], categories: [], years: [], statuses: [], orders: [] };
     }
   }
