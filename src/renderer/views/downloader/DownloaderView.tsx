@@ -26,7 +26,7 @@ interface DownloaderViewProps {
 }
 
 export function DownloaderView({ onSelectAnime, activeProvider, isActive = true }: DownloaderViewProps) {
-  const { data: queue = [], isLoading, isError, refetch } = useQueue();
+  const { data: queue = [], isLoading, isError, refetch } = useQueue(isActive);
   const actions = useDownloadActions();
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [pendingRetryIds, setPendingRetryIds] = useState<Set<string>>(new Set());

@@ -18,7 +18,7 @@ function mergeQueueRow(prev: any | undefined, item: any): any {
   return (prev as any).activeEps !== undefined ? { ...(item as any), activeEps: (prev as any).activeEps } : item;
 }
 
-export function useQueue() {
+export function useQueue(isActive = true) {
   const queryClient = useQueryClient();
 
   const query = useQuery({
@@ -33,6 +33,7 @@ export function useQueue() {
       return fresh.map((item) => mergeQueueRow(prevById.get(item.id), item));
     },
     staleTime: 0,
+    notifyOnChangeProps: isActive ? undefined : [],
   });
 
   useEffect(() => {
