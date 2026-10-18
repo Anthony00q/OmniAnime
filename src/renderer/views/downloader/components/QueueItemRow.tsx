@@ -151,7 +151,6 @@ export const QueueItemRow = memo(
       item.status,
     ]);
     const hasDetail = isCardActive && detailRows.length > 1;
-    const hasActivityFooter = isDownloading || hasDetail || isFailed;
     const detailId = useId();
     const isTerminal = isDone || isFailed || isCancelled;
     const firstFailedEpisode = item.failedEps?.[0];
@@ -214,7 +213,7 @@ export const QueueItemRow = memo(
       >
         <div
           data-queue-summary
-          className={`flex min-w-0 items-start gap-3 px-3 pt-3 sm:gap-4 sm:px-4 sm:pt-4 ${hasActivityFooter ? 'pb-2' : 'pb-3 sm:pb-4'}`}
+          className={`flex min-w-0 items-start gap-3 px-3 pt-3 sm:gap-4 sm:px-4 sm:pt-4 ${isFailed ? 'pb-2' : 'pb-3 sm:pb-4'}`}
         >
           {canOpenDetails ? (
             <button
@@ -382,7 +381,10 @@ export const QueueItemRow = memo(
                 {pctFormat(pct)}
               </span>
             </div>
-            <div className="flex min-h-7 flex-wrap items-center gap-x-2 gap-y-1 text-xs tabular-nums text-muted-foreground">
+            <div
+              data-queue-status
+              className="flex min-h-7 flex-wrap items-center gap-x-2 gap-y-2 text-xs tabular-nums text-muted-foreground"
+            >
               <QueueStatusBadge kind={badgeKind} />
               <span aria-hidden="true" className="h-3 w-px shrink-0 bg-border-strong/70" />
               <span>
@@ -399,69 +401,66 @@ export const QueueItemRow = memo(
               {isCardActive && (item.cancelledEps?.length || 0) > 0 && (
                 <span>({item.cancelledEps.length} cancelados)</span>
               )}
-            </div>
-            {hasActivityFooter && (
-              <div className="flex min-h-11 items-center gap-2 text-xs text-muted-foreground">
-                {isDownloading && (
-                  <span
-                    className="inline-flex min-w-0 flex-1 items-center gap-1.5"
-                    aria-live={isSwitchPending ? 'polite' : undefined}
-                  >
-                    {isSwitchPending ? (
-                      <Loader2 className="h-3 w-3 shrink-0 animate-spin" aria-hidden="true" />
-                    ) : (
-                      <Server className="h-3 w-3 shrink-0" aria-hidden="true" />
-                    )}
-                    <span className="truncate">
-                      {isSwitchPending
-                        ? 'Cambiando servidor…'
-                        : isPreparing
-                          ? activeEps[0]?.server || item.currentServer || 'Preparación local'
-                          : pct === 0
-                            ? 'Conectando…'
-                            : item.currentServer || 'Preparando servidor…'}
-                    </span>
-                    {preparingCount > 0 && !isPreparing && !isSwitchPending && (
-                      <>
-                        <span aria-hidden="true" className="h-3 w-px shrink-0 bg-border-strong/70" />
-                        <span className="truncate">
-                          {preparingCount} {preparingCount === 1 ? 'archivo en preparación' : 'archivos en preparación'}
-                        </span>
-                      </>
-                    )}
+              {isDownloading && (
+                <span
+                  className="inline-flex min-w-0 max-w-full flex-[1_1_160px] items-center gap-1.5"
+                  aria-live={isSwitchPending ? 'polite' : undefined}
+                >
+                  <span aria-hidden="true" className="mr-0.5 h-3 w-px shrink-0 bg-border-strong/70" />
+                  {isSwitchPending ? (
+                    <Loader2 className="h-3 w-3 shrink-0 animate-spin" aria-hidden="true" />
+                  ) : (
+                    <Server className="h-3 w-3 shrink-0" aria-hidden="true" />
+                  )}
+                  <span className="truncate">
+                    {isSwitchPending
+                      ? 'Cambiando servidor…'
+                      : isPreparing
+                        ? activeEps[0]?.server || item.currentServer || 'Preparación local'
+                        : pct === 0
+                          ? 'Conectando…'
+                          : item.currentServer || 'Preparando servidor…'}
                   </span>
-                )}
-                {isFailed && (
-                  <>
-                    <span className="min-w-0 flex-1 truncate text-destructive-fg">
-                      EP {firstFailedEpisode ?? '?'}: {firstFailureReason || 'No se pudo completar la descarga.'}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={toggleErrorClick}
-                      aria-expanded={showFullError}
-                      className="min-h-11 shrink-0 rounded px-2 font-medium text-destructive-fg transition-colors hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
-                    >
-                      {showFullError ? 'Ver menos' : 'Ver error'}
-                    </button>
-                  </>
-                )}
-                {hasDetail && (
-                  <button
-                    type="button"
-                    onClick={toggleParallelClick}
-                    aria-expanded={showParallel}
-                    aria-controls={detailId}
-                    aria-label={showParallel ? 'Ocultar progreso por episodio' : 'Ver progreso por episodio'}
-                    className="ml-auto inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg px-2 font-medium transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
-                  >
-                    Episodios ({detailRows.length})
-                    <ChevronDown
-                      className={`h-3.5 w-3.5 transition-transform duration-200 ${showParallel ? 'rotate-180' : ''}`}
-                      aria-hidden="true"
-                    />
-                  </button>
-                )}
+                  {preparingCount > 0 && !isPreparing && !isSwitchPending && (
+                    <>
+                      <span aria-hidden="true" className="h-3 w-px shrink-0 bg-border-strong/70" />
+                      <span className="truncate">
+                        {preparingCount} {preparingCount === 1 ? 'archivo en preparación' : 'archivos en preparación'}
+                      </span>
+                    </>
+                  )}
+                </span>
+              )}
+              {hasDetail && (
+                <button
+                  type="button"
+                  onClick={toggleParallelClick}
+                  aria-expanded={showParallel}
+                  aria-controls={detailId}
+                  aria-label={showParallel ? 'Ocultar progreso por episodio' : 'Ver progreso por episodio'}
+                  className="relative ml-auto inline-flex h-7 shrink-0 items-center gap-1.5 rounded-lg px-2 font-medium transition-colors after:absolute after:inset-x-0 after:-inset-y-2 hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                >
+                  Episodios ({detailRows.length})
+                  <ChevronDown
+                    className={`h-3.5 w-3.5 transition-transform duration-200 ${showParallel ? 'rotate-180' : ''}`}
+                    aria-hidden="true"
+                  />
+                </button>
+              )}
+            </div>
+            {isFailed && (
+              <div className="flex min-h-11 items-center gap-2 text-xs text-muted-foreground">
+                <span className="min-w-0 flex-1 truncate text-destructive-fg">
+                  EP {firstFailedEpisode ?? '?'}: {firstFailureReason || 'No se pudo completar la descarga.'}
+                </span>
+                <button
+                  type="button"
+                  onClick={toggleErrorClick}
+                  aria-expanded={showFullError}
+                  className="min-h-11 shrink-0 rounded px-2 font-medium text-destructive-fg transition-colors hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                >
+                  {showFullError ? 'Ver menos' : 'Ver error'}
+                </button>
               </div>
             )}
           </div>

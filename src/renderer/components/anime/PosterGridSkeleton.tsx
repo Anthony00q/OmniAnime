@@ -54,7 +54,7 @@ export function QueueSkeleton({ count = 3 }: { count?: number }) {
     >
       {Array.from({ length: count }).map((_, idx) => (
         <div key={idx} className="overflow-hidden rounded-xl border border-border/50 bg-card" aria-hidden="true">
-          <div className="flex min-w-0 items-start gap-3 px-3 pt-3 pb-2 sm:gap-4 sm:px-4 sm:pt-4">
+          <div className="flex min-w-0 items-start gap-3 px-3 py-3 sm:gap-4 sm:px-4 sm:py-4">
             <div className="aspect-[2/3] w-16 shrink-0 animate-pulse rounded-lg bg-secondary/40 sm:w-[72px]" />
             <div className="min-w-0 flex-1">
               <div className="mb-3 flex flex-wrap justify-between gap-3">
@@ -72,12 +72,9 @@ export function QueueSkeleton({ count = 3 }: { count?: number }) {
                 <div className="h-2 flex-1 animate-pulse rounded-full bg-secondary/50" />
                 <div className="h-4 w-[4ch] animate-pulse rounded bg-secondary/30" />
               </div>
-              <div className="flex min-h-7 items-center">
+              <div className="flex min-h-7 flex-wrap items-center justify-between gap-2">
                 <div className="h-4 w-2/3 animate-pulse rounded bg-secondary/30" />
-              </div>
-              <div className="flex min-h-11 items-center justify-between gap-3">
-                <div className="h-3 w-16 animate-pulse rounded bg-secondary/30" />
-                <div className="h-4 w-24 animate-pulse rounded bg-secondary/30" />
+                <div className="h-7 w-24 animate-pulse rounded bg-secondary/30" />
               </div>
             </div>
           </div>
