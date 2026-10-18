@@ -2,6 +2,7 @@ import type Database from 'better-sqlite3';
 import type { AppSettings } from '../../types/settings';
 import { normalizeSoundPack } from '../../utils/sounds/soundPacks';
 import { sanitizeSoundCustomMap, sanitizeCustomSoundFiles } from '../../utils/sounds/soundCatalog';
+import { normalizeLoggingSettings } from '../../utils/logging/loggingSettings';
 import { ensureDownloadSettingsColumn, ensureSoundPackColumn } from './schema';
 import { measure } from './dbMetrics';
 
@@ -32,8 +33,8 @@ export class SettingsRows {
                 notifications_sound, sound_volume, sound_pack, sound_custom, custom_sound_files,
                 sound_enabled, sound_profiles,
                 notification_settings, shortcuts, default_provider, hardware_acceleration,
-                download_settings)
-               VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                 download_settings, logging_settings)
+                VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .run(
           settings.defaultOutputDir,
@@ -56,6 +57,7 @@ export class SettingsRows {
           settings.defaultProvider || 'animeav1',
           settings.hardwareAcceleration === false ? 0 : 1,
           JSON.stringify(settings.download || {}),
+          JSON.stringify(normalizeLoggingSettings(settings.logging)),
         );
     });
   }
@@ -87,7 +89,7 @@ export class SettingsRows {
       notifyOnComplete: Boolean(row.notify_on_complete),
       minimizeToTrayOnClose: Boolean(row.minimize_to_tray_on_close),
       namingStyle: String(row.naming_style || 'descriptive') as 'minimal' | 'descriptive',
-      theme: String(row.theme || 'dark') as 'dark' | 'quantum' | 'oled',
+      theme: String(row.theme || 'dark') as AppSettings['theme'],
       accentColor: String(row.accent_color || 'hsl(35 78% 57%)'),
       toastPosition: String(row.toast_position || 'top-center') as AppSettings['toastPosition'],
       notificationsSound: Boolean(row.notifications_sound),
@@ -123,6 +125,7 @@ export class SettingsRows {
       }) as AppSettings['shortcuts'],
       defaultProvider: String(row.default_provider || 'animeav1') as 'animeav1' | 'jkanime',
       hardwareAcceleration: (row as Record<string, unknown>).hardware_acceleration !== 0,
+      logging: normalizeLoggingSettings(parseJson(row.logging_settings)),
       download: (() => {
         const parsed = parseJson((row as Record<string, unknown>).download_settings, undefined);
         return parsed && typeof parsed === 'object' && !Array.isArray(parsed)

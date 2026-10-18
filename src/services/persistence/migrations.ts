@@ -1,7 +1,6 @@
-import * as fs from 'fs';
 import type Database from 'better-sqlite3';
 import type { ScopedLogger } from '../logging/AppLogger';
-import { safeErrorMessage } from '../../utils/logging/redactLog';
+import { errorDetailForLog } from '../../utils/logging/redactLog';
 import {
   SCHEMA_VERSION,
   applyAniLinkTable,
@@ -14,7 +13,7 @@ import {
   hasHistoryV2Columns,
   tableHasColumn,
 } from './schema';
-import { importLegacyJsonFiles, type LegacyImportOptions } from './legacyImport';
+import { importLegacyJsonFiles, importLegacyLoggingSettings, type LegacyImportOptions } from './legacyImport';
 import { measure } from './dbMetrics';
 
 export interface MigrationStep {
@@ -28,12 +27,6 @@ export interface MigrateOptions extends LegacyImportOptions {
 
 export function getMetaVersion(db: Database.Database): number {
   try {
-    db.exec(`
-        CREATE TABLE IF NOT EXISTS _meta (
-            key TEXT PRIMARY KEY,
-            value TEXT NOT NULL
-        )
-    `);
     const row = db.prepare('SELECT value FROM _meta WHERE key = ?').get('schema_version') as
       { value?: string } | undefined;
     if (row?.value) {
@@ -60,11 +53,10 @@ export function createPreUpgradeBackup(
 ): string | null {
   const backupPath = `${dbPath}.pre-v${targetVersion}-${Date.now()}.bak`;
   try {
-    db.pragma('wal_checkpoint(TRUNCATE)');
-    fs.copyFileSync(dbPath, backupPath);
+    db.prepare('VACUUM INTO ?').run(backupPath);
     return backupPath;
   } catch (e) {
-    log.error('No se pudo crear respaldo antes de migrar SQLite: ' + safeErrorMessage(e));
+    log.error('No se pudo crear respaldo antes de migrar SQLite: ' + errorDetailForLog(e));
     return null;
   }
 }
@@ -163,21 +155,32 @@ export const MIGRATIONS: MigrationStep[] = [
       }
     },
   },
+  {
+    version: 8,
+    run: (db) => {
+      if (!tableHasColumn(db, 'settings', 'logging_settings')) {
+        db.exec("ALTER TABLE settings ADD COLUMN logging_settings TEXT NOT NULL DEFAULT '{}'");
+      }
+    },
+  },
 ];
 
 export function migrateToLatest(db: Database.Database, options: MigrateOptions): void {
-  applyBaseSchema(db);
-  ensureFolderMetaColumns(db);
-
   const from = getMetaVersion(db);
-  if (from < SCHEMA_VERSION) {
-    // Instalación limpia: sin versión registrada toca importar los JSON legacy, no respaldar una DB sin datos.
-    const freshInstall = from === 0 && hasHistoryV2Columns(db);
-    if (!freshInstall) createPreUpgradeBackup(db, options.dbPath, SCHEMA_VERSION, options.log);
+  const freshInstall = !db
+    .prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' LIMIT 1")
+    .get();
+  if (from < SCHEMA_VERSION && !freshInstall) {
+    const backup = createPreUpgradeBackup(db, options.dbPath, SCHEMA_VERSION, options.log);
+    if (!backup) throw new Error('No se puede actualizar la base de datos sin un respaldo previo');
+  }
 
+  applyBaseSchema(db);
+  if (from < SCHEMA_VERSION) {
     runMigrationSteps(db, MIGRATIONS, from, SCHEMA_VERSION);
 
     if (freshInstall) importLegacyJsonFiles(db, options);
+    else if (from < 8) importLegacyLoggingSettings(db, options);
     setMetaVersion(db, SCHEMA_VERSION);
   }
 

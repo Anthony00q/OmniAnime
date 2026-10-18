@@ -4,6 +4,7 @@ import { app } from 'electron';
 import { AppSettings } from '../../types/settings';
 import { DEFAULT_DOWNLOAD_SETTINGS, normalizeDownloadSettings } from '../../utils/downloads/downloadSettings';
 import { normalizeLoggingSettings } from '../../utils/logging/loggingSettings';
+import { errorDetailForLog } from '../../utils/logging/redactLog';
 import { DEFAULT_SOUND_PACK, normalizeSoundPack } from '../../utils/sounds/soundPacks';
 import { sanitizeSoundCustomMap, sanitizeCustomSoundFiles } from '../../utils/sounds/soundCatalog';
 import type { ScopedLogger } from '../logging/AppLogger';
@@ -119,7 +120,7 @@ export class SettingsManager {
 
       return true;
     } catch (e) {
-      SettingsManager.logger?.error(`Error saving settings: ${e}`);
+      SettingsManager.logger?.error(`Error al guardar ajustes: ${errorDetailForLog(e)}`);
       return false;
     }
   }
@@ -132,7 +133,7 @@ export class SettingsManager {
         return SettingsManager.mergeWithDefaults(settings);
       }
     } catch (e) {
-      SettingsManager.logger?.error(`Error reading legacy settings: ${e}`);
+      SettingsManager.logger?.error(`Error al leer ajustes anteriores: ${errorDetailForLog(e)}`);
     }
     return { ...DEFAULT_SETTINGS };
   }

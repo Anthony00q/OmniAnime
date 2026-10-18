@@ -2,9 +2,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import type Database from 'better-sqlite3';
 import type { ScopedLogger } from '../logging/AppLogger';
-import { safeErrorMessage } from '../../utils/logging/redactLog';
-import { normalizeSoundPack } from '../../utils/sounds/soundPacks';
-import { tableHasColumn } from './schema';
+import { errorDetailForLog } from '../../utils/logging/redactLog';
+import { normalizeLoggingSettings } from '../../utils/logging/loggingSettings';
 import { measure } from './dbMetrics';
 import { folderHash } from './FolderMetaRows';
 import { SettingsRows } from './SettingsRows';
@@ -23,6 +22,20 @@ export function importLegacyJsonFiles(db: Database.Database, options: LegacyImpo
   importFolderMetaFromJson(db, options);
 }
 
+export function importLegacyLoggingSettings(db: Database.Database, options: LegacyImportOptions): void {
+  try {
+    const file = path.join(options.userDataDir, 'settings.json');
+    if (!fs.existsSync(file)) return;
+    const settings = JSON.parse(fs.readFileSync(file, 'utf-8'));
+    if (!settings?.logging || typeof settings.logging !== 'object' || Array.isArray(settings.logging)) return;
+    db.prepare('UPDATE settings SET logging_settings = ? WHERE id = 1').run(
+      JSON.stringify(normalizeLoggingSettings(settings.logging)),
+    );
+  } catch (error) {
+    options.log.warn('No se pudo recuperar logging de los ajustes anteriores: ' + errorDetailForLog(error));
+  }
+}
+
 function importSettingsFromJson(db: Database.Database, options: LegacyImportOptions): void {
   try {
     const fp = path.join(options.userDataDir, 'settings.json');
@@ -31,75 +44,16 @@ function importSettingsFromJson(db: Database.Database, options: LegacyImportOpti
     const raw = fs.readFileSync(fp, 'utf-8');
     const settings = JSON.parse(raw);
 
-    if (!settings || typeof settings !== 'object') return;
+    if (!settings || typeof settings !== 'object' || Array.isArray(settings)) return;
 
-    measure('importSettings INSERT', () => {
-      const hasDownloadCol = tableHasColumn(db, 'settings', 'download_settings');
-      if (hasDownloadCol) {
-        db.prepare(
-          `INSERT OR REPLACE INTO settings
-                   (id, default_output_dir, output_dirs, notify_on_complete, minimize_to_tray_on_close,
-                    naming_style, theme, accent_color, toast_position,
-                    notifications_sound, sound_volume, sound_pack, sound_enabled, sound_profiles,
-                    notification_settings, shortcuts, default_provider, hardware_acceleration,
-                    download_settings)
-                   VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        ).run(
-          settings.defaultOutputDir || '',
-          JSON.stringify(settings.outputDirs || []),
-          settings.notifyOnComplete ? 1 : 0,
-          settings.minimizeToTrayOnClose ? 1 : 0,
-          settings.namingStyle || 'descriptive',
-          settings.theme || 'dark',
-          settings.accentColor || 'hsl(35 78% 57%)',
-          settings.toastPosition || 'top-center',
-          settings.notificationsSound ? 1 : 0,
-          settings.soundVolume ?? 0.5,
-          normalizeSoundPack(settings.soundPack),
-          JSON.stringify(settings.soundEnabled || {}),
-          JSON.stringify(settings.soundProfiles || {}),
-          JSON.stringify(settings.notificationSettings || {}),
-          JSON.stringify(settings.shortcuts || {}),
-          settings.defaultProvider || 'animeav1',
-          settings.hardwareAcceleration === false ? 0 : 1,
-          JSON.stringify(settings.download || {}),
-        );
-      } else {
-        db.prepare(
-          `INSERT OR REPLACE INTO settings
-                   (id, default_output_dir, output_dirs, notify_on_complete, minimize_to_tray_on_close,
-                    naming_style, theme, accent_color, toast_position,
-                    notifications_sound, sound_volume, sound_pack, sound_enabled, sound_profiles,
-                    notification_settings, shortcuts, default_provider, hardware_acceleration)
-                   VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        ).run(
-          settings.defaultOutputDir || '',
-          JSON.stringify(settings.outputDirs || []),
-          settings.notifyOnComplete ? 1 : 0,
-          settings.minimizeToTrayOnClose ? 1 : 0,
-          settings.namingStyle || 'descriptive',
-          settings.theme || 'dark',
-          settings.accentColor || 'hsl(35 78% 57%)',
-          settings.toastPosition || 'top-center',
-          settings.notificationsSound ? 1 : 0,
-          settings.soundVolume ?? 0.5,
-          normalizeSoundPack(settings.soundPack),
-          JSON.stringify(settings.soundEnabled || {}),
-          JSON.stringify(settings.soundProfiles || {}),
-          JSON.stringify(settings.notificationSettings || {}),
-          JSON.stringify(settings.shortcuts || {}),
-          settings.defaultProvider || 'animeav1',
-          settings.hardwareAcceleration === false ? 0 : 1,
-        );
-      }
-    });
+    new SettingsRows(db).saveSettings({ ...settings, defaultOutputDir: settings.defaultOutputDir || '' });
 
     const bak = fp + '.bak';
     try {
       fs.renameSync(fp, bak);
     } catch {}
   } catch (e) {
-    options.log.error('Error importing settings from JSON: ' + safeErrorMessage(e));
+    options.log.error('Error al importar ajustes anteriores: ' + errorDetailForLog(e));
   }
 }
 
@@ -158,7 +112,7 @@ function importQueueFromJson(db: Database.Database, options: LegacyImportOptions
       fs.renameSync(fp, bak);
     } catch {}
   } catch (e) {
-    options.log.error('Error importing queue from JSON: ' + safeErrorMessage(e));
+    options.log.error('Error al importar la cola anterior: ' + errorDetailForLog(e));
   }
 }
 
@@ -201,7 +155,7 @@ function importHistoryFromJson(db: Database.Database, options: LegacyImportOptio
       fs.renameSync(fp, bak);
     } catch {}
   } catch (e) {
-    options.log.error('Error importing history from JSON: ' + safeErrorMessage(e));
+    options.log.error('Error al importar el historial anterior: ' + errorDetailForLog(e));
   }
 }
 
@@ -303,6 +257,6 @@ function importFolderMetaFromJson(db: Database.Database, options: LegacyImportOp
       }
     }
   } catch (e) {
-    options.log.error('Error importing folder meta from JSON: ' + safeErrorMessage(e));
+    options.log.error('Error al importar metadatos anteriores: ' + errorDetailForLog(e));
   }
 }

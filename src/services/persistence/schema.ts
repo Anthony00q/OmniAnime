@@ -1,6 +1,6 @@
 import type Database from 'better-sqlite3';
 
-export const SCHEMA_VERSION = 7;
+export const SCHEMA_VERSION = 8;
 
 export function applyBaseSchema(db: Database.Database): void {
   db.exec(`
@@ -32,7 +32,8 @@ export function applyBaseSchema(db: Database.Database): void {
             shortcuts TEXT NOT NULL DEFAULT '{}',
             default_provider TEXT NOT NULL DEFAULT 'animeav1',
             hardware_acceleration INTEGER NOT NULL DEFAULT 1,
-            download_settings TEXT NOT NULL DEFAULT '{}'
+            download_settings TEXT NOT NULL DEFAULT '{}',
+            logging_settings TEXT NOT NULL DEFAULT '{}'
         )
     `);
 
