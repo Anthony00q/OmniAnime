@@ -189,6 +189,27 @@ export function registerStorageHandlers(dependencies: IpcRegistryDependencies): 
       const allowedProviders = new Set(['animeav1', 'jkanime']);
 
       const merged: AppSettings = { ...defaults } as AppSettings;
+      const shortcuts = (parsed as { shortcuts?: unknown }).shortcuts;
+      if (shortcuts && typeof shortcuts === 'object' && !Array.isArray(shortcuts)) {
+        merged.shortcuts = { ...defaults.shortcuts };
+        for (const key of ['search', 'close', 'prevView', 'nextView'] as const) {
+          const value = (shortcuts as Record<string, unknown>)[key];
+          if (
+            typeof value !== 'string' ||
+            !value.trim() ||
+            value.length > 32 ||
+            Array.from(value).some((char) => char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127)
+          )
+            continue;
+          if (key === 'search') {
+            const searchKey = value.toUpperCase();
+            if (!/^[A-Z0-9]$/.test(searchKey) || ['A', 'C', 'V', 'X', 'Z', 'Y', 'W', 'R'].includes(searchKey)) continue;
+            merged.shortcuts.search = searchKey;
+          } else {
+            merged.shortcuts[key] = value;
+          }
+        }
+      }
       let outDirs: string[] = [];
       if (Array.isArray((parsed as any).outputDirs)) {
         outDirs = (parsed as any).outputDirs
