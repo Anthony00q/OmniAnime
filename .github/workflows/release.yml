@@ -1,6 +1,6 @@
 name: Release (Windows)
 
-run-name: "Release ${{ github.ref_name }}"
+run-name: 'Release ${{ github.ref_name }}'
 
 on:
   push:
@@ -44,6 +44,13 @@ jobs:
             Write-Error "El tag $env:GITHUB_REF_NAME no coincide con package.json ($expected)"
             exit 1
           }
+
+      - name: Instalar npm declarado en package.json
+        shell: pwsh
+        run: |
+          $packageManager = node -p "require('./package.json').packageManager"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm install --global $packageManager
 
       - name: Instalar dependencias (npm ci)
         run: npm ci
