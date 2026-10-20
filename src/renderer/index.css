@@ -148,11 +148,7 @@
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
-    font-family:
-      'Instrument Sans',
-      system-ui,
-      -apple-system,
-      sans-serif;
+    font-family: 'Instrument Sans', system-ui, -apple-system, sans-serif;
     letter-spacing: 0.005em;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;

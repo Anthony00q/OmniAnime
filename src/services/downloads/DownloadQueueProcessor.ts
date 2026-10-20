@@ -12,7 +12,10 @@ import { QueueStore } from '../persistence/QueueStore';
 export type { EpisodeGateReason, PausedProgressSink } from './PauseController';
 
 export type DownloadNotificationType =
-  'showDownloadStarted' | 'showDownloadFinished' | 'showDownloadError' | 'showSystemMessages';
+  | 'showDownloadStarted'
+  | 'showDownloadFinished'
+  | 'showDownloadError'
+  | 'showSystemMessages';
 
 export interface DownloadQueueProcessorOptions {
   queueStore: QueueStore;

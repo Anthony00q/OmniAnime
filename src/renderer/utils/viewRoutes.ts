@@ -1,10 +1,26 @@
 // Traducción única entre los ids de vista del rail y las rutas del router.
 
 export type ViewId =
-  'home' | 'schedule' | 'catalog' | 'details' | 'downloader' | 'history' | 'scanner' | 'player' | 'settings';
+  | 'home'
+  | 'schedule'
+  | 'catalog'
+  | 'details'
+  | 'downloader'
+  | 'history'
+  | 'scanner'
+  | 'player'
+  | 'settings';
 
 export type ViewPath =
-  '/' | '/schedule' | '/catalog' | '/anime' | '/downloader' | '/history' | '/scanner' | '/library' | '/settings';
+  | '/'
+  | '/schedule'
+  | '/catalog'
+  | '/anime'
+  | '/downloader'
+  | '/history'
+  | '/scanner'
+  | '/library'
+  | '/settings';
 
 const VIEW_PATHS: Record<ViewId, ViewPath> = {
   home: '/',

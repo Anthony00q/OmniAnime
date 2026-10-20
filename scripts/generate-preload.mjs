@@ -6,10 +6,11 @@ import { existsSync, promises as fsp } from 'node:fs';
 import { createRequire } from 'node:module';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { format } from 'vite-plus/fmt';
+import { formatOptions } from './format-options.mjs';
 
 const require = createRequire(import.meta.url);
 const ts = require('typescript');
-const prettier = require('prettier');
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const SRC_DIR = path.join(ROOT, 'src');
@@ -130,8 +131,8 @@ for (const { entry, out } of ENTRIES) {
   const modules = await collectModules(entry);
   const srcFile = path.join(SRC_DIR, toPosix(out));
   const distFile = path.join(ROOT, 'dist', toPosix(out));
-  const config = (await prettier.resolveConfig(srcFile)) ?? {};
-  const text = await prettier.format(emitBundle(entry, modules), { ...config, filepath: srcFile });
+  const { code: text, errors } = await format(srcFile, emitBundle(entry, modules), formatOptions);
+  if (errors.length > 0) fail('no se pudo formatear el preload generado');
   outputs.push({ srcFile, distFile, text });
 }
 

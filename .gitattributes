@@ -1,8 +1,9 @@
-# Forzar LF en checkout: Prettier exige LF y el autocrlf de Windows
+# Forzar LF en checkout: Oxfmt exige LF y el autocrlf de Windows
 # rompia `format:check` en CI con ficheros convertidos a CRLF.
 * text=auto
 *.ts text eol=lf
 *.tsx text eol=lf
+*.mts text eol=lf
 *.js text eol=lf
 *.mjs text eol=lf
 *.cjs text eol=lf

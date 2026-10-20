@@ -148,7 +148,10 @@ function sendOSNotification(
   title: string,
   body: string,
   eventType:
-    'showDownloadStarted' | 'showDownloadFinished' | 'showDownloadError' | 'showSystemMessages' = 'showSystemMessages',
+    | 'showDownloadStarted'
+    | 'showDownloadFinished'
+    | 'showDownloadError'
+    | 'showSystemMessages' = 'showSystemMessages',
 ) {
   try {
     const settings = SettingsManager.get();

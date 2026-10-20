@@ -132,7 +132,7 @@ export function SettingsView({
 
   const accentHex = useMemo(
     () => getAccentHex((settings as AppSettings | null)?.accentColor || '#e8a33d'),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // oxlint-disable-next-line react/exhaustive-deps
     [settings?.accentColor],
   );
   const accentInputValid = useMemo(() => {
@@ -229,7 +229,7 @@ export function SettingsView({
       document.documentElement.style.setProperty('--color-primary', hex);
       accentRafRef.current = null;
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // oxlint-disable-next-line react/exhaustive-deps
   }, [settings?.accentColor, isActive, activeTab]);
 
   const handleSave = async () => {

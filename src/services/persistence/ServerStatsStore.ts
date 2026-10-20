@@ -7,7 +7,12 @@ import { DIRECT_CONCURRENCY_LEVELS, isConcurrencyLevel, stepDownLevel } from '..
 // allowlist actual se mantiene: este store solo recoge evidencia.
 
 export type ServerFailureCategory =
-  'cancelled' | 'skipped' | 'timeout-start' | 'tool-error' | 'invalid-output' | 'attempt-failed';
+  | 'cancelled'
+  | 'skipped'
+  | 'timeout-start'
+  | 'tool-error'
+  | 'invalid-output'
+  | 'attempt-failed';
 
 const FAILURE_CATEGORIES: ReadonlySet<string> = new Set([
   'cancelled',

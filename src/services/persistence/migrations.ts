@@ -28,7 +28,8 @@ export interface MigrateOptions extends LegacyImportOptions {
 export function getMetaVersion(db: Database.Database): number {
   try {
     const row = db.prepare('SELECT value FROM _meta WHERE key = ?').get('schema_version') as
-      { value?: string } | undefined;
+      | { value?: string }
+      | undefined;
     if (row?.value) {
       return parseInt(row.value, 10) || 0;
     }

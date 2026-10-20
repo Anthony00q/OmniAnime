@@ -65,10 +65,10 @@ jobs:
       - name: Descargar herramientas (ffmpeg)
         run: node scripts/setup-tools.mjs
 
-      - name: Lint (ESLint)
+      - name: Lint (Oxlint)
         run: npm run lint
 
-      - name: Formato (Prettier)
+      - name: Formato (Oxfmt)
         run: npm run format:check
 
       - name: Compilar y empaquetar instalador (sin publicar)

@@ -160,14 +160,16 @@ No, el máximo es 3.
 ### Requisitos
 
 ```bash
-node >=22.13.10
-npm  >=10.0.0
+node ^22.18.0 || ^24.11.0 || >=26.0.0
+npm  11.21.0
 ```
 
 ### Correr en desarrollo
 
 ```bash
-npm install
+npm install --global npm@11.21.0  # solo si tu versión de npm es distinta
+npm ci
+npx --no-install install-electron
 npm run setup:tools   # descarga ffmpeg verificado a tools/win/
 npm run dev:vite      # terminal 1: servidor de interfaz
 npm start             # terminal 2: motor Electron
@@ -182,7 +184,7 @@ hace falta ninguna variable de entorno.
 ### Build
 
 ```bash
-npm install
+npm ci
 npm run setup:tools  # obligatorio en clon fresco (los .exe no van en git)
 npm run build          # compila renderer + main + typecheck
 npm run build:win      # verifica herramientas y genera el instalador en release/
@@ -190,12 +192,34 @@ npm run build:win      # verifica herramientas y genera el instalador en release
 
 Antes de publicar: `npm run lint` y `npm run format:check`.
 
+### Herramientas de desarrollo
+
+Vite+ se instala localmente con npm; no requiere una CLI global. Los scripts de interfaz usan
+Vite, el lint usa Oxlint y el formato usa Oxfmt. La configuración está en `vite.config.mts`;
+`scripts/format-options.mjs` comparte el estilo con el generador de preloads.
+
+Se mantienen TypeScript y `ts-node` para el motor Electron. El plugin de React conserva únicamente
+las reglas `prop-types` y `no-deprecated`, todavía sin equivalente nativo en Oxlint; ESLint satisface
+el requisito de ese plugin, pero no se ejecuta como linter independiente.
+
+`npm run build` sigue siendo la compilación completa. Ejecutar `vp build` directamente solo
+compila la interfaz y no sustituye la generación de preloads ni la compilación del motor.
+
+`packageManager` fija npm 11.21.0, también en CI y release. La política `allowScripts` bloquea
+únicamente los scripts de instalación de `better-sqlite3`, que ya distribuye el binario de Windows x64.
+Así `npm ci` evita la recompilación innecesaria causada por un
+[fallo conocido de npm](https://github.com/npm/cli/issues/9837), sin desactivar los demás scripts
+ni cambiar la versión de SQLite. No hace falta usar `--ignore-scripts`.
+
+Electron se prepara explícitamente con `npx --no-install install-electron` para el desarrollo local;
+el empaquetador obtiene su propio ejecutable al construir el instalador.
+
 ### Stack tecnológico
 
 | Capa | Tecnología |
 |------|------------|
 | **App** | [Electron](https://www.electronjs.org/) |
-| **Interfaz** | [React](https://react.dev/) + [Vite](https://vite.dev/) + [Tailwind CSS](https://tailwindcss.com/) + TypeScript |
+| **Interfaz** | [React](https://react.dev/) + [Vite+](https://viteplus.dev/) + [Tailwind CSS](https://tailwindcss.com/) + TypeScript |
 | **Estado** | [Jotai](https://jotai.org/) + [TanStack Query](https://tanstack.com/query) |
 | **UI** | [Radix UI](https://www.radix-ui.com/) + [lucide-react](https://lucide.dev/) + [sonner](https://sonner.emilkowal.ski/) |
 | **Datos / Descargas** | `better-sqlite3` + `axios` + `cheerio` + `megajs` |

@@ -134,7 +134,8 @@ export class EpisodeFileService {
     const folderName = path.basename(animePath);
     const folderLang = (await this.options.assetService.readFolderLibraryMetaAsync(animePath))?.lang;
     const style = (overrideStyle || this.options.getSettings().namingStyle || 'descriptive') as
-      'minimal' | 'descriptive';
+      | 'minimal'
+      | 'descriptive';
     const occupiedNames = new Set(allDirents.map((d) => d.name.toLowerCase()));
     const futureNames = new Set<string>();
     const items: RenamePreviewItem[] = [];
