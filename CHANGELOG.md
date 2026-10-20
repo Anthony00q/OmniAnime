@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.2.5] - 2026-10-20
+
+### Catálogo
+
+- Los episodios con numeración decimal conservan su número en las fichas, miniaturas y horarios, sin confundirse con episodios enteros.
+- El filtro y la selección por rango de episodios admiten números decimales.
+- La aplicación recuerda durante la sesión la última ficha abierta de cada proveedor y la recupera al volver a esa fuente.
+
+### Descargas
+
+- Los episodios con numeración decimal se pueden descargar, pausar, reanudar y cancelar sin perder su número ni su progreso guardado.
+- Los avisos de inicio, finalización y error de descarga dejan de repetir notificaciones y sonidos para un mismo aviso.
+
+### Librería
+
+- El reconocimiento y el renombrado de archivos conservan la numeración decimal de los episodios.
+
 ## [1.2.4] - 2026-10-18
 
 ### Descargas
