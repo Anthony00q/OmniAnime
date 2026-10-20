@@ -5,10 +5,19 @@ import { DEFAULT_ACCENT_HSL, isThemeValue } from '@/renderer/utils/color';
 
 export type ToastPosition = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'top-center' | 'bottom-center';
 
-export const selectedAnimeAtom = atom<string | null>(null);
 export const selectedLibraryFolderAtom = atom<string | null>(null);
 
 export const activeProviderAtom = atom<string>('animeav1');
+export const selectedAnimeByProviderAtom = atom<Record<string, string | null>>({});
+export const selectedAnimeAtom = atom(
+  (get) => get(selectedAnimeByProviderAtom)[get(activeProviderAtom)] ?? null,
+  (get, set, slug: string | null) => {
+    const provider = get(activeProviderAtom);
+    const previous = get(selectedAnimeByProviderAtom);
+    if ((previous[provider] ?? null) === slug) return;
+    set(selectedAnimeByProviderAtom, { ...previous, [provider]: slug });
+  },
+);
 
 const EMPTY_OUTPUT_DIRS: string[] = [];
 

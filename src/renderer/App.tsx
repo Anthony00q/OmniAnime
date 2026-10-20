@@ -1,5 +1,5 @@
 import { createContext, memo, lazy, Suspense, useCallback, useContext, useEffect, useMemo } from 'react';
-import { useAtom, useAtomValue, useSetAtom } from 'jotai';
+import { useAtom } from 'jotai';
 import { useQueryClient } from '@tanstack/react-query';
 import { Outlet, useLocation } from '@tanstack/react-router';
 import { Toaster } from 'sonner';
@@ -17,14 +17,7 @@ import { useKeyboardNavigation } from './hooks/useKeyboardNavigation';
 import { useAppNavigation } from './hooks/useAppNavigation';
 import { useDownloadNotifications, useToastReconcile } from './hooks/useDownloadNotifications';
 import { viewIdFromPath } from './utils/viewRoutes';
-import {
-  selectedAnimeAtom,
-  activeProviderAtom,
-  settingsAtom,
-  toastPositionAtom,
-  showCloseConfirmAtom,
-  providerChangedCounterAtom,
-} from './store/atoms';
+import { activeProviderAtom, settingsAtom, toastPositionAtom, showCloseConfirmAtom } from './store/atoms';
 
 const MAX_VISIBLE_TOASTS = 3;
 const TOAST_DURATION_MS = 4000;
@@ -77,8 +70,6 @@ export default function App() {
   const [toastPosition, setToastPosition] = useAtom(toastPositionAtom);
   const [showCloseConfirm, setShowCloseConfirm] = useAtom(showCloseConfirmAtom);
   const [settings, setSettings] = useAtom(settingsAtom);
-  const setSelectedAnime = useSetAtom(selectedAnimeAtom);
-  const providerChangedCounter = useAtomValue(providerChangedCounterAtom);
   const { data: loadedActiveProvider } = useActiveProvider();
   const { setView: navigateView, openAnime, detailsBack } = useAppNavigation();
 
@@ -128,12 +119,6 @@ export default function App() {
       window.api.removeListener('confirm-app-close', handleConfirmClose);
     };
   }, [setShowCloseConfirm]);
-
-  useEffect(() => {
-    if (providerChangedCounter > 0) {
-      setSelectedAnime(null);
-    }
-  }, [providerChangedCounter, setSelectedAnime]);
 
   useEffect(() => {
     const handleMouseDown = (e: MouseEvent) => {

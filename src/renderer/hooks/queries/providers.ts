@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
-import { useAtom, useSetAtom } from 'jotai';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useSetAtom, useStore } from 'jotai';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { activeProviderAtom, providerChangedCounterAtom } from '@/renderer/store/atoms';
 import { unwrap } from './unwrap';
@@ -33,14 +33,32 @@ export function useProvidersList(): ProviderOption[] {
 // Optimista: pinta el indicador en el mismo frame y persiste en background.
 export function useProviderSwitch(): (id: string) => void {
   const queryClient = useQueryClient();
-  const [activeProvider, setActiveProvider] = useAtom(activeProviderAtom);
+  const store = useStore();
+  const setActiveProvider = useSetAtom(activeProviderAtom);
   const setProviderChanged = useSetAtom(providerChangedCounterAtom);
+  const pendingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const requestVersion = useRef(0);
+
+  useEffect(
+    () => () => {
+      if (pendingTimer.current !== null) clearTimeout(pendingTimer.current);
+      requestVersion.current++;
+    },
+    [],
+  );
 
   return useCallback(
     (id: string) => {
-      if (id === activeProvider) return;
-      const prev = activeProvider;
+      if (pendingTimer.current !== null) {
+        clearTimeout(pendingTimer.current);
+        pendingTimer.current = null;
+      }
+      if (id === store.get(activeProviderAtom)) return;
       const startFlow = () => {
+        pendingTimer.current = null;
+        const prev = store.get(activeProviderAtom);
+        if (id === prev) return;
+        const version = ++requestVersion.current;
         setActiveProvider(id);
         queryClient.setQueryData(['active-provider'], id);
         setProviderChanged((c) => c + 1);
@@ -54,7 +72,7 @@ export function useProviderSwitch(): (id: string) => void {
         void queryClient.cancelQueries({ queryKey: ['filters'] }).catch(() => {});
         void queryClient.cancelQueries({ queryKey: ['details'] }).catch(() => {});
         const rollbackIfStale = () => {
-          if (queryClient.getQueryData(['active-provider']) !== id) return;
+          if (requestVersion.current !== version || queryClient.getQueryData(['active-provider']) !== id) return;
           setActiveProvider(prev);
           queryClient.setQueryData(['active-provider'], prev);
         };
@@ -65,8 +83,8 @@ export function useProviderSwitch(): (id: string) => void {
       };
       // El flujo arranca tras pintar el deslizamiento del indicador (160ms): el render
       // pesado de las listas no debe comerse ese frame. Timer simple, corre aunque la ventana esté oculta.
-      setTimeout(startFlow, 250);
+      pendingTimer.current = setTimeout(startFlow, 250);
     },
-    [activeProvider, queryClient, setActiveProvider, setProviderChanged],
+    [store, queryClient, setActiveProvider, setProviderChanged],
   );
 }

@@ -1,8 +1,8 @@
-import { useCallback } from 'react';
-import { useRouter } from '@tanstack/react-router';
-import { useSetAtom } from 'jotai';
+import { useCallback, useLayoutEffect, useRef } from 'react';
+import { useLocation, useRouter } from '@tanstack/react-router';
+import { useAtomValue, useSetAtom } from 'jotai';
 import { useAtomCallback } from 'jotai/utils';
-import { pendingCatalogGenreAtom, selectedAnimeAtom } from '@/renderer/store/atoms';
+import { activeProviderAtom, pendingCatalogGenreAtom, selectedAnimeAtom } from '@/renderer/store/atoms';
 import { viewIdFromPath, viewPath, type ViewId } from '@/renderer/utils/viewRoutes';
 import type { HistoryState } from '@tanstack/history';
 
@@ -12,6 +12,7 @@ declare module '@tanstack/history' {
   interface HistoryState {
     from?: ViewId;
     focusSearch?: boolean;
+    detailsProvider?: string;
   }
 }
 
@@ -21,6 +22,7 @@ export interface AppNavigation {
   navigateToCatalog: (genre?: string) => void;
   setSettingsTab: (tab: string) => void;
   detailsBack: () => void;
+  restoreDetails: () => void;
 }
 
 // Única vía de navegación del renderer. El origen de "Volver" viaja en el estado
@@ -28,6 +30,7 @@ export interface AppNavigation {
 export function useAppNavigation(): AppNavigation {
   const router = useRouter();
   const getSelectedAnime = useAtomCallback((get) => get(selectedAnimeAtom));
+  const getActiveProvider = useAtomCallback((get) => get(activeProviderAtom));
   const setSelectedAnime = useSetAtom(selectedAnimeAtom);
   const setPendingGenre = useSetAtom(pendingCatalogGenreAtom);
 
@@ -48,26 +51,46 @@ export function useAppNavigation(): AppNavigation {
       const from = fromFor('details', 'settings');
       if (view === 'details') {
         const slug = getSelectedAnime();
+        const state = { from, detailsProvider: getActiveProvider() };
         if (slug) {
-          void router.navigate({ to: '/anime/$id', params: { id: slug }, state: { from } });
+          void router.navigate({ to: '/anime/$id', params: { id: slug }, state });
         } else {
-          void router.navigate({ to: '/anime', state: { from } });
+          void router.navigate({ to: '/anime', state });
         }
         return;
       }
       const path = viewPath(view);
       if (path) void router.navigate({ to: path, state: { from } });
     },
-    [fromFor, getSelectedAnime, router],
+    [fromFor, getSelectedAnime, getActiveProvider, router],
   );
 
   const openAnime = useCallback(
     (slug: string) => {
       setSelectedAnime(slug);
-      void router.navigate({ to: '/anime/$id', params: { id: slug }, state: { from: fromFor('details') } });
+      void router.navigate({
+        to: '/anime/$id',
+        params: { id: slug },
+        state: { from: fromFor('details'), detailsProvider: getActiveProvider() },
+      });
     },
-    [fromFor, router, setSelectedAnime],
+    [fromFor, getActiveProvider, router, setSelectedAnime],
   );
+
+  const restoreDetails = useCallback(() => {
+    const location = router.state.location;
+    if (viewIdFromPath(location.pathname) !== 'details') return;
+    const provider = getActiveProvider();
+    const slug = getSelectedAnime();
+    const pathname = slug ? `/anime/${encodeURIComponent(slug)}` : '/anime';
+    if (location.pathname.replace(/\/+$/, '') === pathname && location.state.detailsProvider === provider) return;
+    const state = { from: location.state.from, detailsProvider: provider };
+    if (slug) {
+      void router.navigate({ to: '/anime/$id', params: { id: slug }, state, replace: true });
+    } else {
+      void router.navigate({ to: '/anime', state, replace: true });
+    }
+  }, [getActiveProvider, getSelectedAnime, router]);
 
   const navigateToCatalog = useCallback(
     (genre?: string) => {
@@ -97,5 +120,26 @@ export function useAppNavigation(): AppNavigation {
     void router.navigate({ to: path ?? '/' });
   }, [router, setSelectedAnime, stateOf]);
 
-  return { setView, openAnime, navigateToCatalog, setSettingsTab, detailsBack };
+  return { setView, openAnime, navigateToCatalog, setSettingsTab, detailsBack, restoreDetails };
+}
+
+export function useAnimeDetailsRoute(slug: string): { provider: string; slug: string } {
+  const provider = useAtomValue(activeProviderAtom);
+  const initialProvider = useRef(provider);
+  const location = useLocation({ select: (location) => location });
+  const routeProvider = location.state.detailsProvider ?? initialProvider.current;
+  const pathname = slug ? `/anime/${encodeURIComponent(slug)}` : '/anime';
+  const isCurrentRoute = location.pathname.replace(/\/+$/, '') === pathname;
+  const setSelectedAnime = useSetAtom(selectedAnimeAtom);
+  const { restoreDetails } = useAppNavigation();
+
+  useLayoutEffect(() => {
+    if (!isCurrentRoute) return;
+    if (slug && routeProvider === provider) {
+      setSelectedAnime(slug);
+    }
+    restoreDetails();
+  }, [provider, routeProvider, slug, isCurrentRoute, restoreDetails, setSelectedAnime]);
+
+  return { provider, slug: isCurrentRoute && routeProvider === provider ? slug : '' };
 }
