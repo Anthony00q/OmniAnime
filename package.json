@@ -49,13 +49,11 @@
     "@tailwindcss/vite": "^4.3.3",
     "@tanstack/router-plugin": "^1.168.46",
     "@types/better-sqlite3": "^9.6.0",
-    "@types/cheerio": "^0.22.35",
-    "@types/megajs": "^0.14.7",
     "@types/node": "^22.20.5",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
-    "electron": "^44.7.2",
+    "electron": "^44.9.0",
     "electron-builder": "^26.15.3",
     "eslint": "^9.39.5",
     "eslint-config-prettier": "^10.1.8",
@@ -68,8 +66,7 @@
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.71.2",
-    "vite": "^8.3.4",
-    "ws": "^8.22.0"
+    "vite": "^8.3.4"
   },
   "dependencies": {
     "@fontsource/archivo-narrow": "^5.3.0",
@@ -83,7 +80,7 @@
     "@radix-ui/react-select": "^2.4.1",
     "@radix-ui/react-switch": "^1.4.1",
     "@radix-ui/react-tooltip": "^1.4.1",
-    "@tanstack/react-query": "^5.104.2",
+    "@tanstack/react-query": "^5.104.4",
     "@tanstack/react-router": "^1.170.44",
     "animejs": "^4.5.0",
     "anitomy": "^0.0.35",
