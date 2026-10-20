@@ -44,7 +44,7 @@ import { StorageService } from '../services/library/StorageService';
 import { terminateChildProcessTree } from '../utils/processUtils';
 import type { DownloadAnimeDetails } from '../types/anime';
 import type { HistoryWriteRecord } from '../types/history';
-import type { QueueItem } from '../types/queue';
+import type { DownloadStartedEvent, EpisodeDownloadedEvent, QueueItem } from '../types/queue';
 import { buildCanonicalEpisodeFileName as buildCanonicalEpisodeFileNameUtil } from '../utils/episodeUtils';
 import { normalizeFolderNameSource } from '../utils/downloads/folderNaming';
 import {
@@ -626,24 +626,33 @@ const queueProcessor = new DownloadQueueProcessor({
   sendQueueUpdate,
   recordServerOutcome: (outcome) => serverStatsStore.recordOutcome(outcome),
   recordEpisodeOutcome: (summary) => serverStatsStore.recordEpisode(summary),
-  sendDownloadStarted: (item) => {
+  sendDownloadStarted: (item, eventId) => {
     const mainWindow = getMainWindow();
     if (mainWindow) {
       mainWindow.webContents.send('download-started', {
+        eventId,
+        queueId: item.id,
+        slug: item.slug,
+        providerId: item.providerId,
+        lang: item.lang || 'SUB',
         animeTitle: item.animeTitle,
         episodesCount: item.episodes.length,
-      });
+      } satisfies DownloadStartedEvent);
     }
   },
-  sendEpisodeDownloaded: (item, episode, success) => {
+  sendEpisodeDownloaded: (item, episode, success, eventId) => {
     const mainWindow = getMainWindow();
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('episode-downloaded', {
+        eventId,
+        queueId: item.id,
+        providerId: item.providerId,
+        lang: item.lang || 'SUB',
         slug: item.slug,
         episode,
         success,
         animeTitle: item.animeTitle,
-      });
+      } satisfies EpisodeDownloadedEvent);
     }
   },
   sendNotification: sendOSNotification,

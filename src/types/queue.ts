@@ -39,6 +39,17 @@ export interface ProviderDownloadLink extends DownloadLink {
   sourceEpisode: number;
 }
 
+export interface DownloadStartedEvent extends Pick<QueueItem, 'slug' | 'animeTitle' | 'providerId' | 'lang'> {
+  eventId: string;
+  queueId: string;
+  episodesCount: number;
+}
+
+export interface EpisodeDownloadedEvent extends Omit<DownloadStartedEvent, 'episodesCount'> {
+  episode: number;
+  success: boolean;
+}
+
 export interface QueueDatabaseRow {
   id: string;
   slug: string;

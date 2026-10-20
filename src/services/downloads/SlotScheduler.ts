@@ -34,7 +34,7 @@ export interface SlotRunOptions {
   scheduleQueueUpdate: () => void;
   scheduleQueueProgress?: (item: QueueItem, activeEps?: ActiveEpisodeProgress[]) => void;
   sendQueueUpdate: () => void;
-  sendEpisodeDownloaded: (item: QueueItem, episode: number, success: boolean) => void;
+  sendEpisodeDownloaded: (item: QueueItem, episode: number, success: boolean, eventId: string) => void;
   sendNotification: (title: string, body: string, type: DownloadNotificationType) => void;
   shouldNotifyCompletion: () => boolean;
 }
@@ -413,7 +413,12 @@ export class SlotScheduler {
     });
     if (!notifyResult) return;
     if (status !== 'cancelled') {
-      this.options.sendEpisodeDownloaded(item, episode, status === 'ok');
+      this.options.sendEpisodeDownloaded(
+        item,
+        episode,
+        status === 'ok',
+        `${item.id}:${this.runEpoch.get(item.id) ?? 0}:episode:${episode}:${status}`,
+      );
     }
     if (status === 'fail') {
       this.options.sendNotification(

@@ -44,8 +44,8 @@ export interface DownloadQueueProcessorOptions {
   // Observabilidad por servidor (opcional, best-effort, sin URLs).
   recordServerOutcome?: (outcome: ServerAttemptOutcome) => void;
   recordEpisodeOutcome?: (summary: EpisodeDownloadSummary) => void;
-  sendDownloadStarted: (item: QueueItem) => void;
-  sendEpisodeDownloaded: (item: QueueItem, episode: number, success: boolean) => void;
+  sendDownloadStarted: (item: QueueItem, eventId: string) => void;
+  sendEpisodeDownloaded: (item: QueueItem, episode: number, success: boolean, eventId: string) => void;
   sendNotification: (title: string, body: string, type: DownloadNotificationType) => void;
   isMainWindowFocused: () => boolean;
   shouldNotifyCompletion: () => boolean;
@@ -197,7 +197,7 @@ export class DownloadQueueProcessor {
         if (!this.options.isMainWindowFocused()) {
           this.options.sendNotification('Descarga Iniciada', `Iniciando: ${item.animeTitle}`, 'showDownloadStarted');
         }
-        this.options.sendDownloadStarted(item);
+        this.options.sendDownloadStarted(item, `${item.id}:${runEpoch}:started`);
         this.options.sendLog(
           `Iniciando "${item.animeTitle}" — ${this.formatEpisodeCountLabel(episodesToProcess.length, true)} en cola`,
           'info',
