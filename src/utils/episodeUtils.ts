@@ -1,10 +1,17 @@
 import * as path from 'path';
 import anitomy from 'anitomy';
+import { parseEpisodeNumber } from './episodeNumber';
 
 export type EpisodeNamingStyle = 'minimal' | 'descriptive';
 
 export function extractEpisodeNumberFromVideoFileName(fileName: string): number | null {
   const base = path.parse(fileName).name;
+
+  const explicit =
+    base.match(
+      /(?:\bep[_\s.-]*|\bepisodio[\s._-]*|\bepisode[\s._-]*|\bcap(?:itulo)?[\s._-]*|\bs\d{1,2}[\s._-]*e)(\d+(?:\.\d+)?)(?=$|[_\s-])/i,
+    ) || base.match(/^(\d+(?:\.\d+)?)$/);
+  if (explicit) return parseEpisodeNumber(explicit[1]);
 
   try {
     const parsed = anitomy.parse(fileName);

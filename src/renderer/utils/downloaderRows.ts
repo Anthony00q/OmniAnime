@@ -1,3 +1,5 @@
+import { isEpisodeNumber, parseEpisodeNumber } from '@/utils/episodeNumber';
+
 // Constructor puro de filas del Detalle por episodio (Downloader).
 // Une activos + pausados (incluidas claves huérfanas del snapshot tras reanudar)
 // + cancelados + en cola/completados/fallidos cuando se pasa la lista completa
@@ -29,8 +31,8 @@ export interface DetailRowsInput {
   itemStatus?: unknown;
 }
 
-function intList(value: unknown): number[] {
-  return Array.isArray(value) ? value.filter((n): n is number => Number.isInteger(n)) : [];
+function episodeList(value: unknown): number[] {
+  return Array.isArray(value) ? value.filter(isEpisodeNumber) : [];
 }
 
 function clamp01(value: unknown): number {
@@ -46,12 +48,12 @@ export function buildDetailRows(input: DetailRowsInput): DetailRow[] {
     (e): e is DetailActiveEp => !!e && typeof e.episode === 'number',
   );
   const activeSet = new Set(active.map((e) => e.episode));
-  const paused = intList(input.pausedEps);
-  const cancelled = intList(input.cancelledEps);
-  const completed = new Set(intList(input.completedEps));
-  const failed = new Set(intList(input.failedEps));
+  const paused = episodeList(input.pausedEps);
+  const cancelled = episodeList(input.cancelledEps);
+  const completed = new Set(episodeList(input.completedEps));
+  const failed = new Set(episodeList(input.failedEps));
   const hasFullList = Array.isArray(input.episodes);
-  const episodesList = intList(input.episodes);
+  const episodesList = episodeList(input.episodes);
   const itemStatus = typeof input.itemStatus === 'string' ? input.itemStatus : undefined;
   // Huérfano congelado: en pausa/pending se muestra como pausado para no
   // parecer en vuelo; descargando mantiene 'active' hasta el próximo delta.
@@ -83,7 +85,7 @@ export function buildDetailRows(input: DetailRowsInput): DetailRow[] {
   const pausedUnion = new Set<number>(paused);
   const orphans: number[] = [];
   for (const key of Object.keys(snapshot)) {
-    if (!/^\d+$/.test(key)) continue;
+    if (parseEpisodeNumber(key) === null) continue;
     const ep = Number(key);
     if (activeSet.has(ep) || completed.has(ep) || failed.has(ep) || cancelled.includes(ep)) continue;
     if (!pausedUnion.has(ep)) orphans.push(ep);

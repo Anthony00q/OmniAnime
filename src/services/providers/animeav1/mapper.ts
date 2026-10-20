@@ -9,6 +9,7 @@ import {
 import { unescapeSvelteString } from '../../../utils/scrapeParse';
 import { normalizeMegaUrl, normalizeMp4UploadUrl } from '../../../utils/serverUtils';
 import { av1CoverUrl } from './client';
+import { parseEpisodeNumber } from '../../../utils/episodeNumber';
 import {
   parseAv1Timestamp,
   type Av1HomeRaw,
@@ -24,8 +25,8 @@ import {
 // cae al tile numérico vía `onError`: sin peticiones de prueba ni sets.
 export function buildAv1EpisodeThumbUrl(mediaId: unknown, episode: unknown): string {
   const id = String(mediaId || '').trim();
-  const num = typeof episode === 'number' ? episode : parseInt(String(episode || ''), 10);
-  if (!/^\d+$/.test(id) || id === '0' || !Number.isInteger(num) || num <= 0 || num > 5000) return '';
+  const num = parseEpisodeNumber(episode);
+  if (!/^\d+$/.test(id) || id === '0' || num === null || num <= 0 || num > 5000) return '';
   return `https://cdn.animeav1.com/screenshots/${id}/${num}.jpg`;
 }
 

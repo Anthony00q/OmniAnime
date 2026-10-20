@@ -1,4 +1,5 @@
 import { dialog } from 'electron';
+import { isEpisodeNumber } from '../../../utils/episodeNumber';
 import { handleIpc } from '../ipcGuard';
 import axios from 'axios';
 import { ok, fail } from '../../../types/api';
@@ -231,7 +232,7 @@ export function registerCatalogHandlers({
         !/^[a-z0-9][a-z0-9-]{0,199}$/i.test(payload.slug) ||
         !Array.isArray(payload.episodes) ||
         payload.episodes.length > 2 ||
-        !payload.episodes.every((ep) => Number.isSafeInteger(ep) && ep > 0 && ep <= 100_000) ||
+        !payload.episodes.every((ep) => isEpisodeNumber(ep) && ep > 0 && ep <= 100_000) ||
         typeof payload.requestId !== 'string' ||
         !/^[a-z0-9-]{1,100}$/i.test(payload.requestId)
       ) {

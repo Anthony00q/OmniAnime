@@ -148,7 +148,11 @@ export function collectJkSchedule($: ReturnType<typeof cheerio.load>): ScheduleD
             $card.attr('title') || $card.find('img').attr('title') || $card.find('h3').first().text() || '',
           ).trim() || slug.replace(/-/g, ' ');
         const poster = jkImageUrl(String($card.find('img').first().attr('src') || ''));
-        const epMatch = $card.find('.last span').first().text().match(/(\d+)/);
+        const epMatch = $card
+          .find('.last span')
+          .first()
+          .text()
+          .match(/(\d+(?:\.\d+)?)/);
         const note = $card.find('.last time').first().text().replace(/\s+/g, ' ').trim() || null;
         const finished =
           $card.find('strong.finished_anime').length > 0 || $card.find('.dropmenu').attr('data-status') === 'finished';

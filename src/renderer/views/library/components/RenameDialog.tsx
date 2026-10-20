@@ -38,9 +38,9 @@ export function RenameDialog({
   const activeStyle =
     currentFiles.length === 0
       ? null
-      : currentFiles.every((item) => /^EP_\d+(?:_DUB)?\.[^.]+$/i.test(item.from))
+      : currentFiles.every((item) => /^EP_\d+(?:\.\d+)?(?:_DUB)?\.[^.]+$/i.test(item.from))
         ? 'minimal'
-        : currentFiles.every((item) => /^.+ EP_\d+(?:_DUB)?\.[^.]+$/i.test(item.from))
+        : currentFiles.every((item) => /^.+ EP_\d+(?:\.\d+)?(?:_DUB)?\.[^.]+$/i.test(item.from))
           ? 'descriptive'
           : null;
 

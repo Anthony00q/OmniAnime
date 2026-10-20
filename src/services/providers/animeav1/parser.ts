@@ -5,12 +5,12 @@ import {
   extractBalancedObjects,
   splitTopLevelItems,
   unescapeSvelteString,
-  safeParseInt,
   matchAtTopLevel,
 } from '../../../utils/scrapeParse';
 import type { ScopedLogger } from '../../logging/AppLogger';
 import { errorDetailForLog } from '../../../utils/logging/redactLog';
 import { av1CoverUrl } from './client';
+import { parseEpisodeNumber } from '../../../utils/episodeNumber';
 
 const REGEX = {
   LATEST_EPISODES: /latestEpisodes:\[(.*?)\],latestMedia/,
@@ -20,12 +20,12 @@ const REGEX = {
   YEARS: /years:\[(\d+),(\d+)\]/,
   CAT_DICT: /id=(\d+);[a-zA-Z]+\.name="([^"]+)"/g,
   MEDIA_ID: /media:\{id:(\d+)/,
-  EP_NUMBER: /number:(\d+)/,
+  EP_NUMBER: /number:(\d+(?:\.\d+)?)(?=[,}\]\s])/,
   SLUG: /slug:"([^"]+)"/,
   TITLE: /title:"((?:[^"\\]|\\.)*)"/,
   PUBLISHED_AT: /publishedAt:"([^"]+)"/,
   DETAILS_ID: /id:(\d+),categoryId/,
-  DETAILS_EP_NUM: /number:(\d+)/g,
+  DETAILS_EP_NUM: /number:(\d+(?:\.\d+)?)(?=[,}\]\s])/g,
   DETAILS_RELATIONS: /relations:\[(.*?)\]/,
   REL_TYPE: /type:(\d+)/,
   GENRES_BLOCK: /genres:\[(.*?)\]/,
@@ -160,7 +160,7 @@ function isEpisodeHeading(text: string): boolean {
   return /^episodio\s*\d+/i.test(text.trim());
 }
 
-function resolveDetailsTitle($: cheerio.Root, mediaTitle: string, slug: string): string {
+function resolveDetailsTitle($: ReturnType<typeof cheerio.load>, mediaTitle: string, slug: string): string {
   if (mediaTitle) return mediaTitle;
   const h1 =
     $('article h1').first().text().trim() || $('main h1').first().text().trim() || $('h1').first().text().trim();
@@ -171,7 +171,7 @@ function resolveDetailsTitle($: cheerio.Root, mediaTitle: string, slug: string):
   return humanizeSlug(slug) || slug;
 }
 
-function resolveDetailsDescription($: cheerio.Root, mediaSynopsis: string): string {
+function resolveDetailsDescription($: ReturnType<typeof cheerio.load>, mediaSynopsis: string): string {
   if (mediaSynopsis) return mediaSynopsis;
   return (
     $('.entry p').first().text().trim() ||
@@ -354,8 +354,8 @@ export function parseAv1Details(html: string, slug: string): Av1DetailsRaw {
   const episodes: number[] = [];
   const epContent = extractArrayInner(html, 'episodes');
   if (epContent !== null) {
-    for (const numToken of epContent.match(/number:(\d+)/g) || []) {
-      const num = safeParseInt(numToken.split(':')[1]);
+    for (const numToken of epContent.match(REGEX.DETAILS_EP_NUM) || []) {
+      const num = parseEpisodeNumber(numToken.split(':')[1]);
       if (num !== null && num > 0) episodes.push(num);
     }
   } else {
@@ -364,8 +364,8 @@ export function parseAv1Details(html: string, slug: string): Av1DetailsRaw {
       const epMatches = epBlockMatch[1].match(REGEX.DETAILS_EP_NUM);
       if (epMatches) {
         epMatches.forEach((m: string) => {
-          const num = parseInt(m.split(':')[1]);
-          if (!isNaN(num)) episodes.push(num);
+          const num = parseEpisodeNumber(m.split(':')[1]);
+          if (num !== null && num > 0) episodes.push(num);
         });
       }
     }

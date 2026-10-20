@@ -6,6 +6,7 @@ interface CustomNumberInputProps {
   value: string;
   onChange: (v: string) => void;
   min?: number;
+  maximumFractionDigits?: number;
   icon?: ReactNode;
   ariaLabel?: string;
   disabled?: boolean;
@@ -17,6 +18,7 @@ export function CustomNumberInput({
   value,
   onChange,
   min = 0,
+  maximumFractionDigits = 0,
   icon,
   ariaLabel,
   disabled = false,
@@ -33,7 +35,7 @@ export function CustomNumberInput({
       minValue={min}
       isDisabled={disabled}
       aria-label={ariaLabel}
-      formatOptions={{ useGrouping: false, maximumFractionDigits: 0 }}
+      formatOptions={{ useGrouping: false, maximumFractionDigits }}
       className={`w-full ${className}`}
     >
       <Group className="group relative flex items-center w-full">

@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import type { QueueItem } from '../../types/queue';
+import { parseEpisodeNumber } from '../../utils/episodeNumber';
 
 // Único dueño de la persistencia del % congelado al pausar.
 // Vive en su propio JSON bajo userData: no toca DatabaseManager, QueueStore
@@ -44,7 +45,7 @@ function sanitizeItem(raw: unknown): PausedItemSnapshot | null {
   const episodes: Record<string, PausedEpisodeSnapshot> = {};
   for (const [key, entry] of Object.entries(episodesRaw as Record<string, unknown>)) {
     if (Object.keys(episodes).length >= MAX_EPISODES_PER_ITEM) break;
-    if (!/^\d+$/.test(key)) continue;
+    if (parseEpisodeNumber(key) === null) continue;
     if (!entry || typeof entry !== 'object') continue;
     const progress = clampProgress((entry as Record<string, unknown>).progress);
     if (progress === null) continue;

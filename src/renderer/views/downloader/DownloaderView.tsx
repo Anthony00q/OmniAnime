@@ -1,4 +1,5 @@
 import { Trash2, Download } from 'lucide-react';
+import { isEpisodeNumber } from '@/utils/episodeNumber';
 import { useCallback, useEffect, useState, useMemo, useRef } from 'react';
 import { toast } from 'sonner';
 
@@ -133,7 +134,7 @@ export function DownloaderView({ onSelectAnime, activeProvider, isActive = true 
       const id = key.slice(0, sep);
       const ep = Number(key.slice(sep + 1));
       const item = byId.get(id);
-      if (!Number.isInteger(ep)) {
+      if (!isEpisodeNumber(ep)) {
         clearSkipEpPending(key);
         continue;
       }

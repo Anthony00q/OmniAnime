@@ -4,7 +4,7 @@ export function buildLibraryEpisodeTitle(name: unknown, episodeNumber: number | 
     .replace(/[_-]+/g, ' ')
     .replace(/\s{2,}/g, ' ')
     .trim();
-  const numberOnly = title.match(/^(?:(?:ep(?:isodio|isode)?|cap(?:itulo|ítulo)?)\.?\s*)?(\d+)$/i);
+  const numberOnly = title.match(/^(?:(?:ep(?:isodio|isode)?|cap(?:itulo|ítulo)?)\.?\s*)?(\d+(?:\.\d+)?)$/i);
   if (!title || (numberOnly && episodeNumber != null && Number(numberOnly[1]) === episodeNumber)) {
     return `Episodio ${episodeNumber ?? '?'}`;
   }

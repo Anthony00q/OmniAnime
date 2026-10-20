@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import { isEpisodeNumber } from '../../utils/episodeNumber';
 import type { DownloadAnimeDetails } from '../../types/anime';
 import type { FolderLibraryMeta } from '../../types/library';
 import type { DownloadProvider, QueueItem } from '../../types/queue';
@@ -102,7 +103,7 @@ export class QueueEnqueueService {
     const dirs = outputDirs || [defaultOutputDir];
     const resolvedIndex = outputDirIndex ?? 0;
     const baseDir = dirs[resolvedIndex] || defaultOutputDir;
-    if (!Array.isArray(episodes) || !episodes.every((ep) => Number.isSafeInteger(ep) && ep > 0)) return false;
+    if (!Array.isArray(episodes) || !episodes.every((ep) => isEpisodeNumber(ep) && ep > 0)) return false;
     const normalizedEpisodes = Array.from(new Set(episodes)).sort((a, b) => a - b);
     if (normalizedEpisodes.length === 0) return false;
 

@@ -1,4 +1,5 @@
 import type { HistoryWriteRecord } from '../../types/history';
+import { isEpisodeNumber, parseEpisodeNumber } from '../../utils/episodeNumber';
 import type { QueueItem } from '../../types/queue';
 import type { EpisodeDownloadAttemptService } from './EpisodeDownloadAttemptService';
 import { noopScopedLogger, type ScopedLogger } from '../logging/AppLogger';
@@ -286,7 +287,7 @@ export class PauseController {
     const prev = item.pausedEpSnapshot;
     if (prev && typeof prev === 'object') {
       for (const [key, entry] of Object.entries(prev)) {
-        if (!/^\d+$/.test(key) || doneSet.has(Number(key))) continue;
+        if (parseEpisodeNumber(key) === null || doneSet.has(Number(key))) continue;
         if (!entry || typeof entry !== 'object') continue;
         const progress =
           typeof entry.progress === 'number' && Number.isFinite(entry.progress)
@@ -475,7 +476,7 @@ export class PauseController {
 
   async cancelEpisode(id: string, episode: number): Promise<boolean> {
     const item = this.deps.queueStore.items.find((queueItem) => queueItem.id === id);
-    if (!item || !Number.isInteger(episode)) return false;
+    if (!item || !isEpisodeNumber(episode)) return false;
     if (!(item.episodes || []).includes(episode)) return false;
     if (item.completedEps.includes(episode)) return false;
     if (item.status === 'done' || item.status === 'failed' || item.status === 'cancelled') return false;
@@ -522,7 +523,7 @@ export class PauseController {
 
   pauseEpisode(id: string, episode: number): boolean {
     const item = this.deps.queueStore.items.find((queueItem) => queueItem.id === id);
-    if (!item || !Number.isInteger(episode)) return false;
+    if (!item || !isEpisodeNumber(episode)) return false;
     if (!(item.episodes || []).includes(episode)) return false;
     if (item.completedEps.includes(episode) || item.failedEps.includes(episode)) return false;
     if (item.status !== 'downloading' && item.status !== 'pending') return false;
@@ -558,7 +559,7 @@ export class PauseController {
 
   resumeEpisode(id: string, episode: number): boolean {
     const item = this.deps.queueStore.items.find((queueItem) => queueItem.id === id);
-    if (!item || !Number.isInteger(episode)) return false;
+    if (!item || !isEpisodeNumber(episode)) return false;
     ensureEpArrays(item);
     const pausedSet = this.pausedEpisodesByItem.get(id);
     const inMemory = pausedSet?.has(episode) || false;

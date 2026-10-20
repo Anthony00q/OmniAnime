@@ -7,9 +7,10 @@ import { SettingsManager } from '../../../services/persistence/SettingsManager';
 import type { QueueEnqueuePayload } from '../../../services/downloads/QueueEnqueueService';
 import { isPathSafeForDestructiveOperation } from '../../../utils/security/pathSecurity';
 import type { IpcRegistryDependencies } from '../../IpcRegistry';
+import { isEpisodeNumber } from '../../../utils/episodeNumber';
 
 function isValidEpisodeParam(episode: unknown): episode is number {
-  return typeof episode === 'number' && Number.isInteger(episode) && episode > 0 && episode < 100000;
+  return isEpisodeNumber(episode) && episode > 0 && episode < 100000;
 }
 
 export function registerQueueHandlers(dependencies: IpcRegistryDependencies): void {

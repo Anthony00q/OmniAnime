@@ -38,6 +38,7 @@ import anilistIcon2x from '@assets/provider-icons/anilist-64.png';
 import { outputDirsAtom, pendingCatalogGenreAtom, activeProviderAtom } from '@/renderer/store/atoms';
 import { useAppNavigation } from '@/renderer/hooks/useAppNavigation';
 import { parseEpisodeFilter } from '@/renderer/utils/episodeFilter';
+import { parseEpisodeNumber } from '@/utils/episodeNumber';
 import { useEpisodeView } from '@/renderer/utils/episodeView';
 import { EpisodeViewMenu } from '@/renderer/views/library/components/EpisodeViewMenu';
 import { normalizeSeasonLabel } from '@/renderer/utils/seasonLabel';
@@ -342,7 +343,7 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
   const allEpNums = useMemo(() => allEpisodes.map((e: { num: number }) => e.num), [allEpisodes]);
 
   // Orden + filtro solo-vista: la selección (por número) no se ve afectada.
-  const episodeFilter = useMemo(() => parseEpisodeFilter(epQuery), [epQuery]);
+  const episodeFilter = useMemo(() => parseEpisodeFilter(epQuery, allEpNums), [epQuery, allEpNums]);
   const visibleEpisodes = useMemo<VisibleEpisode[]>(() => {
     const list = episodeFilter ? allEpisodes.filter((e) => episodeFilter.has(e.num)) : [...allEpisodes];
     list.sort((a, b) => (sortDir === 'asc' ? a.num - b.num : b.num - a.num));
@@ -560,9 +561,9 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
   const selectNone = useCallback(() => setSelected(new Set<number>()), []);
 
   const applyRange = useCallback(() => {
-    const from = parseInt(rangeFrom, 10);
-    const to = parseInt(rangeTo, 10);
-    if (isNaN(from) || isNaN(to) || from > to) {
+    const from = parseEpisodeNumber(rangeFrom);
+    const to = parseEpisodeNumber(rangeTo);
+    if (from === null || to === null || from > to) {
       toast.error('Rango inválido');
       return;
     }
@@ -1231,8 +1232,9 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
             <label className="text-xs font-semibold text-muted-foreground block mb-1">Desde</label>
             <CustomNumberInput
               value={rangeFrom}
+              maximumFractionDigits={20}
               onChange={(v) => setRangeFrom(v)}
-              min={1}
+              min={0}
               ariaLabel="Desde"
               inputClassName="bg-secondary/50 py-2 pl-3 text-sm"
             />
@@ -1242,8 +1244,9 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
             <label className="text-xs font-semibold text-muted-foreground block mb-1">Hasta</label>
             <CustomNumberInput
               value={rangeTo}
+              maximumFractionDigits={20}
               onChange={(v) => setRangeTo(v)}
-              min={1}
+              min={0}
               ariaLabel="Hasta"
               inputClassName="bg-secondary/50 py-2 pl-3 text-sm"
             />

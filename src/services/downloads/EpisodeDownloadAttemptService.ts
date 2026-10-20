@@ -1,4 +1,5 @@
 ﻿import * as fs from 'fs';
+import { isEpisodeNumber } from '../../utils/episodeNumber';
 import * as fsp from 'fs/promises';
 import * as path from 'path';
 import type { DownloadService, FfmpegRuntimeTools } from './DownloadService';
@@ -241,7 +242,7 @@ export class EpisodeDownloadAttemptService {
 
   // Limpieza por EP finalizado (ok/fail/cancel): su época ya no se necesita.
   forgetEpisode(itemId: string, episode: number): void {
-    if (!itemId || !Number.isInteger(episode)) return;
+    if (!itemId || !isEpisodeNumber(episode)) return;
     this.skipEpochs.delete(this.attemptKey(itemId, episode));
     this.pruneTelemetries((telemetry) => telemetry.itemId === itemId && telemetry.episode === episode);
     this.pruneControllers((controller) => controller.itemId === itemId && controller.episode === episode);

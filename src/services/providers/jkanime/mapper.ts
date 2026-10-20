@@ -5,6 +5,7 @@ import { normalizeAllowedImageUrl } from '../../../utils/security/networkSecurit
 import type { ScopedLogger } from '../../logging/AppLogger';
 import { jkImageUrl } from './client';
 import type { JkDetailsRaw, JkFilterBucket, JkFilterOption, JkSearchRaw } from './parser';
+import { parseEpisodeNumber } from '../../../utils/episodeNumber';
 
 // Mes español (1-12) → estación, mismo corte que AnimeAV1 por fecha.
 const JK_MONTH_SEASON: Array<{ names: string[]; season: string }> = [
@@ -57,8 +58,8 @@ export function collectJkEpisodeThumbs(items: unknown, posterUrl: unknown): Reco
   if (!Array.isArray(items)) return out;
   for (const item of items) {
     if (!item || typeof item !== 'object') continue;
-    const num = (item as { number?: unknown }).number;
-    if (typeof num !== 'number' || !Number.isInteger(num) || num <= 0 || num > 5000) continue;
+    const num = parseEpisodeNumber((item as { number?: unknown }).number);
+    if (num === null || num <= 0 || num > 5000) continue;
     if (out[num] !== undefined) continue;
     const url = buildJkEpisodeThumbUrl(posterUrl, (item as { image?: unknown }).image);
     if (url) out[num] = url;

@@ -1,4 +1,5 @@
 import * as path from 'path';
+import { isEpisodeNumber } from '../../utils/episodeNumber';
 import type { QueueDatabaseRow, QueueDatabaseWriteRow, QueueItem } from '../../types/queue';
 import { normalizeDisplayAnimeTitle } from '../../utils/titleUtils';
 
@@ -295,8 +296,8 @@ export class QueueStore {
             progress: 0,
             completedEps,
             failedEps,
-            pausedEps: pausedEps.filter((n: unknown) => Number.isInteger(n)),
-            cancelledEps: cancelledEps.filter((n: unknown) => Number.isInteger(n)),
+            pausedEps: pausedEps.filter(isEpisodeNumber),
+            cancelledEps: cancelledEps.filter(isEpisodeNumber),
             targetPath: row.target_path || '',
             outputDirIndex: row.output_dir_index ?? 0,
             currentServer: undefined,

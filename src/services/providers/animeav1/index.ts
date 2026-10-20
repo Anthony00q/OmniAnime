@@ -10,6 +10,7 @@ import {
   EpisodeAvailability,
 } from '../../../types/anime';
 import { AnimeProvider, type ProviderModule } from '../AnimeProvider';
+import { isEpisodeNumber } from '../../../utils/episodeNumber';
 import { noopScopedLogger, type ScopedLogger } from '../../logging/AppLogger';
 import type { OutboundClient } from '../../../utils/security/outboundPolicy';
 import {
@@ -229,12 +230,7 @@ export class AnimeAV1Provider implements AnimeProvider {
   }
 
   async getLinks(slug: string, ep: number, lang: 'SUB' | 'DUB' = 'SUB', signal?: AbortSignal): Promise<DownloadLink[]> {
-    if (
-      !/^[a-z0-9][a-z0-9-]*$/i.test(slug) ||
-      !Number.isSafeInteger(ep) ||
-      ep < 1 ||
-      (lang !== 'SUB' && lang !== 'DUB')
-    )
+    if (!/^[a-z0-9][a-z0-9-]*$/i.test(slug) || !isEpisodeNumber(ep) || ep <= 0 || (lang !== 'SUB' && lang !== 'DUB'))
       return [];
     try {
       const r = await this.client.get(av1EpisodeUrl(slug, ep), { signal });
@@ -251,7 +247,7 @@ export class AnimeAV1Provider implements AnimeProvider {
     lang: AnimeLanguage,
     signal?: AbortSignal,
   ): Promise<EpisodeAvailability> {
-    if (signal?.aborted || !/^[a-z0-9][a-z0-9-]*$/i.test(slug) || !Number.isSafeInteger(ep) || ep < 1) return 'error';
+    if (signal?.aborted || !/^[a-z0-9][a-z0-9-]*$/i.test(slug) || !isEpisodeNumber(ep) || ep <= 0) return 'error';
     const key = `${slug}|${ep}|${lang}`;
     const cached = this.availabilityCache.get(key);
     if (cached && cached.expires > Date.now()) return cached.state;

@@ -1,4 +1,5 @@
 import type { ProviderDownloadLink, QueueItem } from '../../types/queue';
+import { isEpisodeNumber } from '../../utils/episodeNumber';
 import type { EpisodeAttemptProgress, EpisodeDownloadAttemptService } from './EpisodeDownloadAttemptService';
 import { DownloadCoordinator, type FallbackAttemptPort } from './DownloadCoordinator';
 import type { EpisodeDownloadSummary, ServerAttemptOutcome } from '../persistence/ServerStatsStore';
@@ -124,7 +125,7 @@ export class RetryPolicy {
   skip(id: string, episode?: number): boolean {
     const item = this.deps.queueStore.items.find((queueItem) => queueItem.id === id);
     if (episode !== undefined) {
-      if (!Number.isInteger(episode)) return false;
+      if (!isEpisodeNumber(episode)) return false;
       if (id !== this.deps.pause.activeItemId) return false;
       // Alcance EP: nunca caer al skip global (abortaría todos los EPs/items).
       try {

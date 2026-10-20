@@ -2,6 +2,7 @@ import * as fsp from 'fs/promises';
 import * as path from 'path';
 import { createHash, randomUUID } from 'crypto';
 import { buildCanonicalEpisodeFileName, extractEpisodeNumberFromVideoFileName } from '../../utils/episodeUtils';
+import { isEpisodeNumber } from '../../utils/episodeNumber';
 import { errorDetailForLog, safeErrorMessage } from '../../utils/logging/redactLog';
 import type { LibraryAssetService } from './LibraryAssetService';
 
@@ -146,7 +147,7 @@ export class EpisodeFileService {
       const currentName = dirent.name;
       const ext = path.extname(currentName);
       const episodeNumber = extractEpisodeNumberFromVideoFileName(currentName);
-      if (episodeNumber === null || !Number.isSafeInteger(episodeNumber) || episodeNumber < 0) {
+      if (!isEpisodeNumber(episodeNumber)) {
         skippedNoNumber += 1;
         items.push({
           from: currentName,

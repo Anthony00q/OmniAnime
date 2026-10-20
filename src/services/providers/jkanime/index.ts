@@ -1,4 +1,5 @@
 import * as cheerio from 'cheerio';
+import { isEpisodeNumber, parseEpisodeNumber } from '../../../utils/episodeNumber';
 import {
   AnimeSearchResult,
   AnimeDetails,
@@ -225,8 +226,8 @@ export class JkAnimeProvider implements AnimeProvider {
   // Thumbs JK de un rango; nunca lanza ({} ante fallo o entrada inválida).
   async getEpisodeThumbs(slug: string, fromEp: number, toEp: number): Promise<Record<number, string>> {
     try {
-      let from = Math.floor(Number(fromEp));
-      let to = Math.floor(Number(toEp));
+      let from = Number(fromEp);
+      let to = Number(toEp);
       if (!Number.isFinite(from) || !Number.isFinite(to)) return {};
       if (from < 1) from = 1;
       if (to < from) return {};
@@ -263,7 +264,7 @@ export class JkAnimeProvider implements AnimeProvider {
       const ranged: Record<number, string> = {};
       for (const [key, url] of Object.entries(out)) {
         const num = Number(key);
-        if (Number.isInteger(num) && num >= from && num <= to) ranged[num] = url;
+        if (isEpisodeNumber(num) && num >= from && num <= to) ranged[num] = url;
       }
       return ranged;
     } catch {
@@ -278,6 +279,14 @@ export class JkAnimeProvider implements AnimeProvider {
 
       let epsCount: number | null = null;
       const episodeThumbnails: Record<number, string> = {};
+      const publishedEpisodes = new Set<number>();
+      const collectEpisodes = (items: unknown): void => {
+        if (!Array.isArray(items)) return;
+        for (const item of items) {
+          const num = parseEpisodeNumber(item?.number);
+          if (num !== null && num > 0 && num <= 5000) publishedEpisodes.add(num);
+        }
+      };
       try {
         const cookieStr = setCookieHeader(res.headers);
         const { token, animeId, img } = parseJkAjaxSeed($);
@@ -303,6 +312,7 @@ export class JkAnimeProvider implements AnimeProvider {
             epsCount = total;
           }
           Object.assign(episodeThumbnails, collectJkEpisodeThumbs(aj.data?.data, img));
+          collectEpisodes(aj.data?.data);
           // Siembra best-effort: nunca rompe la ficha.
           try {
             this.seedEpisodeAjaxContext(slug, {
@@ -333,6 +343,7 @@ export class JkAnimeProvider implements AnimeProvider {
                     pageParams.toString(),
                     ajaxConfig(),
                   );
+                  collectEpisodes(rp.data?.data);
                   return collectJkEpisodeThumbs(rp.data?.data, img);
                 } catch {
                   return {};
@@ -347,7 +358,12 @@ export class JkAnimeProvider implements AnimeProvider {
       }
 
       // Sin dato real del AJAX no se inventa cantidad: [] = desconocido.
-      const episodes = epsCount !== null ? Array.from({ length: epsCount }, (_, i) => i + 1) : [];
+      const extraCount = [...publishedEpisodes].filter((ep) => !Number.isInteger(ep)).length;
+      const episodes =
+        epsCount !== null && publishedEpisodes.size < epsCount
+          ? [...new Set([...Array.from({ length: epsCount - extraCount }, (_, i) => i + 1), ...publishedEpisodes])]
+          : [...publishedEpisodes];
+      episodes.sort((a, b) => a - b);
       return mapJkDetails(parseJkDetails($, slug), slug, { episodes, episodeThumbnails });
     } catch (error) {
       this.logger.error(`jkanime details: ${errorDetailForLog(error)}`);
@@ -356,7 +372,7 @@ export class JkAnimeProvider implements AnimeProvider {
   }
 
   async getLinks(slug: string, episode: number, lang = 'SUB', signal?: AbortSignal): Promise<DownloadLink[]> {
-    if (lang !== 'SUB') return [];
+    if (lang !== 'SUB' || !isEpisodeNumber(episode) || episode <= 0) return [];
     try {
       const { data } = await this.http.get(jkEpisodePageUrl(slug, episode), { signal });
       const servers = extractJkServersArray(data, slug, episode, this.logger);
