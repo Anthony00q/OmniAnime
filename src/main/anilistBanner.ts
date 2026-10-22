@@ -9,6 +9,7 @@ import {
 import { normalizeAllowedImageUrl } from '../utils/security/networkSecurity';
 import { outboundPost, type OutboundPolicy } from '../utils/security/outboundPolicy';
 import { USER_AGENT } from '../utils/windowUtils';
+import type { AniLinkRecord } from '../services/persistence/AniLinkRows';
 
 // Fuente del banner persistido en la carpeta del anime.
 export const ANILIST_REQUEST_TIMEOUT_MS = 8000;
@@ -82,7 +83,14 @@ async function resolveOnce(input: AniListBannerInput, post: AniListPost): Promis
   try {
     const trackingPost = async (body: unknown): Promise<unknown> => {
       try {
-        return await post(body);
+        const response = await post(body);
+        if (!response || typeof response !== 'object' || !('data' in response) || !response.data) {
+          throw new Error('anilist-transient');
+        }
+        if ('errors' in response && Array.isArray(response.errors) && response.errors.length > 0) {
+          throw new Error('anilist-transient');
+        }
+        return response;
       } catch (error) {
         const status = (error as { response?: { status?: unknown } } | null | undefined)?.response?.status;
         if (status === 429) sawRateLimit = true;
@@ -128,7 +136,10 @@ export async function resolveAniListBannerResult(
   if (entry !== hit) {
     cache.set(key, entry);
     entry.value = entry.value.then((settled) => {
-      entry.expiresAt = Date.now() + (settled.result ? ANILIST_RESULT_TTL_MS : ANILIST_MISS_TTL_MS);
+      entry.expiresAt =
+        settled.failureKind === 'network' || settled.failureKind === 'ratelimit'
+          ? 0
+          : Date.now() + (settled.result ? ANILIST_RESULT_TTL_MS : ANILIST_MISS_TTL_MS);
       return settled;
     });
   }
@@ -141,12 +152,14 @@ export async function resolveAniListBannerResult(
 export function aniListBannerResponse(
   resolved: AniListBannerResult | null,
   failureKind: AniListFailureKind | null,
+  link?: Pick<AniLinkRecord, 'anilistId' | 'source'> | null,
 ): {
   anilistId?: number;
   banner?: string | null;
   studio?: string | null;
   titles?: AniListBannerResult['titles'];
   transientFailure?: boolean;
+  linkSource?: AniLinkRecord['source'] | null;
 } | null {
   if (resolved) {
     return {
@@ -154,7 +167,18 @@ export function aniListBannerResponse(
       banner: resolved.banner,
       studio: resolved.studio ?? null,
       titles: resolved.titles,
+      ...(link ? { linkSource: link.anilistId === resolved.anilistId ? link.source : null } : {}),
     };
   }
-  return failureKind && failureKind !== 'nomatch' ? { transientFailure: true } : null;
+  const transientFailure = !!failureKind && failureKind !== 'nomatch';
+  if (link) {
+    return {
+      anilistId: link.anilistId,
+      banner: null,
+      studio: null,
+      linkSource: link.source,
+      ...(transientFailure ? { transientFailure: true } : {}),
+    };
+  }
+  return transientFailure ? { transientFailure: true } : null;
 }

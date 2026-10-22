@@ -459,15 +459,20 @@ async function fetchAniListSearch(search: string, post: AniListPost): Promise<An
   >;
   const page = (envelope?.data as Record<string, unknown> | undefined)?.Page as Record<string, unknown> | undefined;
   const list = page?.media as unknown[] | undefined;
-  if (!Array.isArray(list)) return [];
+  if (!Array.isArray(list)) throw new Error('anilist-transient');
   return list.map(toCandidate).filter((c): c is AniListCandidate => c !== null);
 }
 
 // Variantes en paralelo con fallo aislado; dedupe por id con tope.
 export async function fetchAniListCandidates(searches: string[], post: AniListPost): Promise<AniListCandidate[]> {
-  const lists = await Promise.all(
-    (Array.isArray(searches) ? searches : []).map((s) => fetchAniListSearch(s, post).catch(() => [])),
+  const results = await Promise.allSettled(
+    (Array.isArray(searches) ? searches : []).map((s) => fetchAniListSearch(s, post)),
   );
+  const lists = results.filter((result) => result.status === 'fulfilled').map((result) => result.value);
+  if (results.length > 0 && lists.length === 0) {
+    const failure = results.find((result) => result.status === 'rejected');
+    throw failure?.reason ?? new Error('anilist-transient');
+  }
   const byId = new Map<number, AniListCandidate>();
   for (const list of lists) {
     for (let rank = 0; rank < list.length; rank += 1) {
@@ -525,9 +530,7 @@ function titlesFrom(candidate: AniListCandidate): AniListTitles {
 
 function bannerFrom(candidate: AniListCandidate | null): AniListBannerResult | null {
   if (!candidate || Number(candidate.id) <= 0) return null;
-  const result = bannerResultFrom(candidate);
-  if (!result.banner && !result.studio) return null;
-  return result;
+  return bannerResultFrom(candidate);
 }
 
 export function bannerResultFrom(candidate: AniListCandidate): AniListBannerResult {
@@ -550,8 +553,6 @@ export async function fetchAniListById(id: number, post: AniListPost): Promise<A
   }
 }
 
-// Orden: malId directo primero; fallback al matcher por título cuando no hay
-// malId, no se encuentra o viene sin banner ni estudio. Solo resultado o null; nunca lanza.
 export async function resolveAniListBanner(
   input: string | AniListBannerInput,
   post: AniListPost,

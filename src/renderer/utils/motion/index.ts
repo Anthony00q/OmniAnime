@@ -16,3 +16,4 @@ export { useEmphasis } from './useEmphasis';
 export { useHeroReveal } from './useHeroReveal';
 export { useEmptyBreathing } from './useEmptyBreathing';
 export { useReorderMotion } from './useReorderMotion';
+export { useBusySpin } from './useBusySpin';

@@ -11,6 +11,7 @@ export const MOTION_STAGGER_STEP = 28;
 export const MOTION_STAGGER_CAP = 360;
 export const MOTION_RISE_PX = 10;
 export const MOTION_FADE_MS = 150;
+export const LOADING_SPIN_DURATION = 1000;
 export const EMPTY_BREATH_DURATION = 2000;
 export const EMPTY_ICON_OPACITY = 0.62;
 export const EMPTY_ICON_MIN_OPACITY = 0.28;

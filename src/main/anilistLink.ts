@@ -46,8 +46,14 @@ export async function resolveAniListWithLink(
   if (hasKey && store) {
     const link = store.getAniLink(providerId, slug);
     if (link) {
-      const resolved = await resolveLinkHit(link.anilistId, providerId, slug, effectivePost);
-      if (resolved) return resolved;
+      try {
+        const resolved = await resolveLinkHit(link.anilistId, providerId, slug, effectivePost);
+        if (resolved) return resolved;
+      } catch (error) {
+        const status = (error as { response?: { status?: unknown } } | null)?.response?.status;
+        onFailure?.(status === 429 ? 'ratelimit' : 'network');
+        return null;
+      }
     }
   }
 
@@ -82,17 +88,36 @@ async function resolveLinkHit(
     hit && hit.expiresAt > now
       ? hit
       : {
-          value: fetchAniListById(anilistId, post).then((candidate) =>
-            candidate ? bannerResultFrom(candidate) : null,
-          ),
+          value: (async () => {
+            let failure: unknown;
+            const candidate = await fetchAniListById(anilistId, async (body) => {
+              try {
+                const response = await post(body);
+                const data = (response as { data?: { Media?: unknown } } | null)?.data;
+                if (!data || !Object.hasOwn(data, 'Media')) throw new Error('anilist-transient');
+                return response;
+              } catch (error) {
+                failure = error;
+                throw error;
+              }
+            });
+            if (failure) throw failure;
+            return candidate ? bannerResultFrom(candidate) : null;
+          })(),
           expiresAt: Number.POSITIVE_INFINITY,
         };
   if (entry !== hit) {
     cache.set(key, entry);
-    entry.value = entry.value.then((settled) => {
-      entry.expiresAt = settled ? Date.now() + LINK_RESULT_TTL_MS : 0;
-      return settled;
-    });
+    entry.value = entry.value.then(
+      (settled) => {
+        entry.expiresAt = settled ? Date.now() + LINK_RESULT_TTL_MS : 0;
+        return settled;
+      },
+      (error: unknown) => {
+        entry.expiresAt = 0;
+        throw error;
+      },
+    );
   }
   return entry.value;
 }

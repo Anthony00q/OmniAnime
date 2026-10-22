@@ -1,10 +1,21 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { unwrap } from './unwrap';
 
-// Banner y estudio de AniList: éxitos con caché larga (24h); fallos de
-// red/límite con caché corta (2 min) para reintentar pronto sin golpear la API.
 export const ANILIST_BANNER_STALE_MS = 24 * 60 * 60 * 1000;
 export const ANILIST_FAILURE_STALE_MS = 2 * 60 * 1000;
+
+export class AniListTransientError extends Error {
+  readonly anilistId: number | null;
+  readonly linkSource: 'auto' | 'manual' | null;
+
+  constructor(link?: { anilistId?: number; linkSource?: string | null } | null) {
+    super('anilist-transient');
+    this.name = 'AniListTransientError';
+    const id = link?.anilistId;
+    this.anilistId = typeof id === 'number' && Number.isSafeInteger(id) && id > 0 ? id : null;
+    this.linkSource = link?.linkSource === 'auto' || link?.linkSource === 'manual' ? link.linkSource : null;
+  }
+}
 
 export interface AniListMetaTitles {
   romaji: string | null;
@@ -100,11 +111,10 @@ export async function fetchAniListMeta(
     linkSource?: string | null;
   } | null;
   // El fallo transitorio va antes que el shape: sin él la query lanza y reintenta.
-  if (res?.transientFailure) throw new Error('anilist-transient');
-  if (!res || typeof res.anilistId !== 'number') return null;
+  if (res?.transientFailure) throw new AniListTransientError(res);
+  if (!res || !Number.isSafeInteger(res.anilistId) || res.anilistId <= 0) return null;
   const banner = typeof res.banner === 'string' && res.banner.trim() ? res.banner : null;
   const studio = typeof res.studio === 'string' && res.studio.trim() ? res.studio.trim() : null;
-  if (!banner && !studio) return null;
   return {
     anilistId: res.anilistId,
     banner,
@@ -135,6 +145,15 @@ export function getAniListBannerQuery(input: string | AniListBannerRequest | nul
   return { queryKey, queryFn: () => fetchAniListMeta(input) };
 }
 
+export function useRetryAniList(input: string | AniListBannerRequest | null | undefined) {
+  const queryClient = useQueryClient();
+  return async (): Promise<AniListMeta | null> => {
+    const query = getAniListBannerQuery(input);
+    await queryClient.cancelQueries({ queryKey: query.queryKey, exact: true });
+    return queryClient.fetchQuery({ ...query, retry: false, staleTime: 0 });
+  };
+}
+
 export function useAniListBanner(input: string | AniListBannerRequest | null | undefined, enabled = true) {
   const { queryKey, queryFn } = getAniListBannerQuery(input);
   const req = normalizeAniListRequest(input);
@@ -147,7 +166,7 @@ export function useAniListBanner(input: string | AniListBannerRequest | null | u
     gcTime: 7 * 24 * 60 * 60 * 1000,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
-    retry: 1,
+    retry: (count, error) => count < 1 && error instanceof AniListTransientError,
     retryDelay: ANILIST_FAILURE_STALE_MS,
   });
 }
@@ -164,7 +183,7 @@ export function useAniListStudio(input: string | AniListBannerRequest | null | u
     gcTime: 7 * 24 * 60 * 60 * 1000,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
-    retry: 1,
+    retry: (count, error) => count < 1 && error instanceof AniListTransientError,
     retryDelay: ANILIST_FAILURE_STALE_MS,
   });
 }
@@ -181,7 +200,7 @@ export function useAniListId(input: string | AniListBannerRequest | null | undef
     gcTime: 7 * 24 * 60 * 60 * 1000,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
-    retry: 1,
+    retry: (count, error) => count < 1 && error instanceof AniListTransientError,
     retryDelay: ANILIST_FAILURE_STALE_MS,
   });
 }
@@ -198,7 +217,7 @@ export function useAniListLinkSource(input: string | AniListBannerRequest | null
     gcTime: 7 * 24 * 60 * 60 * 1000,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
-    retry: 1,
+    retry: (count, error) => count < 1 && error instanceof AniListTransientError,
     retryDelay: ANILIST_FAILURE_STALE_MS,
   });
 }
@@ -218,6 +237,9 @@ export async function searchAniList(query: string): Promise<AniListSearchItem[]>
   const list = (await unwrap(await window.api.invoke('search-anilist', { query: text }), {
     toast: false,
   })) as unknown;
+  if (list && typeof list === 'object' && 'transientFailure' in list && list.transientFailure) {
+    throw new AniListTransientError();
+  }
   if (!Array.isArray(list)) return [];
   return (list as Array<Partial<AniListSearchItem> & { id: number }>).map((item) => ({
     id: item.id,
@@ -243,24 +265,51 @@ export function useAniListSearch(query: string, enabled = true) {
   });
 }
 
+export async function updateAniListLinkCache(
+  queryClient: QueryClient,
+  params: { providerId: string; slug: string },
+  anilistId: number | null,
+): Promise<void> {
+  const filter = {
+    queryKey: ['anilist-banner'],
+    predicate: (query: { queryKey: readonly unknown[] }) =>
+      query.queryKey.at(-2) === params.providerId && query.queryKey.at(-1) === params.slug,
+  };
+  await queryClient.cancelQueries(filter);
+  queryClient.setQueriesData<AniListMeta | null>(filter, () =>
+    anilistId === null
+      ? null
+      : {
+          anilistId,
+          banner: null,
+          studio: null,
+          titles: normalizeAniListTitles(null),
+          linkSource: 'manual',
+        },
+  );
+  void queryClient.invalidateQueries(filter);
+}
+
 export function useSetAniListLink() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (params: { providerId: string; slug: string; anilistId: number }) =>
-      unwrap(await window.api.invoke('set-anilist-link', params)),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['anilist-banner'] });
+    mutationFn: async (params: { providerId: string; slug: string; anilistId: number }) => {
+      const saved = unwrap(await window.api.invoke('set-anilist-link', params));
+      if (saved !== true) throw new Error('No se pudo guardar el vínculo de AniList');
+      return saved;
     },
+    onSuccess: (_, params) => updateAniListLinkCache(queryClient, params, params.anilistId),
   });
 }
 
 export function useRemoveAniListLink() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (params: { providerId: string; slug: string }) =>
-      unwrap(await window.api.invoke('remove-anilist-link', params)),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['anilist-banner'] });
+    mutationFn: async (params: { providerId: string; slug: string }) => {
+      const removed = unwrap(await window.api.invoke('remove-anilist-link', params));
+      if (removed !== true) throw new Error('No se pudo eliminar el vínculo de AniList');
+      return removed;
     },
+    onSuccess: (_, params) => updateAniListLinkCache(queryClient, params, null),
   });
 }

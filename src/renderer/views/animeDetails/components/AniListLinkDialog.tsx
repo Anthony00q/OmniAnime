@@ -24,18 +24,18 @@ export function AniListLinkDialog({
 }: AniListLinkDialogProps) {
   const [query, setQuery] = useState(defaultQuery);
   const [submitted, setSubmitted] = useState(defaultQuery);
-  const { data: results, isFetching, isError } = useAniListSearch(submitted, open);
+  const { data: results, isFetching, isError, refetch } = useAniListSearch(submitted, open);
   const setLink = useSetAniListLink();
   const removeLink = useRemoveAniListLink();
   const lastToastedQueryRef = useRef('');
 
   useEffect(() => {
     const text = submitted.trim();
-    if (!open || !text || !results || results.length > 0) return;
+    if (!open || !text || isError || isFetching || !results || results.length > 0) return;
     if (lastToastedQueryRef.current === text) return;
     lastToastedQueryRef.current = text;
     toast.error('No se encontraron resultados para: ' + text);
-  }, [open, results, submitted]);
+  }, [open, results, submitted, isError, isFetching]);
 
   const hasSearched = submitted.trim().length >= 3 && (results !== undefined || isError);
 
@@ -48,7 +48,9 @@ export function AniListLinkDialog({
 
   const executeSearch = () => {
     const text = query.trim();
-    if (text.length >= 3) setSubmitted(text);
+    if (text.length < 3) return;
+    if (text === submitted.trim()) void refetch();
+    else setSubmitted(text);
   };
 
   const handleSelect = async (anilistId: number) => {
@@ -143,7 +145,7 @@ export function AniListLinkDialog({
             <Loader2 className="w-8 h-8 animate-spin mb-4" aria-hidden="true" />
             <p className="text-sm">Buscando coincidencias...</p>
           </div>
-        ) : results && results.length > 0 ? (
+        ) : !isError && results && results.length > 0 ? (
           <div className="grid grid-cols-1 gap-2">
             {results.map((item) => (
               <button
@@ -191,7 +193,7 @@ export function AniListLinkDialog({
             <Link className="w-10 h-10 mb-4 opacity-20" aria-hidden="true" />
             <p className="text-sm text-center">
               {isError
-                ? 'No se pudo completar la búsqueda. Inténtalo de nuevo.'
+                ? 'No se pudo consultar AniList. Pulsa Buscar para reintentar.'
                 : hasSearched
                   ? `No hay entradas de AniList para «${submitted.trim()}». Prueba con otro nombre.`
                   : 'Realiza una búsqueda para encontrar la entrada de AniList correcta.'}

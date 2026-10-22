@@ -60,13 +60,11 @@ export function registerAniListHandlers({ writeGlobalLog, scopedLog, aniLinkStor
           if (kind !== 'nomatch') fileLog.warn(`banner no resuelto (${kind})`);
         },
       );
-      const response = aniListBannerResponse(resolved, failureKind);
-      if (!response || !resolved) return ok(response ?? null);
       const link = providerId && slug ? aniLinkStore.getAniLink(providerId, slug) : null;
-      return ok({ ...response, linkSource: link && link.anilistId === resolved.anilistId ? link.source : null });
+      return ok(aniListBannerResponse(resolved, failureKind, link));
     } catch (error) {
       writeGlobalLog(`AniList banner error: ${safeErrorMessage(error)}`);
-      return ok(null);
+      return ok({ transientFailure: true });
     }
   });
 
@@ -87,7 +85,7 @@ export function registerAniListHandlers({ writeGlobalLog, scopedLog, aniLinkStor
       );
     } catch (error) {
       writeGlobalLog(`AniList search error: ${safeErrorMessage(error)}`);
-      return ok([]);
+      return ok({ transientFailure: true });
     }
   });
 

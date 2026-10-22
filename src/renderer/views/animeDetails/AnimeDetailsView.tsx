@@ -24,6 +24,8 @@ import {
   ChevronDown,
   ChevronUp,
   Link2,
+  Loader2,
+  RefreshCcw,
 } from 'lucide-react';
 import { VList, type VListHandle } from 'virtua';
 import { useQueryClient } from '@tanstack/react-query';
@@ -43,7 +45,7 @@ import { useEpisodeView } from '@/renderer/utils/episodeView';
 import { EpisodeViewMenu } from '@/renderer/views/library/components/EpisodeViewMenu';
 import { normalizeSeasonLabel } from '@/renderer/utils/seasonLabel';
 import { HERO_DIM_MAX, HERO_DIM_DISTANCE, createHeroDimController } from '@/renderer/utils/heroDim';
-import { useHeroReveal, useReducedMotion } from '@/renderer/utils/motion';
+import { useHeroReveal, useReducedMotion, useBusySpin } from '@/renderer/utils/motion';
 import { buildExternalUrl, buildAniListUrl } from '@/utils/security/externalUrl';
 import {
   useAnimeDetails,
@@ -55,6 +57,8 @@ import {
   useAniListStudio,
   useAniListId,
   useAniListLinkSource,
+  AniListTransientError,
+  useRetryAniList,
 } from '@/renderer/hooks/useQueries';
 import { shouldShowOfflineEmpty } from '@/renderer/utils/offlineEmpty';
 import { EmptyState } from '@/renderer/components/ui/EmptyState';
@@ -104,19 +108,27 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
         }
       : null;
   const anilistEnabled = !isLoading && !!data;
+  const retryAnilist = useRetryAniList(anilistInput);
   const {
     data: anilistBanner,
     isFetching: isBannerFetching,
     isSuccess: isAnilistSuccess,
     isError: isAnilistError,
+    failureReason: anilistFailureReason,
+    error: anilistError,
   } = useAniListBanner(anilistInput, anilistEnabled);
   // Estudio con el mismo match que el banner; si no identifica, se oculta.
   const { data: anilistStudio } = useAniListStudio(anilistInput, anilistEnabled);
-  const { data: anilistId, isSuccess: isAnilistIdSuccess } = useAniListId(anilistInput, anilistEnabled);
+  const { data: anilistId } = useAniListId(anilistInput, anilistEnabled);
   const { data: anilistLinkSource } = useAniListLinkSource(anilistInput, anilistEnabled);
   const isAnilistSettled = isAnilistSuccess || isAnilistError;
   const [bannerFailed, setBannerFailed] = useState(false);
   const [bannerShown, setBannerShown] = useState(false);
+  const {
+    ref: anilistRetryIconRef,
+    busy: isAnilistRetrying,
+    run: runAnilistRetry,
+  } = useBusySpin(`${activeProviderId}\u0000${slug}`);
   const [scrollNode, setScrollNode] = useState<HTMLDivElement | null>(null);
   const [bannerFadeNode, setBannerFadeNode] = useState<HTMLDivElement | null>(null);
   const [heroNode, setHeroNode] = useState<HTMLDivElement | null>(null);
@@ -269,10 +281,47 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
 
   const providerName = activeProviderId === 'jkanime' ? 'JkAnime' : 'AnimeAV1';
 
-  const linkedAnilistId = isAnilistIdSuccess && typeof anilistId === 'number' ? anilistId : null;
+  const anilistFailure = anilistFailureReason ?? anilistError;
+  const knownLinkFailure = anilistFailure instanceof AniListTransientError ? anilistFailure : null;
+  const currentAnilistId = anilistId ?? knownLinkFailure?.anilistId ?? null;
+  const currentLinkSource = anilistLinkSource ?? knownLinkFailure?.linkSource ?? null;
+  const [knownAnilistLink, setKnownAnilistLink] = useState<{
+    provider: string;
+    slug: string;
+    id: number;
+    source: 'auto' | 'manual' | null;
+  } | null>(null);
+  useEffect(() => {
+    if (currentAnilistId !== null) {
+      setKnownAnilistLink((previous) =>
+        previous?.provider === activeProviderId &&
+        previous.slug === slug &&
+        previous.id === currentAnilistId &&
+        previous.source === currentLinkSource
+          ? previous
+          : { provider: activeProviderId, slug, id: currentAnilistId, source: currentLinkSource },
+      );
+    } else if (anilistId === null || (isAnilistSuccess && !isBannerFetching)) setKnownAnilistLink(null);
+  }, [activeProviderId, slug, anilistId, currentAnilistId, currentLinkSource, isAnilistSuccess, isBannerFetching]);
+  const rememberedAnilistLink =
+    anilistId !== null &&
+    (!isAnilistSuccess || isBannerFetching) &&
+    knownAnilistLink?.provider === activeProviderId &&
+    knownAnilistLink.slug === slug
+      ? knownAnilistLink
+      : null;
+  const linkedAnilistId = currentAnilistId ?? rememberedAnilistLink?.id ?? null;
+  const isAnilistUnavailable = !!anilistFailure;
+  const showAnilistRecovery = isAnilistUnavailable || isAnilistRetrying;
+  const canLinkAnilist = isAnilistSuccess && !isAnilistUnavailable && !isBannerFetching && !linkedAnilistId;
+  const isManualAnilistLink = (currentLinkSource ?? rememberedAnilistLink?.source) === 'manual';
   const anilistUrl = useMemo(() => buildAniListUrl(linkedAnilistId), [linkedAnilistId]);
   const [anilistIconFailed, setAnilistIconFailed] = useState(false);
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
+
+  useEffect(() => {
+    if (showAnilistRecovery) setLinkDialogOpen(false);
+  }, [showAnilistRecovery]);
 
   useEffect(() => {
     setAnilistIconFailed(false);
@@ -1089,17 +1138,21 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
                     <span className="text-sm font-medium text-foreground">{data.spokenLanguages.join(', ')}</span>
                   </li>
                 )}
-                {externalUrl &&
-                  (anilistUrl && !anilistIconFailed ? (
-                    <li className="flex items-center justify-between gap-3 border-b border-border/40 py-2.5 last:border-0">
+                {externalUrl && (
+                  <li className="border-b border-border/40 py-2.5 last:border-0">
+                    <div className="flex items-center justify-between gap-3">
                       <span className="text-[13px] text-muted-foreground">Fuente</span>
-                      <span className="inline-flex items-center gap-1.5">
+                      <span
+                        data-details-source-actions
+                        className="inline-flex min-w-0 flex-wrap items-center justify-end gap-4"
+                      >
                         <AppTooltip content={`Ver en ${providerName}`}>
                           <button
                             type="button"
                             onClick={handleOpenExternal}
+                            data-details-provider-action
                             aria-label={`Abrir ${data.title} en ${providerName} en el navegador`}
-                            className="inline-flex items-center justify-center rounded-md border border-transparent bg-secondary/50 p-1 text-foreground transition-colors hover:bg-secondary hover:border-border/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                            className={`relative inline-flex items-center justify-center gap-2 rounded-md border border-transparent bg-secondary/50 py-1 text-xs font-medium text-foreground transition-colors after:absolute after:-inset-2 hover:bg-secondary hover:border-border/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 ${anilistUrl ? 'px-1' : 'px-2'}`}
                           >
                             <img
                               src={activeProviderId === 'jkanime' ? jkanimeIcon : animeav1Icon}
@@ -1115,83 +1168,109 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
                                 (e.currentTarget as HTMLImageElement).style.display = 'none';
                               }}
                             />
+                            {!anilistUrl && <span>{providerName}</span>}
                           </button>
                         </AppTooltip>
-                        <span aria-hidden="true" className="text-xs text-muted-foreground">
-                          /
-                        </span>
-                        <AppTooltip content="Ver en AniList">
-                          <button
-                            type="button"
-                            onClick={handleOpenAniList}
-                            aria-label={`Abrir ${data.title} en AniList en el navegador`}
-                            className="inline-flex items-center justify-center rounded-md border border-transparent bg-secondary/50 p-1 text-foreground transition-colors hover:bg-secondary hover:border-border/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                        {anilistUrl && (
+                          <>
+                            <span aria-hidden="true" className="-mx-2 text-xs text-muted-foreground">
+                              /
+                            </span>
+                            <AppTooltip content="Ver en AniList">
+                              <button
+                                type="button"
+                                onClick={handleOpenAniList}
+                                aria-label={`Abrir ${data.title} en AniList en el navegador`}
+                                className="relative inline-flex min-h-5 box-content items-center justify-center rounded-md border border-transparent bg-secondary/50 p-1 text-foreground transition-colors after:absolute after:-inset-2 hover:bg-secondary hover:border-border/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                              >
+                                {anilistIconFailed ? (
+                                  <span className="px-1 text-xs font-medium">AniList</span>
+                                ) : (
+                                  <img
+                                    src={anilistIcon}
+                                    srcSet={`${anilistIcon2x} 2x`}
+                                    width={20}
+                                    height={20}
+                                    alt=""
+                                    aria-hidden="true"
+                                    draggable={false}
+                                    decoding="async"
+                                    className="h-5 w-5 rounded-[3px] object-contain"
+                                    onError={() => setAnilistIconFailed(true)}
+                                  />
+                                )}
+                              </button>
+                            </AppTooltip>
+                          </>
+                        )}
+                        {!showAnilistRecovery && !isBannerFetching && (anilistUrl || canLinkAnilist) && (
+                          <AppTooltip content={anilistUrl ? 'Cambiar vínculo de AniList' : 'Vincular con AniList'}>
+                            <button
+                              type="button"
+                              onClick={() => setLinkDialogOpen(true)}
+                              aria-label={anilistUrl ? 'Cambiar el vínculo de AniList' : 'Vincular con AniList'}
+                              className="relative inline-flex items-center justify-center rounded-md border border-transparent bg-secondary/50 p-1 text-foreground transition-colors after:absolute after:-inset-2 hover:bg-secondary hover:border-border/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                            >
+                              <Link2 className="h-5 w-5" aria-hidden="true" />
+                            </button>
+                          </AppTooltip>
+                        )}
+                        {showAnilistRecovery ? (
+                          <AppTooltip content="Reintentar consulta de AniList">
+                            <button
+                              type="button"
+                              aria-label="Reintentar consulta de AniList"
+                              disabled={isAnilistRetrying}
+                              aria-busy={isAnilistRetrying}
+                              onClick={() => {
+                                void runAnilistRetry(retryAnilist)
+                                  .then((result) => {
+                                    if (result === undefined || isActiveRef.current === false) return;
+                                    const options = { id: 'anilist-retry-result' };
+                                    if (result === null) {
+                                      toast.info('No se encontró una coincidencia en AniList.', options);
+                                    } else {
+                                      toast.success('Consulta de AniList completada.', options);
+                                    }
+                                  })
+                                  .catch(() => {
+                                    if (isActiveRef.current === false) return;
+                                    toast.error('No se pudo consultar AniList. Inténtalo más tarde.', {
+                                      id: 'anilist-retry-result',
+                                    });
+                                  });
+                              }}
+                              className="relative inline-flex items-center justify-center rounded-md border border-transparent bg-secondary/50 p-1 text-foreground transition-colors after:absolute after:-inset-2 hover:bg-secondary hover:border-border/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:cursor-default"
+                            >
+                              <RefreshCcw
+                                ref={anilistRetryIconRef}
+                                className="h-5 w-5 origin-center"
+                                aria-hidden="true"
+                              />
+                            </button>
+                          </AppTooltip>
+                        ) : isBannerFetching && !anilistUrl ? (
+                          <span
+                            role="status"
+                            aria-label="Consultando AniList"
+                            className="rounded-md border border-transparent p-1 text-muted-foreground"
                           >
-                            <img
-                              src={anilistIcon}
-                              srcSet={`${anilistIcon2x} 2x`}
-                              width={20}
-                              height={20}
-                              alt=""
-                              aria-hidden="true"
-                              draggable={false}
-                              decoding="async"
-                              className="h-5 w-5 rounded-[3px] object-contain"
-                              onError={() => setAnilistIconFailed(true)}
-                            />
-                          </button>
-                        </AppTooltip>
-                        <AppTooltip content="Cambiar vínculo de AniList">
-                          <button
-                            type="button"
-                            onClick={() => setLinkDialogOpen(true)}
-                            aria-label="Cambiar el vínculo de AniList"
-                            className="inline-flex items-center justify-center rounded-md border border-transparent bg-secondary/50 p-1 text-foreground transition-colors hover:bg-secondary hover:border-border/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
-                          >
-                            <Link2 className="h-5 w-5" aria-hidden="true" />
-                          </button>
-                        </AppTooltip>
+                            <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />
+                          </span>
+                        ) : null}
                       </span>
-                    </li>
-                  ) : (
-                    <li className="flex items-center justify-between gap-3 border-b border-border/40 py-2.5 last:border-0">
-                      <span className="text-[13px] text-muted-foreground">Fuente</span>
-                      <AppTooltip content={`Ver en ${providerName}`}>
-                        <button
-                          type="button"
-                          onClick={handleOpenExternal}
-                          aria-label={`Abrir ${data.title} en ${providerName} en el navegador`}
-                          className="inline-flex items-center gap-2 rounded-md border border-transparent bg-secondary/50 px-2 py-1 text-xs font-medium text-foreground transition-colors hover:bg-secondary hover:border-border/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
-                        >
-                          <img
-                            src={activeProviderId === 'jkanime' ? jkanimeIcon : animeav1Icon}
-                            srcSet={`${activeProviderId === 'jkanime' ? jkanimeIcon2x : animeav1Icon2x} 2x`}
-                            width={20}
-                            height={20}
-                            alt=""
-                            aria-hidden="true"
-                            draggable={false}
-                            decoding="async"
-                            className="h-5 w-5 rounded-[3px] object-contain"
-                            onError={(e) => {
-                              (e.currentTarget as HTMLImageElement).style.display = 'none';
-                            }}
-                          />
-                          <span>{providerName}</span>
-                        </button>
-                      </AppTooltip>
-                      <AppTooltip content="Vincular con AniList">
-                        <button
-                          type="button"
-                          onClick={() => setLinkDialogOpen(true)}
-                          aria-label="Vincular con AniList"
-                          className="inline-flex items-center justify-center rounded-md border border-transparent bg-secondary/50 p-1 text-foreground transition-colors hover:bg-secondary hover:border-border/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
-                        >
-                          <Link2 className="h-5 w-5" aria-hidden="true" />
-                        </button>
-                      </AppTooltip>
-                    </li>
-                  ))}
+                    </div>
+                    {showAnilistRecovery && (
+                      <p
+                        data-anilist-recovery-status
+                        role="status"
+                        className="mt-2 min-h-5 text-[13px] leading-5 text-muted-foreground"
+                      >
+                        No se pudo consultar AniList.
+                      </p>
+                    )}
+                  </li>
+                )}
               </ul>
             </div>
 
@@ -1215,7 +1294,7 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
         providerId={activeProviderId}
         slug={(data as AnimeDetails | undefined)?.slug || slug}
         defaultQuery={data.title}
-        isManualLink={anilistLinkSource === 'manual'}
+        isManualLink={isManualAnilistLink}
       />
 
       <Dialog
