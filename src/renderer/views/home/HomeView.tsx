@@ -3,12 +3,13 @@ import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAtomValue } from 'jotai';
 import { useAtomCallback } from 'jotai/utils';
+import { toast } from 'sonner';
 import type { KeyboardEvent } from 'react';
 import { activeProviderAtom } from '@/renderer/store/atoms';
 import { useAppNavigation } from '@/renderer/hooks/useAppNavigation';
 import { useConnectivityStatus, useHomeData, useSearchAnime, prefetchAnimeDetails } from '@/renderer/hooks/useQueries';
 import { shouldShowOfflineEmpty } from '@/renderer/utils/offlineEmpty';
-import { useStaggerIn } from '@/renderer/utils/motion';
+import { useBusySpin, useStaggerIn } from '@/renderer/utils/motion';
 import { useDeferredProvider } from '@/renderer/hooks/queries/internal';
 import { filterHomeBySection, homeSectionLabel, listHomeSections } from '@/renderer/utils/homeSections';
 import { PosterCard } from '@/renderer/components/anime/PosterCard';
@@ -19,6 +20,7 @@ import { PageHeader } from '@/renderer/components/ui/PageHeader';
 import { SearchField } from '@/renderer/components/ui/SearchField';
 import { ErrorState } from '@/renderer/components/ui/ErrorState';
 import { EmptyState } from '@/renderer/components/ui/EmptyState';
+import { AppTooltip } from '@/renderer/components/ui/AppTooltip';
 
 function getHomeStaggerKey(item: any): string | null {
   return typeof item.slug === 'string' && item.slug.trim() ? `${item.slug}:${String(item.episode ?? '')}` : null;
@@ -40,10 +42,8 @@ const HomePosterItem = memo(function HomePosterItem({ item, priority }: { item: 
           <span className="shrink-0 text-[11px] font-bold uppercase tracking-[0.08em] text-primary tabular-nums">
             Ep {item.episode || '?'}
           </span>
-          <span aria-hidden="true" className="shrink-0 text-[11px] text-white/30">
-            /
-          </span>
-          <span className="flex min-w-0 items-center gap-1 truncate text-[12px] font-medium normal-case tracking-normal text-white/50 tabular-nums">
+          <span aria-hidden="true" className="h-3 w-px shrink-0 bg-white/30" />
+          <span className="flex min-w-0 items-center gap-1 truncate text-[12px] font-medium normal-case tracking-normal text-white/70 tabular-nums">
             <Clock className="h-3 w-3 shrink-0 opacity-70" aria-hidden="true" />
             <span className="truncate">{item.timeAgo || 'Reciente'}</span>
           </span>
@@ -70,7 +70,12 @@ export function HomeView({ isActive }: { isActive?: boolean }) {
   const [showDropdown, setShowDropdown] = useState(false);
   const [activeSearchIndex, setActiveSearchIndex] = useState(-1);
 
-  const { data: items = [], isLoading, isError, refetch, refresh, isRefreshing } = useHomeData();
+  const { data: items = [], isLoading, isError, refetch, refresh } = useHomeData();
+  const {
+    ref: refreshIconRef,
+    busy: refreshBusy,
+    run: runRefresh,
+  } = useBusySpin(`${providerId}:${isActive !== false}`);
 
   // Sección elegida del home (Jkanime trae varias); se resetea al cambiar de proveedor.
   const [homeSection, setHomeSection] = useState('anime');
@@ -172,22 +177,7 @@ export function HomeView({ isActive }: { isActive?: boolean }) {
 
   return (
     <div className="empty-state-page flex flex-col h-full">
-      <PageHeader
-        align="center"
-        title="Episodios recientes"
-        description={`Últimas publicaciones de ${providerName}`}
-        actions={
-          <button
-            type="button"
-            onClick={() => refresh()}
-            disabled={isRefreshing}
-            className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-secondary px-4 py-2 text-sm font-medium text-secondary-foreground transition-colors hover:bg-secondary/80 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
-          >
-            <RefreshCcw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-            <span>Actualizar</span>
-          </button>
-        }
-      >
+      <PageHeader align="center" title="Episodios recientes" description={`Últimas publicaciones de ${providerName}`}>
         <div className="search-container relative z-50">
           <SearchField
             value={visibleSearchQuery}
@@ -340,16 +330,40 @@ export function HomeView({ isActive }: { isActive?: boolean }) {
                     {homeSectionLabel(section)}
                   </button>
                 ))}
-              <p
-                className="ml-auto text-[13px] font-medium normal-case tracking-normal text-text-tertiary tabular-nums select-none"
-                role="status"
-              >
-                {visibleItems.length} {visibleItems.length === 1 ? 'anime reciente' : 'animes recientes'}{' '}
-                <span aria-hidden="true" className="text-border-strong">
-                  |
-                </span>{' '}
-                {providerName}
-              </p>
+              <div className="ml-auto flex min-w-0 items-center gap-2">
+                <p
+                  className="text-[13px] font-medium normal-case tracking-normal text-text-tertiary tabular-nums select-none"
+                  role="status"
+                >
+                  {visibleItems.length} {visibleItems.length === 1 ? 'anime reciente' : 'animes recientes'}{' '}
+                  <span aria-hidden="true" className="text-border-strong">
+                    |
+                  </span>{' '}
+                  {providerName}
+                </p>
+                <AppTooltip content="Actualizar episodios">
+                  <span className="inline-flex shrink-0">
+                    <button
+                      type="button"
+                      aria-label="Actualizar episodios"
+                      aria-busy={refreshBusy}
+                      disabled={refreshBusy || providerId !== dataProvider}
+                      onClick={async () => {
+                        try {
+                          await runRefresh(refresh);
+                        } catch {
+                          toast.error('No se pudieron actualizar los episodios. Inténtalo de nuevo.', {
+                            id: 'home-refresh',
+                          });
+                        }
+                      }}
+                      className="relative inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors after:absolute after:-inset-1.5 hover:bg-secondary/50 hover:text-foreground disabled:cursor-default disabled:opacity-50"
+                    >
+                      <RefreshCcw ref={refreshIconRef} className="h-4 w-4" aria-hidden="true" />
+                    </button>
+                  </span>
+                </AppTooltip>
+              </div>
             </div>
             <PosterGrid ref={gridRef}>
               {visibleItems.map((item: any, idx: number) => (

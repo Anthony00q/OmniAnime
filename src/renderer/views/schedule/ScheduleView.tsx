@@ -3,11 +3,12 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAtomValue } from 'jotai';
 import { useAtomCallback } from 'jotai/utils';
+import { toast } from 'sonner';
 import { activeProviderAtom } from '@/renderer/store/atoms';
 import { useAppNavigation } from '@/renderer/hooks/useAppNavigation';
 import { prefetchAnimeDetails, useConnectivityStatus, useSchedule } from '@/renderer/hooks/useQueries';
 import { useDeferredProvider } from '@/renderer/hooks/queries/internal';
-import { useStaggerIn } from '@/renderer/utils/motion';
+import { useBusySpin, useStaggerIn } from '@/renderer/utils/motion';
 import { shouldShowOfflineEmpty } from '@/renderer/utils/offlineEmpty';
 import {
   WEEKDAY_LABELS,
@@ -25,6 +26,7 @@ import { EmptyState } from '@/renderer/components/ui/EmptyState';
 import { ScheduleSkeleton } from '@/renderer/components/anime/PosterGridSkeleton';
 import { ScheduleAgendaRow } from '@/renderer/views/schedule/components/ScheduleAgendaRow';
 import { WeekRail } from '@/renderer/views/schedule/components/WeekRail';
+import { AppTooltip } from '@/renderer/components/ui/AppTooltip';
 
 // Marca de la hora actual entre franjas: estado del día, no decoración.
 function ScheduleNowMarker({ nowMs }: { nowMs: number }) {
@@ -47,7 +49,12 @@ export function ScheduleView({ isActive }: { isActive?: boolean }) {
   const { openAnime, navigateToCatalog } = useAppNavigation();
   const queryClient = useQueryClient();
 
-  const { data, isLoading, isError, refetch, refresh, isRefreshing } = useSchedule();
+  const { data, isLoading, isError, refetch, refresh } = useSchedule();
+  const {
+    ref: refreshIconRef,
+    busy: refreshBusy,
+    run: runRefresh,
+  } = useBusySpin(`${providerId}:${isActive !== false}`);
   const entries = useMemo(() => visibleScheduleEntries(data?.entries ?? []), [data]);
 
   const [selectedDay, setSelectedDay] = useState(() => todayIsoWeekday());
@@ -105,22 +112,7 @@ export function ScheduleView({ isActive }: { isActive?: boolean }) {
 
   return (
     <div className="empty-state-page flex flex-col h-full">
-      <PageHeader
-        align="center"
-        title="Horarios"
-        description={`Programación semanal de ${providerName}`}
-        actions={
-          <button
-            type="button"
-            onClick={() => refresh()}
-            disabled={isRefreshing}
-            className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-secondary px-4 py-2 text-sm font-medium text-secondary-foreground transition-colors hover:bg-secondary/80 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
-          >
-            <RefreshCcw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-            <span>Actualizar</span>
-          </button>
-        }
-      />
+      <PageHeader align="center" title="Horarios" description={`Programación semanal de ${providerName}`} />
 
       <div
         data-view-scroller
@@ -133,9 +125,12 @@ export function ScheduleView({ isActive }: { isActive?: boolean }) {
               aria-hidden="true"
               className="-mx-4 flex min-h-[64px] flex-wrap items-center gap-x-4 gap-y-2 bg-background px-4 pb-4 pt-4 sm:-mx-8 sm:px-8"
             >
-              <div className="min-w-[500px] flex-1 rounded-full border border-border/70 p-1">
-                <div className="h-8 animate-pulse rounded-full bg-secondary/40" />
+              <div className="min-w-0 flex-1 overflow-x-auto">
+                <div className="min-w-[500px] rounded-full border border-border/70 p-1">
+                  <div className="h-8 animate-pulse rounded-full bg-secondary/40" />
+                </div>
               </div>
+              <div className="h-8 w-8 shrink-0" />
             </div>
             <ScheduleSkeleton count={7} />
           </>
@@ -173,14 +168,38 @@ export function ScheduleView({ isActive }: { isActive?: boolean }) {
         ) : (
           <>
             <div className="sticky top-0 z-20 -mx-4 flex min-h-[64px] flex-wrap items-center gap-x-4 gap-y-2 bg-background px-4 pb-4 pt-4 sm:-mx-8 sm:px-8">
-              <WeekRail
-                className="min-w-[500px] flex-1"
-                dates={dates}
-                counts={counts}
-                selectedDay={selectedDay}
-                todayDay={todayDay}
-                onSelect={setSelectedDay}
-              />
+              <div className="min-w-0 flex-1 overflow-x-auto">
+                <WeekRail
+                  className="min-w-[500px]"
+                  dates={dates}
+                  counts={counts}
+                  selectedDay={selectedDay}
+                  todayDay={todayDay}
+                  onSelect={setSelectedDay}
+                />
+              </div>
+              <AppTooltip content="Actualizar programación">
+                <span className="ml-auto inline-flex shrink-0">
+                  <button
+                    type="button"
+                    aria-label="Actualizar programación"
+                    aria-busy={refreshBusy}
+                    disabled={refreshBusy || providerId !== dataProvider}
+                    onClick={async () => {
+                      try {
+                        await runRefresh(refresh);
+                      } catch {
+                        toast.error('No se pudo actualizar la programación. Inténtalo de nuevo.', {
+                          id: 'schedule-refresh',
+                        });
+                      }
+                    }}
+                    className="relative inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors after:absolute after:-inset-1.5 hover:bg-secondary/50 hover:text-foreground disabled:cursor-default disabled:opacity-50"
+                  >
+                    <RefreshCcw ref={refreshIconRef} className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                </span>
+              </AppTooltip>
             </div>
 
             {dayEntries.length === 0 ? (
@@ -197,9 +216,11 @@ export function ScheduleView({ isActive }: { isActive?: boolean }) {
                     {idx === nowIndex && <ScheduleNowMarker nowMs={nowMs} />}
                     <div className="flex items-baseline gap-3 pb-1 pt-5">
                       {group.time ? (
-                        <h3 className="text-[16px] font-semibold tabular-nums text-foreground">{group.time}</h3>
+                        <h3 className="font-sans text-[16px] font-semibold tabular-nums text-foreground">
+                          {group.time}
+                        </h3>
                       ) : (
-                        <h3 className="text-[11px] font-semibold uppercase tracking-[0.09em] text-text-tertiary">
+                        <h3 className="font-sans text-[11px] font-semibold uppercase tracking-[0.09em] text-text-tertiary">
                           Sin hora publicada
                         </h3>
                       )}
