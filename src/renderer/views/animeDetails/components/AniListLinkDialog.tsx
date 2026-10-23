@@ -81,7 +81,7 @@ export function AniListLinkDialog({
       }}
       title="Vincular con AniList"
       message={defaultQuery}
-      icon={<Link2 className="h-5 w-5 text-primary" aria-hidden="true" />}
+      icon={<Link2 className="h-5 w-5" aria-hidden="true" />}
       showFooter={false}
       className="max-w-2xl"
       onOpenAutoFocus={(event) => {

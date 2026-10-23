@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useState } from 'react';
+import { memo, useEffect, useId, useMemo, useState } from 'react';
 import { Gauge, Server, Layers, Eye, SlidersHorizontal, Info, ChevronDown, FolderDown, FileText } from 'lucide-react';
 import { CustomSelect } from '@/renderer/components/CustomSelect';
 import { CustomSwitch } from '@/renderer/components/CustomSwitch';
@@ -43,6 +43,7 @@ interface DownloadsTabProps {
 }
 
 const DescargasConcurrencia = memo(function DescargasConcurrencia({ settings, onChange }: DownloadsTabProps) {
+  const adaptiveHintId = useId();
   const dl = { ...DEFAULT_DOWNLOAD_SETTINGS, ...(settings.download || {}) };
   // La configuración Adaptive puede llegar como boolean legacy: siempre objeto.
   const adaptive = normalizeAdaptiveConnections(dl.adaptiveConnections);
@@ -56,29 +57,24 @@ const DescargasConcurrencia = memo(function DescargasConcurrencia({ settings, on
   };
 
   return (
-    <section className="rounded-2xl border border-border/50 bg-card shadow-sm">
+    <section className="settings-section">
       <div className="p-5 sm:p-6">
-        <div className="flex items-center gap-3 mb-5">
-          <div className="p-2.5 bg-primary/10 rounded-xl border border-primary/10">
-            <Gauge className="w-5 h-5 text-primary" />
+        <div className="flex items-start gap-3 mb-5">
+          <div className="settings-section-icon">
+            <Gauge className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="text-base font-bold tracking-tight">Concurrencia</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">Cuántos episodios y conexiones se usan a la vez.</p>
+            <h2 className="text-base font-semibold">Concurrencia</h2>
+            <p className="text-[13px] text-muted-foreground mt-0.5">
+              Controla cuántos episodios y partes se descargan a la vez.
+            </p>
           </div>
         </div>
 
-        <div className="rounded-xl border border-border/60 bg-background p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+        <div className="grid grid-cols-1 gap-3 @2xl/settings:grid-cols-[minmax(0,1fr)_15rem] @2xl/settings:items-center @2xl/settings:gap-6">
           <div className="min-w-0">
-            <span className="flex items-center gap-1.5 text-sm font-semibold select-none">
-              Episodios en paralelo
-              <AppTooltip content="Con 1 se descargan uno por uno.">
-                <span aria-hidden="true" className="inline-flex text-muted-foreground">
-                  <Info className="w-3.5 h-3.5" />
-                </span>
-              </AppTooltip>
-            </span>
-            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+            <h3 className="text-sm font-semibold">Episodios en paralelo</h3>
+            <p className="text-[13px] text-muted-foreground mt-1 leading-relaxed">
               Cuántos episodios del mismo anime se descargan a la vez.
             </p>
           </div>
@@ -86,150 +82,136 @@ const DescargasConcurrencia = memo(function DescargasConcurrencia({ settings, on
             value={String(dl.maxParallelEpisodes)}
             onChange={(v) => onDlChange('maxParallelEpisodes', Number(v))}
             ariaLabel="Episodios en paralelo"
-            className="w-full sm:w-56 shrink-0"
+            className="w-full"
             options={DOWNLOAD_PARALLEL_OPTIONS.map((o) => ({ ...o }))}
           />
         </div>
         {dl.maxParallelEpisodes >= 3 && (
-          <p className="text-[11px] text-warning leading-relaxed select-none mt-3" role="note">
+          <p className="text-[13px] text-warning leading-relaxed select-none mt-3" role="note">
             Como máximo 2 se descargan a la vez del mismo servidor, para no saturarlo.
           </p>
         )}
 
-        <div className="mt-4">
-          <div className="text-[11px] font-semibold tracking-widest uppercase text-muted-foreground">
-            Conexiones por archivo
+        <div className="mt-5 border-t border-border/40 pt-5">
+          <h3 className="text-sm font-semibold">Conexiones por archivo</h3>
+          <p className="text-[13px] text-muted-foreground leading-relaxed mt-1">
+            Partes del mismo archivo que se descargan a la vez.
+          </p>
+          {Object.values(locked).some(Boolean) && (
+            <p id={adaptiveHintId} className="mt-2 mb-2 text-[13px] text-muted-foreground leading-relaxed" role="note">
+              {ADAPTIVE_MANAGED_HINT}
+            </p>
+          )}
+          <div className="settings-option-row grid grid-cols-1 gap-3 @2xl/settings:grid-cols-[minmax(0,1fr)_15rem] @2xl/settings:items-center @2xl/settings:gap-6">
+            <div className="min-w-0 flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span className="text-sm font-medium">MediaFire</span>
+              {locked.mediafireConnections && (
+                <span id={managedHintId('mediafireConnections')} className="text-xs text-muted-foreground">
+                  Automático
+                </span>
+              )}
+            </div>
+            <CustomSelect
+              value={snapToClosestOption(
+                dl.mediafireConnections ?? 1,
+                DOWNLOAD_DIRECT_CONNECTIONS_OPTIONS.map((o) => o.value),
+              )}
+              onChange={(v) => onDlChange('mediafireConnections', Number(v))}
+              ariaLabel="Conexiones por archivo en MediaFire"
+              className="w-full"
+              options={DOWNLOAD_DIRECT_CONNECTIONS_OPTIONS.map((o) => ({ ...o }))}
+              disabled={locked.mediafireConnections}
+              describedBy={
+                locked.mediafireConnections ? `${managedHintId('mediafireConnections')} ${adaptiveHintId}` : undefined
+              }
+            />
           </div>
-          <p className="text-xs text-muted-foreground leading-relaxed mt-1">
-            Cuántas partes del archivo se descargan a la vez. Si el servidor no lo permite, se usa 1 conexión.
+          <div className="settings-option-row grid grid-cols-1 gap-3 @2xl/settings:grid-cols-[minmax(0,1fr)_15rem] @2xl/settings:items-center @2xl/settings:gap-6">
+            <div className="min-w-0 flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span className="text-sm font-medium">MP4Upload</span>
+              {locked.mp4uploadConnections && (
+                <span id={managedHintId('mp4uploadConnections')} className="text-xs text-muted-foreground">
+                  Automático
+                </span>
+              )}
+            </div>
+            <CustomSelect
+              value={snapToClosestOption(
+                dl.mp4uploadConnections ?? 1,
+                DOWNLOAD_DIRECT_CONNECTIONS_OPTIONS.map((o) => o.value),
+              )}
+              onChange={(v) => onDlChange('mp4uploadConnections', Number(v))}
+              ariaLabel="Conexiones por archivo en MP4Upload"
+              className="w-full"
+              options={DOWNLOAD_DIRECT_CONNECTIONS_OPTIONS.map((o) => ({ ...o }))}
+              disabled={locked.mp4uploadConnections}
+              describedBy={
+                locked.mp4uploadConnections ? `${managedHintId('mp4uploadConnections')} ${adaptiveHintId}` : undefined
+              }
+            />
+          </div>
+          <div className="settings-option-row grid grid-cols-1 gap-3 @2xl/settings:grid-cols-[minmax(0,1fr)_15rem] @2xl/settings:items-center @2xl/settings:gap-6">
+            <div className="min-w-0 flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span className="text-sm font-medium">Voe</span>
+              {locked.voeConnections && (
+                <span id={managedHintId('voeConnections')} className="text-xs text-muted-foreground">
+                  Automático
+                </span>
+              )}
+            </div>
+            <CustomSelect
+              value={snapToClosestOption(
+                dl.voeConnections ?? 4,
+                DOWNLOAD_DIRECT_CONNECTIONS_OPTIONS.map((o) => o.value),
+              )}
+              onChange={(v) => onDlChange('voeConnections', Number(v))}
+              ariaLabel="Conexiones por archivo en Voe"
+              className="w-full"
+              options={DOWNLOAD_DIRECT_CONNECTIONS_OPTIONS.map((o) => ({ ...o }))}
+              disabled={locked.voeConnections}
+              describedBy={locked.voeConnections ? `${managedHintId('voeConnections')} ${adaptiveHintId}` : undefined}
+            />
+          </div>
+          <div className="settings-option-row grid grid-cols-1 gap-3 @2xl/settings:grid-cols-[minmax(0,1fr)_15rem] @2xl/settings:items-center @2xl/settings:gap-6">
+            <div className="min-w-0">
+              <span className="text-sm font-medium">Mega</span>
+              <p className="text-[13px] text-muted-foreground mt-1 leading-relaxed">
+                Conexión fija. No usa Conexiones adaptativas.
+              </p>
+            </div>
+            <p className="text-[13px] text-muted-foreground tabular-nums @2xl/settings:text-right">1 conexión</p>
+          </div>
+          <p className="mt-2 text-[13px] text-muted-foreground leading-relaxed">
+            Si el servidor no permite varias conexiones, se utiliza una.
           </p>
         </div>
-
-        <div className="rounded-xl border border-border/60 bg-background p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 mt-3">
-          <div className="min-w-0">
-            <span className="flex items-center gap-1.5 text-sm font-semibold select-none">MediaFire</span>
-            {locked.mediafireConnections && (
-              <p
-                id={managedHintId('mediafireConnections')}
-                className="text-xs text-muted-foreground mt-1 leading-relaxed"
-              >
-                {ADAPTIVE_MANAGED_HINT}
+        <div className="mt-5 border-t border-border/40 pt-5">
+          <h3 className="text-sm font-semibold">Descarga HLS</h3>
+          <p className="mt-1 text-[13px] text-muted-foreground leading-relaxed">
+            Solo AnimeAV1. Más segmentos no siempre aceleran la descarga.
+          </p>
+          <div className="mt-3 grid grid-cols-1 gap-3 @2xl/settings:grid-cols-[minmax(0,1fr)_15rem] @2xl/settings:items-center @2xl/settings:gap-6">
+            <div className="min-w-0">
+              <span className="text-sm font-medium">Segmentos en paralelo</span>
+              <p className="text-[13px] text-muted-foreground mt-1 leading-relaxed">
+                Fragmentos del episodio que se descargan a la vez.
               </p>
-            )}
+            </div>
+            <CustomSelect
+              value={snapToClosestOption(
+                dl.hlsConnections ?? 10,
+                DOWNLOAD_HLS_CONNECTIONS_OPTIONS.map((o) => o.value),
+              )}
+              onChange={(v) => onDlChange('hlsConnections', Number(v))}
+              ariaLabel="Segmentos HLS en paralelo"
+              className="w-full"
+              options={DOWNLOAD_HLS_CONNECTIONS_OPTIONS.map((o) => ({ ...o }))}
+            />
           </div>
-          <CustomSelect
-            value={snapToClosestOption(
-              dl.mediafireConnections ?? 1,
-              DOWNLOAD_DIRECT_CONNECTIONS_OPTIONS.map((o) => o.value),
-            )}
-            onChange={(v) => onDlChange('mediafireConnections', Number(v))}
-            ariaLabel="Conexiones por archivo en MediaFire"
-            className="w-full sm:w-60 shrink-0"
-            options={DOWNLOAD_DIRECT_CONNECTIONS_OPTIONS.map((o) => ({ ...o }))}
-            disabled={locked.mediafireConnections}
-            describedBy={locked.mediafireConnections ? managedHintId('mediafireConnections') : undefined}
-          />
         </div>
-        <div className="rounded-xl border border-border/60 bg-background p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 mt-3">
-          <div className="min-w-0">
-            <span className="flex items-center gap-1.5 text-sm font-semibold select-none">MP4Upload</span>
-            {locked.mp4uploadConnections && (
-              <p
-                id={managedHintId('mp4uploadConnections')}
-                className="text-xs text-muted-foreground mt-1 leading-relaxed"
-              >
-                {ADAPTIVE_MANAGED_HINT}
-              </p>
-            )}
-          </div>
-          <CustomSelect
-            value={snapToClosestOption(
-              dl.mp4uploadConnections ?? 1,
-              DOWNLOAD_DIRECT_CONNECTIONS_OPTIONS.map((o) => o.value),
-            )}
-            onChange={(v) => onDlChange('mp4uploadConnections', Number(v))}
-            ariaLabel="Conexiones por archivo en MP4Upload"
-            className="w-full sm:w-60 shrink-0"
-            options={DOWNLOAD_DIRECT_CONNECTIONS_OPTIONS.map((o) => ({ ...o }))}
-            disabled={locked.mp4uploadConnections}
-            describedBy={locked.mp4uploadConnections ? managedHintId('mp4uploadConnections') : undefined}
-          />
-        </div>
-        <div className="rounded-xl border border-border/60 bg-background p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 mt-3">
-          <div className="min-w-0">
-            <span className="flex items-center gap-1.5 text-sm font-semibold select-none">Voe</span>
-            {locked.voeConnections && (
-              <p id={managedHintId('voeConnections')} className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                {ADAPTIVE_MANAGED_HINT}
-              </p>
-            )}
-          </div>
-          <CustomSelect
-            value={snapToClosestOption(
-              dl.voeConnections ?? 4,
-              DOWNLOAD_DIRECT_CONNECTIONS_OPTIONS.map((o) => o.value),
-            )}
-            onChange={(v) => onDlChange('voeConnections', Number(v))}
-            ariaLabel="Conexiones por archivo en Voe"
-            className="w-full sm:w-60 shrink-0"
-            options={DOWNLOAD_DIRECT_CONNECTIONS_OPTIONS.map((o) => ({ ...o }))}
-            disabled={locked.voeConnections}
-            describedBy={locked.voeConnections ? managedHintId('voeConnections') : undefined}
-          />
-        </div>
-        <div className="rounded-xl border border-border/60 bg-background p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 mt-3">
-          <div className="min-w-0">
-            <span className="flex items-center gap-1.5 text-sm font-semibold select-none">
-              Mega: single-stream
-              <AppTooltip content="MEGA no permite descargar el archivo por partes, y Conexiones adaptativas no lo gestiona.">
-                <span aria-hidden="true" className="inline-flex text-muted-foreground">
-                  <Info className="w-3.5 h-3.5" />
-                </span>
-              </AppTooltip>
-            </span>
-            <p id="mega-fixed-hint" className="text-xs text-muted-foreground mt-1 leading-relaxed">
-              MEGA se descarga siempre con 1 conexión: es lo más rápido.
-            </p>
-          </div>
-          <CustomSelect
-            value="1"
-            onChange={() => undefined}
-            ariaLabel="Conexiones de Mega (fijas)"
-            className="w-full sm:w-60 shrink-0"
-            options={[{ value: '1', label: '1 conexión' }]}
-            disabled
-            describedBy="mega-fixed-hint"
-          />
-        </div>
-        <div className="rounded-xl border border-border/60 bg-background p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 mt-3">
-          <div className="min-w-0">
-            <span className="flex items-center gap-1.5 text-sm font-semibold select-none">
-              Segmentos HLS en paralelo
-              <AppTooltip content="Cuántos fragmentos del episodio se descargan a la vez.">
-                <span aria-hidden="true" className="inline-flex text-muted-foreground">
-                  <Info className="w-3.5 h-3.5" />
-                </span>
-              </AppTooltip>
-            </span>
-            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-              Solo se usa en AnimeAV1, y subir los segmentos no siempre acelera la descarga.
-            </p>
-          </div>
-          <CustomSelect
-            value={snapToClosestOption(
-              dl.hlsConnections ?? 10,
-              DOWNLOAD_HLS_CONNECTIONS_OPTIONS.map((o) => o.value),
-            )}
-            onChange={(v) => onDlChange('hlsConnections', Number(v))}
-            ariaLabel="Segmentos HLS en paralelo"
-            className="w-full sm:w-60 shrink-0"
-            options={DOWNLOAD_HLS_CONNECTIONS_OPTIONS.map((o) => ({ ...o }))}
-          />
-        </div>
-
-        <div className="mt-4 rounded-xl bg-background border border-border/60 px-3 py-2.5 text-xs text-muted-foreground">
-          Los cambios se aplican a las siguientes descargas; la que está en marcha no se toca.
-        </div>
+        <p className="mt-5 border-t border-border/40 pt-4 text-[13px] leading-relaxed text-muted-foreground">
+          Solo afecta a las próximas descargas. Las que están en curso no cambian.
+        </p>
       </div>
     </section>
   );
@@ -240,17 +222,17 @@ const DescargasServidores = memo(function DescargasServidores({ settings, onChan
   const onDlChange = (key: string, value: any) => onChange(key, value, 'download');
 
   return (
-    <section className="rounded-2xl border border-border/50 bg-card shadow-sm p-5 sm:p-6">
+    <section className="settings-section p-5 sm:p-6">
       <div className="flex items-center gap-2 mb-1">
-        <div className="p-1.5 bg-primary/10 rounded-lg">
-          <Server className="w-4 h-4 text-primary" />
+        <div className="settings-section-icon">
+          <Server className="w-5 h-5" />
         </div>
-        <h3 className="text-sm font-bold tracking-tight">Servidores disponibles</h3>
+        <h3 className="text-base font-semibold">Servidores disponibles</h3>
       </div>
-      <p className="mb-4 text-xs leading-relaxed text-muted-foreground">
+      <p className="mb-4 text-[13px] leading-relaxed text-muted-foreground">
         Los servidores se prueban en este orden; si uno falla o no está, se pasa al siguiente.
       </p>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 @xl/settings:grid-cols-2">
         {PROVIDER_SERVERS.map((provider) => {
           const orderKey = provider.id === 'jkanime' ? 'serverOrderJkanime' : 'serverOrderAnimeav1';
           const candidates = provider.servers;
@@ -292,14 +274,14 @@ const DescargasNombrado = memo(function DescargasNombrado({
   const onDlChange = (key: string, value: any) => onChange(key, value, 'download');
 
   return (
-    <section className="rounded-2xl border border-border/50 bg-card shadow-sm p-5 sm:p-6">
+    <section className="settings-section p-5 sm:p-6">
       <div className="flex items-center gap-2 mb-4">
-        <div className="p-1.5 bg-primary/10 rounded-lg">
-          <Layers className="w-4 h-4 text-primary" />
+        <div className="settings-section-icon">
+          <Layers className="w-5 h-5" />
         </div>
-        <h3 className="text-sm font-bold tracking-tight">Nombrado de archivos y carpetas</h3>
+        <h3 className="text-base font-semibold">Nombrado de archivos y carpetas</h3>
       </div>
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 @xl/settings:grid-cols-2">
         <div className="space-y-2">
           <span className="block text-sm font-semibold">Estilo de nombre</span>
           <CustomSelect
@@ -318,18 +300,14 @@ const DescargasNombrado = memo(function DescargasNombrado({
               : 'Incluye el título del anime y el número del episodio.'}
           </p>
         </div>
-        <div className="rounded-xl bg-background border border-border/60 p-3">
-          <div className="text-[11px] font-semibold tracking-widest uppercase text-muted-foreground mb-1.5 flex items-center gap-1">
-            <Eye className="w-3 h-3" /> Vista previa
+        <div className="settings-subpanel self-center bg-surface-elevated">
+          <div className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1.5">
+            <Eye className="w-3.5 h-3.5" aria-hidden="true" /> Vista previa
           </div>
-          <AppTooltip content={namingPreview}>
-            <div className="font-mono text-xs bg-secondary/50 border border-border/40 rounded-lg px-3 py-2 text-foreground truncate">
-              {namingPreview}
-            </div>
-          </AppTooltip>
+          <div className="font-mono text-xs leading-relaxed text-foreground break-all select-text">{namingPreview}</div>
         </div>
       </div>
-      <div className="mt-5 pt-5 border-t border-border/40 grid grid-cols-1 gap-5 sm:grid-cols-2">
+      <div className="mt-5 pt-5 border-t border-border/40 grid grid-cols-1 gap-5 @xl/settings:grid-cols-2">
         <div className="space-y-2">
           <span className="block text-sm font-semibold">Carpeta de descarga</span>
           <CustomSelect
@@ -343,25 +321,23 @@ const DescargasNombrado = memo(function DescargasNombrado({
             {folderNameSourceHint(folderSource)}
           </p>
         </div>
-        <div className="rounded-xl bg-background border border-border/60 p-3">
-          <div className="text-[11px] font-semibold tracking-widest uppercase text-muted-foreground mb-1.5 flex items-center gap-1">
-            <FolderDown className="w-3 h-3" /> Vista previa
+        <div className="settings-subpanel self-center bg-surface-elevated">
+          <div className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1.5">
+            <FolderDown className="w-3.5 h-3.5" aria-hidden="true" /> Vista previa
           </div>
-          <AppTooltip content={folderNamingPreview}>
-            <div className="font-mono text-xs bg-secondary/50 border border-border/40 rounded-lg px-3 py-2 text-foreground truncate">
-              {folderNamingPreview}
-            </div>
-          </AppTooltip>
+          <div className="font-mono text-xs leading-relaxed text-foreground break-all select-text">
+            {folderNamingPreview}
+          </div>
         </div>
       </div>
-      <div className="mt-4 rounded-xl bg-background border border-border/60 px-3 py-2.5 text-xs text-muted-foreground">
+      <div className="mt-4 text-xs leading-relaxed text-muted-foreground">
         Si el título elegido no está disponible, se usa el siguiente que sí lo esté. Solo afecta a descargas nuevas.
       </div>
       <div className="mt-4 flex flex-wrap gap-2">
         <button
           type="button"
           onClick={() => setFilesRenameOpen(true)}
-          className="inline-flex items-center gap-2 rounded-lg border border-border/60 bg-surface-elevada px-4 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-secondary/60"
+          className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-border/60 bg-surface-elevated px-4 py-2 text-[13px] font-semibold text-foreground transition-colors hover:bg-secondary/60"
         >
           <FileText className="w-3.5 h-3.5" />
           Renombrar archivos de la librería…
@@ -369,7 +345,7 @@ const DescargasNombrado = memo(function DescargasNombrado({
         <button
           type="button"
           onClick={() => setRenameOpen(true)}
-          className="inline-flex items-center gap-2 rounded-lg border border-border/60 bg-surface-elevada px-4 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-secondary/60"
+          className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-border/60 bg-surface-elevated px-4 py-2 text-[13px] font-semibold text-foreground transition-colors hover:bg-secondary/60"
         >
           <FolderDown className="w-3.5 h-3.5" />
           Renombrar carpetas de la librería…
@@ -399,7 +375,7 @@ const DescargasAvanzado = memo(function DescargasAvanzado({ settings, onChange }
     onDlChange('adaptiveConnections', { ...adaptive, servers: { ...adaptive.servers, [server]: on } });
 
   return (
-    <section className="rounded-2xl border border-border/50 bg-card shadow-sm overflow-hidden">
+    <section className="settings-section overflow-hidden">
       <button
         type="button"
         onClick={() => setAdvancedOpen((v) => !v)}
@@ -407,12 +383,12 @@ const DescargasAvanzado = memo(function DescargasAvanzado({ settings, onChange }
         className="w-full flex items-center justify-between gap-3 p-5 sm:px-6 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-inset"
       >
         <span className="flex items-center gap-2">
-          <span className="p-1.5 bg-primary/10 rounded-lg">
-            <SlidersHorizontal className="w-4 h-4 text-primary" />
+          <span className="settings-section-icon">
+            <SlidersHorizontal className="w-5 h-5" />
           </span>
           <span>
-            <span className="block text-sm font-bold tracking-tight">Opciones avanzadas</span>
-            <span className="block text-xs text-muted-foreground mt-0.5">
+            <span className="block text-base font-semibold">Opciones avanzadas</span>
+            <span className="block text-[13px] text-muted-foreground mt-0.5">
               Reintentos, tiempos de espera y archivos temporales. Ya viene bien configurado.
             </span>
           </span>
@@ -425,7 +401,7 @@ const DescargasAvanzado = memo(function DescargasAvanzado({ settings, onChange }
         className={`grid transition-[grid-template-rows] duration-200 ease-out ${advancedOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}
       >
         <div className="overflow-hidden">
-          <div className="px-5 sm:px-6 pb-5 sm:pb-6 grid grid-cols-1 gap-5 sm:grid-cols-2">
+          <div className="px-5 sm:px-6 pb-5 sm:pb-6 grid grid-cols-1 gap-5 @xl/settings:grid-cols-2">
             <div className="space-y-2">
               <span className="block text-sm font-semibold">Reintentos</span>
               <CustomSelect
@@ -459,8 +435,8 @@ const DescargasAvanzado = memo(function DescargasAvanzado({ settings, onChange }
               </p>
             </div>
           </div>
-          <div className="mx-5 sm:mx-6 mb-5 sm:mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="rounded-xl border border-border/60 bg-background p-4 flex items-start justify-between gap-3">
+          <div className="mx-5 sm:mx-6 mb-5 sm:mb-6 flex flex-col">
+            <div className="settings-option-row flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <div className="text-sm font-semibold leading-tight flex items-center gap-1.5">
                   Continuar descargas interrumpidas
@@ -480,7 +456,7 @@ const DescargasAvanzado = memo(function DescargasAvanzado({ settings, onChange }
                 ariaLabel="Continuar descargas parciales"
               />
             </div>
-            <div className="rounded-xl border border-border/60 bg-background p-4 flex items-start justify-between gap-3">
+            <div className="settings-option-row flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <div className="text-sm font-semibold leading-tight flex items-center gap-1.5">
                   <FolderDown className="w-3.5 h-3.5 text-muted-foreground" /> Limpiar al terminar
@@ -500,7 +476,7 @@ const DescargasAvanzado = memo(function DescargasAvanzado({ settings, onChange }
                 ariaLabel="Limpiar temporales al terminar"
               />
             </div>
-            <div className="rounded-xl border border-border/60 bg-background p-4 sm:col-span-2">
+            <div className="settings-option-row">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="text-sm font-semibold leading-tight">
@@ -528,7 +504,7 @@ const DescargasAvanzado = memo(function DescargasAvanzado({ settings, onChange }
                 <p className="text-xs text-muted-foreground leading-relaxed">
                   Los servidores sin Adaptive usan el número de conexiones que configures a mano.
                 </p>
-                <div className="mt-1 grid gap-x-6 gap-y-1 sm:grid-cols-3">
+                <div className="mt-1 grid gap-x-6 gap-y-1 @xl/settings:grid-cols-3">
                   {ADAPTIVE_SERVER_ROWS.map((row) => (
                     <div key={row.id} className="flex items-center justify-between gap-3">
                       <span className="text-sm font-medium select-none">{row.label}</span>

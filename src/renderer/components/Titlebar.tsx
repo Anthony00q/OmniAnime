@@ -61,9 +61,7 @@ export function Titlebar() {
             aria-hidden="true"
           />
         )}
-        <span className="font-['Bricolage_Grotesque','Instrument_Sans',system-ui,sans-serif] font-bold text-sm tracking-[-0.015em] text-foreground/90">
-          OmniAnime
-        </span>
+        <span className="font-display font-bold text-sm tracking-[-0.015em] text-foreground/90">OmniAnime</span>
       </div>
 
       <div className="flex h-full items-center gap-1 pr-3 app-region-no-drag">

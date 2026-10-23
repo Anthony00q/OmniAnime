@@ -1,4 +1,4 @@
-import { AlertTriangle, Check, ArrowRight, Eye, Wand2, Loader2 } from 'lucide-react';
+import { AlertTriangle, Check, ArrowRight, Eye, FilePenLine, Wand2, Loader2 } from 'lucide-react';
 import { Dialog } from '@/renderer/components/Dialog';
 import { AppTooltip } from '@/renderer/components/ui/AppTooltip';
 import { CustomRadio, CustomRadioGroup } from '@/renderer/components/CustomRadioGroup';
@@ -68,7 +68,7 @@ export function RenameDialog({
       confirmLoading={isPending}
       closeOnConfirm={false}
       dismissDisabled={isPending}
-      icon={<Wand2 className="w-5 h-5 text-primary" />}
+      icon={<FilePenLine className="w-5 h-5" aria-hidden="true" />}
       className="max-w-[640px]"
       onConfirm={onConfirm}
     >
@@ -240,15 +240,13 @@ export function RenameDialog({
                           )}
                         </span>
                       </AppTooltip>
-                      <span className="flex-1 min-w-0 grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-                        <span
-                          className={`truncate w-fit max-w-full font-mono text-xs px-1.5 py-1 rounded bg-secondary/50 border border-border/40 ${item.status === 'will_rename' ? 'line-through opacity-60' : ''}`}
-                        >
+                      <span className="flex-1 min-w-0 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
+                        <span className="break-all select-text max-w-full font-mono text-xs leading-relaxed px-1.5 py-1 text-muted-foreground">
                           {item.from}
                         </span>
                         <ArrowRight className="w-3 h-3 text-muted-foreground shrink-0" />
                         <span
-                          className={`truncate w-fit max-w-full font-mono text-xs px-1.5 py-1 rounded border ${item.status === 'will_rename' ? 'bg-primary/10 border-primary/20 text-foreground font-medium' : item.status === 'conflict' ? 'bg-warning/10 border-warning/20' : 'bg-secondary/30 border-border/30'}`}
+                          className={`break-all select-text max-w-full font-mono text-xs leading-relaxed px-1.5 py-1 rounded ${item.status === 'will_rename' ? 'bg-secondary/40 text-foreground font-medium' : item.status === 'conflict' ? 'bg-warning/10 text-warning' : 'text-muted-foreground'}`}
                         >
                           {item.to}
                         </span>

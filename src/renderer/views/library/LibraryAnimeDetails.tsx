@@ -396,7 +396,7 @@ export function LibraryAnimeDetails({
               <>
                 <div className="fixed inset-0 z-40 disable-shortcuts" onClick={() => setShowMenu(false)}></div>
                 <div className="absolute right-0 top-full mt-2 w-[300px] max-w-[calc(100vw-6rem)] max-h-[calc(100dvh-6rem)] bg-popover border border-border/70 rounded-2xl shadow-2xl z-50 overflow-y-auto animate-in fade-in slide-in-from-top-2">
-                  <div className="px-4 py-3 border-b border-border/50 bg-secondary/20">
+                  <div className="px-4 py-3 border-b border-border/40">
                     <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-[0.09em] flex items-center gap-1.5">
                       <Wand2 className="w-3.5 h-3.5" /> Gestión de Archivos
                     </span>
@@ -415,8 +415,8 @@ export function LibraryAnimeDetails({
                       disabled={libActions.isMutating}
                       className="w-full text-left flex items-start gap-3 p-3 rounded-xl hover:bg-secondary transition-colors group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
                     >
-                      <span className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/15 flex items-center justify-center shrink-0 group-hover:bg-primary/15 transition-colors">
-                        <FileText className="w-4 h-4 text-primary" />
+                      <span className="w-6 h-6 flex items-center justify-center shrink-0 text-muted-foreground">
+                        <FileText className="w-4 h-4" />
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="text-sm font-semibold text-foreground flex items-center gap-2">
@@ -425,7 +425,7 @@ export function LibraryAnimeDetails({
                         <span className="text-xs text-muted-foreground leading-relaxed block mt-0.5">
                           Aplica estilo Minimalista o Descriptivo a todos. Respeta Ajustes como base, pero fuerza aquí.
                         </span>
-                        <span className="text-[11px] font-mono bg-secondary border border-border/60 rounded-md px-1.5 py-0.5 mt-1.5 inline-flex">
+                        <span className="text-[11px] font-mono text-text-tertiary mt-1.5 inline-flex">
                           {globalStyle === 'minimal' ? 'Global: EP_01.mp4' : `Global: Título EP_01.mp4`}
                         </span>
                       </span>
@@ -440,8 +440,8 @@ export function LibraryAnimeDetails({
                       disabled={libActions.isMutating}
                       className="w-full text-left flex items-start gap-3 p-3 rounded-xl hover:bg-secondary transition-colors group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 mt-1"
                     >
-                      <span className="w-9 h-9 rounded-xl bg-secondary border border-border/60 flex items-center justify-center shrink-0 group-hover:bg-secondary/80 transition-colors">
-                        <ListOrdered className="w-4 h-4 text-foreground" />
+                      <span className="w-6 h-6 flex items-center justify-center shrink-0 text-muted-foreground">
+                        <ListOrdered className="w-4 h-4" />
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="text-sm font-semibold text-foreground">Renumerar episodios</span>
@@ -462,8 +462,8 @@ export function LibraryAnimeDetails({
                       disabled={libActions.isMutating}
                       className="w-full text-left flex items-start gap-3 p-3 rounded-xl hover:bg-secondary transition-colors group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 mt-1"
                     >
-                      <span className="w-9 h-9 rounded-xl bg-secondary border border-border/60 flex items-center justify-center shrink-0 group-hover:bg-secondary/80 transition-colors">
-                        <Pencil className="w-4 h-4 text-foreground" />
+                      <span className="w-6 h-6 flex items-center justify-center shrink-0 text-muted-foreground">
+                        <Pencil className="w-4 h-4" />
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="text-sm font-semibold text-foreground">Cambiar nombre de la carpeta</span>
@@ -474,7 +474,7 @@ export function LibraryAnimeDetails({
                     </button>
                   </div>
 
-                  <div className="px-3 py-2 border-t border-border/50 bg-secondary/10 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                  <div className="px-4 py-3 border-t border-border/40 flex items-start gap-1.5 text-[11px] leading-relaxed text-muted-foreground">
                     <Info className="w-3 h-3 shrink-0" />
                     <span>Revisa los cambios antes de aplicar. Las carpetas con descargas no se modifican.</span>
                   </div>

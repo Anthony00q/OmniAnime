@@ -22,7 +22,7 @@ export const SettingsFooter = memo(function SettingsFooter({
         <button
           type="button"
           onClick={onRestore}
-          className="inline-flex items-center justify-center gap-2 rounded-xl border border-border/60 bg-secondary/20 px-4 py-2.5 text-sm font-medium text-muted-foreground transition-colors duration-150 hover:border-border hover:bg-secondary/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-border/60 bg-secondary/20 px-4 py-2.5 text-sm font-medium text-muted-foreground transition-colors duration-(--duration-motion-micro) hover:border-border hover:bg-secondary/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
         >
           <RotateCcw className="w-4 h-4" />
           Restablecer
@@ -36,10 +36,10 @@ export const SettingsFooter = memo(function SettingsFooter({
         type="button"
         onClick={onSave}
         disabled={isSaving}
-        className={`inline-flex items-center justify-center gap-2 rounded-xl px-7 py-2.5 text-sm font-bold shadow-md transition-[background-color,box-shadow,transform] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-50 disabled:cursor-not-allowed ${
+        className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-7 py-2.5 text-sm font-semibold transition-colors duration-(--duration-motion-micro) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-50 disabled:cursor-not-allowed ${
           isSaved
-            ? 'bg-success hover:bg-[color-mix(in_srgb,var(--color-success)_88%,black)] text-success-foreground shadow-success/20'
-            : 'bg-primary hover:bg-[color-mix(in_srgb,var(--color-primary)_88%,black)] text-primary-foreground shadow-primary/20 hover:shadow-lg active:scale-[0.98]'
+            ? 'bg-success hover:bg-[color-mix(in_srgb,var(--color-success)_88%,black)] text-success-foreground'
+            : 'bg-primary hover:bg-[color-mix(in_srgb,var(--color-primary)_88%,black)] text-primary-foreground'
         }`}
       >
         {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}

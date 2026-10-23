@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { FolderPen } from 'lucide-react';
 import { toast } from 'sonner';
 import { isIpcFailError } from '@/renderer/hooks/queries/unwrap';
 import { Dialog } from '@/renderer/components/Dialog';
@@ -102,6 +103,7 @@ export function RenameFolderDialog({
       open={open}
       onOpenChange={onOpenChange}
       title="Cambiar nombre de la carpeta"
+      icon={<FolderPen className="w-5 h-5" aria-hidden="true" />}
       message="Elige uno de los nombres conocidos del anime o escribe el tuyo."
       confirmLabel={saving ? 'Guardando…' : 'Renombrar'}
       confirmDisabled={!validName || finalName === folderName || saving || actions.isMutating}
@@ -131,7 +133,7 @@ export function RenameFolderDialog({
                       <span className="block font-mono text-xs text-foreground truncate">{candidate.name}</span>
                     </span>
                     {candidate.name === folderName && (
-                      <span className="text-[10px] font-semibold uppercase tracking-widest text-text-tertiary shrink-0">
+                      <span className="text-[11px] font-semibold uppercase tracking-wider text-text-tertiary shrink-0">
                         Actual
                       </span>
                     )}

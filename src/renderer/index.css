@@ -54,6 +54,7 @@
   --duration-motion-emphatic: 480ms;
   --duration-motion-fade: 150ms;
 
+  --font-sans: 'Instrument Sans', system-ui, -apple-system, sans-serif;
   --font-display: 'Bricolage Grotesque', 'Instrument Sans', system-ui, sans-serif;
 }
 
@@ -1108,7 +1109,28 @@ html[dir='ltr'] {
   text-wrap: balance;
 }
 
-/* Fade del título de Descargas solo con overflow (máscara, agnóstica al tema). */
+@layer components {
+  .settings-section {
+    @apply rounded-xl border border-border/50 bg-card;
+  }
+
+  .settings-section-icon {
+    @apply flex h-8 w-8 shrink-0 items-center justify-center text-muted-foreground;
+  }
+
+  .settings-option-row {
+    @apply border-b border-border/40 py-3 last:border-b-0;
+  }
+
+  .settings-subpanel {
+    @apply rounded-lg bg-background/40 p-4;
+  }
+
+  .settings-content :is(h2, h3, h4) {
+    @apply font-sans font-semibold;
+  }
+}
+
 .title-fade {
   display: block;
   min-width: 0;
@@ -1116,12 +1138,6 @@ html[dir='ltr'] {
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
-}
-
-.title-fade[data-truncated='true'] {
-  text-overflow: clip;
-  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent 100%);
-  mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent 100%);
 }
 
 /* Tres paradas para decaer cuadrático: con dos se ve lineal y deja anillo de Mach. */

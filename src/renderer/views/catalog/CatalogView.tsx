@@ -41,11 +41,11 @@ const CatalogPosterItem = memo(function CatalogPosterItem({ item, priority }: { 
       badge={
         <>
           {item.category && (
-            <span className="rounded bg-primary/20 px-1.5 py-0.5 text-[11px] font-bold uppercase tracking-[0.08em] text-primary">
+            <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-primary">
               {item.category}
             </span>
           )}
-          {item.year && <span className="text-[12px] font-medium tabular-nums text-white/55">{item.year}</span>}
+          {item.year && <span className="text-[12px] font-medium tabular-nums text-white/70">{item.year}</span>}
         </>
       }
       onClick={() => {
@@ -495,7 +495,7 @@ export function CatalogView() {
       <div
         data-view-scroller
         aria-busy={isFetching}
-        className="flex-1 overflow-y-auto px-4 pb-12 sm:px-8 [scrollbar-gutter:stable]"
+        className="empty-state-scroller flex-1 overflow-y-auto px-4 pb-12 sm:px-8 [scrollbar-gutter:stable]"
         onScroll={handleScroll}
       >
         {isLoading ? (

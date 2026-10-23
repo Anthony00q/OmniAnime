@@ -54,6 +54,7 @@ const ScannerPosterItem = memo(
         fallbackLabel={displayTitle}
         actionLabel={relinkDisabled ? undefined : isOrphan ? 'Vincular a un Anime' : 'Cambiar Vínculo'}
         actionAlwaysVisible={isOrphan && !relinkDisabled}
+        actionTone="secondary"
         disabled={relinkDisabled}
         describedBy={relinkDisabled ? disabledReasonId : undefined}
         ariaLabel={
@@ -71,7 +72,7 @@ const ScannerPosterItem = memo(
         }
         badge={
           folder.episodeCount > 0 ? (
-            <span className="rounded bg-primary/20 px-1.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-primary/90">
+            <span className="rounded bg-black/40 px-1.5 py-0.5 text-[11px] font-semibold tabular-nums text-white/80">
               {folder.episodeCount} ep.
             </span>
           ) : undefined
@@ -316,7 +317,7 @@ export function ScannerView({ isActive = true }: { isActive?: boolean }) {
       />
 
       {dirs.length > 1 && (
-        <div data-empty-filters className="px-4 py-2 sm:px-6 flex items-center gap-2 flex-wrap">
+        <div data-empty-filters className="px-4 py-2 sm:px-8 flex items-center gap-2 flex-wrap">
           <button
             onClick={() => setSelectedDirFilter('all')}
             aria-pressed={selectedDirFilter === 'all'}
@@ -347,7 +348,7 @@ export function ScannerView({ isActive = true }: { isActive?: boolean }) {
 
       <div
         data-view-scroller
-        className="empty-state-scroller min-h-0 flex-1 overflow-y-auto p-4 sm:p-6 [scrollbar-gutter:stable]"
+        className="empty-state-scroller min-h-0 flex-1 overflow-y-auto p-4 sm:px-8 sm:py-6 [scrollbar-gutter:stable]"
       >
         {(isLoading || (!isError && filteredFolders.length > 0)) && (
           <div className="mb-3 min-h-10 sm:min-h-6">
@@ -424,7 +425,7 @@ export function ScannerView({ isActive = true }: { isActive?: boolean }) {
             ? `${relinkFolder.name}${relinkFolder.providerId ? ` | ${relinkFolder.providerId === 'jkanime' ? 'JkAnime' : 'AnimeAV1'}` : ''}`
             : ''
         }
-        icon={<Link2 className="h-5 w-5 text-primary" aria-hidden="true" />}
+        icon={<Link2 className="h-5 w-5" aria-hidden="true" />}
         showFooter={false}
         className="max-w-2xl"
         onOpenAutoFocus={(event) => {

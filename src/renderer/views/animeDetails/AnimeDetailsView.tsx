@@ -26,6 +26,7 @@ import {
   Link2,
   Loader2,
   RefreshCcw,
+  ListFilter,
 } from 'lucide-react';
 import { VList, type VListHandle } from 'virtua';
 import { useQueryClient } from '@tanstack/react-query';
@@ -769,9 +770,9 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
 
         <div
           ref={setHeroNode}
-          className="relative flex shrink-0 flex-col gap-5 px-4 pb-6 sm:flex-row sm:gap-8 sm:px-8 md:px-10 md:pb-8"
+          className="@container/details-hero relative flex shrink-0 flex-col gap-5 px-4 pb-6 sm:flex-row sm:gap-8 sm:px-8 md:px-10 md:pb-8"
         >
-          <div className="sala-frame w-36 shrink-0 self-center overflow-hidden rounded-xl border border-border/60 bg-card shadow-[0_16px_48px_rgba(0,0,0,0.5)] sm:w-48 sm:self-start md:w-64">
+          <div className="sala-frame w-36 shrink-0 self-center overflow-hidden rounded-xl border border-border/60 bg-card sm:self-start @2xl/details-hero:w-48 @4xl/details-hero:w-64">
             <PosterImage
               src={data.poster}
               alt={data.title}
@@ -781,13 +782,13 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
             />
           </div>
 
-          <div className="flex min-w-0 flex-col items-center justify-center pb-2 text-center sm:items-start sm:pb-4 sm:pt-4 sm:text-left">
-            <h1 className="select-text cursor-text text-2xl font-bold leading-[1.05] tracking-[-0.025em] text-white sm:text-4xl md:text-5xl">
+          <div className="flex min-w-0 flex-col items-center justify-center pb-2 text-center sm:items-start sm:justify-start sm:pb-4 sm:pt-1 sm:text-left">
+            <h1 className="select-text cursor-text text-2xl font-bold leading-[1.05] tracking-[-0.025em] text-white sm:text-3xl xl:text-[44px]">
               {data.title}
             </h1>
 
             {(data.japaneseTitle || (data.alternativeTitles && data.alternativeTitles.length > 0)) && (
-              <h2 className="mb-4 select-text cursor-text text-base font-medium text-white/65 sm:mb-6 sm:text-xl">
+              <h2 className="mb-4 mt-2 select-text cursor-text font-sans text-sm font-medium text-white/75 sm:mb-5 sm:text-base">
                 {data.japaneseTitle || data.alternativeTitles?.join(', ')}
               </h2>
             )}
@@ -834,7 +835,7 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
                     |
                   </span>
                   <span className="inline-flex items-center gap-1 font-semibold text-foreground">
-                    <Star className="h-3.5 w-3.5 fill-amber-300 text-amber-300" aria-hidden="true" />
+                    <Star className="h-3.5 w-3.5 fill-current text-text-tertiary" aria-hidden="true" />
                     <span className="tabular-nums">{data.score}</span>
                     {data.votes > 0 && (
                       <span className="font-medium tabular-nums text-muted-foreground">
@@ -1112,22 +1113,26 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
 
           <div className="space-y-6">
             <div className="p-5 rounded-xl bg-card border border-border/50">
-              <h4 className="font-bold mb-1 text-foreground border-b border-border pb-2">Detalles</h4>
+              <h4 className="font-sans font-semibold mb-1 text-foreground border-b border-border pb-2">Detalles</h4>
               <ul className="text-sm">
                 <li className="flex items-center justify-between gap-3 border-b border-border/40 py-2.5 last:border-0">
                   <span className="text-[13px] text-muted-foreground">Tipo</span>
-                  <span className="text-sm font-medium text-foreground">{data.type || 'TV'}</span>
+                  <span className="min-w-0 text-right text-sm font-medium text-foreground [overflow-wrap:anywhere]">
+                    {data.type || 'TV'}
+                  </span>
                 </li>
                 {anilistStudio && (
                   <li className="flex items-center justify-between gap-3 border-b border-border/40 py-2.5 last:border-0">
                     <span className="text-[13px] text-muted-foreground">Estudio</span>
-                    <span className="text-sm font-medium text-foreground">{anilistStudio}</span>
+                    <span className="min-w-0 text-right text-sm font-medium text-foreground [overflow-wrap:anywhere]">
+                      {anilistStudio}
+                    </span>
                   </li>
                 )}
                 {normalizeSeasonLabel(data.season) && (
                   <li className="flex items-center justify-between gap-3 border-b border-border/40 py-2.5 last:border-0">
                     <span className="text-[13px] text-muted-foreground">Temporada</span>
-                    <span className="text-sm font-medium tabular-nums text-foreground">
+                    <span className="min-w-0 text-right text-sm font-medium tabular-nums text-foreground [overflow-wrap:anywhere]">
                       {normalizeSeasonLabel(data.season)}
                     </span>
                   </li>
@@ -1135,7 +1140,9 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
                 {activeProviderId === 'jkanime' && data.spokenLanguages && data.spokenLanguages.length > 0 && (
                   <li className="flex items-center justify-between gap-3 border-b border-border/40 py-2.5 last:border-0">
                     <span className="text-[13px] text-muted-foreground">Idioma</span>
-                    <span className="text-sm font-medium text-foreground">{data.spokenLanguages.join(', ')}</span>
+                    <span className="min-w-0 text-right text-sm font-medium text-foreground [overflow-wrap:anywhere]">
+                      {data.spokenLanguages.join(', ')}
+                    </span>
                   </li>
                 )}
                 {externalUrl && (
@@ -1276,7 +1283,7 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
 
             {data.relations && data.relations.length > 0 && (
               <div className="p-5 rounded-xl bg-card border border-border/50">
-                <h4 className="font-bold mb-4 text-foreground border-b border-border pb-2">Franquicia</h4>
+                <h4 className="font-sans font-semibold mb-4 text-foreground border-b border-border pb-2">Franquicia</h4>
                 <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar">
                   {data.relations.map((rel: any, idx: number) => (
                     <FranchiseRelationItem key={rel.slug || idx} rel={rel} onSelectAnime={onSelectAnime} />
@@ -1301,6 +1308,7 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
         open={showRangeModal}
         onOpenChange={setShowRangeModal}
         title="Seleccionar Rango"
+        icon={<ListFilter className="w-5 h-5" aria-hidden="true" />}
         message="Indica el rango de episodios que quieres marcar."
         confirmLabel="Aplicar"
         danger={false}
@@ -1337,6 +1345,7 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
         open={showDirPicker}
         onOpenChange={setShowDirPicker}
         title="Seleccionar carpeta de destino"
+        icon={<FolderOpen className="w-5 h-5" aria-hidden="true" />}
         message="Elige dónde guardar esta descarga"
         confirmLabel="Descargar aquí"
         className="max-w-md"

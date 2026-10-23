@@ -90,7 +90,7 @@ function PlayButton({ label, onClick }: { label: string; onClick: () => void }) 
       onClick={onClick}
       aria-label={label}
       title={label}
-      className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-primary transition-colors after:absolute after:-inset-2 after:content-[''] hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+      className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors after:absolute after:-inset-2 after:content-[''] hover:text-foreground hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
     >
       <Play className="w-3.5 h-3.5" fill="currentColor" />
     </button>
@@ -162,25 +162,24 @@ export const NotificationsTab = memo(function NotificationsTab({
 
   return (
     <div className="space-y-6">
-      <section className="rounded-2xl border border-border/50 bg-card shadow-sm">
+      <section className="settings-section">
         <div className="p-5 sm:p-6">
           <div className="flex items-center gap-3 mb-5">
-            <div className="p-2.5 bg-primary/10 rounded-xl border border-primary/10">
-              <Bell className="w-5 h-5 text-primary" />
+            <div className="settings-section-icon">
+              <Bell className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold tracking-tight">Notificaciones y alertas</h2>
-              <p className="text-xs text-muted-foreground mt-0.5">Elige qué avisos ver y qué sonidos oír.</p>
+              <h2 className="text-base font-semibold">Notificaciones y alertas</h2>
+              <p className="text-[13px] text-muted-foreground mt-0.5">Elige qué avisos ver y qué sonidos oír.</p>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-6 @3xl/settings:grid-cols-2">
             <div className="space-y-4">
               <div className="flex items-center gap-2">
-                <div className="w-1 h-4 rounded-full bg-primary" />
-                <h3 className="text-sm font-bold">Eventos de notificación</h3>
+                <h3 className="text-sm font-semibold">Eventos de notificación</h3>
               </div>
-              <div className="rounded-xl border border-border/60 bg-background p-3">
+              <div>
                 {EVENT_ROWS.map((item) => (
                   <div
                     key={item.key}
@@ -199,7 +198,7 @@ export const NotificationsTab = memo(function NotificationsTab({
                 ))}
               </div>
 
-              <div className="rounded-xl border border-border/60 bg-background p-4">
+              <div className="settings-subpanel">
                 <div className="flex items-center justify-between gap-2 mb-3 min-w-0">
                   <h4 className="text-sm font-bold leading-tight truncate min-w-0 flex-1">
                     Posición de alertas internas
@@ -220,9 +219,9 @@ export const NotificationsTab = memo(function NotificationsTab({
                     });
                     if (soundsOn) onTestSound('success');
                   }}
-                  className="mt-4 w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-background hover:bg-secondary border border-border rounded-xl text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                  className="mt-4 min-h-11 w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-background hover:bg-secondary border border-border rounded-lg text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
                 >
-                  <Bell className="w-4 h-4 text-primary" /> Probar notificación
+                  <Bell className="w-4 h-4 text-muted-foreground" /> Probar notificación
                 </button>
                 <p className="text-[11px] text-muted-foreground mt-2 text-center">
                   Se aplica a todas las notificaciones de la app.
@@ -232,11 +231,10 @@ export const NotificationsTab = memo(function NotificationsTab({
 
             <div className="space-y-4">
               <div className="flex items-center gap-2">
-                <div className="w-1 h-4 rounded-full bg-primary" />
-                <h3 className="text-sm font-bold">Alertas sonoras</h3>
+                <h3 className="text-sm font-semibold">Alertas sonoras</h3>
               </div>
 
-              <div className="rounded-xl border border-border/60 bg-background p-4">
+              <div className="settings-option-row">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="text-sm font-semibold">Activar sonidos</div>
@@ -253,7 +251,7 @@ export const NotificationsTab = memo(function NotificationsTab({
               </div>
 
               <div className={`space-y-4 transition-opacity ${soundsOn ? '' : 'opacity-50 pointer-events-none'}`}>
-                <div className="rounded-xl border border-border/60 bg-background p-4">
+                <div className="settings-option-row">
                   <div className="text-sm font-semibold mb-1">Sonido</div>
                   <p className="text-[13px] text-muted-foreground leading-relaxed mb-3">
                     Elige el timbre. Al pulsar uno suena una muestra.
@@ -321,15 +319,12 @@ export const NotificationsTab = memo(function NotificationsTab({
                   )}
                 </div>
 
-                <div className="rounded-xl border border-border/60 bg-background p-4">
+                <div className="settings-option-row">
                   <div className="flex justify-between items-center mb-3">
-                    <label
-                      htmlFor="sound-volume"
-                      className="text-xs font-bold tracking-wide uppercase text-muted-foreground"
-                    >
+                    <label htmlFor="sound-volume" className="text-sm font-semibold text-foreground">
                       Volumen general
                     </label>
-                    <span className="text-xs font-mono font-bold text-primary bg-primary/10 px-2.5 py-1 rounded-full border border-primary/20">
+                    <span className="text-[13px] font-medium tabular-nums text-muted-foreground">
                       {Math.round((settings.soundVolume ?? 0.5) * 100)}%
                     </span>
                   </div>
@@ -347,13 +342,13 @@ export const NotificationsTab = memo(function NotificationsTab({
                       onClick={() => onTestSound('success')}
                       className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-background hover:bg-secondary border border-border rounded-full text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
                     >
-                      <Volume2 className="w-3.5 h-3.5 text-primary" /> Probar sonido
+                      <Volume2 className="w-3.5 h-3.5 text-muted-foreground" /> Probar sonido
                     </button>
                     <span className="text-[11px] text-muted-foreground">Alto</span>
                   </div>
                 </div>
 
-                <div className="rounded-xl border border-border/60 bg-background p-4">
+                <div className="settings-option-row">
                   <button
                     type="button"
                     onClick={() => setTypesOpen((v) => !v)}
@@ -412,7 +407,7 @@ export const NotificationsTab = memo(function NotificationsTab({
                                   onChange={(v) => onChange(item.key, v, 'soundProfiles')}
                                   ariaLabel={`Volumen ${item.label}`}
                                 />
-                                <span className="shrink-0 text-[11px] font-mono font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full border border-primary/15 min-w-[38px] text-center">
+                                <span className="shrink-0 text-xs font-medium tabular-nums text-muted-foreground min-w-[4ch] text-right">
                                   {pct}%
                                 </span>
                               </div>

@@ -64,7 +64,7 @@ export function SearchField({
           onKeyDown={onKeyDown}
           onFocus={onFocus}
           className={clsx(
-            'search-input h-11 w-full rounded-full border border-border/70 bg-surface pl-11 pr-11 text-sm text-foreground shadow-sm transition-[border-color,box-shadow] hover:border-border-strong placeholder:text-muted-foreground/60 placeholder:select-none focus:outline-none',
+            'search-input h-11 w-full rounded-lg border border-border/70 bg-surface pl-11 pr-11 text-sm text-foreground transition-[border-color,box-shadow] hover:border-border-strong placeholder:text-muted-foreground placeholder:select-none focus:outline-none',
             '[&::-webkit-search-cancel-button]:hidden',
             inputClassName,
           )}

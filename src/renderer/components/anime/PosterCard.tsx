@@ -11,6 +11,7 @@ interface PosterCardProps {
   topOverlay?: ReactNode;
   actionLabel?: string;
   actionAlwaysVisible?: boolean;
+  actionTone?: 'primary' | 'secondary';
   disabled?: boolean;
   describedBy?: string;
   priority?: boolean;
@@ -29,6 +30,7 @@ export function PosterCard({
   topOverlay,
   actionLabel,
   actionAlwaysVisible = false,
+  actionTone = 'primary',
   disabled = false,
   describedBy,
   priority = false,
@@ -95,7 +97,9 @@ export function PosterCard({
               'block rounded-lg px-3 py-2 text-center text-xs font-bold tracking-tight',
               disabled
                 ? 'bg-surface-elevated text-muted-foreground'
-                : 'bg-primary/90 text-primary-foreground shadow-[0_8px_24px_rgba(0,0,0,0.35)]',
+                : actionTone === 'secondary'
+                  ? 'border border-border-strong bg-surface-elevated text-foreground'
+                  : 'bg-primary/90 text-primary-foreground',
             )}
           >
             {actionLabel}
@@ -117,7 +121,7 @@ export function PosterCard({
       >
         {badge && <div className="mb-1.5 flex min-w-0 flex-wrap items-center gap-1.5">{badge}</div>}
         {meta && <div className="mb-1.5 flex min-w-0 items-center gap-1.5 overflow-hidden">{meta}</div>}
-        <h3 className="sala-poster-title line-clamp-2 min-h-[2.6em] text-[14px] font-semibold leading-snug tracking-tight text-white">
+        <h3 className="sala-poster-title font-sans line-clamp-2 min-h-[2.6em] text-[14px] font-semibold leading-snug tracking-tight text-white">
           {title}
         </h3>
       </div>

@@ -69,13 +69,15 @@ export const ScheduleAgendaRow = memo(function ScheduleAgendaRow({
         <PosterImage src={entry.poster} alt={entry.title} className="h-full w-full rounded object-cover" />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="line-clamp-1 block text-[15px] font-semibold leading-tight text-foreground transition-colors group-hover:text-primary">
+        <span className="line-clamp-2 text-[15px] font-semibold leading-snug text-foreground transition-colors group-hover:text-primary">
           {entry.title}
         </span>
       </span>
-      <span className="flex w-40 shrink-0 items-center justify-end">
-        {label ? <ScheduleLabelPill label={label} isNext={isNext} /> : null}
-      </span>
+      {label && (
+        <span className="flex shrink-0 items-center justify-end sm:w-40">
+          <ScheduleLabelPill label={label} isNext={isNext} />
+        </span>
+      )}
     </button>
   );
 });

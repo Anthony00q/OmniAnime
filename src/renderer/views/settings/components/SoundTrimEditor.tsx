@@ -304,7 +304,7 @@ export function SoundTrimEditor({
   const handleBarClass =
     'pointer-events-none absolute inset-y-0 left-1/2 w-1 -translate-x-1/2 rounded-full bg-primary transition-[filter] duration-150 ease-out group-hover:brightness-110 group-active:brightness-125';
   const handleThumbClass =
-    'pointer-events-none absolute left-1/2 top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary ring-2 ring-background/70 transition-transform duration-150 ease-out group-hover:scale-110 group-active:scale-125';
+    'pointer-events-none absolute left-1/2 top-1/2 h-5 w-2 -translate-x-1/2 -translate-y-1/2 rounded-sm bg-primary ring-2 ring-background/70 transition-transform duration-150 ease-out group-hover:scale-110 group-active:scale-125';
 
   return (
     <div className="space-y-4">
@@ -383,12 +383,10 @@ export function SoundTrimEditor({
           onPointerCancel={handleDragEnd}
           onKeyDown={handleKey('playhead')}
         >
-          <span
-            className={`pointer-events-none h-full w-0.5 rounded-full ${playing ? 'bg-primary' : 'bg-primary/80'}`}
-          />
+          <span className="pointer-events-none h-full w-px bg-foreground" />
           <span
             aria-hidden="true"
-            className={`pointer-events-none absolute left-1/2 top-1 h-2.5 w-2.5 -translate-x-1/2 rounded-full bg-primary ring-2 ring-background/60 ${playing ? 'brightness-125' : ''}`}
+            className="pointer-events-none absolute left-1/2 top-1 h-2.5 w-2.5 -translate-x-1/2 rounded-full bg-foreground ring-2 ring-background/60"
           />
         </button>
 
@@ -461,7 +459,7 @@ export function SoundTrimEditor({
               stopPreview();
               onConfirm(startSec, trimSec);
             }}
-            className="inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-[color-mix(in_srgb,var(--color-primary)_88%,black)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+            className="inline-flex min-h-11 items-center justify-center rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-[color-mix(in_srgb,var(--color-primary)_88%,black)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
           >
             Usar recorte
           </button>

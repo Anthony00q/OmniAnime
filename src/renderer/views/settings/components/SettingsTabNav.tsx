@@ -85,30 +85,26 @@ export const SettingsTabNav = memo(function SettingsTabNav({ activeTab, onTabCha
           type="button"
           onClick={() => onTabChange(tab.id)}
           aria-current={activeTab === tab.id ? 'page' : undefined}
-          className={`group flex min-w-max items-center gap-3 rounded-xl px-4 py-3 text-left border transition-[background-color,border-color,color,box-shadow,transform] duration-150 [transition-timing-function:var(--ease-out)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 active:scale-[0.98] min-[960px]:min-w-0 ${
+          className={`group flex min-w-max items-center gap-3 rounded-lg px-3 py-3 text-left border transition-colors duration-(--duration-motion-micro) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 min-[960px]:min-w-0 ${
             activeTab === tab.id
-              ? 'bg-primary/15 border-primary/30 text-foreground shadow-[0_8px_24px_rgba(0,0,0,0.35)]'
+              ? 'bg-secondary/70 border-border/60 text-foreground'
               : 'bg-transparent text-muted-foreground border-transparent hover:bg-secondary/60 hover:text-foreground hover:border-border/50'
           }`}
         >
           <span
-            className={`p-1.5 rounded-lg transition-colors ${activeTab === tab.id ? 'bg-primary text-primary-foreground' : 'bg-secondary/60 group-hover:bg-secondary'}`}
+            className={`shrink-0 transition-colors ${activeTab === tab.id ? 'text-primary' : 'text-muted-foreground'}`}
           >
             {tab.icon}
           </span>
           <span className="flex flex-col">
             <span className="text-sm font-semibold tracking-tight leading-none">{tab.label}</span>
-            <span
-              className={`text-[11px] leading-none mt-1 ${activeTab === tab.id ? 'text-muted-foreground' : 'text-muted-foreground/70'}`}
-            >
-              {tab.desc}
-            </span>
+            <span className="text-[11px] leading-snug mt-1 text-muted-foreground">{tab.desc}</span>
           </span>
         </button>
       ))}
-      <div className="hidden min-[960px]:block mt-4 rounded-xl bg-secondary/30 border border-border/40 p-3">
+      <div className="hidden min-[960px]:block mt-4 border-t border-border/40 px-3 pt-4">
         <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
-          <Info className="w-3.5 h-3.5 text-primary" /> Consejo
+          <Info className="w-3.5 h-3.5 text-muted-foreground" /> Consejo
         </div>
         <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
           Usa{' '}

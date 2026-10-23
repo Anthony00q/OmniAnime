@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Check, Loader2 } from 'lucide-react';
+import { Check, FolderPen, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { isIpcFailError, unwrap } from '@/renderer/hooks/queries/unwrap';
 import { Dialog } from '@/renderer/components/Dialog';
@@ -156,6 +156,7 @@ export function RenameFoldersDialog({ open, onOpenChange, dirs, source }: Rename
       open={open}
       onOpenChange={onOpenChange}
       title="Renombrar carpetas de la librería"
+      icon={<FolderPen className="w-5 h-5" aria-hidden="true" />}
       message={`Se aplicará «${sourceLabel(source)}» a las carpetas ya descargadas.`}
       confirmLabel={renaming ? 'Renombrando…' : `Renombrar (${pendingCount})`}
       confirmDisabled={pendingCount === 0 || renaming || resolving}

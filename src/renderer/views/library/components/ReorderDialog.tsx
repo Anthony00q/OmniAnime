@@ -61,7 +61,7 @@ export function ReorderDialog({
       confirmLoading={isPending}
       closeOnConfirm={false}
       dismissDisabled={isPending}
-      icon={<ListOrdered className="w-5 h-5 text-primary" />}
+      icon={<ListOrdered className="w-5 h-5" aria-hidden="true" />}
       className="max-w-[640px]"
       onConfirm={onConfirm}
       onOpenAutoFocus={(event) => {
@@ -198,15 +198,13 @@ export function ReorderDialog({
                       <span className="w-7 h-7 rounded-full bg-secondary border border-border flex items-center justify-center shrink-0 font-mono text-[11px] font-bold text-muted-foreground">
                         {idx + 1}
                       </span>
-                      <span className="flex-1 min-w-0 grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-                        <span
-                          className={`truncate w-fit max-w-full font-mono text-xs px-1.5 py-1 rounded border ${item.status === 'will_rename' ? 'bg-secondary/50 border-border/40 line-through opacity-60' : 'bg-secondary/40 border-border/30'}`}
-                        >
+                      <span className="flex-1 min-w-0 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
+                        <span className="break-all select-text max-w-full font-mono text-xs leading-relaxed px-1.5 py-1 text-muted-foreground">
                           {item.from}
                         </span>
                         <ArrowRight className="w-3 h-3 text-muted-foreground shrink-0" />
                         <span
-                          className={`truncate w-fit max-w-full font-mono text-xs px-1.5 py-1 rounded border font-medium ${item.status === 'will_rename' ? 'bg-primary/10 border-primary/20 text-foreground' : 'bg-secondary/30 border-border/30'}`}
+                          className={`break-all select-text max-w-full font-mono text-xs leading-relaxed px-1.5 py-1 rounded font-medium ${item.status === 'will_rename' ? 'bg-secondary/40 text-foreground' : 'text-muted-foreground'}`}
                         >
                           {item.to}
                         </span>

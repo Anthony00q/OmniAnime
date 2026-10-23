@@ -80,11 +80,7 @@ export function UpdateModal() {
       showFooter={false}
       headerAlign="center"
       className="max-w-2xl"
-      icon={
-        <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 bg-primary/15">
-          <CircleArrowUp className="w-5 h-5 text-primary" aria-hidden="true" />
-        </div>
-      }
+      icon={<CircleArrowUp className="w-5 h-5" aria-hidden="true" />}
     >
       <div aria-live="polite" className="rounded-lg border border-border/60 bg-background/40 px-4 py-3">
         {hasCompare || loadingVersion ? (
@@ -166,11 +162,11 @@ export function UpdateModal() {
         </div>
       )}
 
-      <div className="flex justify-end gap-3 mt-6">
+      <div className="flex flex-wrap justify-end gap-3 mt-6">
         <button
           type="button"
           onClick={dismiss}
-          className="px-4 py-2 rounded-lg text-xs font-semibold hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+          className="min-h-11 px-4 py-2 rounded-lg text-[13px] font-semibold hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
         >
           Ahora no
         </button>
@@ -178,7 +174,7 @@ export function UpdateModal() {
           <button
             type="button"
             onClick={() => void install()}
-            className="inline-flex items-center justify-center px-4 py-2 rounded-lg text-xs font-bold transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 bg-primary text-primary-foreground hover:bg-[color-mix(in_srgb,var(--color-primary)_88%,black)] min-w-[148px]"
+            className="inline-flex min-h-11 min-w-24 items-center justify-center px-4 py-2 rounded-lg text-[13px] font-semibold transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 bg-primary text-primary-foreground hover:bg-[color-mix(in_srgb,var(--color-primary)_88%,black)]"
           >
             Reiniciar para instalar
           </button>
@@ -187,9 +183,16 @@ export function UpdateModal() {
             type="button"
             onClick={() => void startDownload()}
             disabled={phase === 'downloading'}
-            className="inline-flex items-center justify-center px-4 py-2 rounded-lg text-xs font-bold transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-50 disabled:cursor-not-allowed bg-primary text-primary-foreground hover:bg-[color-mix(in_srgb,var(--color-primary)_88%,black)] min-w-[148px]"
+            className="inline-flex min-h-11 min-w-24 items-center justify-center px-4 py-2 rounded-lg text-[13px] font-semibold transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-50 disabled:cursor-not-allowed bg-primary text-primary-foreground hover:bg-[color-mix(in_srgb,var(--color-primary)_88%,black)]"
           >
-            {phase === 'downloading' ? 'Descargando…' : 'Descargar e instalar'}
+            <span className="inline-grid">
+              <span className="col-start-1 row-start-1">
+                {phase === 'downloading' ? 'Descargando…' : 'Descargar e instalar'}
+              </span>
+              <span aria-hidden="true" className="invisible col-start-1 row-start-1">
+                Descargar e instalar
+              </span>
+            </span>
           </button>
         )}
       </div>

@@ -1,5 +1,5 @@
 import { memo, useCallback } from 'react';
-import { Palette, Eye, Check, AlertCircle, Copy, LayoutGrid, List } from 'lucide-react';
+import { Palette, Eye, Check, AlertCircle, Copy, LayoutGrid, List, Minus, Square, X } from 'lucide-react';
 import { THEME_META, THEME_IDS, ACCENT_PRESETS, THEME_SUGGESTED_ACCENT } from '@/renderer/views/settings/constants';
 import type { ThemeId } from '@/types/settings';
 import { isActiveTheme } from '@/renderer/views/settings/utils/settingsHelpers';
@@ -37,9 +37,9 @@ const EpisodeViewSetting = memo(function EpisodeViewSetting({
               role="radio"
               aria-checked={active}
               onClick={() => onChange(value)}
-              className={`flex items-center gap-3 rounded-xl border p-3 text-left transition-[border-color,background-color,box-shadow] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 ${
+              className={`flex items-center gap-3 rounded-lg border p-3 text-left transition-colors duration-(--duration-motion-micro) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 ${
                 active
-                  ? 'border-primary bg-primary/5 shadow-sm'
+                  ? 'border-primary/60 bg-primary/5'
                   : 'border-border/60 bg-background hover:border-border hover:bg-secondary/30'
               }`}
             >
@@ -84,11 +84,11 @@ const ThemeMiniPreview = memo(function ThemeMiniPreview({
       aria-hidden="true"
       className={`relative overflow-hidden rounded-[10px] border border-border/50 bg-background min-w-0 ${themeClass}`}
     >
-      <div className="h-6 flex items-center gap-1 px-2 bg-card border-b border-border/40">
-        <span className="w-2 h-2 rounded-full" style={accentStyle} />
-        <span className="w-2 h-2 rounded-full bg-border" />
-        <span className="w-2 h-2 rounded-full bg-border" />
-        <span className="ml-auto w-8 h-1.5 rounded-full bg-foreground/10" />
+      <div className="h-6 flex items-center gap-2 px-2 bg-card border-b border-border/40 text-muted-foreground">
+        <span className="w-8 h-1.5 rounded bg-foreground/15" />
+        <Minus className="ml-auto w-2 h-2" />
+        <Square className="w-2 h-2" />
+        <X className="w-2 h-2" />
       </div>
       <div className="p-2 flex gap-2">
         <div className="w-7 rounded-md bg-secondary border border-border/40 flex flex-col items-center gap-1.5 py-1.5 shrink-0">
@@ -97,7 +97,7 @@ const ThemeMiniPreview = memo(function ThemeMiniPreview({
           <span className="w-4 h-1 rounded bg-foreground/8" />
         </div>
         <div className="flex-1 min-w-0 rounded-md bg-card border border-border/40 p-1.5 flex gap-1.5 overflow-hidden">
-          <div className="w-8 h-10 rounded-[6px] bg-secondary border border-border/30 shrink-0 flex flex-col justify-end p-1">
+          <div className="w-8 aspect-[2/3] rounded-[6px] bg-secondary border border-border/30 shrink-0 flex flex-col justify-end p-1">
             <span className="h-1 w-full rounded bg-foreground/15" />
           </div>
           <div className="flex-1 min-w-0 py-0.5">
@@ -186,15 +186,15 @@ export const AppearanceTab = memo(
 
     return (
       <div className="space-y-6">
-        <section className="rounded-2xl border border-border/50 bg-card shadow-sm">
+        <section className="settings-section">
           <div className="p-5 sm:p-6">
             <div className="flex items-center gap-3 mb-5">
-              <div className="p-2.5 bg-primary/10 rounded-xl border border-primary/10">
-                <Palette className="w-5 h-5 text-primary" />
+              <div className="settings-section-icon">
+                <Palette className="w-5 h-5" />
               </div>
               <div>
-                <h2 className="text-base font-bold tracking-tight">Apariencia</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">Diseño, color y vista de episodios.</p>
+                <h2 className="text-base font-semibold">Apariencia</h2>
+                <p className="text-[13px] text-muted-foreground mt-0.5">Diseño, color y vista de episodios.</p>
               </div>
             </div>
 
@@ -222,19 +222,17 @@ export const AppearanceTab = memo(
                           aria-label={`Seleccionar tema ${meta.shortLabel}: ${meta.desc}`}
                           data-theme-id={t}
                           onClick={() => onThemeChange(t)}
-                          className={`group relative text-left rounded-xl border p-2.5 pt-6 min-w-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-card transition-[transform,border-color,background-color,box-shadow] duration-150 ease-out active:scale-[0.98] ${active ? 'border-primary bg-primary/5 shadow-sm' : 'border-border/60 bg-background hover:border-border hover:bg-secondary/30 hover:shadow-sm'}`}
+                          className={`group relative text-left rounded-lg border p-2.5 pt-6 min-w-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-card transition-colors duration-(--duration-motion-micro) ${active ? 'border-primary/60 bg-primary/5' : 'border-border/60 bg-background hover:border-border-strong hover:bg-secondary/30'}`}
                         >
                           {meta.hint && (
-                            <span
-                              className={`pointer-events-none absolute -top-2.5 left-1/2 -translate-x-1/2 whitespace-nowrap text-[11px] font-bold tracking-widest uppercase px-2 py-0.5 rounded-full border shadow-sm z-10 ${active ? 'bg-primary text-primary-foreground border-primary' : t === 'dark' ? 'bg-card text-muted-foreground border-border' : 'bg-secondary text-muted-foreground border-border'}`}
-                            >
+                            <span className="pointer-events-none absolute -top-2.5 left-1/2 -translate-x-1/2 whitespace-nowrap text-[11px] font-medium px-2 py-0.5 rounded border border-border bg-card text-muted-foreground z-10">
                               {meta.hint}
                             </span>
                           )}
                           <div className="flex items-center justify-between gap-1.5 mb-2">
-                            <span className="text-xs font-bold tracking-tight">{meta.shortLabel}</span>
+                            <span className="text-[13px] font-semibold">{meta.shortLabel}</span>
                             {active ? (
-                              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-primary/15 border border-primary/20 shrink-0">
+                              <span className="inline-flex items-center justify-center w-5 h-5 shrink-0">
                                 <Check className="w-3 h-3 text-primary" aria-hidden="true" />
                               </span>
                             ) : (
@@ -273,7 +271,7 @@ export const AppearanceTab = memo(
                         autoComplete="off"
                         aria-invalid={showError}
                         aria-describedby={accentDescribedBy}
-                        className={`w-full bg-background border rounded-xl px-3.5 py-2.5 pr-9 text-sm focus:outline-none font-mono text-foreground transition-colors ${showError ? 'border-warning/50' : 'border-border'}`}
+                        className={`field-input h-11 w-full bg-surface border rounded-lg px-3.5 py-2.5 pr-9 text-sm focus:outline-none tabular-nums text-foreground transition-colors ${showError ? 'border-warning/50' : 'border-border'}`}
                       />
                       <AppTooltip content="Copiar HEX">
                         <button
@@ -350,12 +348,12 @@ export const AppearanceTab = memo(
                               aria-label={`${selected ? 'Seleccionado, ' : ''}Usar color ${hex}`}
                               data-preset-hex={hex}
                               onClick={() => onAccentPreset(hex)}
-                              className={`relative w-9 h-9 rounded-full border-2 shadow-sm transition-[transform,border-color,box-shadow] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-card active:scale-95 ${selected ? 'border-foreground scale-110 ring-2 ring-primary/30 shadow-md' : 'border-white/15 hover:scale-105 hover:border-white/25 hover:shadow'}`}
+                              className={`relative w-9 h-9 rounded-full border-2 transition-colors duration-(--duration-motion-micro) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-card ${selected ? 'border-foreground ring-2 ring-foreground/20' : 'border-border-strong hover:border-foreground/60'}`}
                               style={{ background: hex }}
                             >
                               {selected && (
                                 <Check
-                                  className="absolute inset-0 m-auto w-4 h-4 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.6)]"
+                                  className="absolute inset-0 m-auto w-4 h-4 text-primary-foreground"
                                   aria-hidden="true"
                                 />
                               )}
@@ -375,28 +373,22 @@ export const AppearanceTab = memo(
 
               <div className="xl:col-span-2 min-w-0">
                 <div className="xl:sticky xl:top-4">
-                  <div className="rounded-2xl border border-border/60 bg-background p-4 shadow-inner min-w-0 overflow-hidden">
+                  <div className="settings-subpanel min-w-0 overflow-hidden">
                     <div className="text-xs font-bold tracking-widest uppercase text-muted-foreground mb-3 flex items-center gap-1.5">
                       <Eye className="w-3.5 h-3.5" aria-hidden="true" /> Vista previa
                     </div>
 
-                    <div className="space-y-3">
-                      <div className="rounded-xl border border-border/50 bg-card shadow-sm overflow-hidden">
-                        <div className="h-7 flex items-center gap-1.5 px-3 bg-secondary/40 border-b border-border/30">
-                          <span
-                            className="w-2.5 h-2.5 rounded-full"
-                            style={{ background: accentHex }}
-                            aria-hidden="true"
-                          />
-                          <span className="w-2.5 h-2.5 rounded-full bg-border" aria-hidden="true" />
-                          <span className="w-2.5 h-2.5 rounded-full bg-border" aria-hidden="true" />
-                          <span className="ml-auto text-[11px] font-semibold text-muted-foreground tracking-wide">
-                            OmniAnime
-                          </span>
+                    <div className="space-y-3" aria-hidden="true">
+                      <div className="rounded-lg border border-border/50 bg-card overflow-hidden">
+                        <div className="h-7 flex items-center gap-3 px-3 bg-secondary/40 border-b border-border/30 text-muted-foreground">
+                          <span className="mr-auto text-[11px] font-semibold tracking-wide">OmniAnime</span>
+                          <Minus className="w-2.5 h-2.5" />
+                          <Square className="w-2.5 h-2.5" />
+                          <X className="w-2.5 h-2.5" />
                         </div>
                         <div className="p-3 flex gap-3">
                           <div className="w-20 shrink-0">
-                            <div className="aspect-[3/4] rounded-lg bg-secondary border border-border/40 overflow-hidden relative">
+                            <div className="aspect-[2/3] rounded-lg bg-secondary border border-border/40 overflow-hidden relative">
                               <div
                                 className="absolute inset-0 bg-gradient-to-br from-foreground/5 to-transparent"
                                 aria-hidden="true"
@@ -408,7 +400,7 @@ export const AppearanceTab = memo(
                                 />
                               </div>
                               <div
-                                className="absolute top-1.5 left-1.5 text-[9px] font-bold tracking-widest uppercase px-1.5 py-0.5 rounded-full text-white shadow-sm"
+                                className="absolute top-1.5 left-1.5 text-[9px] font-semibold tracking-wide uppercase px-1.5 py-0.5 rounded text-primary-foreground"
                                 style={{ background: accentHex }}
                               >
                                 EP 7
@@ -427,7 +419,7 @@ export const AppearanceTab = memo(
                             <div className="h-3 w-2/3 rounded bg-foreground/5 mb-3" />
                             <div className="flex flex-wrap gap-1.5 mb-3">
                               <span
-                                className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold text-white shadow-sm"
+                                className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold text-primary-foreground"
                                 style={{ background: accentHex }}
                               >
                                 Primario
@@ -446,12 +438,12 @@ export const AppearanceTab = memo(
                             </div>
                             <div className="flex gap-2 flex-wrap">
                               <div
-                                className="flex-1 min-w-[74px] rounded-xl px-3 py-2 text-center text-xs font-bold text-white shadow-md cursor-default select-none transition-colors"
+                                className="flex-1 min-w-[74px] rounded-lg px-3 py-2 text-center text-xs font-semibold text-primary-foreground cursor-default select-none transition-colors"
                                 style={{ background: accentHex }}
                               >
                                 Botón
                               </div>
-                              <div className="flex-1 min-w-[104px] rounded-xl px-3 py-2 text-center text-xs font-semibold bg-secondary border border-border cursor-default select-none">
+                              <div className="flex-1 min-w-[104px] rounded-lg px-3 py-2 text-center text-xs font-semibold bg-secondary border border-border cursor-default select-none">
                                 Secundario
                               </div>
                             </div>
@@ -459,9 +451,9 @@ export const AppearanceTab = memo(
                         </div>
                       </div>
 
-                      <div className="rounded-xl border border-border/50 bg-popover p-2.5 flex items-center gap-2.5 shadow-sm">
+                      <div className="rounded-lg border border-border/50 bg-popover p-2.5 flex items-center gap-2.5">
                         <span
-                          className="w-7 h-7 rounded-full flex items-center justify-center text-white shrink-0 shadow-sm"
+                          className="w-7 h-7 rounded-full flex items-center justify-center text-primary-foreground shrink-0"
                           style={{ background: accentHex }}
                           aria-hidden="true"
                         >

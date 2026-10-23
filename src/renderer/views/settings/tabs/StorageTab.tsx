@@ -21,10 +21,10 @@ const StorageDiskRow = memo(function StorageDiskRow({
   const usedText = used != null ? formatBytes(used) : null;
 
   return (
-    <div className="rounded-xl border border-border/60 bg-background p-3.5">
+    <div className="settings-option-row">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex gap-3">
-          <div className="w-8 h-8 flex items-center justify-center bg-secondary rounded-lg border border-border/50 shrink-0">
+          <div className="w-8 h-8 flex items-center justify-center shrink-0">
             <HardDrive className="w-4 h-4 text-muted-foreground" />
           </div>
           <div className="min-w-0">
@@ -97,12 +97,12 @@ export const StorageTab = memo(function StorageTab({
 }: StorageTabProps) {
   return (
     <>
-      <section className="rounded-2xl border border-border/50 bg-card shadow-sm p-5 sm:p-6">
+      <section className="settings-section p-5 sm:p-6">
         <div className="flex items-center gap-2 mb-4">
-          <div className="p-1.5 bg-primary/10 rounded-lg">
-            <BarChart3 className="w-4 h-4 text-primary" />
+          <div className="settings-section-icon">
+            <BarChart3 className="w-5 h-5" />
           </div>
-          <h3 className="text-sm font-bold tracking-tight">Estado de almacenamiento</h3>
+          <h3 className="text-base font-semibold">Estado de almacenamiento</h3>
         </div>
 
         {storageStatsQuery.isLoading ? (
@@ -127,15 +127,15 @@ export const StorageTab = memo(function StorageTab({
         ) : (
           <div className={`space-y-4 ${storageStatsQuery.isFetching && !storageStatsQuery.data ? 'opacity-60' : ''}`}>
             {(storageStatsQuery.data as any)?.disks?.length > 0 && (
-              <div className="space-y-2.5">
+              <div>
                 {(storageStatsQuery.data as any).disks.map((d: any, idx: number) => (
                   <StorageDiskRow key={idx} disk={d} formatBytes={formatBytes} formatDiskPercent={formatDiskPercent} />
                 ))}
               </div>
             )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="rounded-xl border border-border/60 bg-background p-3.5">
+            <div className="grid grid-cols-1 border-t border-border/40 pt-5 @2xl/settings:grid-cols-3">
+              <div className="min-w-0 border-b border-border/40 py-4 @2xl/settings:border-b-0 @2xl/settings:py-0 @2xl/settings:pr-5">
                 <div className="flex items-center gap-2 text-xs font-bold tracking-wide uppercase text-muted-foreground mb-2">
                   <Database className="w-3.5 h-3.5" /> Datos guardados
                 </div>
@@ -144,7 +144,7 @@ export const StorageTab = memo(function StorageTab({
                   if (!db) return <div className="text-xs text-muted-foreground">—</div>;
                   return (
                     <>
-                      <div className="text-sm font-mono font-semibold">{formatBytes(db.total)}</div>
+                      <div className="text-sm tabular-nums font-medium">{formatBytes(db.total)}</div>
                       <div className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
                         Información de tu biblioteca y ajustes
                       </div>
@@ -152,7 +152,7 @@ export const StorageTab = memo(function StorageTab({
                   );
                 })()}
               </div>
-              <div className="rounded-xl border border-border/60 bg-background p-3.5">
+              <div className="min-w-0 border-b border-border/40 py-4 @2xl/settings:border-b-0 @2xl/settings:border-l @2xl/settings:px-5 @2xl/settings:py-0">
                 <div className="flex items-center gap-2 text-xs font-bold tracking-wide uppercase text-muted-foreground mb-2">
                   <Eraser className="w-3.5 h-3.5" /> Archivos temporales
                 </div>
@@ -163,9 +163,19 @@ export const StorageTab = memo(function StorageTab({
                   return (
                     <>
                       <div
-                        className={`text-sm font-semibold ${isEmpty ? 'text-muted-foreground' : 'font-mono text-foreground'}`}
+                        className={`text-sm tabular-nums ${isEmpty ? 'font-normal text-muted-foreground' : 'font-medium text-foreground'}`}
                       >
-                        {isEmpty ? 'Vacío' : `${cache.count} archivos · ${formatBytes(cache.size)}`}
+                        {isEmpty ? (
+                          'Vacío'
+                        ) : (
+                          <>
+                            {cache.count} {cache.count === 1 ? 'archivo' : 'archivos'}{' '}
+                            <span aria-hidden="true" className="text-border-strong font-normal">
+                              |
+                            </span>{' '}
+                            {formatBytes(cache.size)}
+                          </>
+                        )}
                       </div>
                       <div className="text-[11px] text-muted-foreground mt-1">
                         {isEmpty ? 'No hay restos de descargas' : 'Restos de descargas sin terminar'}
@@ -174,7 +184,7 @@ export const StorageTab = memo(function StorageTab({
                   );
                 })()}
               </div>
-              <div className="rounded-xl border border-border/60 bg-background p-3.5">
+              <div className="min-w-0 py-4 @2xl/settings:border-l @2xl/settings:border-border/40 @2xl/settings:py-0 @2xl/settings:pl-5">
                 <div className="flex items-center gap-2 text-xs font-bold tracking-wide uppercase text-muted-foreground mb-2">
                   <Eye className="w-3.5 h-3.5" /> Vistas previas
                 </div>
@@ -185,9 +195,19 @@ export const StorageTab = memo(function StorageTab({
                   return (
                     <>
                       <div
-                        className={`text-sm font-semibold ${isEmpty ? 'text-muted-foreground' : 'font-mono text-foreground'}`}
+                        className={`text-sm tabular-nums ${isEmpty ? 'font-normal text-muted-foreground' : 'font-medium text-foreground'}`}
                       >
-                        {isEmpty ? 'Vacío' : `${th.count} imágenes · ${formatBytes(th.size)}`}
+                        {isEmpty ? (
+                          'Vacío'
+                        ) : (
+                          <>
+                            {th.count} {th.count === 1 ? 'imagen' : 'imágenes'}{' '}
+                            <span aria-hidden="true" className="text-border-strong font-normal">
+                              |
+                            </span>{' '}
+                            {formatBytes(th.size)}
+                          </>
+                        )}
                       </div>
                       <div className="text-[11px] text-muted-foreground mt-1">
                         {isEmpty
@@ -212,66 +232,70 @@ export const StorageTab = memo(function StorageTab({
         )}
       </section>
 
-      <section className="rounded-2xl border border-border/50 bg-card shadow-sm p-5 sm:p-6">
+      <section className="settings-section p-5 sm:p-6">
         <div className="flex items-center gap-2 mb-4">
-          <div className="p-1.5 bg-primary/10 rounded-lg">
-            <Trash2 className="w-4 h-4 text-primary" />
+          <div className="settings-section-icon">
+            <Trash2 className="w-5 h-5" />
           </div>
-          <h3 className="text-sm font-bold tracking-tight">Limpieza</h3>
+          <h3 className="text-base font-semibold">Limpieza</h3>
         </div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <div className="rounded-xl border border-border/60 bg-background p-4 flex flex-col gap-3">
+        <div className="grid grid-cols-1 @2xl/settings:grid-cols-2">
+          <div className="flex min-w-0 flex-col border-b border-border/40 pb-5 @2xl/settings:border-b-0 @2xl/settings:border-r @2xl/settings:pb-0 @2xl/settings:pr-6">
             <div className="flex gap-3">
-              <div className="w-8 h-8 flex items-center justify-center bg-secondary rounded-lg border border-border/50 shrink-0">
+              <div className="w-8 h-8 flex items-center justify-center shrink-0">
                 <Eraser className="w-4 h-4 text-muted-foreground" />
               </div>
               <div className="min-w-0">
                 <div className="text-sm font-semibold">Archivos temporales</div>
-                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                <p className="text-[13px] text-muted-foreground mt-1 leading-relaxed">
                   Borra los restos que quedan cuando una descarga no termina.
                 </p>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={async () => {
-                const toastId = toast.loading('Limpiando archivos temporales...');
-                try {
-                  const res: any = await storageActions.cleanCache.mutateAsync();
-                  if (res.cleaned > 0)
-                    toast.success(`Se limpiaron ${res.cleaned} archivos (${formatBytes(res.freed)})`, { id: toastId });
-                  else toast.success('No había nada para limpiar', { id: toastId });
-                } catch (e: any) {
-                  toast.error('No se pudieron limpiar los archivos', {
-                    id: toastId,
-                    description: String(e?.message || e),
-                  });
-                }
-              }}
-              disabled={storageActions.cleanCache.isPending}
-              className="inline-flex items-center justify-center gap-2 px-3.5 py-2 bg-secondary hover:bg-secondary/80 border border-border rounded-xl text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-50"
-            >
-              {storageActions.cleanCache.isPending ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Trash2 className="w-4 h-4" />
-              )}
-              Limpiar archivos temporales
-            </button>
+            <div className="mt-auto pl-11 pt-4">
+              <button
+                type="button"
+                onClick={async () => {
+                  const toastId = toast.loading('Limpiando archivos temporales...');
+                  try {
+                    const res: any = await storageActions.cleanCache.mutateAsync();
+                    if (res.cleaned > 0)
+                      toast.success(`Se limpiaron ${res.cleaned} archivos (${formatBytes(res.freed)})`, {
+                        id: toastId,
+                      });
+                    else toast.success('No había nada para limpiar', { id: toastId });
+                  } catch (e: any) {
+                    toast.error('No se pudieron limpiar los archivos', {
+                      id: toastId,
+                      description: String(e?.message || e),
+                    });
+                  }
+                }}
+                disabled={storageActions.cleanCache.isPending}
+                className="inline-flex min-h-11 max-w-full items-center justify-center gap-2 px-3.5 py-2 bg-secondary hover:bg-secondary/80 border border-border rounded-lg text-[13px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-50"
+              >
+                {storageActions.cleanCache.isPending ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Trash2 className="w-4 h-4" />
+                )}
+                Limpiar archivos temporales
+              </button>
+            </div>
           </div>
-          <div className="rounded-xl border border-border/60 bg-background p-4 flex flex-col gap-3">
+          <div className="flex min-w-0 flex-col pt-5 @2xl/settings:pt-0 @2xl/settings:pl-6">
             <div className="flex gap-3">
-              <div className="w-8 h-8 flex items-center justify-center bg-secondary rounded-lg border border-border/50 shrink-0">
+              <div className="w-8 h-8 flex items-center justify-center shrink-0">
                 <Eye className="w-4 h-4 text-muted-foreground" />
               </div>
               <div className="min-w-0">
-                <div className="text-sm font-semibold">Vistas previas antiguas</div>
-                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                  Elimina las vistas previas con más de 30 días. Se vuelven a crear al ver el vídeo.
+                <div className="text-sm font-semibold">Vistas previas</div>
+                <p className="text-[13px] text-muted-foreground mt-1 leading-relaxed">
+                  Limpia las de más de 30 días o todas. Se vuelven a crear al ver el vídeo.
                 </p>
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="mt-auto flex flex-wrap gap-2 pl-11 pt-4">
               <button
                 type="button"
                 onClick={async () => {
@@ -291,7 +315,7 @@ export const StorageTab = memo(function StorageTab({
                   }
                 }}
                 disabled={storageActions.cleanThumbnails.isPending}
-                className="flex-1 inline-flex items-center justify-center gap-2 px-3.5 py-2 bg-secondary hover:bg-secondary/80 border border-border rounded-xl text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-50"
+                className="inline-flex min-h-11 items-center justify-center gap-2 px-3.5 py-2 bg-secondary hover:bg-secondary/80 border border-border rounded-lg text-[13px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-50"
               >
                 {storageActions.cleanThumbnails.isPending ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -321,7 +345,7 @@ export const StorageTab = memo(function StorageTab({
                       }
                     }}
                     disabled={storageActions.cleanThumbnails.isPending}
-                    className="px-3.5 py-2 bg-background hover:bg-secondary border border-border rounded-xl text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="min-h-11 px-3.5 py-2 bg-transparent hover:bg-secondary border border-border rounded-lg text-[13px] font-medium text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Limpiar todas
                   </button>
@@ -330,7 +354,7 @@ export const StorageTab = memo(function StorageTab({
             </div>
           </div>
         </div>
-        <p className="text-xs text-muted-foreground mt-3 flex items-center gap-1.5">
+        <p className="text-xs text-muted-foreground mt-5 border-t border-border/40 pt-4 flex items-center gap-1.5">
           <Shield className="w-3.5 h-3.5 text-success" /> No afecta a las descargas en curso.
         </p>
       </section>

@@ -99,7 +99,7 @@ export const EpisodeDetailRow = memo(
                   aria-label={`Reanudar EP ${e.episode}`}
                   className="flex h-11 w-11 items-center justify-center rounded-lg text-primary transition-colors hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
                 >
-                  <Play className="h-3 w-3" />
+                  <Play className="h-4 w-4" />
                 </button>
               ) : (
                 <button
@@ -109,7 +109,7 @@ export const EpisodeDetailRow = memo(
                   aria-label={`Pausar EP ${e.episode}`}
                   className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
                 >
-                  <Pause className="h-3 w-3" />
+                  <Pause className="h-4 w-4" />
                 </button>
               )}
               {showSkip && (
@@ -122,9 +122,9 @@ export const EpisodeDetailRow = memo(
                   className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
                 >
                   {isSwitching ? (
-                    <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" />
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
                   ) : (
-                    <SkipForward className="h-3 w-3" />
+                    <SkipForward className="h-4 w-4" />
                   )}
                 </button>
               )}
@@ -135,7 +135,7 @@ export const EpisodeDetailRow = memo(
                 aria-label={`Cancelar EP ${e.episode}`}
                 className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive-fg disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive/60"
               >
-                <X className="h-3 w-3" />
+                <X className="h-4 w-4" />
               </button>
             </span>
           )}

@@ -239,6 +239,7 @@ export function HistoryView({ isActive, activeProvider, onSelectAnime }: History
         open={clearModal}
         onOpenChange={setClearModal}
         title="Limpiar historial"
+        danger
         message="Se eliminarán todos los registros del historial. Los archivos descargados se conservan. Esta acción no se puede deshacer."
         confirmLabel="Limpiar todo"
         onConfirm={handleClearHistory}
@@ -249,6 +250,7 @@ export function HistoryView({ isActive, activeProvider, onSelectAnime }: History
           open={!!pendingDeleteGroup}
           onOpenChange={() => setDeleteGroupKey(null)}
           title="Eliminar grupo"
+          danger
           message={`¿Eliminar ${pendingDeleteGroup.records.length} registro${pendingDeleteGroup.records.length !== 1 ? 's' : ''} de "${pendingDeleteGroup.anime}" del historial? Los archivos descargados se conservan.`}
           confirmLabel="Eliminar grupo"
           onConfirm={() => handleRemoveGroup(pendingDeleteGroup)}

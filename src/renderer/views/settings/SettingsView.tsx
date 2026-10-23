@@ -488,7 +488,7 @@ export function SettingsView({
           data-view-scroller
           className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-6 min-[960px]:p-8 min-[960px]:pt-6 custom-scrollbar [scrollbar-gutter:stable]"
         >
-          <div className="settings-tab-enter mx-auto flex w-full max-w-4xl flex-col gap-6 pb-16 xl:max-w-6xl 2xl:max-w-7xl">
+          <div className="settings-content @container/settings settings-tab-enter mx-auto flex w-full max-w-4xl flex-col gap-6 pb-8 xl:max-w-6xl 2xl:max-w-7xl">
             {activeTab === 'sistema' && (
               <SystemTab
                 settings={settings}
@@ -577,7 +577,8 @@ export function SettingsView({
         confirmLabel="Reiniciar ahora"
         cancelLabel="Más tarde"
         confirmLoading={restartLoading}
-        icon={<RefreshCw className="w-5 h-5 text-primary" />}
+        iconTone={restartHasDownloads ? 'warning' : 'action'}
+        icon={restartHasDownloads ? undefined : <RefreshCw className="w-5 h-5" aria-hidden="true" />}
         onConfirm={handleRestartNow}
       />
     </div>

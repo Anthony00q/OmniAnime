@@ -64,21 +64,19 @@ export const SystemTab = memo(function SystemTab({
 
   return (
     <>
-      <section className="rounded-2xl border border-border/50 bg-card shadow-sm">
+      <section className="settings-section">
         <div className="p-5 sm:p-6">
           <div className="flex items-start justify-between gap-4 mb-5">
             <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-primary/10 rounded-xl border border-primary/10">
-                <Folder className="w-5 h-5 text-primary" />
+              <div className="settings-section-icon">
+                <Folder className="w-5 h-5" />
               </div>
               <div>
-                <h2 className="text-base font-bold tracking-tight">Carpetas de descarga</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">Hasta 3 carpetas de descarga.</p>
+                <h2 className="text-base font-semibold">Carpetas de descarga</h2>
+                <p className="text-[13px] text-muted-foreground mt-0.5">Hasta 3 carpetas de descarga.</p>
               </div>
             </div>
-            <span className="shrink-0 inline-flex items-center gap-1.5 rounded-full bg-secondary border border-border px-2.5 py-1 text-xs font-mono font-semibold">
-              {outputDirs.length}/3
-            </span>
+            <span className="shrink-0 text-[13px] tabular-nums text-text-tertiary">{outputDirs.length}/3</span>
           </div>
 
           <div ref={listRef} role="list" aria-label="Carpetas de descarga" className="space-y-2.5">
@@ -119,8 +117,8 @@ export const SystemTab = memo(function SystemTab({
                     className={`output-dirs-row group flex flex-col gap-2 transition-[border-color,background-color] sm:flex-row duration-150 ease-out`}
                   >
                     <div
-                      className={`flex-1 flex items-center gap-2.5 bg-background border rounded-xl px-2.5 py-2.5 shadow-sm transition-[border-color,background-color,box-shadow] duration-150 ease-out ${
-                        line ? 'border-primary/30 bg-primary/[0.04]' : 'border-border/70 group-hover:border-border'
+                      className={`min-w-0 flex-1 flex items-center gap-2.5 border-b px-1 py-2.5 transition-colors duration-(--duration-motion-micro) ${
+                        line ? 'border-primary/30 bg-primary/[0.04]' : 'border-border/40'
                       }`}
                     >
                       <SortableHandle
@@ -131,14 +129,22 @@ export const SystemTab = memo(function SystemTab({
                         dragging={isDragging}
                         onPointerDown={handlePointerDown}
                       />
-                      <div className="p-1.5 rounded-lg bg-secondary border border-border/50 shrink-0">
+                      <div className="p-1.5 shrink-0">
                         <HardDrive className="w-4 h-4 text-muted-foreground" />
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="text-sm truncate font-medium text-foreground">
-                          {dir || <span className="text-muted-foreground italic">Sin definir. Elige una carpeta</span>}
+                          {dir ? (
+                            dir.split(/[\\/]/).filter(Boolean).pop() || dir
+                          ) : (
+                            <span className="text-muted-foreground italic">Sin definir. Elige una carpeta</span>
+                          )}
                         </div>
-                        {dir && <div className="text-[11px] text-muted-foreground truncate select-text">{dir}</div>}
+                        {dir && (
+                          <AppTooltip content={dir}>
+                            <div className="text-xs text-muted-foreground truncate select-text">{dir}</div>
+                          </AppTooltip>
+                        )}
                       </div>
                       {dir && (
                         <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground bg-secondary/60 px-2 py-0.5 rounded-full border border-border/50 shrink-0">
@@ -152,7 +158,7 @@ export const SystemTab = memo(function SystemTab({
                           type="button"
                           onClick={() => onSelectOutputDir(idx)}
                           aria-label={`Seleccionar carpeta ${idx + 1}`}
-                          className="inline-flex items-center gap-1.5 bg-secondary hover:bg-secondary/80 border border-border px-3.5 py-2 rounded-xl text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                          className="inline-flex min-h-11 items-center gap-1.5 bg-secondary hover:bg-secondary/80 border border-border px-3.5 py-2 rounded-lg text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
                         >
                           <FolderSearch className="w-4 h-4" />
                           <span className="hidden sm:inline">Elegir</span>
@@ -165,7 +171,7 @@ export const SystemTab = memo(function SystemTab({
                             onClick={() => onOpenOutputDir(dir)}
                             disabled={!dir}
                             aria-label={`Abrir carpeta ${idx + 1}`}
-                            className="inline-flex items-center justify-center bg-background hover:bg-secondary border border-border px-3 py-2 rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                            className="inline-flex h-11 w-11 items-center justify-center hover:bg-secondary rounded-lg text-muted-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
                           >
                             <ExternalLink className="w-4 h-4" />
                           </button>
@@ -177,7 +183,7 @@ export const SystemTab = memo(function SystemTab({
                             type="button"
                             onClick={() => onRemoveOutputDir(idx)}
                             aria-label={`Quitar carpeta ${idx + 1}`}
-                            className="inline-flex items-center justify-center bg-background hover:bg-destructive/10 hover:text-destructive-fg hover:border-destructive/20 border border-border px-3 py-2 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                            className="inline-flex h-11 w-11 items-center justify-center text-muted-foreground hover:bg-destructive/10 hover:text-destructive-fg rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
                           >
                             <X className="w-4 h-4" />
                           </button>
@@ -229,7 +235,7 @@ export const SystemTab = memo(function SystemTab({
               <button
                 type="button"
                 onClick={onAddOutputDir}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-primary/10 hover:bg-primary/15 text-primary border border-primary/15 rounded-xl text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                className="inline-flex min-h-11 items-center gap-1.5 px-3.5 py-2 bg-secondary/40 hover:bg-secondary text-foreground border border-border rounded-lg text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
               >
                 <Plus className="w-4 h-4" /> Añadir carpeta
               </button>
@@ -238,12 +244,12 @@ export const SystemTab = memo(function SystemTab({
         </div>
       </section>
 
-      <section className="rounded-2xl border border-border/50 bg-card shadow-sm p-5 sm:p-6">
+      <section className="settings-section p-5 sm:p-6">
         <div className="flex items-center gap-2 mb-4">
-          <div className="p-1.5 bg-primary/10 rounded-lg">
-            <Monitor className="w-4 h-4 text-primary" />
+          <div className="settings-section-icon">
+            <Monitor className="w-5 h-5" />
           </div>
-          <h3 className="text-sm font-bold tracking-tight">Proveedor y arranque</h3>
+          <h3 className="text-base font-semibold">Proveedor y arranque</h3>
         </div>
         <div className="grid grid-cols-1 gap-5">
           <div className="space-y-2">
@@ -263,7 +269,7 @@ export const SystemTab = memo(function SystemTab({
                 { value: 'jkanime', label: 'JkAnime — Secundario' },
               ]}
             />
-            <div className="rounded-xl bg-secondary/30 border border-border/40 p-3 flex items-center gap-2.5">
+            <div className="flex items-center gap-2.5 pt-1">
               <div
                 className={`w-2 h-2 rounded-full shrink-0 ${settings.defaultProvider === 'animeav1' ? 'bg-primary' : 'bg-brand'}`}
               />
@@ -277,17 +283,17 @@ export const SystemTab = memo(function SystemTab({
         </div>
       </section>
 
-      <section className="rounded-2xl border border-border/50 bg-card shadow-sm p-5 sm:p-6">
+      <section className="settings-section p-5 sm:p-6">
         <div className="flex items-center gap-2 mb-4">
-          <div className="p-1.5 bg-primary/10 rounded-lg">
-            <Monitor className="w-4 h-4 text-primary" />
+          <div className="settings-section-icon">
+            <Monitor className="w-5 h-5" />
           </div>
-          <h3 className="text-sm font-bold tracking-tight">Comportamiento y rendimiento</h3>
+          <h3 className="text-base font-semibold">Comportamiento y rendimiento</h3>
         </div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <div className="rounded-xl border border-border/60 bg-background p-4 flex items-start justify-between gap-3">
+        <div className="flex flex-col">
+          <div className="settings-option-row flex items-start justify-between gap-3">
             <div className="flex gap-3 min-w-0 items-start">
-              <div className="w-8 h-8 flex items-center justify-center bg-secondary rounded-lg border border-border/50 shrink-0 self-start">
+              <div className="w-8 h-8 flex items-center justify-center shrink-0 self-start">
                 <FolderOpen className="w-4 h-4 text-muted-foreground" />
               </div>
               <div className="min-w-0">
@@ -304,9 +310,9 @@ export const SystemTab = memo(function SystemTab({
             />
           </div>
 
-          <div className="rounded-xl border border-border/60 bg-background p-4 flex items-start justify-between gap-3">
+          <div className="settings-option-row flex items-start justify-between gap-3">
             <div className="flex gap-3 min-w-0 items-start">
-              <div className="w-8 h-8 flex items-center justify-center bg-secondary rounded-lg border border-border/50 shrink-0 self-start">
+              <div className="w-8 h-8 flex items-center justify-center shrink-0 self-start">
                 <Cpu className="w-4 h-4 text-muted-foreground" />
               </div>
               <div className="min-w-0">

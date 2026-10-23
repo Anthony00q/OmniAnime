@@ -1,4 +1,5 @@
 import React, { useLayoutEffect, useRef, useState } from 'react';
+import { Minus, Square, X } from 'lucide-react';
 import { AppTooltip } from './ui/AppTooltip';
 
 type ToastPosition = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'top-center' | 'bottom-center';
@@ -69,17 +70,16 @@ export function ToastPositionSelector({ value, onChange }: ToastPositionSelector
     <div className="flex flex-col gap-2.5 w-full">
       <div
         ref={previewRef}
-        className="relative w-full aspect-[16/10] max-w-[320px] mx-auto bg-card border border-border/60 rounded-2xl shadow-sm overflow-hidden select-none"
+        className="relative w-full aspect-[16/10] max-w-[320px] mx-auto bg-card border border-border/60 rounded-lg overflow-hidden select-none"
       >
-        <div className="absolute inset-0 bg-gradient-to-b from-secondary/20 via-transparent to-transparent pointer-events-none" />
-        <div className="absolute top-0 left-0 w-full h-6 bg-secondary/40 backdrop-blur-sm border-b border-border/40 flex items-center px-3 gap-1.5">
-          <div className="w-2.5 h-2.5 rounded-full bg-red-500/70 shadow-sm border border-red-600/20" />
-          <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/70 shadow-sm border border-yellow-600/20" />
-          <div className="w-2.5 h-2.5 rounded-full bg-green-500/70 shadow-sm border border-green-600/20" />
-          <span className="ml-2 text-[11px] font-bold tracking-widest uppercase text-muted-foreground/70">
-            OmniAnime — Preview
-          </span>
-          <div className="ml-auto w-8 h-1 rounded-full bg-foreground/5" />
+        <div
+          aria-hidden="true"
+          className="absolute top-0 left-0 w-full h-6 bg-secondary/40 border-b border-border/40 flex items-center px-3 gap-3 text-muted-foreground"
+        >
+          <span className="mr-auto text-[11px] font-medium">OmniAnime — Preview</span>
+          <Minus className="w-2.5 h-2.5" />
+          <Square className="w-2.5 h-2.5" />
+          <X className="w-2.5 h-2.5" />
         </div>
 
         <div className="absolute inset-0 grid grid-cols-3 grid-rows-3 mt-6 p-1.5 gap-1">
@@ -96,7 +96,7 @@ export function ToastPositionSelector({ value, onChange }: ToastPositionSelector
                 <div
                   className={`absolute inset-0 rounded-xl border-[1.5px] border-dashed transition-colors duration-150 motion-reduce:transition-none ${
                     value === pos.id
-                      ? 'border-primary/35 bg-primary/[0.06] shadow-sm shadow-primary/5'
+                      ? 'border-primary/50 bg-primary/[0.06]'
                       : 'border-border/30 group-hover:border-border/50'
                   }`}
                 />
@@ -112,10 +112,10 @@ export function ToastPositionSelector({ value, onChange }: ToastPositionSelector
 
         <div
           style={{ transform: getToastTransform(value) }}
-          className={`absolute left-0 top-0 w-[5rem] h-[1.85rem] bg-popover border border-primary/25 rounded-full shadow-xl shadow-primary/15 backdrop-blur-sm flex items-center px-2 gap-1.5 pointer-events-none z-10 ${isReady ? 'transition-[transform] duration-(--duration-motion-base) motion-reduce:transition-none [transition-timing-function:var(--ease-out)]' : 'transition-none motion-reduce:transition-none'}`}
+          className={`absolute left-0 top-0 w-[5rem] h-[1.85rem] bg-popover border border-border-strong rounded-lg flex items-center px-2 gap-1.5 pointer-events-none z-10 ${isReady ? 'transition-[transform] duration-(--duration-motion-base) motion-reduce:transition-none [transition-timing-function:var(--ease-out)]' : 'transition-none motion-reduce:transition-none'}`}
         >
-          <div className="w-5 h-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center shrink-0 shadow-sm shadow-primary/20">
-            <div className="w-1.5 h-1.5 rounded-full bg-white" />
+          <div className="w-5 h-5 rounded-full bg-secondary text-muted-foreground flex items-center justify-center shrink-0">
+            <div className="w-1.5 h-1.5 rounded-full bg-current" />
           </div>
           <div className="flex-1 min-w-0 space-y-1">
             <div className="w-full h-1 bg-foreground/15 rounded-full" />

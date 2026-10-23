@@ -214,7 +214,7 @@ export default function App() {
               title="¿Cerrar aplicación?"
               message="Tienes descargas en progreso. Si cierras la aplicación ahora, se cancelarán las descargas activas y tendrás que reanudarlas más tarde. ¿Realmente deseas salir?"
               confirmLabel="Sí, salir"
-              danger={true}
+              iconTone="warning"
               onConfirm={async () => {
                 await window.api.invoke('force-close-app');
               }}

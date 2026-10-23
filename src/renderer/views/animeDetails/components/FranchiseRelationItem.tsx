@@ -53,7 +53,7 @@ export function FranchiseRelationItem({
         className="h-16 w-12 shrink-0 rounded-md bg-secondary object-cover"
       />
       <div className="flex flex-col min-w-0">
-        <span className="text-[11px] font-bold text-primary uppercase tracking-wider">{rel.type}</span>
+        <span className="text-[11px] font-medium text-muted-foreground">{rel.type}</span>
         <span ref={titleRef} className="text-sm font-medium text-foreground line-clamp-2 leading-tight">
           {rel.title}
         </span>

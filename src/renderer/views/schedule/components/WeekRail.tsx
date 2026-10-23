@@ -49,7 +49,7 @@ export function WeekRail({ dates, counts, selectedDay, todayDay, onSelect, class
                 <span
                   className={clsx(
                     'text-[11px] font-medium tabular-nums',
-                    selected ? 'text-primary/60' : 'text-text-tertiary/70',
+                    selected ? 'text-primary' : 'text-text-tertiary',
                   )}
                 >
                   {count}

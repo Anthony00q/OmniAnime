@@ -1,6 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Check, ChevronDown, Loader2 } from 'lucide-react';
+import { Check, ChevronDown, FilePenLine, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { isIpcFailError, unwrap } from '@/renderer/hooks/queries/unwrap';
 import { Dialog } from '@/renderer/components/Dialog';
@@ -162,6 +162,7 @@ export function RenameLibraryFilesDialog({ open, onOpenChange, dirs, style }: Re
       open={open}
       onOpenChange={onOpenChange}
       title="Renombrar archivos de la librería"
+      icon={<FilePenLine className="w-5 h-5" aria-hidden="true" />}
       message={`Se aplicará «${STYLE_LABEL[style]}» a los vídeos ya descargados.`}
       confirmLabel={renaming ? 'Renombrando…' : `Renombrar (${pendingCount})`}
       confirmDisabled={pendingCount === 0 || renaming || inspecting}

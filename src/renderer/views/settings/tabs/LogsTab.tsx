@@ -244,17 +244,14 @@ export const LogsTab = memo(function LogsTab({ isActive = true }: LogsTabProps) 
 
   return (
     <>
-      <section
-        className="rounded-2xl border border-border/50 bg-card shadow-sm p-5 sm:p-6"
-        aria-label="Registro de sesiones"
-      >
+      <section className="settings-section p-5 sm:p-6" aria-label="Registro de sesiones">
         <div className="flex items-center gap-2 mb-1">
-          <div className="p-1.5 bg-primary/10 rounded-lg">
-            <SquarePen className="w-4 h-4 text-primary" />
+          <div className="settings-section-icon">
+            <SquarePen className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="text-base font-bold tracking-[-0.015em]">Registro de sesiones</h3>
-            <p className="text-xs text-muted-foreground">Un fichero por cada arranque de la aplicación.</p>
+            <h3 className="text-base font-semibold">Registro de sesiones</h3>
+            <p className="text-[13px] text-muted-foreground">Un fichero por cada arranque de la aplicación.</p>
           </div>
           <AppTooltip content="Recargar">
             <span className="ml-auto inline-flex">
@@ -271,7 +268,7 @@ export const LogsTab = memo(function LogsTab({ isActive = true }: LogsTabProps) 
           </AppTooltip>
         </div>
 
-        <div className="mt-4 rounded-xl border border-border/60 bg-background p-3 flex flex-col sm:flex-row gap-2">
+        <div className="mt-4 flex flex-col sm:flex-row gap-2">
           <button
             type="button"
             onClick={() => void handleCopyCurrent()}
@@ -291,7 +288,7 @@ export const LogsTab = memo(function LogsTab({ isActive = true }: LogsTabProps) 
           </button>
         </div>
 
-        <div className="mt-3">
+        <div className="mt-3 w-full sm:max-w-56">
           <CustomSelect
             value={fileFilter}
             options={FILE_FILTER_OPTIONS}
@@ -443,23 +440,27 @@ export const LogsTab = memo(function LogsTab({ isActive = true }: LogsTabProps) 
         </div>
       </section>
 
-      <section className="rounded-2xl border border-border/50 bg-card shadow-sm p-5 sm:p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <div className="p-1.5 bg-primary/10 rounded-lg">
-            <FolderOpen className="w-4 h-4 text-primary" />
+      <section className="settings-section grid grid-cols-1 gap-4 p-5 sm:p-6 @2xl/settings:grid-cols-[minmax(0,1fr)_auto] @2xl/settings:items-center @2xl/settings:gap-6">
+        <div className="flex min-w-0 items-start gap-2">
+          <div className="settings-section-icon shrink-0">
+            <FolderOpen className="w-5 h-5" />
           </div>
-          <h3 className="text-sm font-bold tracking-tight">Archivo y exportación</h3>
+          <div className="min-w-0">
+            <h3 className="text-base font-semibold">Archivo y exportación</h3>
+            <p className="text-[13px] text-muted-foreground mt-1 leading-relaxed">
+              Exporta el diagnóstico actual para revisarlo o compartirlo.
+            </p>
+          </div>
         </div>
-        <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
-          Exporta el diagnóstico actual para revisarlo o compartirlo.
-        </p>
-        <button
-          type="button"
-          onClick={() => void exportDiagnostics({ sessionOnly: false })}
-          className="w-full inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 bg-secondary hover:bg-secondary/80 border border-border rounded-xl text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
-        >
-          <Download className="w-4 h-4" /> Exportar diagnóstico
-        </button>
+        <div className="pl-10 @2xl/settings:pl-0">
+          <button
+            type="button"
+            onClick={() => void exportDiagnostics({ sessionOnly: false })}
+            className="inline-flex min-h-11 items-center justify-center gap-1.5 px-3.5 py-2.5 bg-secondary hover:bg-secondary/80 border border-border rounded-lg text-[13px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+          >
+            <Download className="w-4 h-4" /> Exportar diagnóstico
+          </button>
+        </div>
       </section>
 
       <Dialog

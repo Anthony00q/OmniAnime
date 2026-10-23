@@ -112,7 +112,7 @@ export function SoundPickerDialog({
       title={trimTarget ? `Recortar: ${trimTarget.file.name}` : `Sonido de ${typeLabel}`}
       message={trimTarget ? undefined : 'Elige un sonido del catálogo, uno tuyo o vuelve al predeterminado.'}
       showFooter={false}
-      icon={<Music className="w-5 h-5 text-primary" />}
+      icon={<Music className="w-5 h-5" aria-hidden="true" />}
       className="max-w-2xl"
       onPointerDownOutside={(e) => {
         if (!trimTarget) return;
@@ -136,7 +136,7 @@ export function SoundPickerDialog({
           onBack={() => setTrimTarget(null)}
         />
       ) : (
-        <div className="space-y-5 max-h-[55vh] overflow-y-auto pr-1 custom-scrollbar">
+        <div className="@container/sound-catalog space-y-5 max-h-[55vh] overflow-y-auto pr-1 custom-scrollbar">
           <button
             type="button"
             onClick={() => onSelect(null)}
@@ -163,33 +163,47 @@ export function SoundPickerDialog({
             return (
               <section key={group.id}>
                 <h4 className="text-xs font-bold tracking-wide uppercase text-muted-foreground mb-2">{group.label}</h4>
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+                <div className="grid grid-cols-1 @min-[30rem]/sound-catalog:grid-cols-2 gap-2">
                   {entries.map((entry) => {
                     const ref = makeSampleRef(entry.id);
                     const selected = parsedCurrent?.kind === 'sample' && parsedCurrent.id === entry.id;
+                    const [family, name] = entry.label.split(' · ');
                     return (
                       <div
                         key={entry.id}
-                        className={`relative rounded-xl border transition-colors ${
+                        className={`relative rounded-lg border transition-colors ${
                           selected
                             ? 'border-primary/30 bg-primary/15'
-                            : 'border-border/60 bg-background hover:border-border-strong'
+                            : 'border-transparent hover:border-border/60 hover:bg-secondary/30'
                         }`}
                       >
                         <button
                           type="button"
                           aria-pressed={selected}
+                          aria-label={name ? `${family}, ${name}` : family}
                           onClick={() => {
                             onSelect(ref);
                             onPreview(ref);
                           }}
-                          className="w-full flex items-center gap-2 px-3 py-2.5 text-left rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                          className="w-full min-h-11 flex items-center gap-2 px-3 py-2.5 text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
                         >
-                          <Play className="w-3.5 h-3.5 shrink-0 text-primary" fill="currentColor" />
+                          <Play
+                            className={`w-3.5 h-3.5 shrink-0 ${selected ? 'text-primary' : 'text-muted-foreground'}`}
+                            fill="currentColor"
+                          />
                           <span
-                            className={`min-w-0 text-[13px] font-semibold truncate ${selected ? 'text-primary' : ''}`}
+                            className={`min-w-0 text-[13px] font-semibold leading-snug break-words ${selected ? 'text-primary' : ''}`}
                           >
-                            {entry.label}
+                            {family}
+                            {name && (
+                              <>
+                                {' '}
+                                <span aria-hidden="true" className="text-border-strong font-normal">
+                                  |
+                                </span>{' '}
+                                {name}
+                              </>
+                            )}
                           </span>
                         </button>
                       </div>
@@ -202,7 +216,7 @@ export function SoundPickerDialog({
 
           <section>
             <h4 className="text-xs font-bold tracking-wide uppercase text-muted-foreground mb-2">Mis sonidos</h4>
-            <div className="rounded-xl border border-border/60 bg-background p-2 space-y-1">
+            <div className="border-t border-border/40 pt-2 space-y-1">
               {customFiles.length === 0 && (
                 <p className="text-[13px] text-muted-foreground px-2 py-3 leading-relaxed">
                   Todavía no has subido ninguno. Se admiten mp3, wav, ogg, m4a, aac, flac y webm de hasta 10 MB y 5 min;
@@ -228,7 +242,9 @@ export function SoundPickerDialog({
                       aria-pressed={selected}
                       className="flex min-w-0 flex-1 items-center gap-2 text-left rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
                     >
-                      <FileAudio className="w-3.5 h-3.5 shrink-0 text-primary" />
+                      <FileAudio
+                        className={`w-3.5 h-3.5 shrink-0 ${selected ? 'text-primary' : 'text-muted-foreground'}`}
+                      />
                       <span className={`min-w-0 text-[13px] font-semibold truncate ${selected ? 'text-primary' : ''}`}>
                         {file.name}
                       </span>
@@ -262,7 +278,7 @@ export function SoundPickerDialog({
                 type="button"
                 onClick={handleImport}
                 disabled={importing}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-[color-mix(in_srgb,var(--color-primary)_88%,black)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-[color-mix(in_srgb,var(--color-primary)_88%,black)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Plus className="w-4 h-4" /> Subir sonido
               </button>

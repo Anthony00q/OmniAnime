@@ -273,7 +273,7 @@ export function LibraryView({ onSelectAnime, activeProvider, isActive }: Library
       </PageHeader>
 
       {dirs.length > 1 && (
-        <div data-empty-filters className="flex flex-wrap items-center gap-2 px-4 py-2 sm:px-6">
+        <div data-empty-filters className="flex flex-wrap items-center gap-2 px-4 py-2 sm:px-8">
           <button
             type="button"
             onClick={() => setSelectedDirFilter('all')}
@@ -306,7 +306,7 @@ export function LibraryView({ onSelectAnime, activeProvider, isActive }: Library
 
       <div
         data-view-scroller
-        className="empty-state-scroller min-h-0 min-w-0 flex-1 overflow-y-auto p-4 sm:p-6 [scrollbar-gutter:stable]"
+        className="empty-state-scroller min-h-0 min-w-0 flex-1 overflow-y-auto p-4 sm:px-8 sm:py-6 [scrollbar-gutter:stable]"
       >
         {isLoading ? (
           <PosterGridSkeleton count={12} />

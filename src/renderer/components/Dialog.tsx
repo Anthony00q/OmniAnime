@@ -1,5 +1,5 @@
 import * as DialogPrimitive from '@radix-ui/react-dialog';
-import { AlertTriangle, Loader2 } from 'lucide-react';
+import { AlertTriangle, Info, Loader2 } from 'lucide-react';
 import { reportRendererError } from '@/renderer/utils/rendererErrorReporting';
 
 interface DialogProps {
@@ -20,6 +20,7 @@ interface DialogProps {
   showFooter?: boolean;
   className?: string;
   icon?: React.ReactNode;
+  iconTone?: 'action' | 'neutral' | 'warning';
   hideDefaultIcon?: boolean;
   headerAlign?: 'start' | 'center';
   onOpenAutoFocus?: React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>['onOpenAutoFocus'];
@@ -37,7 +38,7 @@ export function Dialog({
   cancelLabel = 'Cancelar',
   danger = false,
   confirmDisabled = false,
-  confirmLoading = false,
+  confirmLoading,
   closeOnConfirm = true,
   dismissDisabled = false,
   onConfirm,
@@ -45,6 +46,7 @@ export function Dialog({
   showFooter = true,
   className,
   icon,
+  iconTone = 'action',
   hideDefaultIcon = false,
   headerAlign = 'start',
   onOpenAutoFocus,
@@ -76,19 +78,32 @@ export function Dialog({
             <div className={`flex gap-4 mb-4 ${headerAlign === 'center' || !message ? 'items-center' : 'items-start'}`}>
               {!hideDefaultIcon && (
                 <div
+                  aria-hidden="true"
+                  data-dialog-icon-tone={danger ? 'danger' : iconTone}
                   className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
-                    danger ? 'bg-destructive/15' : 'bg-primary/15'
+                    danger
+                      ? 'bg-destructive/15 text-destructive-fg'
+                      : iconTone === 'warning'
+                        ? 'bg-warning/10 text-warning'
+                        : iconTone === 'neutral'
+                          ? 'bg-secondary/60 text-muted-foreground'
+                          : 'bg-secondary/60 text-primary'
                   }`}
                 >
-                  {icon || <AlertTriangle className={`w-5 h-5 ${danger ? 'text-destructive-fg' : 'text-primary'}`} />}
+                  {icon ||
+                    (danger || iconTone === 'warning' ? (
+                      <AlertTriangle className="w-5 h-5" />
+                    ) : (
+                      <Info className="w-5 h-5" />
+                    ))}
                 </div>
               )}
               <div className="flex-1 min-w-0">
-                <DialogPrimitive.Title className="font-bold text-base text-foreground leading-tight truncate">
+                <DialogPrimitive.Title className="font-semibold text-base text-foreground leading-snug break-words [overflow-wrap:anywhere]">
                   {title}
                 </DialogPrimitive.Title>
                 {message && (
-                  <DialogPrimitive.Description className="text-xs text-muted-foreground mt-2 leading-relaxed">
+                  <DialogPrimitive.Description className="text-[13px] text-muted-foreground mt-2 leading-relaxed">
                     {message}
                   </DialogPrimitive.Description>
                 )}
@@ -98,7 +113,7 @@ export function Dialog({
             {children}
 
             {showFooter && (
-              <div className="flex justify-end gap-3 mt-6">
+              <div className="flex flex-wrap justify-end gap-3 mt-6">
                 <button
                   type="button"
                   disabled={dismissDisabled}
@@ -107,13 +122,14 @@ export function Dialog({
                     onCancel?.();
                     onOpenChange(false);
                   }}
-                  className="px-4 py-2 rounded-lg text-xs font-semibold hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                  className="min-h-11 px-4 py-2 rounded-lg text-[13px] font-semibold hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
                 >
                   {cancelLabel}
                 </button>
                 <button
                   type="button"
-                  disabled={confirmDisabled || confirmLoading}
+                  disabled={confirmDisabled || !!confirmLoading}
+                  aria-busy={confirmLoading || undefined}
                   onClick={async () => {
                     if (confirmDisabled || confirmLoading) return;
                     try {
@@ -124,14 +140,16 @@ export function Dialog({
                     }
                     if (closeOnConfirm) onOpenChange(false);
                   }}
-                  className={`inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-50 disabled:cursor-not-allowed min-w-[148px] ${
+                  className={`relative inline-flex min-h-11 min-w-24 items-center justify-center px-4 py-2 rounded-lg text-[13px] font-semibold transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-50 disabled:cursor-not-allowed ${
                     danger
-                      ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90 shadow-lg shadow-destructive/20'
+                      ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
                       : 'bg-primary text-primary-foreground hover:bg-[color-mix(in_srgb,var(--color-primary)_88%,black)]'
                   }`}
                 >
-                  {confirmLoading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                  {confirmLabel}
+                  {confirmLoading && (
+                    <Loader2 aria-hidden="true" className="absolute left-2.5 w-3.5 h-3.5 animate-spin" />
+                  )}
+                  <span className={confirmLoading === undefined ? undefined : 'px-3'}>{confirmLabel}</span>
                 </button>
               </div>
             )}

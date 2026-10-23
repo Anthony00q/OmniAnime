@@ -70,7 +70,7 @@ export const ServerOrderCard = memo(function ServerOrderCard({
       : null;
 
   return (
-    <div className="rounded-xl border border-border/60 bg-background p-4">
+    <div className="settings-subpanel min-w-0">
       <div className="mb-3 flex items-center gap-2.5">
         <img src={iconSrc} alt="" aria-hidden="true" className="h-[18px] w-[18px] shrink-0 rounded" draggable={false} />
         <span className="text-sm font-semibold">{providerLabel}</span>
