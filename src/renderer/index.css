@@ -674,7 +674,7 @@ html[dir='ltr'] {
 
 .sidebar-update-slot {
   display: flex;
-  padding: 0 16px 8px;
+  padding: 0 0 8px;
 }
 
 .sidebar-update-action {
@@ -684,14 +684,17 @@ html[dir='ltr'] {
   gap: 8px;
   min-width: 44px;
   min-height: 44px;
+  width: 100%;
   max-width: 100%;
-  padding: 0;
+  padding: 0 16px;
   border: 0;
+  border-radius: 8px;
   background: transparent;
   color: var(--color-primary);
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
+  transition: background-color var(--duration-motion-micro) var(--ease-out);
 }
 
 .sidebar-update-version {
@@ -705,9 +708,25 @@ html[dir='ltr'] {
   white-space: nowrap;
 }
 
-.sidebar-update-action:hover .sidebar-update-label {
-  text-decoration: underline;
-  text-underline-offset: 4px;
+.sidebar-update-action:hover {
+  background: color-mix(in srgb, var(--color-secondary) 65%, transparent);
+}
+
+.sidebar-update-arrow {
+  margin-left: auto;
+  transition: translate var(--duration-motion-micro) var(--ease-out);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .sidebar-update-action:hover .sidebar-update-arrow {
+    translate: 3px 0;
+  }
+
+  @media (max-width: 960px) {
+    .omnianime-sidebar .sidebar-update-action:hover .sidebar-update-arrow {
+      translate: 0 -3px;
+    }
+  }
 }
 
 @media (max-width: 960px) {
@@ -760,9 +779,11 @@ html[dir='ltr'] {
   .omnianime-sidebar .sidebar-update-action {
     justify-content: center;
     gap: 0;
+    padding: 0;
   }
 
   .omnianime-sidebar .sidebar-update-arrow {
+    margin-left: 0;
     transform: rotate(-90deg);
   }
 }
