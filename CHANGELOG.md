@@ -1,5 +1,45 @@
 # Changelog
 
+## [1.2.6] - 2026-10-24
+
+### Catálogo
+
+- Inicio y Horarios conservan el contenido durante la actualización manual y muestran un aviso si no se puede completar.
+- Los controles de actualización se sitúan junto al resumen de episodios y al selector de días, con una indicación de actividad más clara.
+- Las fichas permiten reintentar las consultas fallidas de AniList sin confundir los problemas de conexión con la ausencia de coincidencias.
+- Los vínculos de AniList se conservan ante fallos temporales y se reconocen aunque la entrada no tenga imagen de cabecera ni estudio.
+
+### Búsqueda
+
+- La búsqueda para vincular con AniList distingue los fallos de consulta de los resultados vacíos y permite repetir la misma búsqueda.
+
+### Interfaz
+
+- Las cabeceras, textos y controles presentan un diseño más uniforme, con mayor legibilidad y menos adornos.
+- Los diálogos muestran títulos largos sin recortarlos y distinguen mejor las acciones informativas, las advertencias y las operaciones de borrado.
+
+### Ajustes
+
+- La aplicación recuerda la última pestaña abierta durante la sesión y la recupera al volver a Ajustes, siempre desde el inicio de su contenido.
+- El selector de sonidos indica cuándo se está abriendo y permite reintentar si no se puede cargar.
+- Las secciones reorganizan sus controles y se adaptan mejor al espacio disponible, con menos recuadros y una lectura más clara.
+- Las carpetas de descarga muestran su nombre y permiten consultar la ruta completa al pasar el cursor.
+- Los controles gestionados por conexiones adaptativas comparten un aviso que aclara que se conservan los valores manuales.
+
+### Librería
+
+- Las vistas previas de renombrado y renumeración muestran los nombres largos en varias líneas y permiten seleccionar su texto.
+- Las herramientas de renombrado de archivos y carpetas indican cuándo se están abriendo y permiten reintentar si no se pueden cargar.
+
+### Actualizaciones
+
+- El aviso de actualización mejora la distribución de sus botones y mantiene estable el tamaño del botón durante la descarga.
+- El acceso **Actualizar** de la barra lateral amplía su zona de pulsación y se resalta al pasar el cursor.
+
+### Historial
+
+- Las tarjetas compactan su espaciado y alinean el resumen de episodios y las acciones con el título para facilitar la lectura.
+
 ## [1.2.5] - 2026-10-20
 
 ### Catálogo
