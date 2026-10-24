@@ -46,14 +46,14 @@ export const HistoryGroupCard = memo(function HistoryGroupCard({
   return (
     <article className="history-row overflow-hidden rounded-xl border border-border/60 bg-card shadow-sm">
       <div className="p-4">
-        <div className="flex items-start gap-3">
+        <div className="flex items-start gap-2">
           <button
             type="button"
             onClick={() => onToggleGroup(group.key)}
             aria-expanded={isExpanded}
             aria-controls={detailId}
             aria-label={isExpanded ? 'Colapsar grupo' : 'Expandir grupo'}
-            className="relative mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors after:absolute after:-inset-1.5 after:content-[''] hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+            className="relative inline-flex h-[22px] w-[18px] shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors after:absolute after:-inset-x-[13px] after:-inset-y-[11px] after:content-[''] hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
           >
             {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
           </button>
@@ -100,7 +100,7 @@ export const HistoryGroupCard = memo(function HistoryGroupCard({
             )}
           </div>
         </div>
-        <div className="mt-3 flex flex-wrap items-start justify-between gap-2">
+        <div className="ml-[26px] mt-3 flex flex-wrap items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
             <HistoryEpisodesBadge
               okCount={group.okCount}
@@ -111,12 +111,12 @@ export const HistoryGroupCard = memo(function HistoryGroupCard({
           </div>
           <StatusBadge label={status.label} variant={status.variant} />
         </div>
-        <div className="mt-3 flex items-center gap-2 border-t border-border/50 pt-3">
+        <div className="ml-[26px] mt-2.5 flex items-center gap-2">
           <button
             type="button"
             onClick={() => onOpenFolder(folderPath || '', folderIsDirectory)}
             disabled={!folderPath}
-            className="relative inline-flex items-center gap-1.5 rounded-md bg-secondary px-3 py-1.5 text-xs font-medium text-foreground transition-colors after:absolute after:inset-x-0 after:-inset-y-2 after:content-[''] hover:bg-secondary/80 disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+            className="relative inline-flex items-center gap-1.5 rounded-md bg-surface-elevated px-3 py-1.5 text-xs font-medium text-foreground transition-colors after:absolute after:inset-x-0 after:-inset-y-2 after:content-[''] hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
           >
             <FolderOpen className="h-3.5 w-3.5" /> Abrir
           </button>
