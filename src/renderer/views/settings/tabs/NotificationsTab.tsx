@@ -3,7 +3,7 @@ import { Bell, Volume2, Info, Zap, Play, ChevronDown, Music } from 'lucide-react
 import { toast } from 'sonner';
 import { CustomSwitch } from '@/renderer/components/CustomSwitch';
 import { ToastPositionSelector } from '@/renderer/components/ToastPositionSelector';
-import { SoundPickerDialog } from '@/renderer/views/settings/components/SoundPickerDialog';
+import { createSettingsTool, DeferredSettingsTool } from '@/renderer/views/settings/components/DeferredSettingsTool';
 import { unwrap } from '@/renderer/hooks/queries/unwrap';
 import {
   DEFAULT_TYPE_VOLUMES,
@@ -15,6 +15,10 @@ import {
 } from '@/utils/sounds/soundPacks';
 import { parseSoundRef, type CustomSoundFileMeta, type SoundCatalogGroup } from '@/utils/sounds/soundCatalog';
 import { SOUND_CATALOG } from '@/utils/sounds/soundCatalogData';
+
+const soundPickerTool = createSettingsTool(() =>
+  import('@/renderer/views/settings/components/SoundPickerDialog').then((module) => module.SoundPickerDialog),
+);
 
 interface NotificationsTabProps {
   settings: any;
@@ -308,6 +312,8 @@ export const NotificationsTab = memo(function NotificationsTab({
                             <button
                               type="button"
                               onClick={() => setPickerType(item.key)}
+                              onPointerEnter={soundPickerTool.preload}
+                              onFocus={soundPickerTool.preload}
                               className="shrink-0 inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-semibold transition-colors hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
                             >
                               Cambiar
@@ -439,24 +445,36 @@ export const NotificationsTab = memo(function NotificationsTab({
       </div>
 
       {pickerRow && (
-        <SoundPickerDialog
-          open
+        <DeferredSettingsTool
+          tool={soundPickerTool}
+          title={`Sonido de ${pickerRow.label}`}
+          icon={<Music className="w-5 h-5" aria-hidden="true" />}
           onClose={() => setPickerType(null)}
-          type={pickerRow.key}
-          typeLabel={pickerRow.label}
-          currentRef={soundCustom[pickerRow.key]}
-          customFiles={customFiles}
-          previewVolume={Math.max(
-            0.05,
-            Math.min(1, settings.soundVolume ?? 0.5) *
-              Math.min(1, Math.max(0, settings.soundProfiles?.[pickerRow.key] ?? DEFAULT_TYPE_VOLUMES[pickerRow.key])),
+        >
+          {(SoundPickerDialog) => (
+            <SoundPickerDialog
+              open
+              onClose={() => setPickerType(null)}
+              type={pickerRow.key}
+              typeLabel={pickerRow.label}
+              currentRef={soundCustom[pickerRow.key]}
+              customFiles={customFiles}
+              previewVolume={Math.max(
+                0.05,
+                Math.min(1, settings.soundVolume ?? 0.5) *
+                  Math.min(
+                    1,
+                    Math.max(0, settings.soundProfiles?.[pickerRow.key] ?? DEFAULT_TYPE_VOLUMES[pickerRow.key]),
+                  ),
+              )}
+              onSelect={(ref) => handleSelectSound(pickerRow.key, ref)}
+              onImported={handleImported}
+              onUpdateTrim={handleUpdateTrim}
+              onDelete={handleDeleteCustom}
+              onPreview={(ref) => onTestSound(pickerRow.key, undefined, ref)}
+            />
           )}
-          onSelect={(ref) => handleSelectSound(pickerRow.key, ref)}
-          onImported={handleImported}
-          onUpdateTrim={handleUpdateTrim}
-          onDelete={handleDeleteCustom}
-          onPreview={(ref) => onTestSound(pickerRow.key, undefined, ref)}
-        />
+        </DeferredSettingsTool>
       )}
     </div>
   );

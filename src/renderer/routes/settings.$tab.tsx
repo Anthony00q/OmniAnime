@@ -1,4 +1,7 @@
-import { createFileRoute, Navigate } from '@tanstack/react-router';
+import { useLayoutEffect } from 'react';
+import { createFileRoute, Navigate, useLocation } from '@tanstack/react-router';
+import { useSetAtom } from 'jotai';
+import { lastSettingsTabAtom } from '@/renderer/store/atoms';
 import { ViewPanel } from '@/renderer/components/ViewPanel';
 import { MemoSettingsView } from '@/renderer/App';
 import { useAppNavigation } from '@/renderer/hooks/useAppNavigation';
@@ -11,9 +14,15 @@ export const Route = createFileRoute('/settings/$tab')({
 function SettingsTabRoute() {
   const { tab } = Route.useParams();
   const { setSettingsTab } = useAppNavigation();
+  const pathname = useLocation({ select: (location) => location.pathname });
+  const rememberTab = useSetAtom(lastSettingsTabAtom);
+  const isValidTab = SETTINGS_TAB_IDS.includes(tab);
 
-  // Una pestaña desconocida no deja Ajustes en blanco: se vuelve a su inicio.
-  if (!SETTINGS_TAB_IDS.includes(tab)) {
+  useLayoutEffect(() => {
+    if (isValidTab && pathname.replace(/\/+$/, '') === `/settings/${tab}`) rememberTab(tab);
+  }, [isValidTab, pathname, tab, rememberTab]);
+
+  if (!isValidTab) {
     return <Navigate to="/settings" replace />;
   }
 

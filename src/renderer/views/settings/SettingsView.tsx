@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
 import { RefreshCw, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useSetAtom } from 'jotai';
@@ -56,20 +56,24 @@ export function SettingsView({
   const { data: loadedSettings, isLoading, isError, refetch } = useLoadSettings();
   const saveSettings = useSaveSettings();
 
-  const [settings, setSettings] = useState<AppSettings | null>(null);
-  const [initialSettings, setInitialSettings] = useState<AppSettings | null>(null);
-  const [initialSettingsJson, setInitialSettingsJson] = useState<string>('');
+  const [settings, setSettings] = useState<AppSettings | null>(() =>
+    loadedSettings ? normalizeSettings(loadedSettings) : null,
+  );
+  const [initialSettings, setInitialSettings] = useState<AppSettings | null>(settings);
+  const [initialSettingsJson, setInitialSettingsJson] = useState<string>(() =>
+    settings ? JSON.stringify(settings) : '',
+  );
   const [isSaved, setIsSaved] = useState(false);
   // La pestaña vive en la URL; aquí solo se propaga el cambio a la navegación.
   const setActiveTab = useCallback((next: string) => onTabChange?.(next), [onTabChange]);
   // El tab más pesado se pre-monta nada más abrir Ajustes: el click solo lo muestra.
-  const [downloadsMounted, setDownloadsMounted] = useState(false);
+  const [downloadsMounted, setDownloadsMounted] = useState(activeTab === 'descargas');
   const [showRestoreConfirm, setShowRestoreConfirm] = useState(false);
   const [showRestartConfirm, setShowRestartConfirm] = useState(false);
   const [restartItems, setRestartItems] = useState<string[]>([]);
   const [restartHasDownloads, setRestartHasDownloads] = useState(false);
   const [restartLoading, setRestartLoading] = useState(false);
-  const [accentInput, setAccentInput] = useState<string>('');
+  const [accentInput, setAccentInput] = useState<string>(settings?.accentColor || '');
   // Vista de episodios (localStorage): en Ajustes se estadía hasta Guardar,
   // desde Detalles aplica al instante. Un cambio externo limpia el staged.
   const [pendingEpView, setPendingEpView] = useState<EpisodeView | null>(null);
@@ -86,10 +90,9 @@ export function SettingsView({
     return () => window.removeEventListener(EPISODE_VIEW_EVENT, onExternalChange);
   }, []);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const prevHwAccelRef = useRef<boolean | null>(null);
-  const prevProviderRef = useRef<string | null>(null);
+  const prevHwAccelRef = useRef<boolean | null>(settings ? settings.hardwareAcceleration !== false : null);
+  const prevProviderRef = useRef<string | null>(settings ? settings.defaultProvider || 'animeav1' : null);
   const accentRafRef = useRef<number | null>(null);
-  const tabScrollRef = useRef<HTMLDivElement | null>(null);
 
   const setGlobalSettings = useSetAtom(settingsAtom);
   const queryDirs = useMemo(() => {
@@ -107,6 +110,11 @@ export function SettingsView({
   const storageStatsQuery = useStorageStats(isActive && activeTab === 'almacenamiento', queryDirs);
   const storageActions = useStorageActions();
   // Sin refetch manual: `enabled` + invalidaciones ya cubren la carga.
+
+  const namingStyle = settings?.namingStyle || 'descriptive';
+  const folderNameSource = normalizeFolderNameSource(settings?.download?.folderNameSource);
+  const namingPreview = useMemo(() => buildNamingPreview(namingStyle), [namingStyle]);
+  const folderNamingPreview = useMemo(() => buildFolderNamingPreview(folderNameSource), [folderNameSource]);
 
   const normalizedSettingsJson = useMemo(() => {
     if (!settings) return '';
@@ -183,11 +191,6 @@ export function SettingsView({
     }
   }, [isActive, restartLoading]);
 
-  // Cada pestaña empieza arriba: evita saltos al venir de un tab más largo
-  useEffect(() => {
-    tabScrollRef.current?.scrollTo({ top: 0 });
-  }, [activeTab]);
-
   useEffect(() => {
     if (activeTab === 'descargas') setDownloadsMounted(true);
   }, [activeTab]);
@@ -200,7 +203,7 @@ export function SettingsView({
     return () => window.cancelIdleCallback(idleId);
   }, [isActive, downloadsMounted]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (loadedSettings && !settings) {
       const normalizedSettings = normalizeSettings(loadedSettings) as AppSettings;
       setSettings(normalizedSettings);
@@ -387,10 +390,13 @@ export function SettingsView({
     [handleChange],
   );
 
-  const testSound = (type?: NotificationSoundType, pack?: SoundPackId, ref?: string) => {
-    const withPack = pack ? { ...settings, soundPack: pack } : settings;
-    playNotificationSound(withPack, type ?? 'success', ref, { preview: true });
-  };
+  const testSound = useCallback(
+    (type?: NotificationSoundType, pack?: SoundPackId, ref?: string) => {
+      const withPack = pack ? { ...settings, soundPack: pack } : settings;
+      playNotificationSound(withPack, type ?? 'success', ref, { preview: true });
+    },
+    [settings],
+  );
 
   const handleSelectOutputDir = async (index: number) => {
     try {
@@ -473,8 +479,6 @@ export function SettingsView({
   }
 
   const outputDirs: string[] = settings.outputDirs || [settings.defaultOutputDir];
-  const namingPreview = buildNamingPreview(settings.namingStyle || 'descriptive');
-  const folderNamingPreview = buildFolderNamingPreview(normalizeFolderNameSource(settings.download?.folderNameSource));
 
   return (
     <div className="flex h-full min-w-0 flex-col bg-background text-foreground">
@@ -484,7 +488,6 @@ export function SettingsView({
         <SettingsTabNav activeTab={activeTab} onTabChange={setActiveTab} />
 
         <div
-          ref={tabScrollRef}
           data-view-scroller
           className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-6 min-[960px]:p-8 min-[960px]:pt-6 custom-scrollbar [scrollbar-gutter:stable]"
         >

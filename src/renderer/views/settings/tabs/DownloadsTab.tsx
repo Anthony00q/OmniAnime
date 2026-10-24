@@ -1,10 +1,21 @@
 import { memo, useEffect, useId, useMemo, useState } from 'react';
-import { Gauge, Server, Layers, Eye, SlidersHorizontal, Info, ChevronDown, FolderDown, FileText } from 'lucide-react';
+import {
+  Gauge,
+  Server,
+  Layers,
+  Eye,
+  SlidersHorizontal,
+  Info,
+  ChevronDown,
+  FolderDown,
+  FileText,
+  FilePenLine,
+  FolderPen,
+} from 'lucide-react';
 import { CustomSelect } from '@/renderer/components/CustomSelect';
 import { CustomSwitch } from '@/renderer/components/CustomSwitch';
 import { ServerOrderCard } from '@/renderer/views/settings/components/ServerOrderCard';
-import { RenameFoldersDialog } from '@/renderer/views/settings/components/RenameFoldersDialog';
-import { RenameLibraryFilesDialog } from '@/renderer/views/settings/components/RenameLibraryFilesDialog';
+import { createSettingsTool, DeferredSettingsTool } from '@/renderer/views/settings/components/DeferredSettingsTool';
 import { applyServerMove, applyServerToggle, splitServerOrder } from '@/renderer/views/settings/utils/serverOrder';
 import {
   ADAPTIVE_MANAGED_HINT,
@@ -33,6 +44,15 @@ const PROVIDER_ICONS: Record<string, string> = {
   animeav1: animeav1Icon,
   jkanime: jkanimeIcon,
 };
+
+const renameFoldersTool = createSettingsTool(() =>
+  import('@/renderer/views/settings/components/RenameFoldersDialog').then((module) => module.RenameFoldersDialog),
+);
+const renameFilesTool = createSettingsTool(() =>
+  import('@/renderer/views/settings/components/RenameLibraryFilesDialog').then(
+    (module) => module.RenameLibraryFilesDialog,
+  ),
+);
 
 interface DownloadsTabProps {
   settings: any;
@@ -337,6 +357,8 @@ const DescargasNombrado = memo(function DescargasNombrado({
         <button
           type="button"
           onClick={() => setFilesRenameOpen(true)}
+          onPointerEnter={renameFilesTool.preload}
+          onFocus={renameFilesTool.preload}
           className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-border/60 bg-surface-elevated px-4 py-2 text-[13px] font-semibold text-foreground transition-colors hover:bg-secondary/60"
         >
           <FileText className="w-3.5 h-3.5" />
@@ -345,6 +367,8 @@ const DescargasNombrado = memo(function DescargasNombrado({
         <button
           type="button"
           onClick={() => setRenameOpen(true)}
+          onPointerEnter={renameFoldersTool.preload}
+          onFocus={renameFoldersTool.preload}
           className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-border/60 bg-surface-elevated px-4 py-2 text-[13px] font-semibold text-foreground transition-colors hover:bg-secondary/60"
         >
           <FolderDown className="w-3.5 h-3.5" />
@@ -352,14 +376,34 @@ const DescargasNombrado = memo(function DescargasNombrado({
         </button>
       </div>
       {filesRenameOpen && (
-        <RenameLibraryFilesDialog
-          open
-          onOpenChange={setFilesRenameOpen}
-          dirs={outputDirs}
-          style={settings.namingStyle === 'minimal' ? 'minimal' : 'descriptive'}
-        />
+        <DeferredSettingsTool
+          tool={renameFilesTool}
+          title="Renombrar archivos de la librería"
+          icon={<FilePenLine className="w-5 h-5" aria-hidden="true" />}
+          onClose={() => setFilesRenameOpen(false)}
+        >
+          {(RenameLibraryFilesDialog) => (
+            <RenameLibraryFilesDialog
+              open
+              onOpenChange={setFilesRenameOpen}
+              dirs={outputDirs}
+              style={settings.namingStyle === 'minimal' ? 'minimal' : 'descriptive'}
+            />
+          )}
+        </DeferredSettingsTool>
       )}
-      {renameOpen && <RenameFoldersDialog open onOpenChange={setRenameOpen} dirs={outputDirs} source={folderSource} />}
+      {renameOpen && (
+        <DeferredSettingsTool
+          tool={renameFoldersTool}
+          title="Renombrar carpetas de la librería"
+          icon={<FolderPen className="w-5 h-5" aria-hidden="true" />}
+          onClose={() => setRenameOpen(false)}
+        >
+          {(RenameFoldersDialog) => (
+            <RenameFoldersDialog open onOpenChange={setRenameOpen} dirs={outputDirs} source={folderSource} />
+          )}
+        </DeferredSettingsTool>
+      )}
     </section>
   );
 });
@@ -546,7 +590,11 @@ const DOWNLOADS_BLOCK_KEYS = ['concurrencia', 'servidores', 'nombres', 'avanzado
 export const DownloadsTab = memo(function DownloadsTab({ visible = true, ...props }: DownloadsTabProps) {
   const [mountedBlocks, setMountedBlocks] = useState(0);
   const staggerKeys = useMemo(() => DOWNLOADS_BLOCK_KEYS.slice(0, mountedBlocks), [mountedBlocks]);
-  const contentRef = useStaggerIn<HTMLDivElement>(staggerKeys, { disabled: !visible, replay: visible, flat: true });
+  const contentRef = useStaggerIn<HTMLDivElement>(staggerKeys, {
+    disabled: !visible,
+    replay: visible,
+    flat: true,
+  });
 
   useEffect(() => {
     if (mountedBlocks >= 4) return;
@@ -556,10 +604,9 @@ export const DownloadsTab = memo(function DownloadsTab({ visible = true, ...prop
 
   return (
     <div ref={contentRef} className="flex flex-col gap-6">
-      {mountedBlocks >= 1 && <DescargasConcurrencia {...props} />}
-      {mountedBlocks >= 2 && <DescargasServidores {...props} />}
-      {mountedBlocks >= 3 && <DescargasNombrado {...props} />}
-      {mountedBlocks >= 4 && <DescargasAvanzado {...props} />}
+      {[DescargasConcurrencia, DescargasServidores, DescargasNombrado, DescargasAvanzado].map((Block, index) =>
+        mountedBlocks > index ? <Block key={DOWNLOADS_BLOCK_KEYS[index]} {...props} /> : null,
+      )}
     </div>
   );
 }, downloadsTabPropsEqual);

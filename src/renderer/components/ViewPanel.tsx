@@ -18,7 +18,7 @@ export function ViewPanel({
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const { pathname } = useLocation();
-  useScrollMemory(containerRef, pathname);
+  useScrollMemory(containerRef, pathname, { rememberPosition: scope !== 'ui:settings' });
 
   return (
     <ErrorBoundary scope={scope}>

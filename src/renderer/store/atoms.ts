@@ -6,6 +6,7 @@ import { DEFAULT_ACCENT_HSL, isThemeValue } from '@/renderer/utils/color';
 export type ToastPosition = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'top-center' | 'bottom-center';
 
 export const selectedLibraryFolderAtom = atom<string | null>(null);
+export const lastSettingsTabAtom = atom<string>('sistema');
 
 export const activeProviderAtom = atom<string>('animeav1');
 export const selectedAnimeByProviderAtom = atom<Record<string, string | null>>({});

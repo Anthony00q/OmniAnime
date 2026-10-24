@@ -1,10 +1,12 @@
 import { createFileRoute, Navigate } from '@tanstack/react-router';
+import { useAtomValue } from 'jotai';
+import { lastSettingsTabAtom } from '@/renderer/store/atoms';
 
 export const Route = createFileRoute('/settings/')({
   component: SettingsRoute,
 });
 
-// La vista vive en /settings/$tab: aquí solo se aterriza en la pestaña por defecto.
 function SettingsRoute() {
-  return <Navigate to="/settings/$tab" params={{ tab: 'sistema' }} replace />;
+  const tab = useAtomValue(lastSettingsTabAtom);
+  return <Navigate to="/settings/$tab" params={{ tab }} replace />;
 }
