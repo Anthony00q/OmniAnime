@@ -1,5 +1,38 @@
 # Changelog
 
+## [1.2.7] - 2026-10-25
+
+### Descargas
+
+- Las tarjetas permiten consultar el motivo de todos los episodios fallidos, incluso mientras continúa la descarga del resto.
+- Los paneles de episodios y errores incorporan un botón de cierre y permiten desplazarse con el teclado.
+- Los avisos aparecen dentro de la aplicación cuando está activa y como notificaciones del sistema en segundo plano, sin duplicar sonidos.
+- El encolado evita solicitudes repetidas mientras se procesa y avisa cuando el resultado todavía no se ha confirmado.
+- Cancelar una descarga que ya ha terminado o se ha cancelado deja de mostrar un error innecesario.
+
+### Catálogo
+
+- La selección por rango mantiene abierto el diálogo cuando los números no son válidos y muestra el problema junto a los campos.
+
+### Búsqueda
+
+- Las búsquedas sin resultados al vincular carpetas o consultar AniList dejan de mostrar avisos de error adicionales.
+
+### Interfaz
+
+- Las notificaciones mejoran su legibilidad, amplían el botón de cierre y permiten utilizar el teclado sin activar los atajos de navegación.
+- Los avisos de carga y error se conservan cuando llegan nuevas notificaciones, con más tiempo para leer los errores.
+
+### Ajustes
+
+- Los cambios de sonido y preferencias de avisos descartan las reproducciones pendientes para evitar sonidos que ya no corresponden.
+- La limpieza de archivos y la exportación del diagnóstico avisan si el resultado tarda en confirmarse, sin mantener indefinidamente el mensaje de carga.
+- Los registros vacíos y las limpiezas sin archivos que eliminar se comunican como información, no como errores.
+
+### Actualizaciones
+
+- Los avisos de una misma actualización dejan de repetir sonidos y respetan la preferencia de mensajes automáticos del sistema.
+
 ## [1.2.6] - 2026-10-24
 
 ### Catálogo
