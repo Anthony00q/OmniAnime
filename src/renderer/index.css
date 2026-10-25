@@ -971,6 +971,68 @@ html[dir='ltr'] {
   padding: 4px 12px 0;
 }
 
+.downloader-card-slot-parallel[data-state='open']
+  + .downloader-card-slot-error[data-state='open']
+  .downloader-card-slot-error-content {
+  padding-top: 12px;
+}
+
+.downloader-error-panel {
+  border-top: 1px solid color-mix(in srgb, var(--color-border) 55%, transparent);
+  background: var(--color-surface);
+  padding: 4px 12px 0;
+}
+
+.downloader-panel-heading {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.downloader-panel-close {
+  display: inline-flex;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  color: var(--color-muted-foreground);
+  transition: background-color var(--duration-motion-micro) var(--ease-out);
+}
+
+.downloader-panel-close:hover {
+  background: var(--color-secondary);
+  color: var(--color-foreground);
+}
+
+.downloader-error-scroll {
+  max-height: 192px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-muted-foreground) transparent;
+  padding-bottom: 4px;
+}
+
+.downloader-error-row {
+  display: grid;
+  grid-template-columns: minmax(7ch, max-content) minmax(0, 1fr);
+  gap: 12px;
+  border-top: 1px solid color-mix(in srgb, var(--color-border) 40%, transparent);
+  padding: 12px 8px 12px 0;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.downloader-error-reason {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 /* No usar max-content dentro de min(): invalida el tope del detalle. */
 .downloader-detail-scroll {
   max-height: var(--detail-h, 192px);

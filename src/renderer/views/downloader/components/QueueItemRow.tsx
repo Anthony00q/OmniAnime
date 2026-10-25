@@ -1,5 +1,5 @@
-import { Loader2, Folder, Server, ChevronDown, ChevronRight } from 'lucide-react';
-import { useCallback, useEffect, useState, memo, useMemo, useId } from 'react';
+import { Loader2, Folder, Server, ChevronDown, ChevronRight, XCircle, X } from 'lucide-react';
+import { useCallback, useEffect, useState, memo, useMemo, useId, useRef } from 'react';
 import { toast } from 'sonner';
 import { AppTooltip } from '@/renderer/components/ui/AppTooltip';
 import { PosterImage } from '@/renderer/components/anime/PosterImage';
@@ -7,7 +7,11 @@ import { ProgressBar } from '@/renderer/components/ui/ProgressBar';
 import { buildDetailRows } from '@/renderer/utils/downloaderRows';
 import { formatSpeedBps, totalSpeedBps } from '@/renderer/utils/formatSpeed';
 import { useIsTitleTruncated } from '@/renderer/views/downloader/hooks/useIsTitleTruncated';
-import { EMPTY_DETAIL_ROWS, formatEpisodeList } from '@/renderer/views/downloader/model/downloaderModel';
+import {
+  EMPTY_DETAIL_ROWS,
+  formatEpisodeList,
+  buildQueueFailures,
+} from '@/renderer/views/downloader/model/downloaderModel';
 import { QueueEpisodeDetails } from './QueueEpisodeDetails';
 import { QueueItemActions } from './QueueItemActions';
 import { QueueStatusBadge, type QueueBadgeKind } from './QueueStatusBadge';
@@ -152,16 +156,36 @@ export const QueueItemRow = memo(
     ]);
     const hasDetail = isCardActive && detailRows.length > 1;
     const detailId = useId();
+    const errorId = useId();
+    const detailToggleRef = useRef<HTMLButtonElement>(null);
+    const errorToggleRef = useRef<HTMLButtonElement>(null);
     const isTerminal = isDone || isFailed || isCancelled;
-    const firstFailedEpisode = item.failedEps?.[0];
-    const firstFailureReason = firstFailedEpisode ? item.failureReasons?.[String(firstFailedEpisode)] : undefined;
+    const failures = useMemo(
+      () => buildQueueFailures(item.failedEps, item.failureReasons, isFailed),
+      [item.failedEps, item.failureReasons, isFailed],
+    );
+    const hasErrors = failures.length > 0;
+    const errorLabel =
+      failures.length > 1
+        ? `errores (${failures.length})`
+        : failures[0]?.episode != null
+          ? `error del episodio ${failures[0].episode}`
+          : 'error';
     const [showFullError, setShowFullError] = useState(false);
     const toggleErrorClick = useCallback(() => setShowFullError((v) => !v), []);
     const [showParallel, setShowParallel] = useState(false);
     const toggleParallelClick = useCallback(() => setShowParallel((v) => !v), []);
+    const closeError = useCallback(() => {
+      setShowFullError(false);
+      errorToggleRef.current?.focus({ preventScroll: true });
+    }, []);
+    const closeParallel = useCallback(() => {
+      setShowParallel(false);
+      detailToggleRef.current?.focus({ preventScroll: true });
+    }, []);
     useEffect(() => {
       setShowFullError(false);
-    }, [item.id, item.status]);
+    }, [item.id, hasErrors]);
     // El detalle abierto sobrevive entre descargando<->pausa (mismo item activo),
     // incluido el pending transitorio al reanudar; solo se colapsa al terminar/quitar
     useEffect(() => {
@@ -213,7 +237,7 @@ export const QueueItemRow = memo(
       >
         <div
           data-queue-summary
-          className={`flex min-w-0 items-start gap-3 px-3 pt-3 sm:gap-4 sm:px-4 sm:pt-4 ${isFailed ? 'pb-2' : 'pb-3 sm:pb-4'}`}
+          className={`flex min-w-0 items-start gap-3 px-3 pt-3 sm:gap-4 sm:px-4 sm:pt-4 ${hasErrors ? 'pb-2' : 'pb-3 sm:pb-4'}`}
         >
           {canOpenDetails ? (
             <button
@@ -396,10 +420,20 @@ export const QueueItemRow = memo(
                   <span className="min-w-[9ch]">{speedText || '—'}</span>
                 </>
               )}
-              {hasFailedEpisodes && <span className="text-destructive-fg">({item.failedEps.length} fallidos)</span>}
-              {isCardActive && (item.pausedEps?.length || 0) > 0 && <span>({item.pausedEps.length} pausados)</span>}
+              {hasFailedEpisodes && (
+                <span className="text-destructive-fg">
+                  ({item.failedEps.length} {item.failedEps.length === 1 ? 'fallido' : 'fallidos'})
+                </span>
+              )}
+              {isCardActive && (item.pausedEps?.length || 0) > 0 && (
+                <span>
+                  ({item.pausedEps.length} {item.pausedEps.length === 1 ? 'pausado' : 'pausados'})
+                </span>
+              )}
               {isCardActive && (item.cancelledEps?.length || 0) > 0 && (
-                <span>({item.cancelledEps.length} cancelados)</span>
+                <span>
+                  ({item.cancelledEps.length} {item.cancelledEps.length === 1 ? 'cancelado' : 'cancelados'})
+                </span>
               )}
               {isDownloading && (
                 <span
@@ -434,6 +468,8 @@ export const QueueItemRow = memo(
               {hasDetail && (
                 <button
                   type="button"
+                  ref={detailToggleRef}
+                  data-keep-focus
                   onClick={toggleParallelClick}
                   aria-expanded={showParallel}
                   aria-controls={detailId}
@@ -448,18 +484,24 @@ export const QueueItemRow = memo(
                 </button>
               )}
             </div>
-            {isFailed && (
+            {hasErrors && (
               <div className="flex min-h-11 items-center gap-2 text-xs text-muted-foreground">
-                <span className="min-w-0 flex-1 truncate text-destructive-fg">
-                  EP {firstFailedEpisode ?? '?'}: {firstFailureReason || 'No se pudo completar la descarga.'}
-                </span>
                 <button
                   type="button"
+                  ref={errorToggleRef}
+                  data-keep-focus
                   onClick={toggleErrorClick}
                   aria-expanded={showFullError}
-                  className="min-h-11 shrink-0 rounded px-2 font-medium text-destructive-fg transition-colors hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                  aria-controls={errorId}
+                  className="-ml-2 inline-flex min-h-11 min-w-0 items-center gap-1.5 rounded-lg px-2 text-left font-medium text-destructive-fg transition-colors hover:bg-destructive/10"
                 >
-                  {showFullError ? 'Ver menos' : 'Ver error'}
+                  <ChevronDown
+                    className={`h-3.5 w-3.5 shrink-0 transition-transform duration-200 ${showFullError ? 'rotate-180' : ''}`}
+                    aria-hidden="true"
+                  />
+                  <span>
+                    {showFullError ? 'Ocultar' : 'Ver'} {errorLabel}
+                  </span>
                 </button>
               </div>
             )}
@@ -471,6 +513,7 @@ export const QueueItemRow = memo(
           rows={hasDetail ? detailRows : EMPTY_DETAIL_ROWS}
           itemId={item.id}
           animeTitle={item.animeTitle}
+          onClose={closeParallel}
           pendingEpisodeKeys={pendingEpisodeKeys}
           pendingSkipEpKeys={pendingSkipEpKeys}
           onPauseEpisode={onPauseEpisode}
@@ -478,24 +521,58 @@ export const QueueItemRow = memo(
           onSkipEpisode={onSkipEpisode}
           onCancelEpisode={onCancelEpisode}
         />
-        <div
-          className="downloader-card-slot-error"
-          data-state={isFailed && showFullError ? 'open' : 'closed'}
-          aria-hidden={!isFailed || !showFullError}
-          inert={!isFailed || !showFullError ? true : undefined}
-        >
-          <div className="downloader-card-slot-error-content">
-            <div className="max-h-28 overflow-y-auto border-t border-border/50 bg-surface px-4 py-3 text-xs leading-relaxed text-muted-foreground select-text">
-              <span className="font-semibold text-destructive-fg">EP {firstFailedEpisode ?? '?'}: </span>
-              <span className="break-words">{firstFailureReason || 'No se pudo completar la descarga.'}</span>
-              {(item.failedEps?.length || 0) > 1 && (
-                <div className="mt-1 text-[11px] font-medium text-destructive-fg/80">
-                  +{(item.failedEps?.length || 0) - 1} episodio(s) más con error
+        {hasErrors && (
+          <div
+            id={errorId}
+            data-queue-errors
+            className="downloader-card-slot-error"
+            data-state={showFullError ? 'open' : 'closed'}
+            aria-hidden={!showFullError}
+            inert={!showFullError ? true : undefined}
+          >
+            <div className="downloader-card-slot-error-content">
+              <section className="downloader-error-panel" aria-labelledby={`${errorId}-heading`}>
+                <div className="downloader-panel-heading">
+                  <h4
+                    id={`${errorId}-heading`}
+                    className="flex items-center gap-2 font-sans text-[13px] font-semibold text-foreground"
+                  >
+                    <XCircle className="h-3.5 w-3.5 text-destructive-fg" aria-hidden="true" />
+                    <span>Errores</span>
+                    <span className="font-normal tabular-nums text-muted-foreground">{failures.length}</span>
+                  </h4>
+                  <button
+                    type="button"
+                    data-keep-focus
+                    onClick={closeError}
+                    aria-label="Ocultar errores"
+                    className="downloader-panel-close"
+                  >
+                    <X className="h-4 w-4" aria-hidden="true" />
+                  </button>
                 </div>
-              )}
+                <div
+                  className="downloader-error-scroll"
+                  tabIndex={0}
+                  data-keep-focus
+                  role="region"
+                  aria-label={`Motivos de error de ${item.animeTitle}`}
+                >
+                  <dl className="select-text">
+                    {failures.map(({ episode, reason }) => (
+                      <div key={episode ?? 'general'} className="downloader-error-row">
+                        <dt className="font-semibold tabular-nums text-destructive-fg">
+                          {episode != null ? `EP ${episode}` : 'Descarga'}
+                        </dt>
+                        <dd className="downloader-error-reason text-muted-foreground">{reason}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </div>
+              </section>
             </div>
           </div>
-        </div>
+        )}
       </div>
     );
   },

@@ -1,4 +1,5 @@
 import { memo, useEffect, useRef, type CSSProperties } from 'react';
+import { X } from 'lucide-react';
 import { DETAIL_MIN_H, DETAIL_ROW_H, shouldShowDetailResizer } from '@/renderer/utils/detailHeight';
 import type { DetailRow } from '@/renderer/utils/downloaderRows';
 import { useQueueDetailResize } from '@/renderer/views/downloader/hooks/useQueueDetailResize';
@@ -10,6 +11,7 @@ interface QueueEpisodeDetailsProps {
   rows: DetailRow[];
   itemId: string;
   animeTitle: string;
+  onClose: () => void;
   pendingEpisodeKeys?: Set<string>;
   pendingSkipEpKeys?: Set<string>;
   onPauseEpisode: (id: string, episode: number) => void;
@@ -24,6 +26,7 @@ export const QueueEpisodeDetails = memo(function QueueEpisodeDetails({
   rows,
   itemId,
   animeTitle,
+  onClose,
   pendingEpisodeKeys,
   pendingSkipEpKeys,
   onPauseEpisode,
@@ -66,8 +69,32 @@ export const QueueEpisodeDetails = memo(function QueueEpisodeDetails({
         className="downloader-card-slot-parallel-content"
         style={{ '--detail-h': `${detailHeight}px` } as CSSProperties}
       >
-        <div className="downloader-detail-panel">
-          <div ref={detailScrollRef} className="downloader-detail-scroll">
+        <section className="downloader-detail-panel" aria-labelledby={`${id}-heading`}>
+          <div className="downloader-panel-heading" data-queue-detail-heading>
+            <h4
+              id={`${id}-heading`}
+              className="flex items-center gap-2 font-sans text-[13px] font-semibold text-foreground"
+            >
+              Episodios <span className="font-normal tabular-nums text-muted-foreground">{rows.length}</span>
+            </h4>
+            <button
+              type="button"
+              data-keep-focus
+              onClick={onClose}
+              aria-label="Ocultar episodios"
+              className="downloader-panel-close"
+            >
+              <X className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </div>
+          <div
+            ref={detailScrollRef}
+            className="downloader-detail-scroll"
+            tabIndex={0}
+            data-keep-focus
+            role="region"
+            aria-label={`Progreso por episodio de ${animeTitle}`}
+          >
             {rows.map((row) => (
               <EpisodeDetailRow
                 key={row.episode}
@@ -105,7 +132,7 @@ export const QueueEpisodeDetails = memo(function QueueEpisodeDetails({
               <span aria-hidden="true" className="downloader-detail-resizer-grip" />
             </div>
           )}
-        </div>
+        </section>
       </div>
     </div>
   );
