@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, Link2, Loader2, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { Dialog } from '@/renderer/components/Dialog';
 import { PosterImage } from '@/renderer/components/anime/PosterImage';
 import { useAniListSearch, useRemoveAniListLink, useSetAniListLink } from '@/renderer/hooks/useQueries';
+import { isIpcFailError } from '@/renderer/hooks/queries/unwrap';
 
 interface AniListLinkDialogProps {
   open: boolean;
@@ -27,15 +28,6 @@ export function AniListLinkDialog({
   const { data: results, isFetching, isError, refetch } = useAniListSearch(submitted, open);
   const setLink = useSetAniListLink();
   const removeLink = useRemoveAniListLink();
-  const lastToastedQueryRef = useRef('');
-
-  useEffect(() => {
-    const text = submitted.trim();
-    if (!open || !text || isError || isFetching || !results || results.length > 0) return;
-    if (lastToastedQueryRef.current === text) return;
-    lastToastedQueryRef.current = text;
-    toast.error('No se encontraron resultados para: ' + text);
-  }, [open, results, submitted, isError, isFetching]);
 
   const hasSearched = submitted.trim().length >= 3 && (results !== undefined || isError);
 
@@ -58,8 +50,8 @@ export function AniListLinkDialog({
       await setLink.mutateAsync({ providerId, slug, anilistId });
       toast.success('Vínculo de AniList guardado');
       onClose();
-    } catch {
-      toast.error('No se pudo guardar el vínculo de AniList');
+    } catch (error) {
+      if (!isIpcFailError(error)) toast.error('No se pudo guardar el vínculo de AniList');
     }
   };
 
@@ -68,8 +60,8 @@ export function AniListLinkDialog({
       await removeLink.mutateAsync({ providerId, slug });
       toast.success('Vínculo de AniList eliminado');
       onClose();
-    } catch {
-      toast.error('No se pudo eliminar el vínculo de AniList');
+    } catch (error) {
+      if (!isIpcFailError(error)) toast.error('No se pudo eliminar el vínculo de AniList');
     }
   };
 

@@ -33,6 +33,7 @@ let activeOscs: Array<{
 }> = [];
 let pendingSound: (() => void) | null = null;
 let playbackGeneration = 0;
+let soundSettingsKey: string | null = null;
 const bufferCache = new Map<string, AudioBuffer>();
 
 function getSharedContext(): AudioContext | null {
@@ -42,7 +43,6 @@ function getSharedContext(): AudioContext | null {
       if (!AudioCtor) return null;
       sharedCtx = new AudioCtor();
     }
-    if (sharedCtx.state === 'suspended') void sharedCtx.resume();
     return sharedCtx;
   } catch {
     return null;
@@ -92,10 +92,18 @@ function trackSource(
   };
 }
 
-function dispatchSound(audioCtx: AudioContext, play: () => void, preview: boolean): void {
+function dispatchSound(audioCtx: AudioContext, play: () => void, preview: boolean, isCurrent = () => true): void {
   const guardedPlay = () => {
+    if (!isCurrent()) return;
     try {
-      play();
+      if (audioCtx.state === 'running') play();
+      else {
+        void Promise.resolve(audioCtx.resume())
+          .then(() => {
+            if (isCurrent() && audioCtx.state === 'running') play();
+          })
+          .catch((error) => reportRendererError('ui:sound', error));
+      }
     } catch (e) {
       reportRendererError('ui:sound', e);
     }
@@ -195,15 +203,7 @@ function trimWindowFor(settings: any, ref: string): SliceWindow | undefined {
   return { startSec: trimmed.trimStartSec, sec: trimmed.trimSec };
 }
 
-// Sin reanudar antes de programar, un AudioContext suspendido (app en segundo plano) pierde el sonido en silencio.
-function ensureRunning(audioCtx: AudioContext): void {
-  try {
-    if (audioCtx.state !== 'running') void audioCtx.resume();
-  } catch {}
-}
-
 function playRecipe(audioCtx: AudioContext, recipe: SoundRecipe, volume: number): void {
-  ensureRunning(audioCtx);
   let at = audioCtx.currentTime;
   for (const note of recipe.notes) {
     const oscillator = audioCtx.createOscillator() as OscillatorNode;
@@ -241,7 +241,6 @@ function playRecipe(audioCtx: AudioContext, recipe: SoundRecipe, volume: number)
 }
 
 function playBuffer(audioCtx: AudioContext, buffer: AudioBuffer, volume: number, window?: SliceWindow): void {
-  ensureRunning(audioCtx);
   const source = audioCtx.createBufferSource() as AudioBufferSourceNode;
   const gainNode = audioCtx.createGain() as GainNode;
   source.buffer = buffer;
@@ -270,6 +269,27 @@ export function stopPreviewSound(): void {
   stopActive();
 }
 
+export function syncNotificationSoundSettings(settings: any): void {
+  const types: NotificationSoundType[] = ['download', 'success', 'error', 'info'];
+  const key = JSON.stringify([
+    settings?.notificationsSound !== false,
+    settings?.soundVolume ?? 0.5,
+    settings?.soundPack ?? 'sala',
+    types.map((type) => [
+      settings?.soundEnabled?.[type] !== false,
+      settings?.soundProfiles?.[type],
+      settings?.soundCustom?.[type],
+    ]),
+    settings?.customSoundFiles?.map((file: any) => [file.id, file.trimStartSec, file.trimSec, file.durationSec]),
+    settings?.notificationSettings,
+  ]);
+  if (soundSettingsKey !== null && soundSettingsKey !== key) {
+    playbackGeneration += 1;
+    stopActive();
+  }
+  soundSettingsKey = key;
+}
+
 export function previewSoundSlice(buffer: AudioBuffer, startSec: number, sec: number, volume = 0.5): void {
   const audioCtx = getSharedContext();
   if (!audioCtx) {
@@ -277,11 +297,16 @@ export function previewSoundSlice(buffer: AudioBuffer, startSec: number, sec: nu
     return;
   }
   if (!Number.isFinite(volume) || volume <= 0) return;
-  playbackGeneration += 1;
+  const generation = ++playbackGeneration;
   stopActive();
   try {
     const trimmed = clampTrim(startSec, sec, buffer.duration);
-    playBuffer(audioCtx, buffer, volume, { startSec: trimmed.trimStartSec, sec: trimmed.trimSec });
+    dispatchSound(
+      audioCtx,
+      () => playBuffer(audioCtx, buffer, volume, { startSec: trimmed.trimStartSec, sec: trimmed.trimSec }),
+      true,
+      () => generation === playbackGeneration,
+    );
   } catch (e) {
     reportRendererError('ui:sound', e);
   }
@@ -299,6 +324,7 @@ export function playNotificationSound(
   refOverride?: string,
   options: { preview?: boolean } = {},
 ): void | Promise<void> {
+  if (!options.preview) syncNotificationSoundSettings(settings);
   if (settings?.notificationsSound === false) return;
   if (type && settings?.soundEnabled?.[type] === false) return;
 
@@ -327,7 +353,12 @@ export function playNotificationSound(
   const recipe = getSoundRecipe(recipePack, type ?? 'info');
 
   if (!parsed) {
-    dispatchSound(audioCtx, () => playRecipe(audioCtx, recipe, volume), preview);
+    dispatchSound(
+      audioCtx,
+      () => playRecipe(audioCtx, recipe, volume),
+      preview,
+      () => generation === playbackGeneration,
+    );
     return;
   }
 
@@ -338,10 +369,20 @@ export function playNotificationSound(
       const buffer = await loadBuffer(audioCtx, ref, window);
       if (generation !== playbackGeneration) return;
       if (!buffer) {
-        dispatchSound(audioCtx, () => playRecipe(audioCtx, getSoundRecipe('sala', type ?? 'info'), volume), preview);
+        dispatchSound(
+          audioCtx,
+          () => playRecipe(audioCtx, getSoundRecipe('sala', type ?? 'info'), volume),
+          preview,
+          () => generation === playbackGeneration,
+        );
         return;
       }
-      dispatchSound(audioCtx, () => playBuffer(audioCtx, buffer, volume * gainTrimFor(ref)), preview);
+      dispatchSound(
+        audioCtx,
+        () => playBuffer(audioCtx, buffer, volume * gainTrimFor(ref)),
+        preview,
+        () => generation === playbackGeneration,
+      );
     } catch (e) {
       reportRendererError('ui:sound', e);
     }

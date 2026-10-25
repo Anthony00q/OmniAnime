@@ -35,7 +35,7 @@ export interface SlotRunOptions {
   scheduleQueueProgress?: (item: QueueItem, activeEps?: ActiveEpisodeProgress[]) => void;
   sendQueueUpdate: () => void;
   sendEpisodeDownloaded: (item: QueueItem, episode: number, success: boolean, eventId: string) => void;
-  sendNotification: (title: string, body: string, type: DownloadNotificationType) => void;
+  sendNotification: (title: string, body: string, type: DownloadNotificationType, eventId?: string) => void;
   shouldNotifyCompletion: () => boolean;
 }
 
@@ -412,25 +412,23 @@ export class SlotScheduler {
       reason: status === 'fail' ? reason || 'No se pudo completar la descarga' : undefined,
     });
     if (!notifyResult) return;
+    const eventId = `${item.id}:${this.runEpoch.get(item.id) ?? 0}:episode:${episode}:${status}`;
     if (status !== 'cancelled') {
-      this.options.sendEpisodeDownloaded(
-        item,
-        episode,
-        status === 'ok',
-        `${item.id}:${this.runEpoch.get(item.id) ?? 0}:episode:${episode}:${status}`,
-      );
+      this.options.sendEpisodeDownloaded(item, episode, status === 'ok', eventId);
     }
     if (status === 'fail') {
       this.options.sendNotification(
         'Error de Descarga',
         `Fallo al descargar EP ${episode} de ${item.animeTitle}`,
         'showDownloadError',
+        eventId,
       );
     } else if (status === 'ok' && this.options.shouldNotifyCompletion()) {
       this.options.sendNotification(
         'Episodio Descargado',
         `Se completó la descarga del EP ${episode} de ${item.animeTitle}`,
         'showDownloadFinished',
+        eventId,
       );
     }
   }

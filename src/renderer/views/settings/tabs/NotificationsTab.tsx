@@ -32,17 +32,21 @@ const TYPE_ROWS: ReadonlyArray<{
   desc: string;
   group: SoundCatalogGroup;
 }> = [
-  { key: 'download', label: 'Descarga', desc: 'Al empezar cada episodio', group: 'inicio' },
+  { key: 'download', label: 'Descarga', desc: 'Al iniciar un anime de la cola', group: 'inicio' },
   { key: 'success', label: 'Éxito', desc: 'Al terminar', group: 'exito' },
   { key: 'error', label: 'Error', desc: 'Si algo falla', group: 'error' },
   { key: 'info', label: 'Info', desc: 'Avisos del sistema', group: 'info' },
 ];
 
 const EVENT_ROWS: ReadonlyArray<{ key: string; label: string; desc: string }> = [
-  { key: 'showDownloadStarted', label: 'Descarga iniciada', desc: 'Al empezar cada episodio' },
+  { key: 'showDownloadStarted', label: 'Descarga iniciada', desc: 'Al iniciar un anime de la cola' },
   { key: 'showDownloadFinished', label: 'Descarga completada', desc: 'Cuando termina una descarga' },
   { key: 'showDownloadError', label: 'Error de descarga', desc: 'Si falla la red o el servidor' },
-  { key: 'showSystemMessages', label: 'Mensajes del sistema', desc: 'Avisos de la app y actualizaciones' },
+  {
+    key: 'showSystemMessages',
+    label: 'Mensajes del sistema',
+    desc: 'Avisos automáticos de actualización, sin ocultar errores de tus acciones.',
+  },
 ];
 
 const TOAST_POSITION_LABELS: Record<string, string> = {
@@ -219,6 +223,7 @@ export const NotificationsTab = memo(function NotificationsTab({
                   type="button"
                   onClick={() => {
                     toast.success('Notificación de prueba.', {
+                      id: 'notification-preview',
                       position: settings.toastPosition || 'top-center',
                     });
                     if (soundsOn) onTestSound('success');

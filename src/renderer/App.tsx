@@ -2,7 +2,8 @@ import { createContext, memo, lazy, Suspense, useCallback, useContext, useEffect
 import { useAtom } from 'jotai';
 import { useQueryClient } from '@tanstack/react-query';
 import { Outlet, useLocation } from '@tanstack/react-router';
-import { Toaster } from 'sonner';
+import { AppToaster } from './components/AppToaster';
+import { syncNotificationSoundSettings } from './utils/sound';
 import clsx from 'clsx';
 import { Titlebar } from './components/Titlebar';
 import { Sidebar } from './components/Sidebar';
@@ -15,12 +16,9 @@ import { UpdateModal } from './components/update/UpdateModal';
 import { useThemeSync } from './hooks/useThemeSync';
 import { useKeyboardNavigation } from './hooks/useKeyboardNavigation';
 import { useAppNavigation } from './hooks/useAppNavigation';
-import { useDownloadNotifications, useToastReconcile } from './hooks/useDownloadNotifications';
+import { useDownloadNotifications } from './hooks/useDownloadNotifications';
 import { viewIdFromPath } from './utils/viewRoutes';
 import { activeProviderAtom, settingsAtom, toastPositionAtom, showCloseConfirmAtom } from './store/atoms';
-
-const MAX_VISIBLE_TOASTS = 3;
-const TOAST_DURATION_MS = 4000;
 
 // Vistas del shell: lazy para cargar cada una al entrar y memo para que los
 // re-renders del chrome (toasts, ajustes, proveedor) no las arrastren.
@@ -73,28 +71,16 @@ export default function App() {
   const { data: loadedActiveProvider } = useActiveProvider();
   const { setView: navigateView, openAnime, detailsBack } = useAppNavigation();
 
-  const toastOptions = useMemo(
-    () => ({
-      className: 'flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold max-w-sm select-none',
-      style: {
-        background: 'var(--color-popover)',
-        backdropFilter: 'blur(10px)',
-        WebkitBackdropFilter: 'blur(10px)',
-        border: '1px solid var(--color-border-strong)',
-        borderRadius: '12px',
-        color: 'var(--color-popover-foreground)',
-        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5)',
-      },
-    }),
-    [],
-  );
   const { data: loadedSettings } = useLoadSettings();
 
   useThemeSync();
   useKeyboardNavigation();
   useDownloadNotifications();
-  useToastReconcile();
   useAppUpdate();
+
+  useEffect(() => {
+    syncNotificationSoundSettings(settings);
+  }, [settings]);
 
   useEffect(() => {
     if (loadedActiveProvider) setActiveProvider(loadedActiveProvider);
@@ -168,17 +154,7 @@ export default function App() {
     <AppShellContext.Provider value={shellContext}>
       <AppTooltipProvider>
         <div className="flex h-screen overflow-hidden bg-background text-foreground flex-col relative">
-          <Toaster
-            theme="dark"
-            position={toastPosition}
-            visibleToasts={MAX_VISIBLE_TOASTS}
-            duration={TOAST_DURATION_MS}
-            closeButton
-            richColors
-            gap={12}
-            offset={{ top: '48px', bottom: '16px', left: '16px', right: '16px' }}
-            toastOptions={toastOptions}
-          />
+          <AppToaster position={toastPosition} />
           <Titlebar />
 
           <div className="flex h-full overflow-hidden relative">

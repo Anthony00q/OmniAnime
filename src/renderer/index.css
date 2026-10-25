@@ -228,6 +228,9 @@ textarea:focus-visible,
 select:focus-visible,
 [role='dialog'] :focus-visible,
 [role='menu'] :focus-visible,
+[data-sonner-toaster]:focus-visible,
+[data-sonner-toaster] :focus-visible,
+[data-sonner-toaster] button[data-close-button]:focus-visible,
 [role='listbox']:focus-visible,
 [role='dialog']:focus-visible,
 [role='menu']:focus-visible,
@@ -279,7 +282,6 @@ input.field-input:focus-visible {
 
 [data-sonner-toaster] [data-sonner-toast] {
   will-change: transform, opacity;
-  contain: paint;
 }
 
 /* Sonner close button — dentro del toast, no solapando el borde redondeado */
@@ -291,26 +293,48 @@ html[dir='ltr'] {
 }
 
 [data-sonner-toast] [data-close-button] {
-  top: 8px !important;
-  right: 8px !important;
+  top: 4px !important;
+  right: 4px !important;
   left: unset !important;
   transform: none !important;
-  background: var(--color-secondary) !important;
-  border-color: var(--color-border) !important;
   color: var(--color-muted-foreground) !important;
-  width: 20px !important;
-  height: 20px !important;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2) !important;
+  width: 44px !important;
+  height: 44px !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 
 [data-sonner-toast] [data-close-button]:hover {
   background: var(--color-muted) !important;
-  border-color: var(--color-border-strong) !important;
   color: var(--color-foreground) !important;
 }
 
 [data-sonner-toast][data-styled='true'] {
-  padding-right: 32px !important;
+  padding-right: 56px !important;
+  min-height: 52px;
+  font-family: var(--font-sans);
+  overflow-wrap: anywhere;
+}
+
+[data-sonner-toast] [data-description] {
+  color: var(--color-muted-foreground) !important;
+}
+
+[data-sonner-toast][data-type='success'] [data-icon] {
+  color: var(--color-success);
+}
+
+[data-sonner-toast][data-type='error'] [data-icon] {
+  color: var(--color-destructive-fg);
+}
+
+[data-sonner-toast][data-type='info'] [data-icon] {
+  color: var(--color-info);
+}
+
+[data-sonner-toast][data-type='warning'] [data-icon] {
+  color: var(--color-warning);
 }
 
 .anime-poster-card {

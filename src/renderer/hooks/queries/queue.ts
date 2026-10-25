@@ -1,6 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
-import { unwrap } from './unwrap';
+import { isIpcFailError, unwrap } from './unwrap';
+import { toast } from 'sonner';
+import { NOTIFICATION_DURATION } from '@/utils/notificationPolicy';
+import { runToastTask } from '@/renderer/utils/toastTask';
 
 // Sin progreso en vuelo se limpia; en flujo activo se conserva hasta el próximo delta.
 // Compartida entre eventos queue-update y refetches (anti-parpadeo al restaurar).
@@ -113,9 +116,24 @@ export function useQueue(isActive = true) {
 
 export function useAddToQueue() {
   return useMutation({
-    // El aviso lo gestiona la ficha (loading → reemplazo).
-    mutationFn: async (params: Record<string, unknown>) =>
-      unwrap(await window.api.invoke('add-to-queue', params), { toast: false }),
+    mutationFn: async (params: Record<string, unknown>) => {
+      const count = Array.isArray(params.episodes) ? params.episodes.length : 0;
+      const episodes = count === 1 ? '1 episodio' : `${count} episodios`;
+      return runToastTask(
+        async () => {
+          const result = unwrap(await window.api.invoke('add-to-queue', params), { toast: false });
+          if (!result) throw new Error('No se pudo agregar a la cola');
+          return result;
+        },
+        {
+          loading: `Añadiendo ${episodes} a la cola…`,
+          success: () => `${episodes} ${count === 1 ? 'añadido' : 'añadidos'} a la cola`,
+          error: 'No se pudo añadir a la cola',
+          timeoutMs: 35_000,
+          pendingDescription: 'El encolado aún no se ha confirmado. Revisa Descargas antes de volver a intentarlo.',
+        },
+      );
+    },
   });
 }
 
@@ -129,8 +147,11 @@ export function useDownloadActions() {
   // duplicaba get-queue (push + refetch con el mismo dato).
   return {
     cancelDownload: useMutation({
-      // Silencioso: el doble clic o la acción ya resuelta no son un error.
-      mutationFn: async (id: string) => unwrap(await window.api.invoke('cancel-download', id), { toast: false }),
+      mutationFn: async (id: string) => unwrap(await window.api.invoke('cancel-download', id)),
+      onError: (error) => {
+        if (!isIpcFailError(error))
+          toast.error('No se pudo cancelar la descarga', { duration: NOTIFICATION_DURATION.error });
+      },
     }),
     pauseDownload: useMutation({
       mutationFn: async (id: string) => unwrap(await window.api.invoke('pause-download', id)),

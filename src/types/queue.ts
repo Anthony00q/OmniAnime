@@ -41,6 +41,7 @@ export interface ProviderDownloadLink extends DownloadLink {
 
 export interface DownloadStartedEvent extends Pick<QueueItem, 'slug' | 'animeTitle' | 'providerId' | 'lang'> {
   eventId: string;
+  presentation?: 'toast' | 'native';
   queueId: string;
   episodesCount: number;
 }

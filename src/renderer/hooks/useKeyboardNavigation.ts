@@ -35,7 +35,7 @@ export function useKeyboardNavigation(): void {
       if (e.key !== 'Tab') return;
       const target = e.target as HTMLElement | null;
       // El diálogo necesita su Tab para ciclar el foco; fuera no hace nada.
-      if (target?.closest?.('[role="dialog"], [role="menu"]')) return;
+      if (target?.closest?.('[role="dialog"], [role="menu"], [data-sonner-toaster]')) return;
       e.preventDefault();
       e.stopPropagation();
       const active = document.activeElement as HTMLElement | null;
@@ -82,6 +82,7 @@ export function useKeyboardNavigation(): void {
       if (showCloseConfirm) return;
 
       const target = e.target as HTMLElement;
+      if (target.closest?.('[data-sonner-toaster]')) return;
       const isInputFocused = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT';
       const disableShortcuts = document.querySelector('.disable-shortcuts') !== null;
       const currentViewValue = currentView;

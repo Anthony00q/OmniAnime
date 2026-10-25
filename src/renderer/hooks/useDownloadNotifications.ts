@@ -1,28 +1,30 @@
 import { useEffect, useRef } from 'react';
 import { useAtomValue } from 'jotai';
-import { toast } from 'sonner';
+import { toast, useSonner } from 'sonner';
 import { settingsAtom } from '@/renderer/store/atoms';
 import { playNotificationSound } from '@/renderer/utils/sound';
 import type { DownloadStartedEvent, EpisodeDownloadedEvent } from '@/types/queue';
+import {
+  createNotificationDeduper,
+  NOTIFICATION_DURATION,
+  resolveDownloadNotification,
+} from '@/utils/notificationPolicy';
 
 const MAX_VISIBLE_TOASTS = 3;
-const MAX_RECEIVED_NOTIFICATIONS = 512;
-const receivedNotifications = new Set<string>();
+const acceptNotification = createNotificationDeduper();
 
-function acceptNotification(eventId: unknown): boolean {
-  if (typeof eventId !== 'string' || !eventId) return true;
-  if (receivedNotifications.has(eventId)) return false;
-  receivedNotifications.add(eventId);
-  if (receivedNotifications.size > MAX_RECEIVED_NOTIFICATIONS) {
-    receivedNotifications.delete(receivedNotifications.values().next().value!);
-  }
-  return true;
+function isForeground(presentation?: 'toast' | 'native'): boolean {
+  return presentation !== 'native' && document.visibilityState === 'visible' && document.hasFocus();
 }
 
 function dismissOverflowingToasts(): void {
-  const activeToasts = toast.getToasts();
-  if (activeToasts.length <= MAX_VISIBLE_TOASTS) return;
-  const toDismiss = activeToasts.slice(0, activeToasts.length - MAX_VISIBLE_TOASTS);
+  const activeToasts = toast.getToasts().filter((entry) => !('type' in entry && entry.type === 'loading'));
+  const important = activeToasts.filter(
+    (entry) => 'type' in entry && (entry.type === 'error' || entry.type === 'warning'),
+  );
+  const transient = activeToasts.filter((entry) => !important.includes(entry));
+  const capacity = Math.max(0, MAX_VISIBLE_TOASTS - important.length);
+  const toDismiss = transient.slice(0, Math.max(0, transient.length - capacity));
   for (const entry of toDismiss) {
     toast.dismiss(entry.id);
   }
@@ -38,11 +40,21 @@ export function useDownloadNotifications(): void {
       if (!acceptNotification(data.eventId)) return;
       const { animeTitle, episodesCount, slug } = data;
       const currentSettings = settingsRef.current;
-      if (currentSettings.notificationSettings?.showDownloadStarted !== false) {
+      const delivery = resolveDownloadNotification(
+        currentSettings,
+        'showDownloadStarted',
+        isForeground(data.presentation),
+      );
+      if (delivery.enabled) {
         const id = `download-started-${data.eventId || slug || animeTitle}`;
-        toast.info(`Descargando: ${animeTitle} (${episodesCount} ep.)`, { id });
+        if (delivery.toast)
+          toast.info('Descarga iniciada', {
+            id,
+            duration: NOTIFICATION_DURATION.normal,
+            description: `${animeTitle} | ${episodesCount === 1 ? '1 episodio' : `${episodesCount} episodios`}`,
+          });
         playNotificationSound(currentSettings, 'download');
-        setTimeout(dismissOverflowingToasts, 50);
+        dismissOverflowingToasts();
       }
     };
 
@@ -52,19 +64,34 @@ export function useDownloadNotifications(): void {
       const title = animeTitle || slug;
       const currentSettings = settingsRef.current;
 
+      const delivery = resolveDownloadNotification(
+        currentSettings,
+        success ? 'showDownloadFinished' : 'showDownloadError',
+        isForeground(data.presentation),
+      );
       if (success) {
-        if (currentSettings.notificationSettings?.showDownloadFinished !== false) {
+        if (delivery.enabled) {
           const id = `episode-${data.eventId || `${slug}-${episode}`}`;
-          toast.success(`Descargado: ${title} - EP ${episode}`, { id });
+          if (delivery.toast)
+            toast.success(`Episodio ${episode} descargado`, {
+              id,
+              duration: NOTIFICATION_DURATION.normal,
+              description: title,
+            });
           playNotificationSound(currentSettings, 'success');
-          setTimeout(dismissOverflowingToasts, 50);
+          dismissOverflowingToasts();
         }
       } else {
-        if (currentSettings.notificationSettings?.showDownloadError !== false) {
+        if (delivery.enabled) {
           const id = `episode-${data.eventId || `${slug}-${episode}`}-error`;
-          toast.error(`Fallo: ${title} - EP ${episode}`, { id });
+          if (delivery.toast)
+            toast.error(`No se pudo descargar el episodio ${episode}`, {
+              id,
+              duration: NOTIFICATION_DURATION.error,
+              description: `${title}. Revisa el motivo en Descargas.`,
+            });
           playNotificationSound(currentSettings, 'error');
-          setTimeout(dismissOverflowingToasts, 50);
+          dismissOverflowingToasts();
         }
       }
     };
@@ -80,6 +107,10 @@ export function useDownloadNotifications(): void {
 }
 
 export function useToastReconcile(): void {
+  const { toasts } = useSonner();
+  useEffect(() => {
+    dismissOverflowingToasts();
+  }, [toasts]);
   useEffect(() => {
     const reconcileToasts = () => {
       if (document.visibilityState === 'visible') {

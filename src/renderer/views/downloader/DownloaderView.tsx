@@ -41,7 +41,9 @@ export function DownloaderView({ onSelectAnime, activeProvider, isActive = true 
   const confirmClear = useCallback(() => {
     actions.clearQueue.mutate(undefined, {
       onSuccess: () => toast.success('Cola limpiada'),
-      onError: () => toast.error('No se pudo limpiar la cola'),
+      onError: (error) => {
+        if (!isIpcFailError(error)) toast.error('No se pudo limpiar la cola');
+      },
     });
   }, [actions]);
 

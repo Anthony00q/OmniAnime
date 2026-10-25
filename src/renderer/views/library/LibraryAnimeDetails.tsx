@@ -280,12 +280,17 @@ export function LibraryAnimeDetails({
         }
         setShowRenameModal(false);
         if (renamed === 0) {
-          if (conflicts > 0) toast.info(`Sin cambios — ${conflicts} conflicto(s) evitado(s)`);
+          if (conflicts > 0)
+            toast.info(
+              conflicts === 1
+                ? 'Sin cambios: se evitó un conflicto'
+                : `Sin cambios: se evitaron ${conflicts} conflictos`,
+            );
           else toast.info('No fue necesario renombrar archivos');
         } else if (renamed !== null) {
           toast.success(
-            `${renamed} archivo(s) renombrado(s) a ${style === 'minimal' ? 'Minimalista' : 'Descriptivo'}` +
-              (conflicts ? ` · ${conflicts} conflicto(s) ignorado(s)` : ''),
+            `${renamed === 1 ? '1 archivo renombrado' : `${renamed} archivos renombrados`} a ${style === 'minimal' ? 'Minimalista' : 'Descriptivo'}` +
+              (conflicts ? ` · ${conflicts === 1 ? '1 conflicto evitado' : `${conflicts} conflictos evitados`}` : ''),
           );
         } else {
           toast.success(`Archivos renombrados a estilo ${renameStyle}`);
@@ -327,7 +332,9 @@ export function LibraryAnimeDetails({
       });
       if (!mounted.current || folderPathRef.current !== origin) return;
       if (res && res.success) {
-        toast.success(`Episodios renumerados — ${res.renamed} archivo(s) desde EP_${startNum}`);
+        toast.success(
+          `${res.renamed === 1 ? '1 archivo renumerado' : `${res.renamed} archivos renumerados`} desde el episodio ${startNum}`,
+        );
         setThumbEpoch((v) => v + 1);
         setShowReorderModal(false);
       } else {

@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { BarChart3, Database, Eraser, Eye, HardDrive, Loader2, Shield, Trash2 } from 'lucide-react';
-import { toast } from 'sonner';
+import { runToastTask } from '@/renderer/utils/toastTask';
 import { AppTooltip } from '@/renderer/components/ui/AppTooltip';
 
 const StorageDiskRow = memo(function StorageDiskRow({
@@ -256,20 +256,15 @@ export const StorageTab = memo(function StorageTab({
               <button
                 type="button"
                 onClick={async () => {
-                  const toastId = toast.loading('Limpiando archivos temporales...');
-                  try {
-                    const res: any = await storageActions.cleanCache.mutateAsync();
-                    if (res.cleaned > 0)
-                      toast.success(`Se limpiaron ${res.cleaned} archivos (${formatBytes(res.freed)})`, {
-                        id: toastId,
-                      });
-                    else toast.success('No había nada para limpiar', { id: toastId });
-                  } catch (e: any) {
-                    toast.error('No se pudieron limpiar los archivos', {
-                      id: toastId,
-                      description: String(e?.message || e),
-                    });
-                  }
+                  await runToastTask(() => storageActions.cleanCache.mutateAsync(), {
+                    loading: 'Limpiando archivos temporales…',
+                    success: (res: any) =>
+                      res.cleaned > 0
+                        ? `Se limpiaron ${res.cleaned} archivos (${formatBytes(res.freed)})`
+                        : 'No había nada para limpiar',
+                    error: 'No se pudieron limpiar los archivos temporales',
+                    timeoutMs: 305_000,
+                  }).catch(() => undefined);
                 }}
                 disabled={storageActions.cleanCache.isPending}
                 className="inline-flex min-h-11 max-w-full items-center justify-center gap-2 px-3.5 py-2 bg-secondary hover:bg-secondary/80 border border-border rounded-lg text-[13px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-50"
@@ -299,20 +294,15 @@ export const StorageTab = memo(function StorageTab({
               <button
                 type="button"
                 onClick={async () => {
-                  const toastId = toast.loading('Limpiando vistas previas...');
-                  try {
-                    const res: any = await storageActions.cleanThumbnails.mutateAsync('expired');
-                    if (res.cleaned > 0)
-                      toast.success(`Se limpiaron ${res.cleaned} imágenes (${formatBytes(res.freed)})`, {
-                        id: toastId,
-                      });
-                    else toast.success('No había vistas previas antiguas', { id: toastId });
-                  } catch (e: any) {
-                    toast.error('No se pudieron limpiar las vistas previas', {
-                      id: toastId,
-                      description: String(e?.message || e),
-                    });
-                  }
+                  await runToastTask(() => storageActions.cleanThumbnails.mutateAsync('expired'), {
+                    loading: 'Limpiando vistas previas…',
+                    success: (res: any) =>
+                      res.cleaned > 0
+                        ? `Se limpiaron ${res.cleaned} imágenes (${formatBytes(res.freed)})`
+                        : 'No había vistas previas antiguas',
+                    error: 'No se pudieron limpiar las vistas previas',
+                    timeoutMs: 305_000,
+                  }).catch(() => undefined);
                 }}
                 disabled={storageActions.cleanThumbnails.isPending}
                 className="inline-flex min-h-11 items-center justify-center gap-2 px-3.5 py-2 bg-secondary hover:bg-secondary/80 border border-border rounded-lg text-[13px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-50"
@@ -329,20 +319,15 @@ export const StorageTab = memo(function StorageTab({
                   <button
                     type="button"
                     onClick={async () => {
-                      const toastId = toast.loading('Borrando todas las vistas previas...');
-                      try {
-                        const res: any = await storageActions.cleanThumbnails.mutateAsync('all');
-                        if (res.cleaned > 0)
-                          toast.success(`Se limpiaron ${res.cleaned} imágenes (${formatBytes(res.freed)})`, {
-                            id: toastId,
-                          });
-                        else toast.success('No había vistas previas', { id: toastId });
-                      } catch (e: any) {
-                        toast.error('No se pudieron borrar', {
-                          id: toastId,
-                          description: String(e?.message || e),
-                        });
-                      }
+                      await runToastTask(() => storageActions.cleanThumbnails.mutateAsync('all'), {
+                        loading: 'Borrando todas las vistas previas…',
+                        success: (res: any) =>
+                          res.cleaned > 0
+                            ? `Se limpiaron ${res.cleaned} imágenes (${formatBytes(res.freed)})`
+                            : 'No había vistas previas',
+                        error: 'No se pudieron borrar las vistas previas',
+                        timeoutMs: 305_000,
+                      }).catch(() => undefined);
                     }}
                     disabled={storageActions.cleanThumbnails.isPending}
                     className="min-h-11 px-3.5 py-2 bg-transparent hover:bg-secondary border border-border rounded-lg text-[13px] font-medium text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-50 disabled:cursor-not-allowed"

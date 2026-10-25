@@ -49,7 +49,7 @@ export interface DownloadQueueProcessorOptions {
   recordEpisodeOutcome?: (summary: EpisodeDownloadSummary) => void;
   sendDownloadStarted: (item: QueueItem, eventId: string) => void;
   sendEpisodeDownloaded: (item: QueueItem, episode: number, success: boolean, eventId: string) => void;
-  sendNotification: (title: string, body: string, type: DownloadNotificationType) => void;
+  sendNotification: (title: string, body: string, type: DownloadNotificationType, eventId?: string) => void;
   isMainWindowFocused: () => boolean;
   shouldNotifyCompletion: () => boolean;
   logError: (error: unknown) => void;
@@ -198,7 +198,12 @@ export class DownloadQueueProcessor {
         this.options.updateTray(`Descargando ${item.animeTitle}...`);
         this.options.sendQueueUpdate();
         if (!this.options.isMainWindowFocused()) {
-          this.options.sendNotification('Descarga Iniciada', `Iniciando: ${item.animeTitle}`, 'showDownloadStarted');
+          this.options.sendNotification(
+            'Descarga iniciada',
+            `Iniciando: ${item.animeTitle}`,
+            'showDownloadStarted',
+            `${item.id}:${runEpoch}:started`,
+          );
         }
         this.options.sendDownloadStarted(item, `${item.id}:${runEpoch}:started`);
         this.options.sendLog(
@@ -265,6 +270,9 @@ export class DownloadQueueProcessor {
                     ? `${item.animeTitle}: ${cancelledCount} episodio(s) cancelado(s), resto completado.`
                     : `Todos los episodios de ${item.animeTitle} han finalizado.`,
                 item.failedEps.length > 0 ? 'showDownloadError' : 'showDownloadFinished',
+                episodesToProcess.length === 1
+                  ? `${item.id}:${runEpoch}:episode:${episodesToProcess[0]}:${item.failedEps.includes(episodesToProcess[0]) ? 'fail' : 'ok'}`
+                  : `${item.id}:${runEpoch}:finished`,
               );
             }
           }

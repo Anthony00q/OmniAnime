@@ -167,6 +167,7 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
   const [showRangeModal, setShowRangeModal] = useState(false);
   const [rangeFrom, setRangeFrom] = useState('1');
   const [rangeTo, setRangeTo] = useState('');
+  const [rangeError, setRangeError] = useState<string | null>(null);
   const [showFullSynopsis, setShowFullSynopsis] = useState(false);
   const [synopsisNode, setSynopsisNode] = useState<HTMLParagraphElement | null>(null);
   const [isSynopsisClamped, setIsSynopsisClamped] = useState(false);
@@ -195,6 +196,7 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
     setAnilistGraceExpired(false);
     setRangeFrom('1');
     setRangeTo('');
+    setRangeError(null);
     setShowFullSynopsis(false);
     setShowRangeModal(false);
     setShowDirPicker(false);
@@ -614,11 +616,12 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
     const from = parseEpisodeNumber(rangeFrom);
     const to = parseEpisodeNumber(rangeTo);
     if (from === null || to === null || from > to) {
-      toast.error('Rango inválido');
+      setRangeError('Introduce un rango válido: el episodio final debe ser igual o mayor que el inicial.');
       return;
     }
     const inRange = new Set<number>(selectableEpNums.filter((n: number) => n >= from && n <= to));
     setSelected(inRange);
+    setRangeError(null);
     setShowRangeModal(false);
   }, [rangeFrom, rangeTo, selectableEpNums]);
 
@@ -634,6 +637,7 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
   };
 
   const executeDownload = async (dirIndex: number) => {
+    if (addToQueue.isPending) return;
     if (!data) {
       toast.error('No hay datos del anime para descargar');
       return;
@@ -643,30 +647,15 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
       .filter((num) => selectableSet.has(num))
       .sort((a, b) => a - b);
     if (!eps.length || activeProviderId !== deferredProvider) return;
-    const loadingId = `add-queue-${data.slug}`;
-    toast.loading(`Agregando ${eps.length} episodios a la cola...`, { id: loadingId });
-    addToQueue.mutate(
-      {
-        slug: data.slug,
-        animeTitle: data.title,
-        episodes: eps,
-        preferredServer: 'Auto',
-        lang: selectedLang,
-        outputDirIndex: dirIndex,
-        provider: deferredProvider,
-      },
-      {
-        onSuccess: (result) => {
-          toast.dismiss(loadingId);
-          if (result) toast.success(`${eps.length} episodio(s) añadidos a la cola`);
-          else toast.error('No se pudo agregar a la cola');
-        },
-        onError: () => {
-          toast.dismiss(loadingId);
-          toast.error('Error al agregar a la cola');
-        },
-      },
-    );
+    addToQueue.mutate({
+      slug: data.slug,
+      animeTitle: data.title,
+      episodes: eps,
+      preferredServer: 'Auto',
+      lang: selectedLang,
+      outputDirIndex: dirIndex,
+      provider: deferredProvider,
+    });
   };
 
   if (!slug) {
@@ -983,7 +972,10 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
                   </button>
                   <button
                     type="button"
-                    onClick={() => setShowRangeModal(true)}
+                    onClick={() => {
+                      setRangeError(null);
+                      setShowRangeModal(true);
+                    }}
                     className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 cursor-pointer"
                   >
                     <List className="w-3.5 h-3.5" /> Rango...
@@ -1307,20 +1299,29 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
       <Dialog
         open={showRangeModal}
         onOpenChange={setShowRangeModal}
-        title="Seleccionar Rango"
+        title="Seleccionar rango"
         icon={<ListFilter className="w-5 h-5" aria-hidden="true" />}
         message="Indica el rango de episodios que quieres marcar."
         confirmLabel="Aplicar"
         danger={false}
         onConfirm={applyRange}
+        closeOnConfirm={false}
       >
-        <div className="flex items-center gap-3 -mt-1">
+        <div
+          className="flex items-center gap-3 -mt-1"
+          role="group"
+          aria-label="Rango de episodios"
+          aria-describedby={rangeError ? 'episode-range-error' : undefined}
+        >
           <div className="flex-1">
             <label className="text-xs font-semibold text-muted-foreground block mb-1">Desde</label>
             <CustomNumberInput
               value={rangeFrom}
               maximumFractionDigits={20}
-              onChange={(v) => setRangeFrom(v)}
+              onChange={(v) => {
+                setRangeError(null);
+                setRangeFrom(v);
+              }}
               min={0}
               ariaLabel="Desde"
               inputClassName="bg-secondary/50 py-2 pl-3 text-sm"
@@ -1332,13 +1333,21 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
             <CustomNumberInput
               value={rangeTo}
               maximumFractionDigits={20}
-              onChange={(v) => setRangeTo(v)}
+              onChange={(v) => {
+                setRangeError(null);
+                setRangeTo(v);
+              }}
               min={0}
               ariaLabel="Hasta"
               inputClassName="bg-secondary/50 py-2 pl-3 text-sm"
             />
           </div>
         </div>
+        {rangeError && (
+          <p id="episode-range-error" role="alert" className="mt-3 text-sm text-destructive-fg">
+            {rangeError}
+          </p>
+        )}
       </Dialog>
 
       <Dialog

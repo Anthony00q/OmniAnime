@@ -1,6 +1,7 @@
 import { toast } from 'sonner';
 import { isIpcFail, type IpcErrorShape, type IpcSuccess } from '@/types/api';
 import { reportRendererError } from '@/renderer/utils/rendererErrorReporting';
+import { NOTIFICATION_DURATION } from '@/utils/notificationPolicy';
 
 // Respaldo por código para los fallos de infraestructura sin mensaje.
 const IPC_FAIL_MESSAGES: Record<string, string> = {
@@ -41,7 +42,7 @@ export function unwrap<T = any>(response: any, options: UnwrapOptions = {}): T {
   if (isIpcFail(response)) {
     const message = ipcFailMessage(response);
     reportRendererError(`ipc:${response.code}`, message);
-    if (options.toast !== false) toast.error(message);
+    if (options.toast !== false) toast.error(message, { duration: NOTIFICATION_DURATION.error });
     throw new IpcFailError(response.code, message);
   }
   // Sin envelope no hay datos: degrada a null, como el bridge del splash.

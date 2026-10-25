@@ -29,9 +29,12 @@ export function registerQueueHandlers(dependencies: IpcRegistryDependencies): vo
     return result ? ok(result) : fail('ADD_TO_QUEUE_FAILED', 'No se pudo agregar a la cola');
   });
 
-  handleIpc('cancel-download', (_, id: string) =>
-    queueProcessor.cancel(id) ? ok(null) : fail('CANCEL_DOWNLOAD_FAILED', 'No se pudo cancelar la descarga'),
-  );
+  handleIpc('cancel-download', (_, id: string) => {
+    if (typeof id !== 'string' || !id.trim()) return fail('CANCEL_DOWNLOAD_FAILED', 'No se pudo cancelar la descarga');
+    const item = downloadQueue.find((entry) => entry.id === id);
+    if (!item || item.status === 'done' || item.status === 'failed' || item.status === 'cancelled') return ok(null);
+    return queueProcessor.cancel(id) ? ok(null) : fail('CANCEL_DOWNLOAD_FAILED', 'No se pudo cancelar la descarga');
+  });
   handleIpc('skip-server', (_, id: string) =>
     queueProcessor.skip(id) ? ok(null) : fail('SKIP_SERVER_FAILED', 'No se pudo saltar el servidor'),
   );

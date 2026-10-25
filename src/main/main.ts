@@ -8,6 +8,8 @@ import { setupBackgroundBehavior } from './bootstrap/backgroundBehavior';
 import { checkConnectivity, getConnectivityStatus as getConnectivityStatusImpl } from './bootstrap/connectivity';
 import { registerOmniMediaProtocol } from './bootstrap/protocol';
 import { setupContextMenu } from './bootstrap/contextMenu';
+import { createNativeNotificationSender } from './notificationDelivery';
+import { errorDetailForLog } from '../utils/logging/redactLog';
 import {
   getAppHtmlPath,
   getAppIconPath,
@@ -144,33 +146,22 @@ app.on('before-quit', () => {
 
 setupContextMenu();
 
-function sendOSNotification(
-  title: string,
-  body: string,
-  eventType:
-    | 'showDownloadStarted'
-    | 'showDownloadFinished'
-    | 'showDownloadError'
-    | 'showSystemMessages' = 'showSystemMessages',
-) {
-  try {
-    const settings = SettingsManager.get();
-    if (settings.notificationSettings && settings.notificationSettings[eventType] === false) {
-      return;
-    }
+const sendOSNotification = createNativeNotificationSender({
+  getSettings: () => SettingsManager.get(),
+  isForeground: () => getNotificationPresentation() === 'toast',
+  show: ({ title, body, silent }) => {
     if (Notification.isSupported()) {
       const notif = new Notification({
         title,
         body,
         icon: getAppIconPath(),
-        silent: !settings.notificationsSound,
+        silent,
       });
       notif.show();
     }
-  } catch (e) {
-    scopedLog('window').error(`notification: ${e}`);
-  }
-}
+  },
+  reportError: (error) => scopedLog('window').error(`notification: ${errorDetailForLog(error)}`),
+});
 
 const HLS_PLAYER_REFERER = 'https://player.zilla-networks.com/';
 
@@ -179,6 +170,11 @@ let windowLifecycleService: WindowLifecycleService | null = null;
 
 function getMainWindow(): BrowserWindow | null {
   return windowLifecycleService?.getMainWindow() || null;
+}
+
+function getNotificationPresentation(): 'toast' | 'native' {
+  const window = getMainWindow();
+  return window && !window.isDestroyed() && window.isVisible() && window.isFocused() ? 'toast' : 'native';
 }
 
 function getDevServerUrl(): string {
@@ -634,6 +630,7 @@ const queueProcessor = new DownloadQueueProcessor({
     if (mainWindow) {
       mainWindow.webContents.send('download-started', {
         eventId,
+        presentation: getNotificationPresentation(),
         queueId: item.id,
         slug: item.slug,
         providerId: item.providerId,
@@ -648,6 +645,7 @@ const queueProcessor = new DownloadQueueProcessor({
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('episode-downloaded', {
         eventId,
+        presentation: getNotificationPresentation(),
         queueId: item.id,
         providerId: item.providerId,
         lang: item.lang || 'SUB',

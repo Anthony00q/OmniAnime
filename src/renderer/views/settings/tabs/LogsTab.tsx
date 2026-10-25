@@ -202,12 +202,19 @@ export const LogsTab = memo(function LogsTab({ isActive = true }: LogsTabProps) 
       if (res?.deleted > 0) {
         toast.success(
           res.deleted === 1 ? 'Espacio liberado: 1 sesión anterior' : `Espacio liberado: ${res.deleted} sesiones`,
-          res.skipped > 0 ? { description: `${res.skipped} omitida(s)` } : undefined,
+          res.skipped > 0
+            ? { description: `${res.skipped === 1 ? '1 sesión omitida' : `${res.skipped} sesiones omitidas`}` }
+            : undefined,
         );
         if (openFile && selected.has(openFile)) setOpenFile(null);
         setSelected(new Set());
       } else {
-        toast.error('Nada que liberar', res.skipped > 0 ? { description: `${res.skipped} omitida(s)` } : undefined);
+        toast.info(
+          'No había sesiones que eliminar',
+          res.skipped > 0
+            ? { description: `${res.skipped === 1 ? '1 sesión omitida' : `${res.skipped} sesiones omitidas`}` }
+            : undefined,
+        );
       }
     } catch (e: any) {
       toast.error('No se pudo liberar espacio', { description: String(e?.message || e) });
@@ -224,7 +231,7 @@ export const LogsTab = memo(function LogsTab({ isActive = true }: LogsTabProps) 
       const res: any = await fetchLogPageSnapshot(currentName, 500);
       const entries = res?.entries || [];
       if (entries.length === 0) {
-        toast.error('Esta sesión aún está en blanco');
+        toast.info('Esta sesión aún está en blanco');
         return;
       }
       const body = entries.map((e: any) => e.text).join('\n\n');

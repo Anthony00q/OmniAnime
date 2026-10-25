@@ -1,5 +1,6 @@
 import { toast } from 'sonner';
 import { unwrap } from '@/renderer/hooks/queries/unwrap';
+import { runToastTask } from './toastTask';
 
 export async function revealLogFile(): Promise<boolean> {
   try {
@@ -21,20 +22,19 @@ export interface DiagnosticsSelection {
 }
 
 export async function exportDiagnostics(selection?: DiagnosticsSelection): Promise<boolean> {
-  const toastId = toast.loading('Exportando diagnóstico...');
   try {
-    const record = unwrap(await window.api.invoke('export-diagnostics', selection ?? {}), { toast: false });
-    if (!record) {
-      toast.dismiss(toastId);
-      return false;
-    }
-    toast.success('Diagnóstico exportado', { id: toastId, description: record.path });
-    return true;
-  } catch (e: unknown) {
-    toast.error('No se pudo exportar el diagnóstico', {
-      id: toastId,
-      description: e instanceof Error ? e.message : String(e),
-    });
+    const record = await runToastTask(
+      async () => unwrap(await window.api.invoke('export-diagnostics', selection ?? {}), { toast: false }),
+      {
+        loading: 'Exportando diagnóstico…',
+        success: (result) => (result ? 'Diagnóstico exportado' : null),
+        description: (result) => result?.path,
+        error: 'No se pudo exportar el diagnóstico',
+        timeoutMs: 125_000,
+      },
+    );
+    return Boolean(record);
+  } catch {
     return false;
   }
 }

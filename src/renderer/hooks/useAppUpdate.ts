@@ -17,14 +17,8 @@ import { isIpcFailError, unwrap } from '@/renderer/hooks/queries/unwrap';
 // Check único tras el handoff del splash: no bloquea el arranque,
 // el modal solo abre si hay versión nueva y no se descartó en la sesión.
 const POST_SPLASH_CHECK_DELAY_MS = 2500;
-const INFO_SOUND_COOLDOWN_MS = 500;
-let lastInfoSoundAt = 0;
-
-function playInfoSoundOnce(settings: unknown) {
-  const now = Date.now();
-  if (now - lastInfoSoundAt < INFO_SOUND_COOLDOWN_MS) return;
+function playUpdateSound(settings: unknown) {
   if (!shouldPlaySystemSound(settings)) return;
-  lastInfoSoundAt = now;
   playNotificationSound(settings, 'info');
 }
 
@@ -42,12 +36,20 @@ export function useAppUpdate() {
   const dismissedRef = useRef(dismissed);
   dismissedRef.current = dismissed;
   const checkedRef = useRef(false);
+  const announcedVersions = useRef(new Set<string>());
+  const downloadedAnnounced = useRef(false);
 
   const applyAvailable = useCallback(
     (version: string, notes?: string) => {
       setAvailable({ version, notes });
       setError(null);
-      playInfoSoundOnce(settingsRef.current);
+      if (announcedVersions.current.has(version)) return;
+      announcedVersions.current.add(version);
+      if (announcedVersions.current.size > 16)
+        announcedVersions.current.delete(announcedVersions.current.values().next().value!);
+      downloadedAnnounced.current = false;
+      if (settingsRef.current.notificationSettings?.showSystemMessages === false) return;
+      playUpdateSound(settingsRef.current);
       if (!dismissedRef.current) setModalOpen(true);
     },
     [setAvailable, setError, setModalOpen],
@@ -67,7 +69,10 @@ export function useAppUpdate() {
         case 'downloaded':
           setPhase('downloaded');
           setPercent(100);
-          playInfoSoundOnce(settingsRef.current);
+          if (!downloadedAnnounced.current) {
+            downloadedAnnounced.current = true;
+            playUpdateSound(settingsRef.current);
+          }
           break;
         case 'error':
           setError(state.message || 'Error de actualización.');
@@ -110,6 +115,7 @@ export function useAppUpdate() {
   }, [setDismissed, setModalOpen]);
 
   const startDownload = useCallback(async () => {
+    downloadedAnnounced.current = false;
     setError(null);
     setPercent(0);
     setPhase('downloading');

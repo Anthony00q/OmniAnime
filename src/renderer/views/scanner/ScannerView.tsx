@@ -206,24 +206,10 @@ export function ScannerView({ isActive = true }: { isActive?: boolean }) {
     }
   }, [isActive, relinkAllowed]);
 
-  const lastToastedQueryRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    if (!relinkFolder) {
-      lastToastedQueryRef.current = null;
-    }
-  }, [relinkFolder]);
-
   useEffect(() => {
     if (!relinkAllowed || !searchData) return;
     setRelinkResults(searchData);
-    if (searchData.length === 0 && submittedSearch && lastToastedQueryRef.current !== submittedSearch) {
-      lastToastedQueryRef.current = submittedSearch;
-      toast.error('No se encontraron resultados para: ' + submittedSearch);
-    } else if (searchData.length > 0) {
-      lastToastedQueryRef.current = null;
-    }
-  }, [searchData, submittedSearch, relinkAllowed]);
+  }, [searchData, relinkAllowed]);
 
   useEffect(() => {
     const handleClose = (e: Event) => {
