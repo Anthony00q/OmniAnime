@@ -382,7 +382,10 @@ export class DownloadService {
     const tempDest = path.join(cacheDir, path.basename(dest));
     const sidecarDest = `${tempDest}.direct.json`;
 
+    let frozen = false;
     const freezeAndKill = () => {
+      if (frozen) return;
+      frozen = true;
       internalController.abort();
 
       if (responseData) {
@@ -521,6 +524,7 @@ export class DownloadService {
         flags: offset > 0 ? 'a' : 'w',
         highWaterMark: 1024 * 1024,
       });
+      const writerClosed = new Promise<void>((resolve) => writer!.once('close', resolve));
       let downloadedLength = 0;
 
       // pipe() antes del listener propio: cada chunk se encola en el writer
@@ -543,11 +547,18 @@ export class DownloadService {
           if (streamTimeout) clearTimeout(streamTimeout);
           if (signal) signal.removeEventListener('abort', onExternalAbort);
           this.untrackController(internalController);
+          responseData.removeListener('error', onReadError);
+          responseData.removeListener('aborted', onReadError);
         };
 
+        const onReadError = () => freezeAndKill();
+        responseData.once('error', onReadError);
+        responseData.once('aborted', onReadError);
+
         writer!.on('finish', async () => {
+          await writerClosed;
           finishCleanup();
-          if (signal?.aborted) {
+          if (signal?.aborted || internalController.signal.aborted) {
             resolve(false);
             return;
           }
@@ -572,18 +583,13 @@ export class DownloadService {
           }
         });
 
-        writer!.on('error', (err) => {
+        writer!.on('error', async (err) => {
+          freezeAndKill();
+          await writerClosed;
           finishCleanup();
           this.logger.error(`direct writer: ${errorDetailForLog(err)}`);
           resolve(false);
         });
-
-        if (signal) {
-          signal.addEventListener('abort', () => {
-            finishCleanup();
-            resolve(false);
-          });
-        }
       });
     } catch (e: any) {
       if (signal?.aborted || e.name === 'AbortError' || axios.isCancel(e)) {

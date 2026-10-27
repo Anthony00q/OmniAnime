@@ -1,5 +1,6 @@
 import { BROAD_OUTBOUND_POLICY, outboundRequest } from '../../utils/security/outboundPolicy';
 import * as fsp from 'fs/promises';
+import type { Readable } from 'stream';
 import {
   readConcurrency,
   reportActualConcurrency,
@@ -105,6 +106,11 @@ export async function downloadDirectRanged(
   } catch {
     return false;
   }
+  const file = handle;
+  const transferAbort = new AbortController();
+  const onAbort = (): void => transferAbort.abort();
+  options.signal?.addEventListener('abort', onAbort, { once: true });
+  if (options.signal?.aborted) onAbort();
   let confirmed = 0;
   const report = (): void => {
     try {
@@ -126,67 +132,55 @@ export async function downloadDirectRanged(
           'Accept-Encoding': 'identity',
         },
         timeout: PART_TIMEOUT_MS,
-        signal: options.signal as never,
+        signal: transferAbort.signal,
         maxRedirects: 5,
         validateStatus: () => true,
       },
       BROAD_OUTBOUND_POLICY,
     );
-    if (response.status !== 206) throw new Error(`ranged part ${index} status ${response.status}`);
-    const stream = response.data as NodeJS.ReadableStream & { destroy?: () => void };
-    await new Promise<void>((resolve, reject) => {
+    const stream = response.data as Readable;
+    let stallTimer: NodeJS.Timeout | undefined;
+    const resetStall = (): void => {
+      clearTimeout(stallTimer);
+      stallTimer = setTimeout(() => stream.destroy(new Error(`Parte ${index} sin datos`)), PART_STALL_MS);
+    };
+    try {
+      const range = String(response.headers?.['content-range'] ?? '')
+        .trim()
+        .match(/^bytes\s+(\d+)-(\d+)\/(\d+)$/i);
+      if (
+        response.status !== 206 ||
+        !range ||
+        Number(range[1]) !== start ||
+        Number(range[2]) !== end ||
+        Number(range[3]) !== totalBytes
+      ) {
+        throw new Error(`Rango no válido en parte ${index}`);
+      }
       let position = start;
-      let settled = false;
-      const fail = (error: unknown): void => {
-        if (settled) return;
-        settled = true;
+      resetStall();
+      for await (const chunk of stream) {
         clearTimeout(stallTimer);
-        try {
-          stream.destroy?.();
-        } catch {
-          /* best-effort */
-        }
-        reject(error);
-      };
-      const resetStall = (): void => {
-        clearTimeout(stallTimer);
-        stallTimer = setTimeout(() => fail(new Error(`ranged part ${index} stalled`)), PART_STALL_MS);
-      };
-      let stallTimer = setTimeout(() => fail(new Error(`ranged part ${index} stalled`)), PART_STALL_MS);
-      const onAbort = (): void => fail(new Error('Aborted'));
-      options.signal?.addEventListener('abort', onAbort, { once: true });
-      let tail: Promise<void> = Promise.resolve();
-      stream.on('data', (chunk: Buffer) => {
-        if (options.signal?.aborted || settled) {
-          fail(new Error('Aborted'));
-          return;
+        transferAbort.signal.throwIfAborted();
+        const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as Uint8Array);
+        if (position + buffer.length > end + 1) throw new Error(`Parte ${index} excede su rango`);
+        let offset = 0;
+        while (offset < buffer.length) {
+          transferAbort.signal.throwIfAborted();
+          const { bytesWritten } = await file.write(buffer, offset, buffer.length - offset, position);
+          if (bytesWritten <= 0 || bytesWritten > buffer.length - offset) throw new Error('Escritura incompleta');
+          position += bytesWritten;
+          offset += bytesWritten;
+          confirmed += bytesWritten;
+          report();
         }
         resetStall();
-        const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as Uint8Array);
-        const offset = position;
-        position += buf.length;
-        tail = tail.then(async () => {
-          if (settled) return;
-          await handle?.write(buf, 0, buf.length, offset);
-          confirmed += buf.length;
-          report();
-        });
-        tail.catch((error: unknown) => fail(error));
-      });
-      stream.on('end', () => {
-        void tail.then(
-          () => {
-            if (settled) return;
-            settled = true;
-            clearTimeout(stallTimer);
-            options.signal?.removeEventListener('abort', onAbort);
-            resolve();
-          },
-          (error: unknown) => fail(error),
-        );
-      });
-      stream.on('error', (error: unknown) => fail(error));
-    });
+      }
+      if (position !== end + 1) throw new Error(`Parte ${index} incompleta`);
+    } finally {
+      clearTimeout(stallTimer);
+      stream.destroy();
+    }
   };
   // Pool de streams con Range (no confundir con los workers de episodio): cada
   // uno coge el siguiente segmento libre y el objetivo puede cambiar en caliente.
@@ -235,7 +229,10 @@ export async function downloadDirectRanged(
         await runPart(index, start, end);
       }
     } catch (error) {
-      if (failure === null) failure = error;
+      if (failure === null) {
+        failure = error;
+        transferAbort.abort();
+      }
     } finally {
       running -= 1;
       reportActualConcurrency(connections, running);
@@ -253,6 +250,7 @@ export async function downloadDirectRanged(
     if (failure === null) failure = error;
   }
   unsubscribe();
+  options.signal?.removeEventListener('abort', onAbort);
   reportActualConcurrency(connections, 0);
   if (failure !== null) {
     await handle.close().catch(() => undefined);

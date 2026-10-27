@@ -133,6 +133,7 @@ export class EpisodeDownloadAttemptService {
   private readonly attemptTelemetries: AttemptTelemetry[] = [];
   private readonly attemptControllers: AdaptiveConcurrencyController[] = [];
   private readonly engines: DownloadEngine[];
+  private readonly fileTasks = new Map<string, Promise<void>>();
 
   constructor(private readonly options: EpisodeDownloadAttemptOptions) {
     this.engines =
@@ -148,6 +149,24 @@ export class EpisodeDownloadAttemptService {
 
   private attemptKey(itemId: string, episode: number): string {
     return `${itemId}:${episode}`;
+  }
+
+  private async withEpisodeFiles<T>(dest: string, task: () => Promise<T>): Promise<T> {
+    const resolved = path.resolve(dest);
+    const key = process.platform === 'win32' ? resolved.toLowerCase() : resolved;
+    const previous = this.fileTasks.get(key);
+    let release!: () => void;
+    const pending = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    this.fileTasks.set(key, pending);
+    await previous;
+    try {
+      return await task();
+    } finally {
+      release();
+      if (this.fileTasks.get(key) === pending) this.fileTasks.delete(key);
+    }
   }
 
   private get fileLog(): ScopedLogger {
@@ -517,56 +536,59 @@ export class EpisodeDownloadAttemptService {
     let toolFailureMessage: string | null = null;
 
     try {
-      // Un intento = un engine. Sin dispatch por servidor: el registry resuelve
-      // el engine por la fuente y el engine delega en la implementación existente.
-      if (!attemptAbort.signal.aborted && engine) {
-        if (!dl.allowContinue) await this.purgeResumeForServer(link.server, dest);
-        callbacks.updateTray(`Descargando ${item.animeTitle} - EP ${episode}...`);
-        const progressState = { lastPct: -1, speedWindow: undefined as SpeedWindow | undefined };
-        const engineResult = await engine.download(link, {
-          item,
-          episode,
-          dest,
-          signal: attemptAbort.signal,
-          settings: dl,
-          concurrency,
-          onProgress: (engineProgress) => {
-            markStarted();
-            // Medición cruda, antes del gate de % y de cualquier throttle.
-            telemetry.recordBytes(engineProgress.loadedBytes, engineProgress.fraction01);
-            adaptiveLog?.observe();
-            this.reportEngineProgress(item, episode, link.server, progressState, callbacks, engineProgress);
-          },
-        });
-        success = engineResult.ok;
-        if (!success && !attemptAbort.signal.aborted && engineResult.error) {
-          toolFailureMessage = engineResult.error;
+      await this.withEpisodeFiles(dest, async () => {
+        // Un intento = un engine. Sin dispatch por servidor: el registry resuelve
+        // el engine por la fuente y el engine delega en la implementación existente.
+        if (!attemptAbort.signal.aborted && engine) {
+          if (!dl.allowContinue) await this.purgeResumeForServer(link.server, dest);
+          if (attemptAbort.signal.aborted) return;
+          callbacks.updateTray(`Descargando ${item.animeTitle} - EP ${episode}...`);
+          const progressState = { lastPct: -1, speedWindow: undefined as SpeedWindow | undefined };
+          const engineResult = await engine.download(link, {
+            item,
+            episode,
+            dest,
+            signal: attemptAbort.signal,
+            settings: dl,
+            concurrency,
+            onProgress: (engineProgress) => {
+              markStarted();
+              // Medición cruda, antes del gate de % y de cualquier throttle.
+              telemetry.recordBytes(engineProgress.loadedBytes, engineProgress.fraction01);
+              adaptiveLog?.observe();
+              this.reportEngineProgress(item, episode, link.server, progressState, callbacks, engineProgress);
+            },
+          });
+          success = engineResult.ok;
+          if (!success && !attemptAbort.signal.aborted && engineResult.error) {
+            toolFailureMessage = engineResult.error;
+          }
+        } else if (!attemptAbort.signal.aborted) {
+          // Defensa en profundidad: la allowlist de main ya filtra servidores
+          // no canónicos antes de llegar aquí.
+          toolFailureMessage = `Servidor no soportado: ${link.server}`;
+          this.fileLog.warn(toolFailureMessage, this.attemptContext(item, episode, link.server));
         }
-      } else if (!attemptAbort.signal.aborted) {
-        // Defensa en profundidad: la allowlist de main ya filtra servidores
-        // no canónicos antes de llegar aquí.
-        toolFailureMessage = `Servidor no soportado: ${link.server}`;
-        this.fileLog.warn(toolFailureMessage, this.attemptContext(item, episode, link.server));
-      }
 
-      if (success) {
-        const mp4Ready = await this.ensureEpisodeMp4FileWithSnapshotAsync(dest, filesBeforeAttempt);
-        if (!mp4Ready) {
-          success = false;
-          invalidMp4 = true;
-          if (link.server === 'Mega') await this.purgeMegaResumeFiles(dest);
-          this.fileLog.warn(
-            `"${link.server}" reportó éxito sin archivo válido, se prueba el siguiente.`,
-            this.attemptContext(item, episode, link.server),
-          );
-          this.options.log(
-            `WARN "${link.server}" reporto exito, pero no quedo archivo .mp4 valido. Probando siguiente...`,
-            'warn',
-          );
-        } else if (dl.cleanCacheOnComplete) {
-          await this.cleanEpisodeCacheForEpisode(dest);
+        if (success) {
+          const mp4Ready = await this.ensureEpisodeMp4FileWithSnapshotAsync(dest, filesBeforeAttempt);
+          if (!mp4Ready) {
+            success = false;
+            invalidMp4 = true;
+            if (link.server === 'Mega') await this.purgeMegaResumeFiles(dest);
+            this.fileLog.warn(
+              `"${link.server}" reportó éxito sin archivo válido, se prueba el siguiente.`,
+              this.attemptContext(item, episode, link.server),
+            );
+            this.options.log(
+              `WARN "${link.server}" reporto exito, pero no quedo archivo .mp4 valido. Probando siguiente...`,
+              'warn',
+            );
+          } else if (dl.cleanCacheOnComplete) {
+            await this.cleanEpisodeCacheNow(dest);
+          }
         }
-      }
+      });
     } finally {
       clearTimeout(startTimeout);
       parentSignal.removeEventListener('abort', onParentAbort);
@@ -787,6 +809,10 @@ export class EpisodeDownloadAttemptService {
   }
 
   async cleanEpisodeTemps(destPath: string): Promise<void> {
+    return this.withEpisodeFiles(destPath, () => this.cleanEpisodeTempsNow(destPath));
+  }
+
+  private async cleanEpisodeTempsNow(destPath: string): Promise<void> {
     const cacheDir = path.join(path.dirname(destPath), '.cache');
     const art = this.episodeCacheArtifacts(cacheDir, path.basename(destPath));
     const results = await Promise.allSettled([
@@ -822,6 +848,10 @@ export class EpisodeDownloadAttemptService {
   }
 
   async cleanEpisodeCacheForEpisode(destPath: string): Promise<void> {
+    return this.withEpisodeFiles(destPath, () => this.cleanEpisodeCacheNow(destPath));
+  }
+
+  private async cleanEpisodeCacheNow(destPath: string): Promise<void> {
     const cacheDir = path.join(path.dirname(destPath), '.cache');
     try {
       await fsp.stat(cacheDir);

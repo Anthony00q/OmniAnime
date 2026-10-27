@@ -6,6 +6,7 @@ import * as path from 'path';
 import { execFile } from 'child_process';
 import { parseMasterPlaylist, parseMediaPlaylist } from './HlsPlaylistParser';
 import { remuxPartsViaConcatProtocol } from './HlsAssembler';
+import { downloadHlsPart } from './HlsSegmentTransfer';
 import { errorDetailForLog, safeErrorMessage } from '../../utils/logging/redactLog';
 
 export const HLS_NATIVE_CONCURRENCY = 10;
@@ -13,7 +14,6 @@ export const HLS_NATIVE_CONCURRENCY = 10;
 export const HLS_DOWNLOAD_SHARE = 0.9;
 
 const PLAYLIST_TIMEOUT_MS = 15_000;
-const SEGMENT_TIMEOUT_MS = 30_000;
 const SEGMENT_ATTEMPTS = 3;
 
 const noop = (): void => undefined;
@@ -147,23 +147,8 @@ export async function downloadHlsToMp4(
       );
       return String(response.data ?? '');
     });
-  const fetchBytes = async (url: string): Promise<Buffer> => {
-    const response = await outboundGet(
-      url,
-      {
-        headers,
-        timeout: SEGMENT_TIMEOUT_MS,
-        maxRedirects: 5,
-        responseType: 'arraybuffer',
-        httpAgent,
-        httpsAgent,
-        signal: signal as never,
-        validateStatus: (status) => status >= 200 && status < 300,
-      },
-      BROAD_OUTBOUND_POLICY,
-    );
-    return Buffer.from(response.data as ArrayBuffer);
-  };
+  const fetchPart = (url: string, partPath: string): Promise<number> =>
+    downloadHlsPart(url, partPath, { headers, httpAgent, httpsAgent, signal });
 
   const destDir = path.dirname(destPath);
   const cacheDir = path.join(destDir, '.cache');
@@ -242,17 +227,7 @@ export async function downloadHlsToMp4(
     } catch (error: unknown) {
       return { ok: false, error: safeErrorMessage(error) || 'segmento HLS no válido' };
     }
-    let mapBytes: Buffer | null = null;
     let downloadedBytes = 0;
-    if (media.mapUri) {
-      try {
-        mapBytes = await fetchBytes(assertSameOriginUrl(media.mapUri, mediaBase));
-        downloadedBytes += mapBytes.length;
-      } catch (error: unknown) {
-        if (signal?.aborted || isAbortError(error)) return { ok: false, aborted: true, error: 'descarga abortada' };
-        return { ok: false, error: `no se pudo leer el init HLS: ${safeErrorMessage(error)}` };
-      }
-    }
 
     try {
       await fsp.mkdir(cacheDir, { recursive: true });
@@ -323,20 +298,26 @@ export async function downloadHlsToMp4(
     }
     await fsp.writeFile(sidecarPath, JSON.stringify(manifest)).catch(noop);
     await fsp.rm(path.join(cacheDir, `${baseName}.hls-mux.mp4`), { force: true }).catch(noop);
+    if (media.mapUri) {
+      mapPart = path.join(cacheDir, `${baseName}.hls-init.part`);
+      try {
+        downloadedBytes += await fetchPart(assertSameOriginUrl(media.mapUri, mediaBase), mapPart);
+      } catch (error: unknown) {
+        if (signal?.aborted || isAbortError(error)) return { ok: false, aborted: true, error: 'descarga abortada' };
+        return { ok: false, error: `no se pudo leer el init HLS: ${safeErrorMessage(error)}` };
+      }
+    }
     report();
     const fetchSegmentGuarded = async (url: string, index: number): Promise<string> => {
       let lastError: unknown = null;
       for (let attempt = 1; attempt <= segmentAttempts; attempt += 1) {
         if (signal?.aborted) return '';
         try {
-          const bytes = await fetchBytes(url);
-          // Tmp + rename: solo lo renombrado a .part cuenta como completo.
           const partPath = partPathFor(index);
-          await fsp.writeFile(`${partPath}.downloading`, bytes);
-          await fsp.rename(`${partPath}.downloading`, partPath);
+          const bytes = await fetchPart(url, partPath);
           segmentParts[index] = partPath;
           done += 1;
-          downloadedBytes += bytes.length;
+          downloadedBytes += bytes;
           report();
           return partPath;
         } catch (error: unknown) {
@@ -373,11 +354,7 @@ export async function downloadHlsToMp4(
     }
 
     const orderedParts: string[] = [];
-    if (mapBytes) {
-      mapPart = path.join(cacheDir, `${baseName}.hls-init.part`);
-      await fsp.writeFile(mapPart, mapBytes);
-      orderedParts.push(mapPart);
-    }
+    if (mapPart) orderedParts.push(mapPart);
     for (let i = 0; i < total; i += 1) {
       const part = segmentParts[i];
       if (!part) {
