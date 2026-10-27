@@ -16,11 +16,16 @@ const __modules = {
     electron_1.contextBridge.exposeInMainWorld('splashApi', {
       onStatus: (callback) => {
         if (!splashEventAllowed.has(splashStatus)) return () => {};
+        let active = true;
         const handler = (_event, payload) => {
-          callback(payload);
+          if (active) callback(payload);
         };
         electron_1.ipcRenderer.on(splashStatus, handler);
-        return () => electron_1.ipcRenderer.removeListener(splashStatus, handler);
+        return () => {
+          if (!active) return;
+          active = false;
+          electron_1.ipcRenderer.removeListener(splashStatus, handler);
+        };
       },
       getIconDataUrl: () => {
         if (!invokeAllowed.has(splashIcon)) return Promise.reject(new Error(`Canal IPC no permitido: ${splashIcon}`));

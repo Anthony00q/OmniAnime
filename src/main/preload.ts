@@ -14,20 +14,18 @@ contextBridge.exposeInMainWorld('api', {
     if (!sendAllowed.has(channel)) return;
     ipcRenderer.send(channel, ...args);
   },
-  on: (channel: string, func: (...args: any[]) => void) => {
-    if (!eventAllowed.has(channel)) return;
-    const subscription = (_event: any, ...args: any[]) => func(...args);
-    (func as any).__subscription = subscription;
+  on: (channel: string, func: (...args: any[]) => void): (() => void) => {
+    if (!eventAllowed.has(channel)) return () => {};
+    let active = true;
+    const subscription = (_event: any, ...args: any[]) => {
+      if (active) func(...args);
+    };
     ipcRenderer.on(channel, subscription);
-  },
-  removeListener: (channel: string, func: (...args: any[]) => void) => {
-    if (!eventAllowed.has(channel)) return;
-    const subscription = (func as any).__subscription;
-    if (subscription) {
+    return () => {
+      if (!active) return;
+      active = false;
       ipcRenderer.removeListener(channel, subscription);
-    } else {
-      ipcRenderer.removeListener(channel, func);
-    }
+    };
   },
   removeAllListeners: (channel: string) => {
     if (!eventAllowed.has(channel)) return;

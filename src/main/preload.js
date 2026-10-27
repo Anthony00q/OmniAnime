@@ -20,19 +20,17 @@ const __modules = {
         electron_1.ipcRenderer.send(channel, ...args);
       },
       on: (channel, func) => {
-        if (!eventAllowed.has(channel)) return;
-        const subscription = (_event, ...args) => func(...args);
-        func.__subscription = subscription;
+        if (!eventAllowed.has(channel)) return () => {};
+        let active = true;
+        const subscription = (_event, ...args) => {
+          if (active) func(...args);
+        };
         electron_1.ipcRenderer.on(channel, subscription);
-      },
-      removeListener: (channel, func) => {
-        if (!eventAllowed.has(channel)) return;
-        const subscription = func.__subscription;
-        if (subscription) {
+        return () => {
+          if (!active) return;
+          active = false;
           electron_1.ipcRenderer.removeListener(channel, subscription);
-        } else {
-          electron_1.ipcRenderer.removeListener(channel, func);
-        }
+        };
       },
       removeAllListeners: (channel) => {
         if (!eventAllowed.has(channel)) return;

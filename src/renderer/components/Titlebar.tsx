@@ -26,7 +26,7 @@ export function Titlebar() {
       if (isMounted) setIsMaximized(Boolean(state?.isMaximized));
     };
 
-    window.api.on('window-state-changed', handleWindowStateChanged);
+    const unsubscribe = window.api.on('window-state-changed', handleWindowStateChanged);
     window.api
       .invoke('window-get-state')
       .then((res: any) => handleWindowStateChanged(unwrap(res)))
@@ -34,7 +34,7 @@ export function Titlebar() {
 
     return () => {
       isMounted = false;
-      window.api.removeListener('window-state-changed', handleWindowStateChanged);
+      unsubscribe();
     };
   }, []);
 

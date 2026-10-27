@@ -81,10 +81,7 @@ export function useAppUpdate() {
           break;
       }
     };
-    window.api.on('app-update-status', onStatus);
-    return () => {
-      window.api.removeListener('app-update-status', onStatus);
-    };
+    return window.api.on('app-update-status', onStatus);
   }, [applyAvailable, setError, setPercent, setPhase]);
 
   useEffect(() => {

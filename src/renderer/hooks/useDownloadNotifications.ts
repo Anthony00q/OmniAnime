@@ -96,12 +96,12 @@ export function useDownloadNotifications(): void {
       }
     };
 
-    window.api.on('download-started', handleDownloadStarted);
-    window.api.on('episode-downloaded', handleEpisodeDownloaded);
+    const unsubscribeStarted = window.api.on('download-started', handleDownloadStarted);
+    const unsubscribeDownloaded = window.api.on('episode-downloaded', handleEpisodeDownloaded);
 
     return () => {
-      window.api.removeListener('download-started', handleDownloadStarted);
-      window.api.removeListener('episode-downloaded', handleEpisodeDownloaded);
+      unsubscribeStarted();
+      unsubscribeDownloaded();
     };
   }, []);
 }

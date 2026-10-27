@@ -99,11 +99,7 @@ export default function App() {
   useEffect(() => {
     const handleConfirmClose = () => setShowCloseConfirm(true);
 
-    window.api.on('confirm-app-close', handleConfirmClose);
-
-    return () => {
-      window.api.removeListener('confirm-app-close', handleConfirmClose);
-    };
+    return window.api.on('confirm-app-close', handleConfirmClose);
   }, [setShowCloseConfirm]);
 
   useEffect(() => {

@@ -98,14 +98,14 @@ export function useQueue(isActive = true) {
       void queryClient.refetchQueries({ queryKey: ['queue'], type: 'active' });
     };
 
-    window.api.on('queue-update', handler);
-    window.api.on('queue-progress', progressHandler);
+    const unsubscribeQueue = window.api.on('queue-update', handler);
+    const unsubscribeProgress = window.api.on('queue-progress', progressHandler);
     document.addEventListener('visibilitychange', reconcileQueue);
     window.addEventListener('focus', reconcileQueue);
 
     return () => {
-      window.api.removeListener('queue-update', handler);
-      window.api.removeListener('queue-progress', progressHandler);
+      unsubscribeQueue();
+      unsubscribeProgress();
       document.removeEventListener('visibilitychange', reconcileQueue);
       window.removeEventListener('focus', reconcileQueue);
     };

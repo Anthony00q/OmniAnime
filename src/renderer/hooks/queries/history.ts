@@ -18,10 +18,7 @@ export function useHistory(isActive: boolean) {
       void queryClient.invalidateQueries({ queryKey: ['history'], refetchType: 'active' });
     };
 
-    window.api.on('history-updated', handleHistoryUpdated);
-    return () => {
-      window.api.removeListener('history-updated', handleHistoryUpdated);
-    };
+    return window.api.on('history-updated', handleHistoryUpdated);
   }, [queryClient]);
 
   useEffect(() => {
