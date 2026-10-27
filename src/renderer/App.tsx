@@ -8,6 +8,7 @@ import clsx from 'clsx';
 import { Titlebar } from './components/Titlebar';
 import { Sidebar } from './components/Sidebar';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { LoadingState } from './components/ui/LoadingState';
 import { AppTooltipProvider } from './components/ui/AppTooltip';
 import { Dialog } from './components/Dialog';
 import { useActiveProvider, useLoadSettings, prefetchAnimeDetails } from './hooks/useQueries';
@@ -166,7 +167,7 @@ export default function App() {
                     currentView === 'downloader' && 'view-enter',
                   )}
                 >
-                  <Suspense fallback={null}>
+                  <Suspense fallback={<LoadingState className="min-h-0 flex-1" />}>
                     <MemoDownloaderView
                       onSelectAnime={handleSelectAnime}
                       activeProvider={activeProvider}

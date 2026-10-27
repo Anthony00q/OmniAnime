@@ -2,6 +2,7 @@ import { Suspense, useRef, type ReactNode } from 'react';
 import { useLocation } from '@tanstack/react-router';
 import clsx from 'clsx';
 import { ErrorBoundary } from './ErrorBoundary';
+import { LoadingState } from './ui/LoadingState';
 import { useScrollMemory } from '@/renderer/hooks/useScrollMemory';
 
 // El offset del titlebar solo se omite cuando la vista va a sangre (ficha y librería).
@@ -31,7 +32,7 @@ export function ViewPanel({
           titlebarOffset && 'pt-10',
         )}
       >
-        <Suspense fallback={null}>{children}</Suspense>
+        <Suspense fallback={<LoadingState className="min-h-0 flex-1" />}>{children}</Suspense>
       </div>
     </ErrorBoundary>
   );
