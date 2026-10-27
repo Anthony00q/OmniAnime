@@ -11,6 +11,7 @@ export function useHistory(isActive: boolean) {
     queryFn: async () => unwrap(await window.api.invoke('get-download-history')),
     enabled: isActive,
     staleTime: 10 * 1000,
+    refetchOnMount: 'always',
   });
 
   useEffect(() => {
