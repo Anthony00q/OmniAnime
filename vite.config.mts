@@ -109,6 +109,17 @@ export default defineConfig({
     },
     overrides: [
       {
+        files: ['checks/**/*.cjs'],
+        globals: {
+          require: 'readonly',
+          module: 'readonly',
+          process: 'readonly',
+          __dirname: 'readonly',
+          URL: 'readonly',
+        },
+        rules: { 'typescript/no-require-imports': 'off' },
+      },
+      {
         files: ['**/*.ts', '**/*.tsx'],
         rules: {
           'no-undef': 'off',

@@ -214,6 +214,48 @@ ni cambiar la versión de SQLite. No hace falta usar `--ignore-scripts`.
 Electron se prepara explícitamente con `npx --no-install install-electron` para el desarrollo local;
 el empaquetador obtiene su propio ejecutable al construir el instalador.
 
+### Pruebas
+
+La lógica usa `node:test`; Playwright controla Electron real con perfil y destinos temporales,
+sin acceder a los datos del usuario ni a Internet. Preparación desde la raíz con Node/npm de
+`package.json`:
+
+```powershell
+npm ci
+npx --no-install install-electron
+npm run test:all
+```
+
+`npm test` ejecuta los contratos críticos versionados en `checks/unit/`. `test:all` compila y
+ejecuta esos checks y el piloto de Electron; funciona sin la colección privada `tests/`.
+Tras un build actualizado, `npm run test:electron` ejecuta solo el piloto y
+`npm run test:performance` recoge métricas y trazas en tres procesos nuevos. No se necesita
+`playwright install`: se usa el Chromium incluido en Electron, cuyo soporte en Playwright es
+experimental. CI y release ejecutan los checks y el piloto; las mediciones son voluntarias.
+
+`npm run typecheck:checks` comprueba los tipos publicados y `npm run format:checks`, el formato
+del harness y runner. `npm run test:coverage` genera `coverage/critical.lcov` solo para módulos
+cargados por los checks, no un porcentaje global de la app.
+
+`tests/` está ignorado por Git y no existe en un clon público. Si se dispone de esa colección,
+`npm run test:local` ejecuta sus casos normales, `test:local:build` los de `tests/build/` tras
+compilar, `test:local:tooling` los de `tests/tooling/` de forma serial y `test:local:all` compila
+y ejecuta todas las fases Node, incluidos los checks. Las herramientas requieren el npm declarado
+y caché local disponible; no solaparlas con build, tipos ni lint. `test:local:diagnostics` usa
+red externa de forma voluntaria y no certifica funcionamiento. El runner comparte un candado
+entre Node y Playwright; `npm run test:local -- --list` lista los archivos sin ejecutarlos.
+
+Ampliar el archivo del contrato antes de crear otro; no duplicar casos al promoverlos a `checks/`,
+que nunca debe depender de `tests/` ni de datos privados. Priorizar fallos observables, no cuotas
+de cobertura ni comparaciones literales del código por cada retoque.
+
+Los fallos de Electron guardan capturas/trazas en `test-results/`; el informe está en
+`playwright-report/` y las mediciones en `test-results/performance-summary.json`. Son artefactos
+ignorados, no archivos para commit. El escenario de rendimiento está vacío y sin Internet:
+no demuestra rendimiento con bibliotecas grandes ni ausencia de fugas. El piloto no valida el
+instalador, las actualizaciones reales, los proveedores externos ni todos los tamaños de ventana;
+axe bloquea incidencias críticas, sin certificar conformidad WCAG.
+
 ### Stack tecnológico
 
 | Capa | Tecnología |

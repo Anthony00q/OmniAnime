@@ -1,0 +1,1 @@
+require('./offline.cjs').installOfflineGuard();

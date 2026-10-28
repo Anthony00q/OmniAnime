@@ -33,6 +33,8 @@ tools/win/*.download-*
 # Build / test artifacts
 *.tsbuildinfo
 coverage/
+test-results/
+playwright-report/
 plans/
 
 # Docs internos
