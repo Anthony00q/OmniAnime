@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createRequire } from 'node:module';
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync, mkdirSync, writeFileSync, rmSync, copyFileSync } from 'node:fs';
+import { existsSync, readFileSync, mkdirSync, writeFileSync, rmSync, copyFileSync, realpathSync } from 'node:fs';
 import { join } from 'node:path';
 import { createTempDirectory } from '../helpers/temp';
 
@@ -81,8 +81,42 @@ test('CI ejecuta la selección versionada y el piloto sin depender de tests loca
     assert.ok(release.includes(command));
     assert.ok(release.indexOf(command) < release.indexOf('name: Publicar release'));
   }
+  const preloadCheck = 'run: node scripts/generate-preload.mjs --check';
+  assert.ok(release.indexOf(preloadCheck) >= 0);
+  assert.ok(release.indexOf(preloadCheck) < release.indexOf('run: npm run build:win'));
+  assert.ok(release.includes(`${preloadCheck} --dist`));
   assert.ok(existsSync('checks/electron/bootstrap.cjs'));
 });
+
+test(
+  'los temporales y el perfil aislado conservan la ruta nativa con un alias corto de Windows',
+  { skip: process.platform !== 'win32' },
+  (context) => {
+    const parent = createTempDirectory('omni-short-path-');
+    try {
+      const result = spawnSync('cmd.exe', ['/d', '/c', `for %I in ("${parent}") do @echo %~sI`], {
+        encoding: 'utf8',
+        timeout: 5000,
+        windowsVerbatimArguments: true,
+      });
+      assert.equal(result.status, 0, result.stderr);
+      const shortParent = result.stdout.trim();
+      if (shortParent.toLowerCase() === parent.toLowerCase()) {
+        context.skip('El volumen no proporciona nombres cortos de Windows.');
+        return;
+      }
+      const os = requireModule('node:os');
+      const { validateIsolatedRoot } = requireModule('../helpers/isolation.cjs');
+      context.mock.method(os, 'tmpdir', () => shortParent);
+      const root = createTempDirectory('omnianime-electron-');
+      assert.equal(root, realpathSync.native(root));
+      writeFileSync(join(root, 'harness.json'), JSON.stringify({ token: 'fixture' }));
+      assert.equal(validateIsolatedRoot(root, 'fixture'), root);
+    } finally {
+      rmSync(parent, { recursive: true, force: true });
+    }
+  },
+);
 
 test('el perfil de Electron exige una raíz propia, un marcador válido y el token correspondiente', () => {
   const { validateIsolatedRoot } = requireModule('../helpers/isolation.cjs');

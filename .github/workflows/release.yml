@@ -55,6 +55,9 @@ jobs:
       - name: Instalar dependencias (npm ci)
         run: npm ci
 
+      - name: Comprobar preloads versionados antes de regenerarlos
+        run: node scripts/generate-preload.mjs --check
+
       - name: Extraer notas del CHANGELOG
         shell: pwsh
         run: |
@@ -77,8 +80,8 @@ jobs:
       - name: Compilar y empaquetar instalador (sin publicar)
         run: npm run build:win
 
-      - name: Preloads generados al día
-        run: node scripts/generate-preload.mjs --check
+      - name: Comprobar preloads compilados
+        run: node scripts/generate-preload.mjs --check --dist
 
       - name: Tipos de las pruebas críticas
         run: npm run typecheck:checks
