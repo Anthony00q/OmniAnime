@@ -19,7 +19,7 @@ export function PosterImage({
   fallbackLabel,
   className,
   priority = false,
-  draggable,
+  draggable = false,
   onError,
   onLoad,
 }: PosterImageProps) {
