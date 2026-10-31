@@ -1,5 +1,5 @@
-import { memo, useCallback, useState, useEffect, useMemo, useRef, useId } from 'react';
-import { ScanSearch, RefreshCcw, AlertTriangle, Link, Link2, Search, Loader2, LockKeyhole } from 'lucide-react';
+import { useCallback, useState, useEffect, useMemo, useRef, useId } from 'react';
+import { ScanSearch, RefreshCcw, Link, Link2, Search, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAtomValue } from 'jotai';
 import { useAtomCallback } from 'jotai/utils';
@@ -10,117 +10,32 @@ import { Dialog } from '@/renderer/components/Dialog';
 import { useAppNavigation } from '@/renderer/hooks/useAppNavigation';
 import { useLibrary, useSearchAnime, useLibraryActions } from '@/renderer/hooks/useQueries';
 import { isIpcFailError } from '@/renderer/hooks/queries/unwrap';
-import { PosterCard } from '@/renderer/components/anime/PosterCard';
 import { PosterImage } from '@/renderer/components/anime/PosterImage';
-import { PosterGrid } from '@/renderer/components/anime/PosterGrid';
-import { PosterGridSkeleton } from '@/renderer/components/anime/PosterGridSkeleton';
 import { ErrorState } from '@/renderer/components/ui/ErrorState';
 import { EmptyState } from '@/renderer/components/ui/EmptyState';
 import { PageHeader } from '@/renderer/components/ui/PageHeader';
 import { AppTooltip } from '@/renderer/components/ui/AppTooltip';
-import { useStaggerIn } from '@/renderer/utils/motion';
-
-// Nombre de carpeta legible para huérfanas sin título oficial
-function prettifyFolderName(name: unknown): string {
-  return String(name || '')
-    .replace(/[_-]+/g, ' ')
-    .replace(/\s{2,}/g, ' ')
-    .trim();
-}
-
-const ScannerPosterItem = memo(
-  function ScannerPosterItem({
-    folder,
-    activeProvider,
-    disabledReasonId,
-    onRelink,
-  }: {
-    folder: any;
-    activeProvider: string;
-    disabledReasonId: string;
-    onRelink: (folder: LibraryFolder) => void;
-  }) {
-    const isOrphan = !folder.metaSlug;
-    // Jerarquía: título limpio primero, carpeta cruda en tenue. La pastilla
-    // superior queda solo para huérfanas; el proveedor vive en la meta.
-    const displayTitle = (!isOrphan && folder.metaTitle) || prettifyFolderName(folder.name) || folder.name;
-    const providerLabel = folder.providerId === 'jkanime' ? 'JkAnime' : 'AnimeAV1';
-    const relinkDisabled = resolveScannerRelinkProvider(folder, activeProvider) === null;
-
-    return (
-      <PosterCard
-        title={displayTitle}
-        poster={folder.posterLocal || folder.poster}
-        fallbackLabel={displayTitle}
-        actionLabel={relinkDisabled ? undefined : isOrphan ? 'Vincular a un Anime' : 'Cambiar Vínculo'}
-        actionAlwaysVisible={isOrphan && !relinkDisabled}
-        actionTone="secondary"
-        disabled={relinkDisabled}
-        describedBy={relinkDisabled ? disabledReasonId : undefined}
-        ariaLabel={
-          isOrphan
-            ? `Vincular ${folder.name}`
-            : `Cambiar vínculo de ${folder.name} (vinculado a ${folder.metaTitle}, ${providerLabel})`
-        }
-        topOverlay={
-          isOrphan ? (
-            <span className="inline-flex items-center gap-1 rounded-full border border-destructive/20 bg-destructive/20 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider text-destructive-fg backdrop-blur-sm">
-              <AlertTriangle className="h-3 w-3" />
-              Huérfano
-            </span>
-          ) : undefined
-        }
-        badge={
-          folder.episodeCount > 0 ? (
-            <span className="rounded bg-black/40 px-1.5 py-0.5 text-[11px] font-semibold tabular-nums text-white/80">
-              {folder.episodeCount} ep.
-            </span>
-          ) : undefined
-        }
-        meta={
-          relinkDisabled || (!isOrphan && folder.metaTitle && folder.metaTitle !== folder.name) ? (
-            <span className="flex min-w-0 items-center gap-1 truncate text-[11px] text-white/70">
-              {relinkDisabled ? (
-                <LockKeyhole className="h-3 w-3 shrink-0" aria-hidden="true" />
-              ) : (
-                <Link className="h-3 w-3 shrink-0" aria-hidden="true" />
-              )}
-              <span className="truncate">
-                {providerLabel}
-                {!relinkDisabled && (
-                  <>
-                    {' '}
-                    <span aria-hidden="true" className="text-white/30">
-                      |
-                    </span>{' '}
-                    {folder.name}
-                  </>
-                )}
-              </span>
-            </span>
-          ) : undefined
-        }
-        onClick={() => onRelink(folder)}
-      />
-    );
-  },
-  (prev, next) =>
-    prev.folder.path === next.folder.path &&
-    prev.folder.posterLocal === next.folder.posterLocal &&
-    prev.folder.poster === next.folder.poster &&
-    prev.folder.metaSlug === next.folder.metaSlug &&
-    prev.folder.metaTitle === next.folder.metaTitle &&
-    prev.folder.name === next.folder.name &&
-    prev.folder.episodeCount === next.folder.episodeCount &&
-    prev.folder.providerId === next.folder.providerId &&
-    prev.folder.hasProviderMetadata === next.folder.hasProviderMetadata &&
-    prev.activeProvider === next.activeProvider &&
-    prev.disabledReasonId === next.disabledReasonId &&
-    prev.onRelink === next.onRelink,
-);
+import { SearchField } from '@/renderer/components/ui/SearchField';
+import { useBusySpin } from '@/renderer/utils/motion';
+import { ScannerCollection } from './components/ScannerCollection';
+import { ScannerInspector } from './components/ScannerInspector';
+import {
+  buildScannerSearchIndex,
+  filterScannerFolders,
+  getScannerCounts,
+  getScannerDirectoryLabel,
+  resolveScannerSelection,
+  type ScannerFolder,
+  type ScannerStatusFilter,
+} from './model/scannerModel';
+import './scanner.css';
 
 export function ScannerView({ isActive = true }: { isActive?: boolean }) {
   const [selectedDirFilter, setSelectedDirFilter] = useState<string>('all');
+  const [folderQuery, setFolderQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<ScannerStatusFilter>('all');
+  const [selectedFolderPath, setSelectedFolderPath] = useState<string | null>(null);
+  const inspectorId = useId();
 
   const globalSettings = useAtomValue(settingsAtom);
   const activeProvider = useAtomValue(activeProviderAtom);
@@ -134,25 +49,26 @@ export function ScannerView({ isActive = true }: { isActive?: boolean }) {
   }, [globalSettings?.defaultOutputDir, globalSettings?.outputDirs]);
 
   const { data: folders = [], isLoading, isError, isFetching, refetch } = useLibrary(dirs);
-  const filteredFolders = useMemo(() => {
-    if (selectedDirFilter === 'all') return folders;
-    return folders.filter((f: any) => f.sourceDir === selectedDirFilter);
-  }, [folders, selectedDirFilter]);
-  const staggerKeys = useMemo(
-    () => filteredFolders.map((folder) => (typeof folder.path === 'string' && folder.path.trim() ? folder.path : null)),
-    [filteredFolders],
+  const searchIndex = useMemo(() => buildScannerSearchIndex(folders as ScannerFolder[]), [folders]);
+  const searchedFolders = useMemo(
+    () => filterScannerFolders(searchIndex, selectedDirFilter, folderQuery, 'all'),
+    [searchIndex, selectedDirFilter, folderQuery],
   );
-  const staggerScopeKey = useMemo(() => ({ dirs, selectedDirFilter }), [dirs, selectedDirFilter]);
-  const gridRef = useStaggerIn<HTMLDivElement>(staggerKeys, { scopeKey: staggerScopeKey });
-
-  const hasBlockedLinks = useMemo(
-    () => filteredFolders.some((folder) => resolveScannerRelinkProvider(folder, activeProvider) === null),
-    [filteredFolders, activeProvider],
+  const counts = useMemo(() => getScannerCounts(searchedFolders), [searchedFolders]);
+  const filteredFolders = useMemo(
+    () =>
+      searchedFolders.filter(
+        (folder) => statusFilter === 'all' || (statusFilter === 'linked' ? Boolean(folder.metaSlug) : !folder.metaSlug),
+      ),
+    [searchedFolders, statusFilter],
   );
-  const blockedProviderLabel = activeProvider === 'jkanime' ? 'AnimeAV1' : 'JkAnime';
-  const disabledReasonId = useId();
+  const selectedFolder = resolveScannerSelection(filteredFolders, selectedFolderPath);
+  useEffect(() => {
+    if (!isLoading && !isError) setSelectedFolderPath(selectedFolder?.path ?? null);
+  }, [selectedFolder?.path, isLoading, isError]);
   const libActions = useLibraryActions();
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const refreshScope = useMemo(() => ({ dirs, isActive }), [dirs, isActive]);
+  const refreshSpin = useBusySpin(refreshScope);
   const { setView } = useAppNavigation();
 
   useEffect(() => {
@@ -162,17 +78,7 @@ export function ScannerView({ isActive = true }: { isActive?: boolean }) {
   }, [dirs, selectedDirFilter]);
 
   const handleRefresh = async () => {
-    setIsRefreshing(true);
-    try {
-      await refetch();
-    } catch {}
-    setTimeout(() => setIsRefreshing(false), 400);
-  };
-
-  const getDirLabel = (dir: string, index: number): string => {
-    const parts = dir.split(/[\\/]/);
-    const last = parts[parts.length - 1] || parts[parts.length - 2] || `Carpeta ${index + 1}`;
-    return last.length > 20 ? last.slice(0, 17) + '...' : last;
+    await refreshSpin.run(() => refetch());
   };
 
   const [relinkFolder, setRelinkFolder] = useState<{ path: string; name: string; providerId: string } | null>(null);
@@ -285,76 +191,115 @@ export function ScannerView({ isActive = true }: { isActive?: boolean }) {
   );
 
   return (
-    <div className="empty-state-page flex flex-col h-full bg-background">
+    <div className="scanner-surface empty-state-page flex flex-col h-full bg-background">
       <PageHeader
-        title="Escáner de Librería"
-        description="Detecta problemas de vinculación en tus carpetas locales"
-        className="sticky top-0"
+        title="Escáner de librería"
+        description="Revisa los vínculos de tus carpetas locales"
+        className="scanner-header sticky top-0"
         actions={
           <button
             onClick={handleRefresh}
-            disabled={dirs.length === 0 || isFetching || isRefreshing}
-            className="flex min-h-11 items-center gap-2 rounded-lg border border-border/60 px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+            data-keep-focus
+            disabled={dirs.length === 0 || !isActive || isFetching || refreshSpin.busy}
+            className="flex min-h-11 items-center gap-2 rounded-lg border border-border/60 px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:cursor-default disabled:opacity-50"
           >
-            <RefreshCcw className={`w-4 h-4 ${isFetching || isRefreshing ? 'animate-spin' : ''}`} />
-            <span>Escanear Directorio</span>
+            <RefreshCcw ref={refreshSpin.ref} className="w-4 h-4" aria-hidden="true" />
+            <span>Escanear directorio</span>
           </button>
         }
       />
 
-      {dirs.length > 1 && (
-        <div data-empty-filters className="px-4 py-2 sm:px-8 flex items-center gap-2 flex-wrap">
-          <button
-            onClick={() => setSelectedDirFilter('all')}
-            aria-pressed={selectedDirFilter === 'all'}
-            className={`h-8 shrink-0 rounded-full border px-3 text-[13px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 ${
-              selectedDirFilter === 'all'
-                ? 'border-primary/30 bg-primary/15 text-primary'
-                : 'border-border/70 bg-transparent text-muted-foreground hover:border-border/50 hover:bg-secondary hover:text-foreground'
-            }`}
-          >
-            Todas
-          </button>
-          {dirs.map((dir, i) => (
+      <div data-empty-filters className="scanner-toolbar shrink-0">
+        <div className="scanner-locations">
+          {dirs.length > 1 && (
+            <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Ubicación de las carpetas">
+              {['all', ...dirs].map((dir) => (
+                <button
+                  key={dir}
+                  data-keep-focus
+                  onClick={() => setSelectedDirFilter(dir)}
+                  aria-pressed={selectedDirFilter === dir}
+                  className={`relative h-8 max-w-[200px] shrink-0 truncate rounded-full border px-3 text-[13px] font-medium transition-colors after:absolute after:-inset-y-1.5 after:inset-x-0 ${
+                    selectedDirFilter === dir
+                      ? 'border-primary/30 bg-primary/15 text-primary'
+                      : 'border-border/70 bg-transparent text-muted-foreground hover:bg-secondary hover:text-foreground'
+                  }`}
+                >
+                  {dir === 'all' ? 'Todas' : getScannerDirectoryLabel(dir)}
+                </button>
+              ))}
+            </div>
+          )}
+          <span className="ml-auto text-[13px] font-medium tabular-nums text-text-tertiary">
+            {isLoading ? '—' : counts.all} {counts.all === 1 ? 'carpeta' : 'carpetas'}
+          </span>
+        </div>
+        <SearchField
+          value={folderQuery}
+          onChange={setFolderQuery}
+          onClear={() => setFolderQuery('')}
+          placeholder="Buscar en tus carpetas"
+        />
+        <div className="scanner-status-filters" role="group" aria-label="Estado del vínculo">
+          {(
+            [
+              ['all', 'Todas'],
+              ['missing', 'Sin vínculo'],
+              ['linked', 'Vinculadas'],
+            ] as const
+          ).map(([status, label]) => (
             <button
-              key={i}
-              onClick={() => setSelectedDirFilter(dir)}
-              aria-pressed={selectedDirFilter === dir}
-              className={`h-8 max-w-[200px] shrink-0 truncate rounded-full border px-3 text-[13px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 ${
-                selectedDirFilter === dir
-                  ? 'border-primary/30 bg-primary/15 text-primary'
-                  : 'border-border/70 bg-transparent text-muted-foreground hover:border-border/50 hover:bg-secondary hover:text-foreground'
-              }`}
+              key={status}
+              data-keep-focus
+              className="scanner-status-filter"
+              aria-pressed={statusFilter === status}
+              onClick={() => setStatusFilter(status)}
             >
-              {getDirLabel(dir, i)}
+              {label}
+              <span>{isLoading ? '—' : counts[status]}</span>
             </button>
           ))}
         </div>
-      )}
+      </div>
 
       <div
         data-view-scroller
-        className="empty-state-scroller min-h-0 flex-1 overflow-y-auto p-4 sm:px-8 sm:py-6 [scrollbar-gutter:stable]"
+        className="scanner-scroller empty-state-scroller min-h-0 flex-1 overflow-y-auto p-4 sm:px-8 sm:py-6 [scrollbar-gutter:stable]"
       >
-        {(isLoading || (!isError && filteredFolders.length > 0)) && (
-          <div className="mb-3 min-h-10 sm:min-h-6">
-            {!isLoading && hasBlockedLinks && (
-              <p
-                id={disabledReasonId}
-                role="note"
-                className="flex items-start gap-2 text-[13px] leading-5 text-muted-foreground"
-              >
-                <LockKeyhole className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-                <span>Para modificar vínculos de {blockedProviderLabel}, cambia a ese proveedor.</span>
-              </p>
-            )}
-          </div>
-        )}
         {isLoading ? (
-          <PosterGridSkeleton
-            count={12}
-            className="grid w-full grid-cols-2 gap-4 gap-y-6 pt-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7"
-          />
+          <div className="scanner-workspace" role="status" aria-label="Cargando carpetas">
+            <div className="scanner-collection" aria-hidden="true">
+              <div className="scanner-section-heading">
+                <div className="h-5 w-20 rounded bg-secondary" />
+              </div>
+              <div className="scanner-folder-list">
+                {Array.from({ length: 5 }, (_, index) => (
+                  <div key={index} className="scanner-folder-button">
+                    <div className="scanner-folder-poster bg-secondary" />
+                    <div className="min-w-0 flex-1 space-y-2">
+                      <div className="h-4 w-3/4 rounded bg-secondary" />
+                      <div className="h-3 w-1/2 rounded bg-secondary" />
+                      <div className="h-3 w-16 rounded bg-secondary" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="scanner-inspector" aria-hidden="true">
+              <div className="scanner-inspector-heading">
+                <div className="scanner-inspector-poster bg-secondary" />
+                <div className="w-full space-y-3">
+                  <div className="h-3 w-20 rounded bg-secondary" />
+                  <div className="h-6 w-3/4 rounded bg-secondary" />
+                </div>
+              </div>
+              <div className="scanner-inspector-fields space-y-6">
+                {Array.from({ length: 4 }, (_, index) => (
+                  <div key={index} className="h-12 rounded bg-secondary/50" />
+                ))}
+              </div>
+            </div>
+          </div>
         ) : dirs.length === 0 ? (
           <EmptyState
             variant="page"
@@ -373,30 +318,42 @@ export function ScannerView({ isActive = true }: { isActive?: boolean }) {
           />
         ) : filteredFolders.length === 0 ? (
           <EmptyState
-            variant={selectedDirFilter === 'all' ? 'page' : 'contextual'}
+            variant={folders.length === 0 ? 'page' : 'contextual'}
             isActive={isActive}
             icon={<ScanSearch className="h-10 w-10" aria-hidden="true" />}
-            title={selectedDirFilter === 'all' ? 'No se encontraron carpetas' : 'No hay carpetas en esta ubicación'}
+            title={folders.length === 0 ? 'No se encontraron carpetas' : 'No hay carpetas que coincidan'}
             description={
-              selectedDirFilter === 'all'
+              folders.length === 0
                 ? 'No se encontraron carpetas de anime en las ubicaciones configuradas. Puedes revisar las carpetas de descarga en Ajustes.'
-                : 'No hay carpetas que coincidan con el filtro seleccionado. Prueba con otra ubicación.'
+                : 'Prueba otro nombre o cambia los filtros.'
             }
-            actionLabel={selectedDirFilter !== 'all' ? 'Ver todas' : 'Abrir Ajustes'}
-            onAction={() => (selectedDirFilter !== 'all' ? setSelectedDirFilter('all') : setView('settings'))}
+            actionLabel={folders.length > 0 ? 'Limpiar filtros' : 'Abrir Ajustes'}
+            onAction={() => {
+              if (folders.length === 0) return setView('settings');
+              setSelectedDirFilter('all');
+              setFolderQuery('');
+              setStatusFilter('all');
+            }}
           />
         ) : (
-          <PosterGrid ref={gridRef} className="w-full">
-            {filteredFolders.map((folder, idx) => (
-              <ScannerPosterItem
-                key={folder.path || idx}
-                folder={folder}
+          <div className="scanner-workspace">
+            <ScannerCollection
+              folders={filteredFolders}
+              selectedPath={selectedFolder?.path ?? ''}
+              activeProvider={activeProvider}
+              inspectorId={inspectorId}
+              onSelect={setSelectedFolderPath}
+            />
+            {selectedFolder && (
+              <ScannerInspector
+                folder={selectedFolder}
                 activeProvider={activeProvider}
-                disabledReasonId={disabledReasonId}
+                id={inspectorId}
+                isPending={libActions.relinkFolder.isPending}
                 onRelink={openRelinkModal}
               />
-            ))}
-          </PosterGrid>
+            )}
+          </div>
         )}
       </div>
 
