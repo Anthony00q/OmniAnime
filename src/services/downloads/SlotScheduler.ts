@@ -483,8 +483,8 @@ export class SlotScheduler {
     }
     const total = Math.max(1, episodesToProcess.length);
     // Pausados no cuentan como finalizados: su % congelado suma en activeSum
-    const isFinal = (ep: number): boolean =>
-      item.completedEps.includes(ep) || item.failedEps.includes(ep) || (item.cancelledEps || []).includes(ep);
+    const finalizedEpisodes = new Set([...item.completedEps, ...item.failedEps, ...(item.cancelledEps || [])]);
+    const isFinal = (ep: number): boolean => finalizedEpisodes.has(ep);
     const finalized = episodesToProcess.filter(isFinal).length;
     const activeEps: import('../persistence/QueueStore').ActiveEpisodeProgress[] = [];
     const pausedSet = new Set<number>(item.pausedEps || []);

@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, type CSSProperties } from 'react';
+import { memo, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { X } from 'lucide-react';
 import { DETAIL_MIN_H, DETAIL_ROW_H, shouldShowDetailResizer } from '@/renderer/utils/detailHeight';
 import type { DetailRow } from '@/renderer/utils/downloaderRows';
@@ -35,6 +35,10 @@ export const QueueEpisodeDetails = memo(function QueueEpisodeDetails({
   onCancelEpisode,
 }: QueueEpisodeDetailsProps) {
   const detailScrollRef = useRef<HTMLDivElement>(null);
+  const [hasOpened, setHasOpened] = useState(open);
+  useEffect(() => {
+    if (open) setHasOpened(true);
+  }, [open]);
   const {
     detailHeight,
     detailMax,
@@ -95,20 +99,21 @@ export const QueueEpisodeDetails = memo(function QueueEpisodeDetails({
             role="region"
             aria-label={`Progreso por episodio de ${animeTitle}`}
           >
-            {rows.map((row) => (
-              <EpisodeDetailRow
-                key={row.episode}
-                row={row}
-                itemId={itemId}
-                animeTitle={animeTitle}
-                isEpPending={pendingEpisodeKeys?.has(`${itemId}:${row.episode}`) ?? false}
-                isEpSwitching={pendingSkipEpKeys?.has(`${itemId}:${row.episode}`) ?? false}
-                onPauseEpisode={onPauseEpisode}
-                onResumeEpisode={onResumeEpisode}
-                onSkipEpisode={onSkipEpisode}
-                onCancelEpisode={onCancelEpisode}
-              />
-            ))}
+            {(open || hasOpened) &&
+              rows.map((row) => (
+                <EpisodeDetailRow
+                  key={row.episode}
+                  row={row}
+                  itemId={itemId}
+                  animeTitle={animeTitle}
+                  isEpPending={pendingEpisodeKeys?.has(`${itemId}:${row.episode}`) ?? false}
+                  isEpSwitching={pendingSkipEpKeys?.has(`${itemId}:${row.episode}`) ?? false}
+                  onPauseEpisode={onPauseEpisode}
+                  onResumeEpisode={onResumeEpisode}
+                  onSkipEpisode={onSkipEpisode}
+                  onCancelEpisode={onCancelEpisode}
+                />
+              ))}
           </div>
           {shouldShowDetailResizer(rows.length, detailHeight, isResizingDetail) && (
             <div
