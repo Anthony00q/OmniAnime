@@ -114,6 +114,29 @@ export function filterLibraryItems(items: any[], dirFilter: string, query: unkno
   });
 }
 
+export interface LibrarySearchEntry<T> {
+  item: T;
+  text: string;
+}
+
+export function buildLibrarySearchIndex<T>(items: readonly T[]): LibrarySearchEntry<T>[] {
+  return items.map((item) => ({ item, text: getLibrarySearchHaystack(item) }));
+}
+
+export function filterLibraryIndex<T extends { sourceDir?: unknown }>(
+  index: readonly LibrarySearchEntry<T>[],
+  dirFilter: string,
+  query: unknown,
+): T[] {
+  const normalized = normalizeLibraryText(query);
+  return index
+    .filter(
+      ({ item, text }) =>
+        (dirFilter === 'all' || item.sourceDir === dirFilter) && (!normalized || text.includes(normalized)),
+    )
+    .map(({ item }) => item);
+}
+
 export function sortLibraryItems(items: any[], sortKey: LibrarySortKey): any[] {
   const sorted = [...items];
   if (sortKey === 'az') {

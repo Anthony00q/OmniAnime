@@ -18,7 +18,8 @@ import { CustomSelect } from '@/renderer/components/CustomSelect';
 import { ErrorState } from '@/renderer/components/ui/ErrorState';
 import { EmptyState } from '@/renderer/components/ui/EmptyState';
 import {
-  filterLibraryItems,
+  buildLibrarySearchIndex,
+  filterLibraryIndex,
   normalizeLibrarySort,
   sortLibraryItems,
   type LibrarySortKey,
@@ -139,9 +140,11 @@ export function LibraryView({ onSelectAnime, activeProvider, isActive }: Library
   const [isRefreshing, setIsRefreshing] = useState(false);
   const trimmedQuery = searchQuery.trim();
 
+  const sortedItems = useMemo(() => sortLibraryItems(items, sortKey), [items, sortKey]);
+  const searchIndex = useMemo(() => buildLibrarySearchIndex(sortedItems), [sortedItems]);
   const visibleItems = useMemo(
-    () => sortLibraryItems(filterLibraryItems(items, selectedDirFilter, searchQuery), sortKey),
-    [items, selectedDirFilter, searchQuery, sortKey],
+    () => filterLibraryIndex(searchIndex, selectedDirFilter, searchQuery),
+    [searchIndex, selectedDirFilter, searchQuery],
   );
   const staggerKeys = useMemo(
     () => visibleItems.map((item: any) => (typeof item.path === 'string' && item.path.trim() ? item.path : null)),

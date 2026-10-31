@@ -135,10 +135,6 @@ export class LibraryFileService {
               const assetServiceAny = this.options.assetService as unknown as {
                 readFolderLibraryMetaAsync?: (p: string) => Promise<unknown>;
                 readFolderLibraryMeta: (p: string) => unknown;
-                getFolderPosterFilePathAsync?: (p: string) => Promise<string | null>;
-                getFolderPosterFilePath: (p: string) => string | null;
-                getFolderBannerFilePathAsync?: (p: string) => Promise<string | null>;
-                getFolderBannerFilePath: (p: string) => string | null;
                 getFolderPosterFileUrlAsync?: (p: string) => Promise<string | null>;
                 getFolderPosterFileUrl: (p: string) => string | null;
                 getFolderBannerFileUrlAsync?: (p: string) => Promise<string | null>;
@@ -149,26 +145,25 @@ export class LibraryFileService {
               const meta: any = assetServiceAny.readFolderLibraryMetaAsync
                 ? await assetServiceAny.readFolderLibraryMetaAsync(folderPath)
                 : assetServiceAny.readFolderLibraryMeta(folderPath);
+              const [posterLocalAsync, bannerLocalAsync] = await Promise.all([
+                assetServiceAny.getFolderPosterFileUrlAsync
+                  ? assetServiceAny.getFolderPosterFileUrlAsync(folderPath)
+                  : Promise.resolve(assetServiceAny.getFolderPosterFileUrl(folderPath)),
+                assetServiceAny.getFolderBannerFileUrlAsync
+                  ? assetServiceAny.getFolderBannerFileUrlAsync(folderPath)
+                  : Promise.resolve(assetServiceAny.getFolderBannerFileUrl(folderPath)),
+              ]);
               if (meta) {
                 if (!meta.folderPath || meta.folderPath !== folderPath) {
                   // keep sync write (rare, not hot) to preserve atomicity
                   this.options.assetService.writeFolderLibraryMeta(folderPath, meta);
                 }
 
-                // Parallel async poster/banner existence checks (max 2 concurrent per folder)
-                const [hasPoster, hasBanner] = await Promise.all([
-                  assetServiceAny.getFolderPosterFilePathAsync
-                    ? assetServiceAny.getFolderPosterFilePathAsync(folderPath)
-                    : Promise.resolve(assetServiceAny.getFolderPosterFilePath(folderPath)),
-                  assetServiceAny.getFolderBannerFilePathAsync
-                    ? assetServiceAny.getFolderBannerFilePathAsync(folderPath)
-                    : Promise.resolve(assetServiceAny.getFolderBannerFilePath(folderPath)),
-                ]);
                 // Sin fallback al póster: el banner solo se restaura si la
                 // meta trae uno genuino de AniList (distinto del póster).
                 if (
-                  (!hasPoster && meta.posterUrl) ||
-                  (!hasBanner && meta.bannerUrl && meta.bannerUrl !== meta.posterUrl)
+                  (!posterLocalAsync && meta.posterUrl) ||
+                  (!bannerLocalAsync && meta.bannerUrl && meta.bannerUrl !== meta.posterUrl)
                 ) {
                   void this.options.assetService.restoreMissingAssets(folderPath, meta);
                 }
@@ -192,16 +187,6 @@ export class LibraryFileService {
                   `No se pudo limpiar la cache de ${path.basename(folderPath)}: ${errorDetailForLog(error)}`,
                 );
               }
-
-              // Fetch poster/banner URLs async to avoid sync scan
-              const [posterLocalAsync, bannerLocalAsync] = await Promise.all([
-                assetServiceAny.getFolderPosterFileUrlAsync
-                  ? assetServiceAny.getFolderPosterFileUrlAsync(folderPath)
-                  : Promise.resolve(assetServiceAny.getFolderPosterFileUrl(folderPath)),
-                assetServiceAny.getFolderBannerFileUrlAsync
-                  ? assetServiceAny.getFolderBannerFileUrlAsync(folderPath)
-                  : Promise.resolve(assetServiceAny.getFolderBannerFileUrl(folderPath)),
-              ]);
 
               const metaAlts = Array.isArray((meta as any)?.alternativeTitles)
                 ? (((meta as any).alternativeTitles as unknown[]).filter(
