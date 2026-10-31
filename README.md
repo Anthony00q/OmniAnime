@@ -229,32 +229,18 @@ npm run test:all
 `npm test` ejecuta los contratos críticos versionados en `checks/unit/`. `test:all` compila y
 ejecuta esos checks y el piloto de Electron; funciona sin la colección privada `tests/`.
 Tras un build actualizado, `npm run test:electron` ejecuta solo el piloto y
-`npm run test:performance` recoge métricas y trazas en tres procesos nuevos. No se necesita
-`playwright install`: se usa el Chromium incluido en Electron, cuyo soporte en Playwright es
+`npm run test:performance` mide navegación vacía y una cola simulada de 1.000 episodios,
+con tres procesos nuevos por escenario. No se necesita `playwright install`: se usa el Chromium
+incluido en Electron, cuyo soporte en Playwright es
 experimental. CI y release ejecutan los checks y el piloto; las mediciones son voluntarias.
 
 `npm run typecheck:checks` comprueba los tipos publicados y `npm run format:checks`, el formato
 del harness y runner. `npm run test:coverage` genera `coverage/critical.lcov` solo para módulos
 cargados por los checks, no un porcentaje global de la app.
 
-`tests/` está ignorado por Git y no existe en un clon público. Si se dispone de esa colección,
-`npm run test:local` ejecuta sus casos normales, `test:local:build` los de `tests/build/` tras
-compilar, `test:local:tooling` los de `tests/tooling/` de forma serial y `test:local:all` compila
-y ejecuta todas las fases Node, incluidos los checks. Las herramientas requieren el npm declarado
-y caché local disponible; no solaparlas con build, tipos ni lint. `test:local:diagnostics` usa
-red externa de forma voluntaria y no certifica funcionamiento. El runner comparte un candado
-entre Node y Playwright; `npm run test:local -- --list` lista los archivos sin ejecutarlos.
-
-Ampliar el archivo del contrato antes de crear otro; no duplicar casos al promoverlos a `checks/`,
-que nunca debe depender de `tests/` ni de datos privados. Priorizar fallos observables, no cuotas
-de cobertura ni comparaciones literales del código por cada retoque.
-
-Los fallos de Electron guardan capturas/trazas en `test-results/`; el informe está en
-`playwright-report/` y las mediciones en `test-results/performance-summary.json`. Son artefactos
-ignorados, no archivos para commit. El escenario de rendimiento está vacío y sin Internet:
-no demuestra rendimiento con bibliotecas grandes ni ausencia de fugas. El piloto no valida el
-instalador, las actualizaciones reales, los proveedores externos ni todos los tamaños de ventana;
-axe bloquea incidencias críticas, sin certificar conformidad WCAG.
+Los resultados se guardan en `test-results/` y el informe de Playwright, en `playwright-report/`.
+Las mediciones usan datos simulados: no representan transferencias reales ni certifican ausencia
+de fugas. El piloto no sustituye las pruebas del instalador ni de los proveedores externos.
 
 ### Stack tecnológico
 
