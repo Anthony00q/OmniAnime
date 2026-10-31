@@ -72,6 +72,7 @@ export class WindowLifecycleService {
   private tray: Tray | null = null;
   private youtubeEmbedIdentityConfigured = false;
   private rendererReady = false;
+  private lastTrayTooltip: string | null = null;
 
   constructor(private readonly dependencies: WindowLifecycleDependencies) {}
 
@@ -93,7 +94,10 @@ export class WindowLifecycleService {
 
   updateTrayTooltip(text?: string): void {
     if (!this.tray) return;
-    this.tray.setToolTip(text || 'OmniAnime');
+    const tooltip = text || 'OmniAnime';
+    if (tooltip === this.lastTrayTooltip) return;
+    this.tray.setToolTip(tooltip);
+    this.lastTrayTooltip = tooltip;
   }
 
   // Solo en show/hide: con el menú abierto lo cerraría.
@@ -160,6 +164,7 @@ export class WindowLifecycleService {
     if (!this.tray) return;
     this.tray.destroy();
     this.tray = null;
+    this.lastTrayTooltip = null;
   }
 
   start(): void {
