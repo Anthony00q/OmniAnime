@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.2.8] - 2026-10-30
+
+### Librería
+
+- El **Escáner** incorpora búsqueda de carpetas y filtros por estado del vínculo, con un recuento de carpetas vinculadas y pendientes.
+- La nueva distribución reúne la lista de carpetas y un panel con sus datos, proveedor y acciones de vinculación.
+
+### Descargas
+
+- Las descargas con varias conexiones rechazan las partes incompletas o incorrectas para evitar que se den por terminados archivos dañados.
+- La cancelación espera al cierre de los archivos antes de limpiarlos o iniciar otro intento sobre el mismo episodio.
+- Los detalles por episodio se cargan al abrir su panel, en lugar de hacerlo para todas las tarjetas desde el inicio.
+
+### Historial
+
+- Los resultados se actualizan al volver a la vista, incluidas las descargas que terminaron mientras se consultaba otra sección.
+- Los detalles de episodios e intentos anteriores se cargan al desplegar cada grupo, tanto en la tabla como en las tarjetas.
+
+### Interfaz
+
+- Las vistas muestran un indicador mientras se abren, en lugar de dejar el panel vacío durante la carga.
+- Los pósters dejan de arrastrarse accidentalmente al mantener pulsado el ratón sobre ellos.
+
 ## [1.2.7] - 2026-10-25
 
 ### Descargas
