@@ -7,6 +7,7 @@ import {
   LOG_VIEW_MAX_TOTAL_BYTES,
   SESSION_BACKUP_SUFFIX,
   listSessionFiles,
+  isKnownLogFile,
   type CollectLogSourcesOptions,
   type LogSource,
 } from './logPage';
@@ -55,7 +56,10 @@ async function readTailAsync(file: string, maxBytes: number): Promise<string> {
   }
 }
 
-function orderLogNames(names: string[], maxFiles: number, includeBackups: boolean): string[] {
+function orderLogNames(names: string[], maxFiles: number, includeBackups: boolean, filename?: unknown): string[] {
+  if (filename !== undefined) {
+    return typeof filename === 'string' && isKnownLogFile(filename) && names.includes(filename) ? [filename] : [];
+  }
   const ordered: string[] = [];
   if (names.includes(APP_LOG_FILENAME)) ordered.push(APP_LOG_FILENAME);
   const sessions = listSessionFiles(names);
@@ -84,11 +88,11 @@ export function collectLogSources(logDir: string, options?: CollectLogSourcesOpt
   const sources: LogSource[] = [];
   let total = 0;
   // De mas recientes a mas antiguas para que el cap total recorte lo viejo.
-  for (const name of orderLogNames(names, maxFiles, includeBackups).reverse()) {
+  for (const name of orderLogNames(names, maxFiles, includeBackups, options?.filename).reverse()) {
     if (total >= maxTotalBytes) break;
-    const raw = readTailSync(path.join(logDir, name), maxBytesPerFile);
+    const raw = readTailSync(path.join(logDir, name), Math.min(maxBytesPerFile, maxTotalBytes - total));
     if (!raw) continue;
-    total += raw.length;
+    total += Buffer.byteLength(raw, 'utf8');
     sources.unshift({ name, raw });
   }
   return sources;
@@ -107,11 +111,11 @@ export async function collectLogSourcesAsync(logDir: string, options?: CollectLo
   }
   const sources: LogSource[] = [];
   let total = 0;
-  for (const name of orderLogNames(names, maxFiles, includeBackups).reverse()) {
+  for (const name of orderLogNames(names, maxFiles, includeBackups, options?.filename).reverse()) {
     if (total >= maxTotalBytes) break;
-    const raw = await readTailAsync(path.join(logDir, name), maxBytesPerFile);
+    const raw = await readTailAsync(path.join(logDir, name), Math.min(maxBytesPerFile, maxTotalBytes - total));
     if (!raw) continue;
-    total += raw.length;
+    total += Buffer.byteLength(raw, 'utf8');
     sources.unshift({ name, raw });
   }
   return sources;

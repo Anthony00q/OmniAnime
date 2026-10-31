@@ -192,6 +192,7 @@ export interface LogSource {
 }
 
 export interface CollectLogSourcesOptions {
+  filename?: unknown;
   maxFiles?: number;
   maxBytesPerFile?: number;
   maxTotalBytes?: number;

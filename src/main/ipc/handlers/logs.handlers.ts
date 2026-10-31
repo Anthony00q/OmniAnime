@@ -78,6 +78,8 @@ export function registerLogsHandlers(dependencies: IpcRegistryDependencies): voi
         const sessionStart = dependencies.getSessionStart();
         // Async + acotado: no bloquear main con 40 MB sincronos por pagina.
         const sources = await collectLogSourcesAsync(path.dirname(dependencies.getLogPath()), {
+          filename:
+            typeof filters?.filename === 'string' && isKnownLogFile(filters.filename) ? filters.filename : undefined,
           maxFiles: LOG_VIEW_MAX_FILES,
           maxBytesPerFile: LOG_VIEW_MAX_BYTES_PER_FILE,
           maxTotalBytes: LOG_VIEW_MAX_TOTAL_BYTES,
