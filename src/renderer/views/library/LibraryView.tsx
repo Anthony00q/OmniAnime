@@ -61,11 +61,11 @@ const LibraryPosterItem = memo(
         }
         meta={
           episodeCount !== undefined ? (
-            <span className="inline-flex items-center gap-1 text-[12px] font-medium normal-case tracking-normal text-white/55 tabular-nums">
+            <span className="inline-flex items-center gap-1 text-[12px] font-medium normal-case tracking-normal text-muted-foreground tabular-nums">
               {episodeCount} {episodeCount === 1 ? 'EP' : 'EPs'}
               {item.lang === 'DUB' && (
                 <>
-                  <span aria-hidden="true" className="h-3 w-px shrink-0 bg-white/30" />
+                  <span aria-hidden="true" className="h-3 w-px shrink-0 bg-border-strong" />
                   <span>DUB</span>
                 </>
               )}

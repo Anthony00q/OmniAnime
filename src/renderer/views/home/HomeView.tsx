@@ -42,8 +42,8 @@ const HomePosterItem = memo(function HomePosterItem({ item, priority }: { item: 
           <span className="shrink-0 text-[11px] font-bold uppercase tracking-[0.08em] text-primary tabular-nums">
             Ep {item.episode || '?'}
           </span>
-          <span aria-hidden="true" className="h-3 w-px shrink-0 bg-white/30" />
-          <span className="flex min-w-0 items-center gap-1 truncate text-[12px] font-medium normal-case tracking-normal text-white/70 tabular-nums">
+          <span aria-hidden="true" className="h-3 w-px shrink-0 bg-border-strong" />
+          <span className="flex min-w-0 items-center gap-1 truncate text-[12px] font-medium normal-case tracking-normal text-muted-foreground tabular-nums">
             <Clock className="h-3 w-3 shrink-0 opacity-70" aria-hidden="true" />
             <span className="truncate">{item.timeAgo || 'Reciente'}</span>
           </span>
@@ -177,7 +177,7 @@ export function HomeView({ isActive }: { isActive?: boolean }) {
 
   return (
     <div className="empty-state-page flex flex-col h-full">
-      <PageHeader align="center" title="Episodios recientes" description={`Últimas publicaciones de ${providerName}`}>
+      <PageHeader layout="inline" title="Episodios recientes" description={`Últimas publicaciones de ${providerName}`}>
         <div className="search-container relative z-50">
           <SearchField
             value={visibleSearchQuery}

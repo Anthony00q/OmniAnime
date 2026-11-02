@@ -45,7 +45,7 @@ const CatalogPosterItem = memo(function CatalogPosterItem({ item, priority }: { 
               {item.category}
             </span>
           )}
-          {item.year && <span className="text-[12px] font-medium tabular-nums text-white/70">{item.year}</span>}
+          {item.year && <span className="text-[12px] font-medium tabular-nums text-muted-foreground">{item.year}</span>}
         </>
       }
       onClick={() => {

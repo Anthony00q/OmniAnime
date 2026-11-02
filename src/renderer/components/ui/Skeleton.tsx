@@ -19,16 +19,16 @@ export function Skeleton({ className, ariaLabel }: SkeletonProps) {
 export function SkeletonCard() {
   return (
     <div
-      className="poster-list-item flex aspect-[2/3] flex-col overflow-hidden rounded-[12px] border border-transparent bg-transparent"
+      className="poster-list-item relative aspect-[2/3] w-full min-w-0 overflow-hidden rounded-xl bg-background"
       aria-hidden="true"
     >
-      <div className="relative flex-1 overflow-hidden bg-secondary/40">
-        <div className="absolute inset-0 animate-pulse bg-gradient-to-br from-secondary/60 via-secondary/30 to-secondary/60" />
-        <div className="absolute bottom-0 left-0 right-0 p-3.5">
-          <Skeleton className="mb-2 h-2.5 w-16 rounded-full bg-white/10" />
-          <Skeleton className="h-3 w-full rounded bg-white/15" />
-          <Skeleton className="mt-1.5 h-3 w-3/4 rounded bg-white/10" />
+      <div className="poster-card-image absolute inset-0 animate-pulse bg-secondary/40" />
+      <div className="poster-card-caption absolute inset-x-0 bottom-0 min-w-0 p-3">
+        <div className="flex h-10 flex-col gap-2 py-1">
+          <Skeleton className="h-3 w-full" />
+          <Skeleton className="h-3 w-3/4" />
         </div>
+        <Skeleton className="mt-2 h-5 w-2/3" />
       </div>
     </div>
   );

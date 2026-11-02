@@ -343,7 +343,66 @@ html[dir='ltr'] {
 
 .poster-list-item {
   content-visibility: auto;
-  contain-intrinsic-size: 0 280px;
+  contain-intrinsic-size: auto 280px;
+}
+
+.poster-card-image {
+  --poster-fade-height: min(100%, 128px);
+  mask-image: linear-gradient(
+    to top,
+    transparent,
+    rgb(0 0 0 / 4%) calc(var(--poster-fade-height) * 0.32),
+    rgb(0 0 0 / 18%) calc(var(--poster-fade-height) * 0.62),
+    rgb(0 0 0 / 68%) calc(var(--poster-fade-height) * 0.85),
+    black var(--poster-fade-height)
+  );
+}
+
+.poster-card-with-action > .poster-card-image {
+  --poster-fade-height: min(100%, 176px);
+}
+
+.poster-card-image > img {
+  transition: transform var(--duration-motion-base) var(--ease-out);
+}
+
+.poster-card-image > [role='img'] {
+  padding-bottom: 92px;
+}
+
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .anime-poster-card:not(:disabled):hover .poster-card-image > img {
+    transform: scale(1.02);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .poster-card-image > img {
+    transition: none;
+  }
+}
+
+@media (hover: none) {
+  .poster-card-action {
+    opacity: 1;
+  }
+}
+
+.page-header-inline {
+  container-type: inline-size;
+}
+
+.page-header-inline > .page-header-content {
+  display: grid;
+  gap: 16px;
+}
+
+@container (min-width: 768px) {
+  .page-header-inline > .page-header-content {
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 384px);
+    align-items: center;
+    gap: 32px;
+  }
 }
 
 .episode-list-item {

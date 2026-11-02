@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { useAtomValue, useSetAtom } from 'jotai';
 import {
   Home,
@@ -44,11 +44,11 @@ export function Sidebar({ currentView, setCurrentView }: SidebarProps) {
   const setUpdateModalOpen = useSetAtom(appUpdateModalOpenAtom);
 
   const items = [
-    { id: 'home', icon: Home, label: 'Inicio' },
+    { id: 'home', icon: Home, label: 'Inicio', section: 'Explorar' },
     { id: 'schedule', icon: CalendarDays, label: 'Horarios' },
     { id: 'catalog', icon: Library, label: 'Catálogo' },
     { id: 'details', icon: BookOpen, label: 'Detalles' },
-    { id: 'downloader', icon: Download, label: 'Descargas' },
+    { id: 'downloader', icon: Download, label: 'Descargas', section: 'Gestionar' },
     { id: 'history', icon: Clock, label: 'Historial' },
     { id: 'scanner', icon: Search, label: 'Escáner' },
     { id: 'player', icon: PlaySquare, label: 'Librería' },
@@ -143,35 +143,41 @@ export function Sidebar({ currentView, setCurrentView }: SidebarProps) {
       </div>
 
       <div className="sidebar-nav min-h-0 flex-1 overflow-y-auto px-3 space-y-1">
-        <h3 className="sidebar-heading px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">
-          Explorar
-        </h3>
         {items.map((item) => {
           const Icon = item.icon;
           const isActive = currentView === item.id;
           return (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => setCurrentView(item.id)}
-              aria-current={isActive ? 'page' : undefined}
-              className={clsx(
-                'sidebar-nav-item relative w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium border transition-[background-color,border-color,color,box-shadow] duration-150 [transition-timing-function:var(--ease-out)] outline-none focus-visible:ring-2 focus-visible:ring-primary/60',
-                isActive
-                  ? 'bg-foreground/[0.06] text-foreground border-foreground/10 shadow-none'
-                  : 'bg-transparent text-muted-foreground border-transparent hover:bg-secondary hover:text-foreground hover:border-border/50',
+            <Fragment key={item.id}>
+              {item.section && (
+                <div className={clsx('pb-2', item.id !== 'home' && 'mt-4 border-t border-border/40 pt-4')}>
+                  <h3 className="sidebar-heading px-4 text-[11px] font-semibold text-text-tertiary uppercase tracking-wider">
+                    {item.section}
+                  </h3>
+                </div>
               )}
-            >
-              <span
-                aria-hidden="true"
+              <button
+                type="button"
+                onClick={() => setCurrentView(item.id)}
+                aria-current={isActive ? 'page' : undefined}
+                aria-label={item.label}
                 className={clsx(
-                  'absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-full transition-opacity duration-150 [transition-timing-function:var(--ease-out)]',
-                  isActive ? 'bg-primary opacity-100' : 'bg-transparent opacity-0',
+                  'sidebar-nav-item relative w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium border transition-[background-color,border-color,color,box-shadow] duration-150 [transition-timing-function:var(--ease-out)] outline-none focus-visible:ring-2 focus-visible:ring-primary/60',
+                  isActive
+                    ? 'bg-foreground/[0.06] text-foreground border-foreground/10 shadow-none'
+                    : 'bg-transparent text-muted-foreground border-transparent hover:bg-secondary hover:text-foreground hover:border-border/50',
                 )}
-              />
-              <Icon strokeWidth={isActive ? 2 : 1.5} className="w-[18px] h-[18px]" />
-              <span className="sidebar-label">{item.label}</span>
-            </button>
+              >
+                <span
+                  aria-hidden="true"
+                  className={clsx(
+                    'absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-full transition-opacity duration-150 [transition-timing-function:var(--ease-out)]',
+                    isActive ? 'bg-primary opacity-100' : 'bg-transparent opacity-0',
+                  )}
+                />
+                <Icon strokeWidth={isActive ? 2 : 1.5} className="w-[18px] h-[18px]" />
+                <span className="sidebar-label">{item.label}</span>
+              </button>
+            </Fragment>
           );
         })}
       </div>
