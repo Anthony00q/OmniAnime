@@ -10,6 +10,7 @@ interface CustomNumberInputProps {
   icon?: ReactNode;
   ariaLabel?: string;
   disabled?: boolean;
+  focusTone?: 'accent' | 'neutral';
   className?: string;
   inputClassName?: string;
 }
@@ -22,6 +23,7 @@ export function CustomNumberInput({
   icon,
   ariaLabel,
   disabled = false,
+  focusTone = 'accent',
   className = '',
   inputClassName = '',
 }: CustomNumberInputProps) {
@@ -40,12 +42,15 @@ export function CustomNumberInput({
     >
       <Group className="group relative flex items-center w-full">
         {icon && (
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-primary pointer-events-none">
+          <span
+            className={`absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors pointer-events-none ${focusTone === 'accent' ? 'group-focus-within:text-primary' : ''}`}
+          >
             {icon}
           </span>
         )}
         <Input
-          className={`field-input w-full rounded-lg border border-border text-foreground pr-10 transition-[border-color,box-shadow] hover:border-border-strong disabled:cursor-not-allowed disabled:opacity-50 ${
+          data-focus-tone={focusTone}
+          className={`field-input w-full rounded-lg border border-border text-foreground pr-10 transition-[border-color,box-shadow,background-color] hover:border-border-strong disabled:cursor-not-allowed disabled:opacity-50 ${
             icon ? 'pl-9' : ''
           } [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${inputClassName}`}
         />

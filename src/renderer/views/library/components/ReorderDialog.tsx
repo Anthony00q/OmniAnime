@@ -83,6 +83,7 @@ export function ReorderDialog({
             Número inicial
           </label>
           <CustomNumberInput
+            focusTone="neutral"
             value={reorderStart}
             onChange={onReorderStartChange}
             min={0}

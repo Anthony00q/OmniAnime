@@ -50,7 +50,7 @@ export function SearchField({
       aria-label={ariaLabel}
       className={clsx('search-field group relative', className)}
     >
-      <Search className="pointer-events-none absolute left-4 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-primary" />
+      <Search className="pointer-events-none absolute left-4 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
       <Group>
         <Input
           ref={inputRef}
@@ -64,7 +64,7 @@ export function SearchField({
           onKeyDown={onKeyDown}
           onFocus={onFocus}
           className={clsx(
-            'search-input h-11 w-full rounded-lg border border-border/70 bg-surface pl-11 pr-11 text-sm text-foreground transition-[border-color,box-shadow] hover:border-border-strong placeholder:text-muted-foreground placeholder:select-none focus:outline-none',
+            'search-input h-11 w-full rounded-lg border border-border/70 bg-surface pl-11 pr-11 text-sm text-foreground transition-[border-color,background-color] hover:border-border-strong placeholder:text-muted-foreground placeholder:select-none focus:outline-none',
             '[&::-webkit-search-cancel-button]:hidden',
             inputClassName,
           )}

@@ -247,7 +247,6 @@ select:focus-visible,
   outline-offset: 2px;
 }
 
-/* Campos de texto/búsqueda: foco in-place porque el outline global con offset se despegaba. */
 input.search-input,
 input.field-input {
   box-shadow: 0 0 0 0 transparent;
@@ -255,6 +254,15 @@ input.field-input {
 
 input.search-input:focus,
 input.search-input:focus-visible,
+input.field-input[data-focus-tone='neutral']:focus,
+input.field-input[data-focus-tone='neutral']:focus-visible {
+  outline: none;
+  outline-offset: 0;
+  border-color: color-mix(in srgb, var(--color-foreground) 45%, var(--color-surface));
+  background-color: var(--color-surface-elevated);
+  box-shadow: none;
+}
+
 input.field-input:focus,
 input.field-input:focus-visible {
   outline: none;
@@ -267,7 +275,9 @@ input.field-input:focus-visible {
   input.search-input:focus,
   input.search-input:focus-visible,
   input.field-input:focus,
-  input.field-input:focus-visible {
+  input.field-input:focus-visible,
+  input.field-input[data-focus-tone='neutral']:focus,
+  input.field-input[data-focus-tone='neutral']:focus-visible {
     box-shadow: none;
     outline: 2px solid CanvasText;
     outline-offset: 1px;

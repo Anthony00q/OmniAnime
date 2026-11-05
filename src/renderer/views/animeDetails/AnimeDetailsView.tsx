@@ -914,7 +914,7 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
                   />
                   <div className="group relative">
                     <Search
-                      className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-primary"
+                      className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground"
                       aria-hidden="true"
                     />
                     <input
@@ -924,7 +924,7 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
                       placeholder="7, 5-7…"
                       aria-label="Buscar episodios por número"
                       autoComplete="off"
-                      className="search-input h-8 w-28 rounded-lg border border-border/60 bg-secondary/50 pl-8 pr-7 text-xs text-foreground transition-[border-color,box-shadow] placeholder:text-muted-foreground/60 hover:border-border-strong focus:outline-none [&::-webkit-search-cancel-button]:hidden"
+                      className="search-input h-8 w-28 rounded-lg border border-border/60 bg-secondary/50 pl-8 pr-7 text-xs text-foreground transition-[border-color,background-color] placeholder:text-muted-foreground/60 hover:border-border-strong focus:outline-none [&::-webkit-search-cancel-button]:hidden"
                     />
                     {epQuery && (
                       <button

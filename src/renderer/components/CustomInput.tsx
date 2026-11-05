@@ -7,6 +7,7 @@ interface CustomInputProps {
   ariaLabelledBy?: string;
   placeholder?: string;
   disabled?: boolean;
+  focusTone?: 'accent' | 'neutral';
   className?: string;
 }
 
@@ -17,6 +18,7 @@ export function CustomInput({
   ariaLabelledBy,
   placeholder,
   disabled = false,
+  focusTone = 'accent',
   className = '',
 }: CustomInputProps) {
   return (
@@ -29,8 +31,9 @@ export function CustomInput({
       className={`w-full ${className}`}
     >
       <Input
+        data-focus-tone={focusTone}
         placeholder={placeholder}
-        className="field-input w-full h-9 rounded-lg border border-border bg-surface px-3 text-[13px] text-foreground placeholder:text-text-tertiary transition-[border-color,box-shadow] hover:border-border-strong disabled:cursor-not-allowed disabled:opacity-50"
+        className="field-input w-full h-9 rounded-lg border border-border bg-surface px-3 text-[13px] text-foreground placeholder:text-text-tertiary transition-[border-color,box-shadow,background-color] hover:border-border-strong disabled:cursor-not-allowed disabled:opacity-50"
       />
     </TextField>
   );

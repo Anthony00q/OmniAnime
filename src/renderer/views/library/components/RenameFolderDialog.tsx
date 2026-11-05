@@ -149,6 +149,7 @@ export function RenameFolderDialog({
             Nombre personalizado
           </span>
           <CustomInput
+            focusTone="neutral"
             value={custom}
             onChange={setCustom}
             ariaLabelledBy="folder-rename-custom-label"
