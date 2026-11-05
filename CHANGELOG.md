@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.2.9] - 2026-11-05
+
+### Interfaz
+
+- Los pósters renuevan su presentación con títulos y datos alineados, un degradado integrado y colores adaptados al tema seleccionado.
+- Las acciones de los pósters aparecen sin desplazar el título y permanecen visibles en pantallas táctiles.
+- La barra lateral separa las secciones de exploración y gestión para facilitar la navegación.
+- Los campos de búsqueda y los diálogos de renombrado y renumeración utilizan un resaltado neutro al escribir.
+
+### Catálogo
+
+- La cabecera de **Inicio** sitúa el buscador junto al título cuando hay espacio y debajo en ventanas más estrechas.
+
 ## [1.2.8] - 2026-10-30
 
 ### Librería
