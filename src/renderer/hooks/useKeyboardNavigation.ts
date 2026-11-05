@@ -34,8 +34,33 @@ export function useKeyboardNavigation(): void {
     const blockTab = (e: KeyboardEvent) => {
       if (e.key !== 'Tab') return;
       const target = e.target as HTMLElement | null;
-      // El diálogo necesita su Tab para ciclar el foco; fuera no hace nada.
       if (target?.closest?.('[role="dialog"], [role="menu"], [data-sonner-toaster]')) return;
+      if (target?.closest?.('[data-provider-switcher]')) return;
+      const focusable = Array.from(
+        document.querySelectorAll<HTMLElement>(
+          'a[href], button, input, textarea, select, [tabindex], [contenteditable="true"]',
+        ),
+      )
+        .filter(
+          (element) =>
+            element.tabIndex >= 0 &&
+            !element.matches(':disabled') &&
+            !element.closest('[inert]') &&
+            !['hidden', 'collapse'].includes(getComputedStyle(element).visibility) &&
+            element.getClientRects().length > 0,
+        )
+        .sort(
+          (left, right) => (left.tabIndex || Number.MAX_SAFE_INTEGER) - (right.tabIndex || Number.MAX_SAFE_INTEGER),
+        );
+      const index = focusable.indexOf(target as HTMLElement);
+      const nextIndex =
+        index < 0
+          ? e.shiftKey
+            ? focusable.length - 1
+            : 0
+          : (index + (e.shiftKey ? -1 : 1) + focusable.length) % focusable.length;
+      const next = focusable[nextIndex];
+      if (next?.closest('[data-provider-switcher]')) return;
       e.preventDefault();
       e.stopPropagation();
       const active = document.activeElement as HTMLElement | null;
@@ -84,6 +109,7 @@ export function useKeyboardNavigation(): void {
       const target = e.target as HTMLElement;
       if (target.closest?.('[data-sonner-toaster]')) return;
       const isInputFocused = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT';
+      const isProviderFocused = Boolean(target.closest?.('[data-provider-switcher]'));
       const disableShortcuts = document.querySelector('.disable-shortcuts') !== null;
       const currentViewValue = currentView;
 
@@ -108,7 +134,7 @@ export function useKeyboardNavigation(): void {
         return;
       }
 
-      if (!isInputFocused && !disableShortcuts && !e.ctrlKey && !e.metaKey) {
+      if (!isInputFocused && !isProviderFocused && !disableShortcuts && !e.ctrlKey && !e.metaKey) {
         const currentIndex = NAVIGATION_VIEWS.indexOf(currentViewValue);
 
         if (e.key === previousViewShortcut) {

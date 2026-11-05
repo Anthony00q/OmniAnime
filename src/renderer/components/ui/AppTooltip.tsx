@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import * as TooltipPrimitive from '@radix-ui/react-tooltip';
 import clsx from 'clsx';
 
@@ -22,6 +22,7 @@ interface AppTooltipProps {
   content: ReactNode;
   children: ReactNode;
   side?: 'top' | 'right' | 'bottom' | 'left';
+  enabled?: boolean;
   align?: 'start' | 'center' | 'end';
   sideOffset?: number;
   className?: string;
@@ -36,14 +37,16 @@ interface AppTooltipProps {
 export function AppTooltip({
   content,
   children,
+  enabled = true,
   side = 'top',
   align = 'center',
   sideOffset = 6,
   className,
 }: AppTooltipProps) {
+  const [open, setOpen] = useState(false);
   if (content === undefined || content === null || content === '') return <>{children}</>;
   return (
-    <TooltipPrimitive.Root>
+    <TooltipPrimitive.Root open={enabled && open} onOpenChange={setOpen}>
       <TooltipPrimitive.Trigger asChild>{children}</TooltipPrimitive.Trigger>
       <TooltipPrimitive.Portal>
         <TooltipPrimitive.Content

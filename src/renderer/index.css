@@ -483,6 +483,14 @@ html[dir='ltr'] {
   transform-origin: var(--radix-select-content-transform-origin);
 }
 
+.sidebar-provider-switcher {
+  margin-inline: -0.25rem;
+}
+
+.sidebar-provider-grid {
+  grid-template-columns: repeat(var(--provider-count), minmax(0, 1fr));
+}
+
 .sidebar-provider-button {
   transition:
     color 150ms var(--ease-out),
@@ -490,6 +498,9 @@ html[dir='ltr'] {
 }
 
 .sidebar-provider-indicator {
+  width: calc((100% - (var(--provider-count) - 1) * 0.25rem) / var(--provider-count));
+  height: 100%;
+  transform: translateX(calc(var(--provider-index) * (100% + 0.25rem)));
   transition: transform var(--duration-motion-micro) var(--ease-out);
 }
 
@@ -830,12 +841,22 @@ html[dir='ltr'] {
   }
 
   .omnianime-sidebar .sidebar-provider-switcher {
-    gap: 0.25rem;
+    margin-inline: 0;
     padding: 0.25rem;
   }
 
+  .omnianime-sidebar .sidebar-provider-grid {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: repeat(var(--provider-count), minmax(44px, 1fr));
+  }
+
+  .omnianime-sidebar .sidebar-provider-indicator {
+    width: 100%;
+    height: calc((100% - (var(--provider-count) - 1) * 0.25rem) / var(--provider-count));
+    transform: translateY(calc(var(--provider-index) * (100% + 0.25rem)));
+  }
+
   .omnianime-sidebar .sidebar-provider-button {
-    min-height: 2rem;
     padding-inline: 0;
   }
 

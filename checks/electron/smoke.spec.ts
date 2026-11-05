@@ -86,6 +86,42 @@ test('la confirmación atrapa el foco y Escape cierra sin restablecer los ajuste
   await expect(page.getByRole('button', { name: 'Descartar cambios sin guardar' })).toHaveCount(0);
 });
 
+test('el selector cambia de proveedor por teclado sin navegar a otra vista', async ({ harness }) => {
+  const page = harness.page;
+  const provider = page.getByRole('group', { name: 'Proveedor', exact: true });
+  const av1 = provider.getByRole('button', { name: 'Cambiar fuente a AnimeAV1' });
+  const jk = provider.getByRole('button', { name: 'Cambiar fuente a JkAnime' });
+  await expect(provider).toBeVisible();
+  await page.evaluate(() => (document.activeElement as HTMLElement)?.blur());
+  await page.keyboard.press('Tab');
+  await expect(av1).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(jk).toBeFocused();
+  const pathname = await page.evaluate(() => location.hash);
+  await page.keyboard.press('ArrowRight');
+  expect(await page.evaluate(() => location.hash)).toBe(pathname);
+  await page.keyboard.press('Enter');
+  await expect(jk).toHaveAttribute('aria-pressed', 'true');
+  await expect(av1).toHaveAttribute('aria-pressed', 'false');
+  await expect(jk).toBeFocused();
+  await expect
+    .poll(() => page.evaluate(() => window.api.invoke('get-active-provider')))
+    .toEqual({
+      ok: true,
+      data: 'jkanime',
+    });
+  await page.keyboard.press('Tab');
+  await expect(jk).not.toBeFocused();
+  await page.keyboard.press('Shift+Tab');
+  await expect(jk).toBeFocused();
+  await page.keyboard.press('Shift+Tab');
+  await expect(av1).toBeFocused();
+  await page.keyboard.press('Space');
+  await expect(av1).toHaveAttribute('aria-pressed', 'true');
+  await av1.click();
+  await expect(av1).not.toBeFocused();
+});
+
 test('accesibilidad: informe del renderer y bloqueo de incidencias críticas', async ({ harness }, info) => {
   const result = await new AxeBuilder({ page: harness.page })
     .setLegacyMode()
