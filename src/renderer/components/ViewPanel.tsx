@@ -11,11 +11,13 @@ export function ViewPanel({
   children,
   titlebarOffset = true,
   animateEntry = true,
+  loadingFallback,
 }: {
   scope: string;
   children: ReactNode;
   titlebarOffset?: boolean;
   animateEntry?: boolean;
+  loadingFallback?: ReactNode;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const { pathname } = useLocation();
@@ -32,7 +34,7 @@ export function ViewPanel({
           titlebarOffset && 'pt-10',
         )}
       >
-        <Suspense fallback={<LoadingState className="min-h-0 flex-1" />}>{children}</Suspense>
+        <Suspense fallback={loadingFallback ?? <LoadingState className="min-h-0 flex-1" />}>{children}</Suspense>
       </div>
     </ErrorBoundary>
   );

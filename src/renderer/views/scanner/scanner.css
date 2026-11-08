@@ -6,6 +6,16 @@
   container: scanner-scroll / size;
 }
 
+.scanner-scroller[data-scanner-ready] {
+  animation: view-fade-in var(--duration-motion-base) var(--ease-out);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scanner-scroller[data-scanner-ready] {
+    animation-duration: var(--duration-motion-fade) !important;
+  }
+}
+
 .scanner-toolbar {
   padding: 0 16px;
 }

@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { ViewPanel } from '@/renderer/components/ViewPanel';
 import { MemoScannerView } from '@/renderer/App';
+import { ScannerLoadingView } from '@/renderer/views/scanner/components/ScannerSkeleton';
 
 export const Route = createFileRoute('/scanner')({
   component: ScannerRoute,
@@ -8,7 +9,7 @@ export const Route = createFileRoute('/scanner')({
 
 function ScannerRoute() {
   return (
-    <ViewPanel scope="ui:scanner" animateEntry={false}>
+    <ViewPanel scope="ui:scanner" animateEntry={false} loadingFallback={<ScannerLoadingView />}>
       <MemoScannerView />
     </ViewPanel>
   );

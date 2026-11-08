@@ -1,9 +1,9 @@
-import { useCallback, useState, useEffect, useMemo, useRef, useId } from 'react';
-import { ScanSearch, RefreshCcw, Link, Link2, Search, Loader2 } from 'lucide-react';
+import { useCallback, useState, useEffect, useLayoutEffect, useMemo, useRef, useId } from 'react';
+import { ScanSearch, Link, Link2, Search, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAtomValue } from 'jotai';
 import { useAtomCallback } from 'jotai/utils';
-import { activeProviderAtom, settingsAtom } from '@/renderer/store/atoms';
+import { activeProviderAtom } from '@/renderer/store/atoms';
 import type { LibraryFolder } from '@/services/library/LibraryFileService';
 import { resolveScannerRelinkProvider } from '@/renderer/views/scanner/model/relinkPolicy';
 import { Dialog } from '@/renderer/components/Dialog';
@@ -13,22 +13,23 @@ import { isIpcFailError } from '@/renderer/hooks/queries/unwrap';
 import { PosterImage } from '@/renderer/components/anime/PosterImage';
 import { ErrorState } from '@/renderer/components/ui/ErrorState';
 import { EmptyState } from '@/renderer/components/ui/EmptyState';
-import { PageHeader } from '@/renderer/components/ui/PageHeader';
 import { AppTooltip } from '@/renderer/components/ui/AppTooltip';
 import { SearchField } from '@/renderer/components/ui/SearchField';
 import { useBusySpin } from '@/renderer/utils/motion';
 import { ScannerCollection } from './components/ScannerCollection';
 import { ScannerInspector } from './components/ScannerInspector';
+import { ScannerLayout } from './components/ScannerLayout';
+import { ScannerToolbar, SCANNER_SEARCH_LABEL } from './components/ScannerToolbar';
+import { ScannerSkeleton } from './components/ScannerSkeleton';
+import { useScannerDirectories } from './hooks/useScannerDirectories';
 import {
   buildScannerSearchIndex,
   filterScannerFolders,
   getScannerCounts,
-  getScannerDirectoryLabel,
   resolveScannerSelection,
   type ScannerFolder,
   type ScannerStatusFilter,
 } from './model/scannerModel';
-import './scanner.css';
 
 export function ScannerView({ isActive = true }: { isActive?: boolean }) {
   const [selectedDirFilter, setSelectedDirFilter] = useState<string>('all');
@@ -37,16 +38,8 @@ export function ScannerView({ isActive = true }: { isActive?: boolean }) {
   const [selectedFolderPath, setSelectedFolderPath] = useState<string | null>(null);
   const inspectorId = useId();
 
-  const globalSettings = useAtomValue(settingsAtom);
   const activeProvider = useAtomValue(activeProviderAtom);
-  const dirs: string[] = useMemo(() => {
-    const outputDirs = globalSettings?.outputDirs;
-    const configuredDirs = Array.isArray(outputDirs)
-      ? outputDirs.filter((dir: unknown): dir is string => typeof dir === 'string' && dir.trim().length > 0)
-      : [];
-    if (configuredDirs.length > 0) return configuredDirs.slice(0, 3);
-    return globalSettings?.defaultOutputDir ? [globalSettings.defaultOutputDir] : [];
-  }, [globalSettings?.defaultOutputDir, globalSettings?.outputDirs]);
+  const dirs = useScannerDirectories();
 
   const { data: folders = [], isLoading, isError, isFetching, refetch } = useLibrary(dirs);
   const searchIndex = useMemo(() => buildScannerSearchIndex(folders as ScannerFolder[]), [folders]);
@@ -63,6 +56,11 @@ export function ScannerView({ isActive = true }: { isActive?: boolean }) {
     [searchedFolders, statusFilter],
   );
   const selectedFolder = resolveScannerSelection(filteredFolders, selectedFolderPath);
+  const hasWorkspace = !isLoading && !isError && dirs.length > 0 && filteredFolders.length > 0;
+  const [contentPresented, setContentPresented] = useState(false);
+  useLayoutEffect(() => {
+    if (isActive && hasWorkspace && !contentPresented) setContentPresented(true);
+  }, [isActive, hasWorkspace, contentPresented]);
   useEffect(() => {
     if (!isLoading && !isError) setSelectedFolderPath(selectedFolder?.path ?? null);
   }, [selectedFolder?.path, isLoading, isError]);
@@ -191,115 +189,34 @@ export function ScannerView({ isActive = true }: { isActive?: boolean }) {
   );
 
   return (
-    <div className="scanner-surface empty-state-page flex flex-col h-full bg-background">
-      <PageHeader
-        title="Escáner de librería"
-        description="Revisa los vínculos de tus carpetas locales"
-        className="scanner-header sticky top-0"
-        actions={
-          <button
-            onClick={handleRefresh}
-            data-keep-focus
-            disabled={dirs.length === 0 || !isActive || isFetching || refreshSpin.busy}
-            className="flex min-h-11 items-center gap-2 rounded-lg border border-border/60 px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:cursor-default disabled:opacity-50"
-          >
-            <RefreshCcw ref={refreshSpin.ref} className="w-4 h-4" aria-hidden="true" />
-            <span>Escanear directorio</span>
-          </button>
+    <>
+      <ScannerLayout
+        onRefresh={handleRefresh}
+        refreshRef={refreshSpin.ref}
+        refreshDisabled={dirs.length === 0 || !isActive || isFetching || refreshSpin.busy}
+        revealContent={contentPresented}
+        toolbar={
+          <ScannerToolbar
+            dirs={dirs}
+            counts={counts}
+            isLoading={isLoading}
+            selectedDirFilter={selectedDirFilter}
+            search={
+              <SearchField
+                value={folderQuery}
+                onChange={setFolderQuery}
+                onClear={() => setFolderQuery('')}
+                placeholder={SCANNER_SEARCH_LABEL}
+              />
+            }
+            statusFilter={statusFilter}
+            onDirectoryChange={setSelectedDirFilter}
+            onStatusChange={setStatusFilter}
+          />
         }
-      />
-
-      <div data-empty-filters className="scanner-toolbar shrink-0">
-        <div className="scanner-locations">
-          {dirs.length > 1 && (
-            <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Ubicación de las carpetas">
-              {['all', ...dirs].map((dir) => (
-                <button
-                  key={dir}
-                  data-keep-focus
-                  onClick={() => setSelectedDirFilter(dir)}
-                  aria-pressed={selectedDirFilter === dir}
-                  className={`relative h-8 max-w-[200px] shrink-0 truncate rounded-full border px-3 text-[13px] font-medium transition-colors after:absolute after:-inset-y-1.5 after:inset-x-0 ${
-                    selectedDirFilter === dir
-                      ? 'border-primary/30 bg-primary/15 text-primary'
-                      : 'border-border/70 bg-transparent text-muted-foreground hover:bg-secondary hover:text-foreground'
-                  }`}
-                >
-                  {dir === 'all' ? 'Todas' : getScannerDirectoryLabel(dir)}
-                </button>
-              ))}
-            </div>
-          )}
-          <span className="ml-auto text-[13px] font-medium tabular-nums text-text-tertiary">
-            {isLoading ? '—' : counts.all} {counts.all === 1 ? 'carpeta' : 'carpetas'}
-          </span>
-        </div>
-        <SearchField
-          value={folderQuery}
-          onChange={setFolderQuery}
-          onClear={() => setFolderQuery('')}
-          placeholder="Buscar en tus carpetas"
-        />
-        <div className="scanner-status-filters" role="group" aria-label="Estado del vínculo">
-          {(
-            [
-              ['all', 'Todas'],
-              ['missing', 'Sin vínculo'],
-              ['linked', 'Vinculadas'],
-            ] as const
-          ).map(([status, label]) => (
-            <button
-              key={status}
-              data-keep-focus
-              className="scanner-status-filter"
-              aria-pressed={statusFilter === status}
-              onClick={() => setStatusFilter(status)}
-            >
-              {label}
-              <span>{isLoading ? '—' : counts[status]}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div
-        data-view-scroller
-        className="scanner-scroller empty-state-scroller min-h-0 flex-1 overflow-y-auto p-4 sm:px-8 sm:py-6 [scrollbar-gutter:stable]"
       >
         {isLoading ? (
-          <div className="scanner-workspace" role="status" aria-label="Cargando carpetas">
-            <div className="scanner-collection" aria-hidden="true">
-              <div className="scanner-section-heading">
-                <div className="h-5 w-20 rounded bg-secondary" />
-              </div>
-              <div className="scanner-folder-list">
-                {Array.from({ length: 5 }, (_, index) => (
-                  <div key={index} className="scanner-folder-button">
-                    <div className="scanner-folder-poster bg-secondary" />
-                    <div className="min-w-0 flex-1 space-y-2">
-                      <div className="h-4 w-3/4 rounded bg-secondary" />
-                      <div className="h-3 w-1/2 rounded bg-secondary" />
-                      <div className="h-3 w-16 rounded bg-secondary" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="scanner-inspector" aria-hidden="true">
-              <div className="scanner-inspector-heading">
-                <div className="scanner-inspector-poster bg-secondary" />
-                <div className="w-full space-y-3">
-                  <div className="h-3 w-20 rounded bg-secondary" />
-                  <div className="h-6 w-3/4 rounded bg-secondary" />
-                </div>
-              </div>
-              <div className="scanner-inspector-fields space-y-6">
-                {Array.from({ length: 4 }, (_, index) => (
-                  <div key={index} className="h-12 rounded bg-secondary/50" />
-                ))}
-              </div>
-            </div>
-          </div>
+          <ScannerSkeleton />
         ) : dirs.length === 0 ? (
           <EmptyState
             variant="page"
@@ -355,7 +272,7 @@ export function ScannerView({ isActive = true }: { isActive?: boolean }) {
             )}
           </div>
         )}
-      </div>
+      </ScannerLayout>
 
       <Dialog
         open={isActive && relinkAllowed}
@@ -475,6 +392,6 @@ export function ScannerView({ isActive = true }: { isActive?: boolean }) {
           )}
         </div>
       </Dialog>
-    </div>
+    </>
   );
 }
