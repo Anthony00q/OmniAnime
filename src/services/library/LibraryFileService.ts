@@ -81,13 +81,19 @@ export class LibraryFileService {
 
       for (const baseDir of dirs) {
         if (!fs.existsSync(baseDir)) continue;
-        const dirents = await fs.promises.readdir(baseDir, { withFileTypes: true });
+        let dirents: fs.Dirent[];
+        try {
+          dirents = await fs.promises.readdir(baseDir, { withFileTypes: true });
+        } catch (error) {
+          this.options.log(`No se pudo leer una ubicación de la librería: ${errorDetailForLog(error)}`);
+          continue;
+        }
         const folderDirents = dirents.filter((dirent) => dirent.isDirectory());
 
         const BATCH_SIZE = 16;
         for (let batchStart = 0; batchStart < folderDirents.length; batchStart += BATCH_SIZE) {
           const chunk = folderDirents.slice(batchStart, batchStart + BATCH_SIZE);
-          const chunkResults = await Promise.all(
+          const chunkResults = await Promise.allSettled(
             chunk.map(async (dirent): Promise<LibraryFolder | null> => {
               const folderPath = path.join(baseDir, dirent.name);
               let stats: fs.Stats;
@@ -222,7 +228,13 @@ export class LibraryFileService {
           );
 
           for (const result of chunkResults) {
-            if (result) allFolders.push(result);
+            if (result.status === 'fulfilled') {
+              if (result.value) allFolders.push(result.value);
+            } else {
+              this.options.log(
+                `No se pudo inspeccionar una carpeta de la librería: ${errorDetailForLog(result.reason)}`,
+              );
+            }
           }
         }
       }

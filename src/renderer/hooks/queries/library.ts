@@ -142,14 +142,11 @@ export function useLibrary(dirs: string[]) {
   return useQuery({
     queryKey: ['library', dirs],
     queryFn: async () => {
-      const scannedRows = await Promise.all(
-        dirs.map(async (dir, sourceDirIndex) => {
-          if (!dir) return [];
-          const rows = unwrap(await window.api.invoke('scan-downloads', dir));
-          return rows ? rows.map((row: any) => ({ ...row, sourceDir: dir, sourceDirIndex })) : [];
-        }),
-      );
-      const allRows = scannedRows.flat();
+      const rows = unwrap(await window.api.invoke('scan-downloads', dirs.filter(Boolean)));
+      const allRows = (rows ?? []).map((row: any) => ({
+        ...row,
+        sourceDirIndex: dirs.indexOf(row.sourceDir),
+      }));
       const seen = new Set<string>();
       return allRows.filter((r: any) => {
         if (seen.has(r.path)) return false;
