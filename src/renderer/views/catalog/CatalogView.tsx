@@ -26,6 +26,7 @@ import {
 } from '@/renderer/utils/catalogFilters';
 import { dedupeCatalogPages, getCatalogResultKey } from '@/renderer/utils/catalogResults';
 import { ActiveFilterChips } from '@/renderer/components/catalog/ActiveFilterChips';
+import { VirtualCatalogGrid } from './components/VirtualCatalogGrid';
 
 const CatalogPosterItem = memo(function CatalogPosterItem({ item, priority }: { item: any; priority: boolean }) {
   const { openAnime } = useAppNavigation();
@@ -58,6 +59,7 @@ const CatalogPosterItem = memo(function CatalogPosterItem({ item, priority }: { 
 
 export function CatalogView() {
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const scrollerRef = useRef<HTMLDivElement>(null);
 
   const providerId = useAtomValue(activeProviderAtom);
   const dataProvider = useDeferredProvider();
@@ -89,7 +91,12 @@ export function CatalogView() {
   const pages = data?.pages;
   const items = useMemo(() => dedupeCatalogPages(pages ?? []), [pages]);
   const staggerKeys = useMemo(() => items.map((item: any) => getCatalogResultKey(item)), [items]);
-  const gridRef = useStaggerIn<HTMLDivElement>(staggerKeys, { replay: dataProvider, scopeKey: activeFilters });
+  const isVirtual = items.length > 240;
+  const gridRef = useStaggerIn<HTMLDivElement>(staggerKeys, {
+    replay: dataProvider,
+    scopeKey: activeFilters,
+    disabled: isVirtual,
+  });
   const providerName = providerId === 'jkanime' ? 'JkAnime' : 'AnimeAV1';
   const isCatalogEmpty = !isLoading && !isError && items.length === 0;
   const { data: isOnline } = useConnectivityStatus(isCatalogEmpty);
@@ -493,6 +500,7 @@ export function CatalogView() {
       )}
 
       <div
+        ref={scrollerRef}
         data-view-scroller
         aria-busy={isFetching}
         className="empty-state-scroller flex-1 overflow-y-auto px-4 pb-12 sm:px-8 [scrollbar-gutter:stable]"
@@ -536,6 +544,13 @@ export function CatalogView() {
                   onAction={activeFilterChips.length > 0 || activeFilters.search ? clearFilters : () => refetch()}
                 />
               )
+            ) : isVirtual ? (
+              <VirtualCatalogGrid
+                items={items}
+                scrollRef={scrollerRef}
+                getKey={getCatalogResultKey}
+                renderItem={(item, index) => <CatalogPosterItem item={item} priority={index < 6} />}
+              />
             ) : (
               <PosterGrid ref={gridRef}>
                 {items.map((item: any, idx: number) => (
