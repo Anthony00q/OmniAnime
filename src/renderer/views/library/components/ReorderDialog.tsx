@@ -79,9 +79,9 @@ export function ReorderDialog({
           </p>
         )}
         <div className="rounded-xl border border-border/60 bg-secondary/20 p-3.5">
-          <label className="block text-xs font-bold tracking-widest uppercase text-muted-foreground mb-2.5">
+          <p className="cursor-default text-xs font-bold tracking-widest uppercase text-muted-foreground mb-2.5">
             Número inicial
-          </label>
+          </p>
           <CustomNumberInput
             focusTone="neutral"
             value={reorderStart}
