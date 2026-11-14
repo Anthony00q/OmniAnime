@@ -79,7 +79,7 @@ export function Sidebar({ currentView, setCurrentView }: SidebarProps) {
           role="group"
           aria-label="Proveedor"
           data-provider-switcher
-          className="sidebar-provider-switcher relative rounded-xl border border-border/70 bg-surface p-1"
+          className="sidebar-provider-switcher relative rounded-lg border border-border/70 bg-surface px-[3px]"
         >
           <div
             className="sidebar-provider-grid relative grid gap-1"
@@ -90,7 +90,7 @@ export function Sidebar({ currentView, setCurrentView }: SidebarProps) {
             {activeProviderIndex >= 0 && (
               <span
                 aria-hidden="true"
-                className="sidebar-provider-indicator pointer-events-none absolute left-0 top-0 z-0 rounded-lg bg-surface-elevated"
+                className="sidebar-provider-indicator pointer-events-none absolute left-0 z-0 rounded-[5px] bg-surface-elevated"
               />
             )}
 
@@ -108,7 +108,7 @@ export function Sidebar({ currentView, setCurrentView }: SidebarProps) {
                     aria-label={`Cambiar fuente a ${provider.name}`}
                     aria-pressed={shownProvider === provider.id}
                     className={clsx(
-                      'sidebar-provider-button relative z-10 inline-flex min-h-11 min-w-11 cursor-pointer select-none items-center justify-center gap-1 rounded-lg bg-transparent text-center text-xs font-medium shadow-none',
+                      'sidebar-provider-button relative z-10 inline-flex min-h-11 min-w-11 cursor-pointer select-none items-center justify-center gap-1 rounded-[5px] bg-transparent text-center text-xs font-medium shadow-none',
                       shownProvider === provider.id
                         ? 'text-foreground'
                         : 'text-muted-foreground hover:bg-secondary/40 hover:text-foreground',
