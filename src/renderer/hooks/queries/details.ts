@@ -45,7 +45,6 @@ export function useDubAvailability(
   queryClient: QueryClient,
   provider: string,
   slug: string,
-  episodes: number[],
   visible: number[],
   enabled: boolean,
 ) {
@@ -57,12 +56,11 @@ export function useDubAvailability(
     gcTime: 30 * 60_000,
   });
   const [checking, setChecking] = useState(false);
-  const [checkAll, setCheckAll] = useState(false);
-  const [paused, setPaused] = useState(false);
   const [retryEpisodes, setRetryEpisodes] = useState<number[]>([]);
   const runRef = useRef<{ id: string; cancelled: boolean } | null>(null);
   const busyRef = useRef(false);
   const scopeRef = useRef(0);
+  const targets = useMemo(() => [...new Set([...visible, ...retryEpisodes])], [visible, retryEpisodes]);
 
   const cancel = useCallback(() => {
     const run = runRef.current;
@@ -79,21 +77,17 @@ export function useDubAvailability(
 
   useEffect(() => {
     scopeRef.current++;
-    setCheckAll(false);
-    setPaused(false);
     setRetryEpisodes([]);
     setChecking(false);
     return cancel;
   }, [provider, slug, enabled, cancel]);
 
   useEffect(() => {
-    if (!enabled || provider !== 'animeav1' || paused || busyRef.current) return;
+    if (!enabled || provider !== 'animeav1' || busyRef.current) return;
     const cached = queryClient.getQueryData<AvailabilityCache>(key) || {};
-    const targets = [...new Set(checkAll ? [...visible, ...episodes] : [...visible, ...retryEpisodes])];
     const next = targets.filter((ep) => !cached[ep] || cached[ep].expires <= Date.now()).slice(0, 2);
     if (!next.length) {
       setChecking(false);
-      if (checkAll) setCheckAll(false);
       if (retryEpisodes.length) setRetryEpisodes([]);
       return;
     }
@@ -134,20 +128,7 @@ export function useDubAvailability(
         });
     }, 100);
     return () => clearTimeout(timer);
-  }, [
-    enabled,
-    provider,
-    slug,
-    episodes,
-    visible,
-    entries,
-    checkAll,
-    paused,
-    retryEpisodes,
-    key,
-    queryClient,
-    checking,
-  ]);
+  }, [enabled, provider, slug, targets, entries, retryEpisodes, key, queryClient, checking]);
 
   const states = useMemo(() => {
     const now = Date.now();
@@ -157,17 +138,6 @@ export function useDubAvailability(
         .map(([ep, entry]) => [ep, entry.state]),
     ) as Record<number, EpisodeAvailability>;
   }, [entries]);
-  const checkRemaining = useCallback(() => {
-    setPaused(false);
-    setCheckAll(true);
-  }, []);
-  const stop = useCallback(() => {
-    setPaused(true);
-    setCheckAll(false);
-    setRetryEpisodes([]);
-    cancel();
-    setChecking(false);
-  }, [cancel]);
   const retry = useCallback(() => {
     const cached = queryClient.getQueryData<AvailabilityCache>(key) || {};
     setRetryEpisodes(
@@ -175,11 +145,16 @@ export function useDubAvailability(
         .filter(([, entry]) => entry.state === 'error')
         .map(([ep]) => Number(ep)),
     );
-    setPaused(false);
     queryClient.setQueryData<AvailabilityCache>(key, (old) =>
       Object.fromEntries(Object.entries(old || {}).filter(([, entry]) => entry.state !== 'error')),
     );
   }, [queryClient, key]);
 
-  return { states, checking, checkAll, paused, checkRemaining, stop, retry };
+  const now = Date.now();
+  const checkingTargets =
+    enabled &&
+    provider === 'animeav1' &&
+    (checking || targets.some((ep) => !entries[ep] || entries[ep].expires <= now));
+
+  return { states, checking: checkingTargets, retry };
 }

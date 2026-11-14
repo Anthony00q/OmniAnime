@@ -10,9 +10,6 @@ interface EpisodeAvailabilityControlProps {
   totalEpisodes: number;
   counts: { available: number; pending: number; errors: number; unsupported: number };
   checking: boolean;
-  checkAll: boolean;
-  onStop: () => void;
-  onCheckRemaining: () => void;
   onRetry: () => void;
 }
 
@@ -24,9 +21,6 @@ export function EpisodeAvailabilityControl({
   totalEpisodes,
   counts,
   checking,
-  checkAll,
-  onStop,
-  onCheckRemaining,
   onRetry,
 }: EpisodeAvailabilityControlProps) {
   const [open, setOpen] = useState(false);
@@ -165,29 +159,18 @@ export function EpisodeAvailabilityControl({
             <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
               Solo puedes seleccionar episodios comprobados y compatibles.
             </p>
-            {(checking || checkAll || counts.pending > 0 || counts.errors > 0) && (
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                {(checking || checkAll
-                  ? [{ label: 'Detener', action: onStop }]
-                  : [
-                      ...(counts.pending > 0 ? [{ label: 'Comprobar todos', action: onCheckRemaining }] : []),
-                      ...(counts.errors > 0 ? [{ label: 'Reintentar', action: onRetry }] : []),
-                    ]
-                ).map(({ label, action }) => (
-                  <button
-                    key={label}
-                    type="button"
-                    onClick={() => {
-                      action();
-                      close();
-                      triggerRef.current?.focus({ preventScroll: true });
-                    }}
-                    className="min-h-11 rounded-lg bg-secondary px-3 text-xs font-medium transition-colors hover:bg-surface-elevated"
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
+            {!checking && counts.errors > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  onRetry();
+                  close();
+                  triggerRef.current?.focus({ preventScroll: true });
+                }}
+                className="mt-3 min-h-11 rounded-lg bg-secondary px-3 text-xs font-medium transition-colors hover:bg-surface-elevated"
+              >
+                Reintentar
+              </button>
             )}
           </div>
         </>

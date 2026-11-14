@@ -433,7 +433,7 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
     isActive !== false &&
     dataSlug === slug &&
     activeProviderId === deferredProvider;
-  const dub = useDubAvailability(queryClient, deferredProvider, slug, allEpNums, dubVisible, dubEnabled);
+  const dub = useDubAvailability(queryClient, deferredProvider, slug, dubVisible, dubEnabled);
   const selectableEpNums = useMemo(
     () => (selectedLang === 'DUB' ? allEpNums.filter((num) => dub.states[num] === 'available') : allEpNums),
     [selectedLang, allEpNums, dub.states],
@@ -907,9 +907,6 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
                     totalEpisodes={allEpNums.length}
                     counts={dubCounts}
                     checking={dub.checking}
-                    checkAll={dub.checkAll}
-                    onStop={dub.stop}
-                    onCheckRemaining={dub.checkRemaining}
                     onRetry={dub.retry}
                   />
                   <div className="group relative">
