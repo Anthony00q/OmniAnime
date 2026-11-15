@@ -1,10 +1,45 @@
-import { useQuery, useMutation, useQueryClient, useIsMutating, keepPreviousData } from '@tanstack/react-query';
+import {
+  useQuery,
+  useMutation,
+  useQueryClient,
+  useIsMutating,
+  keepPreviousData,
+  type QueryClient,
+} from '@tanstack/react-query';
 import { unwrap } from './unwrap';
 import { useEffect, useRef, useState } from 'react';
 import type { ThumbnailCommand, ThumbnailPriority, ThumbnailRequest } from '@/types/thumbnails';
 import { reportRendererError } from '@/renderer/utils/rendererErrorReporting';
 import { useSetAtom } from 'jotai';
 import { selectedLibraryFolderAtom } from '@/renderer/store/atoms';
+
+export function publishRenamedLibraryFolder(
+  queryClient: QueryClient,
+  oldPath: string,
+  data: { newPath: string; name: string; posterLocal: string | null; bannerLocal: string | null },
+) {
+  queryClient.setQueriesData({ queryKey: ['library'] }, (rows: any) =>
+    Array.isArray(rows)
+      ? rows.map((row: any) =>
+          row.path === oldPath
+            ? {
+                ...row,
+                path: data.newPath,
+                name: data.name,
+                posterLocal: data.posterLocal,
+                bannerLocal: data.bannerLocal,
+              }
+            : row,
+        )
+      : rows,
+  );
+  const episodes = queryClient.getQueryData<any[]>(['episodes', oldPath]);
+  if (episodes)
+    queryClient.setQueryData(
+      ['episodes', data.newPath],
+      episodes.map((episode) => ({ ...episode, path: data.newPath + episode.path.slice(oldPath.length) })),
+    );
+}
 
 export function requestVideoThumbnail(
   videoPath: string,
@@ -259,27 +294,7 @@ export function useLibraryActions() {
           { toast: false },
         ),
       onSuccess: (data, params) => {
-        queryClient.setQueriesData({ queryKey: ['library'] }, (rows: any) =>
-          Array.isArray(rows)
-            ? rows.map((row: any) =>
-                row.path === params.oldPath
-                  ? {
-                      ...row,
-                      path: data.newPath,
-                      name: data.name,
-                      posterLocal: data.posterLocal,
-                      bannerLocal: data.bannerLocal,
-                    }
-                  : row,
-              )
-            : rows,
-        );
-        const episodes = queryClient.getQueryData<any[]>(['episodes', params.oldPath]);
-        if (episodes)
-          queryClient.setQueryData(
-            ['episodes', data.newPath],
-            episodes.map((episode) => ({ ...episode, path: data.newPath + episode.path.slice(params.oldPath.length) })),
-          );
+        publishRenamedLibraryFolder(queryClient, params.oldPath, data);
         setSelectedFolder((current) => (current === params.oldPath ? data.newPath : current));
       },
       onSettled: refresh,

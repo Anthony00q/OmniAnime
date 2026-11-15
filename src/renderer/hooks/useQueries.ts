@@ -9,6 +9,7 @@ export * from './queries/jkThumbs';
 export * from './queries/queue';
 export * from './queries/history';
 export * from './queries/library';
+export * from './queries/libraryRename';
 export * from './queries/settings';
 export * from './queries/storage';
 export * from './queries/logs';

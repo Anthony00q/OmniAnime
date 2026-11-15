@@ -4,6 +4,7 @@ import {
   listFolderNameCandidates,
   nextAvailableFolderName,
   withFolderLanguage,
+  isValidFolderName,
   type AniListFolderTitles,
   type FolderCandidateKey,
   type FolderNameSource,
@@ -56,10 +57,17 @@ export function computeFolderRenamePlan(
   entries: FolderRenameEntry[],
   source: FolderNameSource,
   anilistTitles: Record<string, AniListFolderTitles | null | undefined>,
+  overrides: Record<string, string> = {},
 ): FolderRenamePlanItem[] {
+  const parent = (folderPath: string) =>
+    folderPath
+      .replace(/\\/g, '/')
+      .replace(/\/[^/]+\/?$/, '')
+      .toLowerCase();
+  const keyFor = (folderPath: string, name: string) => `${parent(folderPath)}/${name.toLowerCase()}`;
   const occupied = new Map<string, string>();
   for (const entry of entries) {
-    const key = entry.folderName.toLowerCase();
+    const key = keyFor(entry.folderPath, entry.folderName);
     if (!occupied.has(key)) occupied.set(key, entry.folderPath);
   }
 
@@ -76,19 +84,27 @@ export function computeFolderRenamePlan(
       },
       source,
     );
-    const base = withFolderLanguage(titleBase, meta.lang);
+    const requested = overrides[entry.folderPath] ?? titleBase;
+    const base = withFolderLanguage(requested, meta.lang);
     let newName = base;
     let status: FolderRenamePlanItem['status'] = base === entry.folderName ? 'unchanged' : 'will_rename';
     try {
-      newName = nextAvailableFolderName(base, extractFolderNameYear(meta.year ?? null), (name) => {
-        const owner = occupied.get(name.toLowerCase());
-        return Boolean(owner) && owner !== entry.folderPath;
-      });
+      if (!isValidFolderName(base)) throw new Error('El nombre no es válido en Windows.');
+      newName = withFolderLanguage(
+        nextAvailableFolderName(
+          meta.lang === 'DUB' ? base.replace(/\s+\[DUB\]$/i, '') : base,
+          extractFolderNameYear(meta.year ?? null),
+          (name) => {
+            const owner = occupied.get(keyFor(entry.folderPath, withFolderLanguage(name, meta.lang)));
+            return Boolean(owner) && owner !== entry.folderPath;
+          },
+        ),
+        meta.lang,
+      );
     } catch {
       status = 'conflict';
     }
-    occupied.delete(entry.folderName.toLowerCase());
-    occupied.set(newName.toLowerCase(), entry.folderPath);
+    if (status !== 'conflict') occupied.set(keyFor(entry.folderPath, newName), entry.folderPath);
     if (status !== 'conflict' && newName === entry.folderName) status = 'unchanged';
     plan.push({ folderPath: entry.folderPath, oldName: entry.folderName, newName, status });
   }

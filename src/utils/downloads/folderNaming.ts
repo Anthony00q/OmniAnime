@@ -137,12 +137,19 @@ export function sanitizeFolderName(raw: unknown): string {
 }
 
 export function buildFolderName(candidates: FolderNameCandidates, source: FolderNameSource): string {
+  return resolveFolderName(candidates, source).name;
+}
+
+export function resolveFolderName(
+  candidates: FolderNameCandidates,
+  source: FolderNameSource,
+): { name: string; key: FolderCandidateKey | null } {
   const chain = FALLBACK_CHAINS[source] || FALLBACK_CHAINS[DEFAULT_FOLDER_NAME_SOURCE];
   for (const key of chain) {
     const name = sanitizeFolderName(candidateRaw(candidates, key));
-    if (name !== FALLBACK_FOLDER_NAME) return name;
+    if (name !== FALLBACK_FOLDER_NAME) return { name, key };
   }
-  return FALLBACK_FOLDER_NAME;
+  return { name: FALLBACK_FOLDER_NAME, key: null };
 }
 
 export function listFolderNameCandidates(
