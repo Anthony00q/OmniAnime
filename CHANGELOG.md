@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.3.0] - 2026-11-14
+
+### Catálogo
+
+- Las colecciones grandes se presentan por tramos al desplazarse, conservando la navegación con teclado y la adaptación al tamaño de la ventana.
+- La disponibilidad DUB se comprueba automáticamente para los episodios mostrados, con un indicador continuo y la opción de reintentar las comprobaciones fallidas.
+- Los episodios sin DUB, sin servidor compatible o con errores se distinguen mediante iconos, con explicaciones para los problemas de compatibilidad y comprobación.
+
+### Librería
+
+- El escaneo conserva los resultados de las demás carpetas y ubicaciones cuando alguna no se puede leer.
+- El **Escáner** mantiene su distribución durante toda la carga y muestra las carpetas sin saltos entre los indicadores y el contenido.
+- El renombrado masivo de archivos y carpetas incorpora una revisión con búsqueda, filtros y selección de las carpetas que se incluirán.
+- Los resultados muestran los cambios aplicados y las incidencias por carpeta, y distinguen las operaciones no iniciadas de aquellas cuyo resultado no pudo confirmarse.
+
+### Interfaz
+
+- El selector de proveedor ajusta sus márgenes y el indicador de selección para integrarse mejor en la barra lateral.
+- El cursor de escritura adopta el color del texto y el rótulo de número inicial deja de mostrar un cursor de selección.
+
 ## [1.2.9] - 2026-11-05
 
 ### Interfaz
