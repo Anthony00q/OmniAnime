@@ -22,6 +22,8 @@ import { ErrorState } from '@/renderer/components/ui/ErrorState';
 import { EmptyState } from '@/renderer/components/ui/EmptyState';
 import { AppTooltip } from '@/renderer/components/ui/AppTooltip';
 
+const homeStaggerMemory = { snapshot: null };
+
 function getHomeStaggerKey(item: any): string | null {
   return typeof item.slug === 'string' && item.slug.trim() ? `${item.slug}:${String(item.episode ?? '')}` : null;
 }
@@ -91,7 +93,10 @@ export function HomeView({ isActive }: { isActive?: boolean }) {
   const visibleItems = useMemo(() => filterHomeBySection(items, activeSection), [items, activeSection]);
   const staggerKeys = useMemo(() => visibleItems.map(getHomeStaggerKey), [visibleItems]);
 
-  const gridRef = useStaggerIn<HTMLDivElement>(staggerKeys, { replay: `${dataProvider}:${activeSection}` });
+  const gridRef = useStaggerIn<HTMLDivElement>(staggerKeys, {
+    replay: `${dataProvider}:${activeSection}`,
+    memory: homeStaggerMemory,
+  });
 
   const isProviderChanging = previousProviderRef.current !== providerId;
 
