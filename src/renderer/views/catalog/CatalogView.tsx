@@ -28,6 +28,8 @@ import { dedupeCatalogPages, getCatalogResultKey } from '@/renderer/utils/catalo
 import { ActiveFilterChips } from '@/renderer/components/catalog/ActiveFilterChips';
 import { VirtualCatalogGrid } from './components/VirtualCatalogGrid';
 
+const catalogStaggerMemory = { snapshot: null };
+
 const CatalogPosterItem = memo(function CatalogPosterItem({ item, priority }: { item: any; priority: boolean }) {
   const { openAnime } = useAppNavigation();
   const queryClient = useQueryClient();
@@ -96,6 +98,7 @@ export function CatalogView() {
     replay: dataProvider,
     scopeKey: activeFilters,
     disabled: isVirtual,
+    memory: catalogStaggerMemory,
   });
   const providerName = providerId === 'jkanime' ? 'JkAnime' : 'AnimeAV1';
   const isCatalogEmpty = !isLoading && !isError && items.length === 0;

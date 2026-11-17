@@ -28,6 +28,8 @@ import { ScheduleAgendaRow } from '@/renderer/views/schedule/components/Schedule
 import { WeekRail } from '@/renderer/views/schedule/components/WeekRail';
 import { AppTooltip } from '@/renderer/components/ui/AppTooltip';
 
+const scheduleStaggerMemory = { snapshot: null };
+
 // Marca de la hora actual entre franjas: estado del día, no decoración.
 function ScheduleNowMarker({ nowMs }: { nowMs: number }) {
   const now = new Date(nowMs);
@@ -86,7 +88,10 @@ export function ScheduleView({ isActive }: { isActive?: boolean }) {
   );
   const groups = useMemo(() => groupDayEntriesByTime(dayEntries), [dayEntries]);
   const staggerKeys = useMemo(() => groups.map((group) => group.time ?? 'sin-hora'), [groups]);
-  const scheduleRef = useStaggerIn<HTMLUListElement>(staggerKeys, { replay: `${dataProvider}:${selectedDay}` });
+  const scheduleRef = useStaggerIn<HTMLUListElement>(staggerKeys, {
+    replay: `${dataProvider}:${selectedDay}`,
+    memory: scheduleStaggerMemory,
+  });
 
   // "Sigue" y la marca de ahora solo informan sobre el día de hoy.
   const isTodaySelected = selectedDay === todayDay;

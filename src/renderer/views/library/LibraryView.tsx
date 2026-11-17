@@ -34,6 +34,7 @@ interface LibraryViewProps {
 }
 
 const LIBRARY_SORT_STORAGE_KEY = 'omnianime:library-sort';
+const libraryStaggerMemory = { snapshot: null };
 
 const LibraryPosterItem = memo(
   function LibraryPosterItem({
@@ -155,7 +156,10 @@ export function LibraryView({ onSelectAnime, activeProvider, isActive }: Library
     [dirs, selectedDirFilter, trimmedQuery, sortKey],
   );
 
-  const gridRef = useStaggerIn<HTMLDivElement>(staggerKeys, { scopeKey: staggerScopeKey });
+  const gridRef = useStaggerIn<HTMLDivElement>(staggerKeys, {
+    scopeKey: staggerScopeKey,
+    memory: libraryStaggerMemory,
+  });
 
   useEffect(() => {
     if (selectedDirFilter !== 'all' && !dirs.includes(selectedDirFilter)) {
