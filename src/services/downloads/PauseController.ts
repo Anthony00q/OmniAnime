@@ -1,6 +1,7 @@
 import type { HistoryWriteRecord } from '../../types/history';
 import { isEpisodeNumber, parseEpisodeNumber } from '../../utils/episodeNumber';
-import type { QueueItem } from '../../types/queue';
+import type { CancellationResult, QueueItem } from '../../types/queue';
+import * as path from 'path';
 import type { EpisodeDownloadAttemptService } from './EpisodeDownloadAttemptService';
 import { noopScopedLogger, type ScopedLogger } from '../logging/AppLogger';
 import type { QueueStore } from '../persistence/QueueStore';
@@ -74,6 +75,10 @@ export interface PauseControllerDeps {
   updateTray: (text?: string) => void;
   abortDownloadService: () => void;
   logger?: ScopedLogger;
+  waitForItemIdle?: (id: string) => Promise<void>;
+  reserveCancellation?: (item: QueueItem) => () => void;
+  canCleanCancelledFolder?: (item: QueueItem) => boolean;
+  cleanCancelledFolder?: (item: QueueItem) => Promise<CancellationResult['cleanup']>;
 }
 
 // Pausa, reanudación y cancelación (total y por EP) de la cola: estado, aparcamiento de workers, abort y % congelado.
@@ -88,6 +93,22 @@ export class PauseController {
   private readonly episodeGates = new Map<string, EpisodeGate>();
   private readonly parallelContexts = new Map<string, ParallelRunContext>();
   private activeQueueItemId: string | null = null;
+  private readonly cancellations = new Map<string, { folder: string; task: Promise<CancellationResult> }>();
+
+  isFolderClosing(folderPath: string, ignoredId?: string): boolean {
+    const key = path.resolve(folderPath).toLowerCase();
+    return [...this.cancellations].some(
+      ([id, entry]) =>
+        id !== ignoredId &&
+        (entry.folder === key ||
+          entry.folder.startsWith(`${key}${path.sep}`) ||
+          key.startsWith(`${entry.folder}${path.sep}`)),
+    );
+  }
+
+  waitForCancellation(id: string): Promise<CancellationResult | null> {
+    return this.cancellations.get(id)?.task ?? Promise.resolve(null);
+  }
 
   constructor(private readonly deps: PauseControllerDeps) {}
 
@@ -372,6 +393,27 @@ export class PauseController {
       return item.status === 'cancelled';
     }
 
+    const task = Promise.resolve().then(async (): Promise<CancellationResult> => {
+      let release: (() => void) | undefined;
+      try {
+        await this.deps.waitForItemIdle?.(id);
+        release = this.deps.reserveCancellation?.(item);
+        if (this.deps.canCleanCancelledFolder?.(item) === false) return { cleanup: 'preserved' };
+        for (const ep of item.episodes || []) {
+          if (item.completedEps.includes(ep)) continue;
+          const dest = this.deps.buildEpisodePath(item, ep);
+          await this.deps.attemptService.cleanCancelledEpisode(dest);
+        }
+        return { cleanup: (await this.deps.cleanCancelledFolder?.(item)) ?? 'preserved' };
+      } catch {
+        return { cleanup: 'incomplete' };
+      } finally {
+        release?.();
+        this.cancellations.delete(id);
+      }
+    });
+    this.cancellations.set(id, { folder: path.resolve(item.targetPath).toLowerCase(), task });
+
     this.cancelledIds.add(id);
     this.pausedItemIds.delete(id);
     this.pausedEpisodesByItem.delete(id);
@@ -409,24 +451,6 @@ export class PauseController {
       }
       this.deps.abortDownloadService();
     }
-    // Purga best-effort de parciales no finalizados (preserva vídeos completos).
-    void (async () => {
-      try {
-        const done = new Set<number>([...(item.completedEps || [])]);
-        for (const ep of item.episodes || []) {
-          if (done.has(ep)) continue;
-          try {
-            const dest = this.deps.buildEpisodePath(item, ep);
-            await this.deps.attemptService.cleanEpisodeTemps(dest);
-            await this.deps.attemptService.cleanEpisodeCacheForEpisode(dest);
-          } catch {
-            /* un EP no bloquea al resto */
-          }
-        }
-      } catch {
-        /* purga best-effort */
-      }
-    })();
     return true;
   }
 
@@ -510,8 +534,7 @@ export class PauseController {
     // Limpieza solo de este EP (preserva parciales de otros)
     try {
       const dest = this.deps.buildEpisodePath(item, episode);
-      await this.deps.attemptService.cleanEpisodeTemps(dest);
-      await this.deps.attemptService.cleanEpisodeCacheForEpisode(dest);
+      await this.deps.attemptService.cleanCancelledEpisode(dest);
     } catch {
       /* limpieza best-effort */
     }

@@ -44,6 +44,7 @@ const IPC_TIMEOUTS: Record<string, number | null> = {
   'relink-folder': 120_000,
   'rename-folder': 120_000,
   'delete-folder': 120_000,
+  'cancel-download': 120_000,
   'delete-video': 120_000,
   'get-video-thumbnail': 120_000,
   'export-diagnostics': 120_000,

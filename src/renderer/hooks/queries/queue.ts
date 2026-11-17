@@ -1,9 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { isIpcFailError, unwrap } from './unwrap';
 import { toast } from 'sonner';
 import { NOTIFICATION_DURATION } from '@/utils/notificationPolicy';
 import { runToastTask } from '@/renderer/utils/toastTask';
+import type { CancellationResult } from '@/types/queue';
 
 // Sin progreso en vuelo se limpia; en flujo activo se conserva hasta el próximo delta.
 // Compartida entre eventos queue-update y refetches (anti-parpadeo al restaurar).
@@ -139,6 +140,7 @@ export function useAddToQueue() {
 
 export function useDownloadActions() {
   const queryClient = useQueryClient();
+  const cancelling = useRef(new Set<string>());
 
   const invalidateQueue = () => queryClient.invalidateQueries({ queryKey: ['queue'] });
 
@@ -147,10 +149,39 @@ export function useDownloadActions() {
   // duplicaba get-queue (push + refetch con el mismo dato).
   return {
     cancelDownload: useMutation({
-      mutationFn: async (id: string) => unwrap(await window.api.invoke('cancel-download', id)),
+      mutationFn: async (id: string) => {
+        if (cancelling.current.has(id)) return null;
+        cancelling.current.add(id);
+        try {
+          return unwrap<CancellationResult | null>(await window.api.invoke('cancel-download', id));
+        } finally {
+          cancelling.current.delete(id);
+        }
+      },
+      onSuccess: async (result) => {
+        if (!result) return;
+        await queryClient.invalidateQueries({ queryKey: ['library'] });
+        if (result.cleanup === 'incomplete') {
+          toast.warning('Descarga cancelada', {
+            description: 'No se pudo completar la limpieza. Comprueba la carpeta de descarga.',
+          });
+        } else {
+          toast.success('Descarga cancelada', {
+            description:
+              result.cleanup === 'removed'
+                ? 'Se eliminaron los temporales y la carpeta vacía.'
+                : result.cleanup === 'missing'
+                  ? 'La carpeta de descarga ya no existe.'
+                  : 'La carpeta se conservó porque contiene datos o sigue en uso.',
+          });
+        }
+      },
       onError: (error) => {
         if (!isIpcFailError(error))
-          toast.error('No se pudo cancelar la descarga', { duration: NOTIFICATION_DURATION.error });
+          toast.error('No se pudo confirmar la cancelación', {
+            duration: NOTIFICATION_DURATION.error,
+            description: 'Revisa el estado de la descarga y su carpeta antes de intentarlo de nuevo.',
+          });
       },
     }),
     pauseDownload: useMutation({

@@ -26,6 +26,8 @@ import {
 } from '@/renderer/utils/libraryFilter';
 import { LibraryFolderMenu } from './components/LibraryFolderMenu';
 import { LibraryFolderDetailsDialog } from './components/LibraryFolderDetailsDialog';
+import { DeleteLibraryFolderDialog } from './components/DeleteLibraryFolderDialog';
+import type { LibraryFolder } from '@/services/library/LibraryFileService';
 
 interface LibraryViewProps {
   onSelectAnime?: (slug: string) => void;
@@ -110,6 +112,7 @@ export function LibraryView({ onSelectAnime, activeProvider, isActive }: Library
   const { setView, navigateToCatalog } = useAppNavigation();
   const [folderMenu, setFolderMenu] = useState<{ x: number; y: number; item: any } | null>(null);
   const [detailsItem, setDetailsItem] = useState<any>(null);
+  const [deleteItem, setDeleteItem] = useState<LibraryFolder | null>(null);
 
   const handleFolderContextMenu = useCallback((event: ReactMouseEvent, item: any) => {
     event.preventDefault();
@@ -181,6 +184,7 @@ export function LibraryView({ onSelectAnime, activeProvider, isActive }: Library
     if (isActive === false) {
       setFolderMenu(null);
       setDetailsItem(null);
+      setDeleteItem(null);
     }
   }, [isActive]);
 
@@ -411,10 +415,18 @@ export function LibraryView({ onSelectAnime, activeProvider, isActive }: Library
           x={folderMenu.x}
           y={folderMenu.y}
           onDetails={() => setDetailsItem(folderMenu.item)}
+          onDelete={() => setDeleteItem({ ...folderMenu.item })}
           onClose={closeFolderMenu}
         />
       )}
       <LibraryFolderDetailsDialog item={detailsItem} onOpenChange={(open) => !open && setDetailsItem(null)} />
+      {deleteItem && (
+        <DeleteLibraryFolderDialog
+          key={deleteItem.path}
+          item={deleteItem}
+          onClose={() => setDeleteItem((current) => (current === deleteItem ? null : current))}
+        />
+      )}
     </div>
   );
 }

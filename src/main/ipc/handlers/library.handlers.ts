@@ -97,7 +97,12 @@ export function registerLibraryHandlers({
   handleIpc('delete-folder', async (_, folderPath: string) => {
     return mutate([folderPath], () => {
       const deleted = libraryFileService.deleteFolder(folderPath);
-      return deleted ? ok(null) : fail('DELETE_FOLDER_FAILED', 'No se pudo eliminar la carpeta');
+      return deleted
+        ? ok(null)
+        : fail(
+            'DELETE_FOLDER_FAILED',
+            'No se pudo eliminar toda la carpeta. Comprueba su contenido y vuelve a intentarlo.',
+          );
     });
   });
   handleIpc('relink-folder', async (_, folderPath: string, targetSlug: string, providerId?: string | null) =>

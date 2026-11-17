@@ -1,5 +1,5 @@
 import type { HistoryWriteRecord } from '../../types/history';
-import type { ProviderDownloadLink, QueueItem } from '../../types/queue';
+import type { CancellationResult, ProviderDownloadLink, QueueItem } from '../../types/queue';
 import { EpisodeDownloadAttemptService } from './EpisodeDownloadAttemptService';
 import type { DownloadCoordinator } from './DownloadCoordinator';
 import { SlotScheduler } from './SlotScheduler';
@@ -8,6 +8,7 @@ import { RetryPolicy } from './RetryPolicy';
 import type { EpisodeDownloadSummary, ServerAttemptOutcome } from '../persistence/ServerStatsStore';
 import { noopScopedLogger, type ScopedLogger } from '../logging/AppLogger';
 import { QueueStore } from '../persistence/QueueStore';
+import * as path from 'path';
 
 export type { EpisodeGateReason, PausedProgressSink } from './PauseController';
 
@@ -57,6 +58,9 @@ export interface DownloadQueueProcessorOptions {
   // Coordinador de fallback por episodio (opcional): por defecto se construye
   // desde el resto de opciones, así los constructores existentes no cambian.
   coordinator?: DownloadCoordinator;
+  reserveCancellation?: (item: QueueItem) => () => void;
+  canCleanCancelledFolder?: (item: QueueItem) => boolean;
+  cleanCancelledFolder?: (item: QueueItem) => Promise<CancellationResult['cleanup']>;
 }
 
 export class DownloadQueueProcessor {
@@ -64,6 +68,7 @@ export class DownloadQueueProcessor {
   private readonly slots: SlotScheduler;
   private readonly pauseController: PauseController;
   private readonly retry: RetryPolicy;
+  private readonly runningItems = new Map<string, Promise<void>>();
 
   constructor(private readonly options: DownloadQueueProcessorOptions) {
     this.pauseController = new PauseController({
@@ -77,6 +82,11 @@ export class DownloadQueueProcessor {
       updateTray: (text) => options.updateTray(text),
       abortDownloadService: () => options.abortDownloadService(),
       logger: options.logger,
+      waitForItemIdle: (id) => this.runningItems.get(id) ?? Promise.resolve(),
+      reserveCancellation: options.reserveCancellation,
+      canCleanCancelledFolder:
+        options.canCleanCancelledFolder ?? ((item) => !this.isFolderInUse(item.targetPath, item.id)),
+      cleanCancelledFolder: options.cleanCancelledFolder,
     });
     this.retry = new RetryPolicy({
       queueStore: options.queueStore,
@@ -124,6 +134,28 @@ export class DownloadQueueProcessor {
 
   cancel(id: string): boolean {
     return this.pauseController.cancel(id);
+  }
+
+  isFolderClosing(folderPath: string): boolean {
+    return this.pauseController.isFolderClosing(folderPath);
+  }
+
+  isFolderInUse(folderPath: string, ignoredId?: string): boolean {
+    if (this.pauseController.isFolderClosing(folderPath, ignoredId)) return true;
+    const target = path.resolve(folderPath).toLowerCase();
+    return this.options.queueStore.items.some((item) => {
+      if (item.id === ignoredId || !['pending', 'downloading', 'paused'].includes(item.status)) return false;
+      const candidate = path.resolve(item.targetPath).toLowerCase();
+      return (
+        candidate === target ||
+        candidate.startsWith(`${target}${path.sep}`) ||
+        target.startsWith(`${candidate}${path.sep}`)
+      );
+    });
+  }
+
+  waitForCancellation(id: string): Promise<CancellationResult | null> {
+    return this.pauseController.waitForCancellation(id);
   }
 
   pause(id: string): boolean {
@@ -212,11 +244,23 @@ export class DownloadQueueProcessor {
         );
         this.options.sendStatus(`Iniciando "${item.animeTitle}"`, episodesToProcess.length > 1);
 
-        const maxParallel = this.getMaxParallelEpisodes();
-        if (maxParallel <= 1) {
-          await this.slots.runSequential(item, episodesToProcess, runEpoch);
-        } else {
-          await this.slots.runParallel(item, episodesToProcess, maxParallel);
+        let finishRun!: () => void;
+        this.runningItems.set(
+          item.id,
+          new Promise<void>((resolve) => {
+            finishRun = resolve;
+          }),
+        );
+        try {
+          const maxParallel = this.getMaxParallelEpisodes();
+          if (maxParallel <= 1) {
+            await this.slots.runSequential(item, episodesToProcess, runEpoch);
+          } else {
+            await this.slots.runParallel(item, episodesToProcess, maxParallel);
+          }
+        } finally {
+          this.runningItems.delete(item.id);
+          finishRun();
         }
 
         if ((item.status as string) === 'paused' || this.pauseController.isItemPaused(item.id)) {

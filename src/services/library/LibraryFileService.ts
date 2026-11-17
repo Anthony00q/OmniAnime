@@ -121,21 +121,7 @@ export class LibraryFileService {
                 return null;
               }
 
-              const normalizedFolderPath = path.resolve(folderPath).toLowerCase();
-              const queueOwnsFolder = this.options.queueOwnsFolder(normalizedFolderPath);
-
-              if (episodeCount === 0) {
-                if (!queueOwnsFolder) {
-                  try {
-                    await fs.promises.rm(folderPath, { recursive: true, force: true });
-                  } catch (error) {
-                    this.options.log(
-                      `No se pudo eliminar la carpeta vacia ${path.basename(folderPath)}: ${errorDetailForLog(error)}`,
-                    );
-                  }
-                }
-                return null;
-              }
+              if (episodeCount === 0) return null;
 
               // Hot path: use async asset lookups to avoid sync Main block
               const assetServiceAny = this.options.assetService as unknown as {
@@ -173,25 +159,6 @@ export class LibraryFileService {
                 ) {
                   void this.options.assetService.restoreMissingAssets(folderPath, meta);
                 }
-              }
-
-              try {
-                const cacheDir = path.join(folderPath, '.cache');
-                // async existence check — void sync existsSync
-                let cacheExists = false;
-                try {
-                  const st = await fsp.stat(cacheDir);
-                  cacheExists = st.isDirectory();
-                } catch {
-                  cacheExists = false;
-                }
-                if (cacheExists && !queueOwnsFolder) {
-                  await fsp.rm(cacheDir, { recursive: true, force: true });
-                }
-              } catch (error) {
-                this.options.log(
-                  `No se pudo limpiar la cache de ${path.basename(folderPath)}: ${errorDetailForLog(error)}`,
-                );
               }
 
               const metaAlts = Array.isArray((meta as any)?.alternativeTitles)
@@ -345,24 +312,37 @@ export class LibraryFileService {
       if (!isPathSafeForDestructiveOperation(folderPath, this.options.getAllowedBaseDirs(), false)) return false;
       if (!fs.existsSync(folderPath)) return false;
       if (this.options.queueOwnsFolder(path.resolve(folderPath).toLowerCase())) return false;
-      const assetDir = path.join(
-        this.options.assetService.getLibraryAssetRootPath(),
-        this.options.assetService.getFolderAssetKey(folderPath),
-      );
+      const videos = fs
+        .readdirSync(folderPath, { withFileTypes: true })
+        .filter((entry) => entry.isFile() && VIDEO_EXTENSIONS.has(path.extname(entry.name).toLowerCase()));
       fs.rmSync(folderPath, { recursive: true, force: true });
-      try {
-        if (fs.existsSync(assetDir)) fs.rmSync(assetDir, { recursive: true, force: true });
-      } catch (error) {
-        this.options.log(
-          `No se pudieron eliminar los assets de ${path.basename(folderPath)}: ${errorDetailForLog(error)}`,
-        );
+      for (const video of videos) {
+        const hash = crypto.createHash('md5').update(path.join(folderPath, video.name)).digest('hex');
+        try {
+          fs.rmSync(path.join(this.options.userDataDir, THUMBNAIL_DIR_NAME, `${hash}.jpg`), { force: true });
+        } catch {}
       }
-      this.options.assetService.deleteFolderLibraryMeta(folderPath);
+      this.forgetFolder(folderPath);
       return true;
     } catch (error) {
-      this.options.log(error);
+      this.options.log(`No se pudo eliminar la carpeta: ${errorDetailForLog(error)}`);
       return false;
     }
+  }
+
+  forgetFolder(folderPath: string): void {
+    const assetDir = path.join(
+      this.options.assetService.getLibraryAssetRootPath(),
+      this.options.assetService.getFolderAssetKey(folderPath),
+    );
+    try {
+      if (fs.existsSync(assetDir)) fs.rmSync(assetDir, { recursive: true, force: true });
+    } catch (error) {
+      this.options.log(
+        `No se pudieron eliminar los assets de ${path.basename(folderPath)}: ${errorDetailForLog(error)}`,
+      );
+    }
+    this.options.assetService.deleteFolderLibraryMeta(folderPath);
   }
 
   async relinkFolder(folderPath: string, targetSlug: string, providerId?: string | null): Promise<boolean> {
@@ -454,12 +434,12 @@ export class LibraryFileService {
       try {
         const parentDir = path.dirname(videoPath);
         if (fs.existsSync(parentDir)) {
-          const remaining = fs
-            .readdirSync(parentDir, { withFileTypes: true })
-            .filter((entry) => entry.isFile())
-            .some((entry) => VIDEO_EXTENSIONS.has(path.extname(entry.name).toLowerCase()));
-
-          if (!remaining) fs.rmSync(parentDir, { recursive: true, force: true });
+          if (
+            fs.readdirSync(parentDir).length === 0 &&
+            isPathSafeForDestructiveOperation(parentDir, this.options.getAllowedBaseDirs(), false)
+          ) {
+            fs.rmdirSync(parentDir);
+          }
         }
       } catch (error) {
         this.options.log(
@@ -482,7 +462,7 @@ export class LibraryFileService {
 
       return true;
     } catch (error) {
-      this.options.log(error);
+      this.options.log(`No se pudo eliminar el vídeo: ${errorDetailForLog(error)}`);
       return false;
     }
   }

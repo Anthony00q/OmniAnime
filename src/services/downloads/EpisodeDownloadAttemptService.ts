@@ -2,6 +2,7 @@
 import { isEpisodeNumber } from '../../utils/episodeNumber';
 import * as fsp from 'fs/promises';
 import * as path from 'path';
+import { isPathSafeForDestructiveOperation } from '../../utils/security/pathSecurity';
 import type { DownloadService, FfmpegRuntimeTools } from './DownloadService';
 import { megaResumeFiles } from './DownloadService';
 import type { ProviderDownloadLink, QueueItem } from '../../types/queue';
@@ -92,6 +93,7 @@ export interface EpisodeDownloadAttemptOptions {
   log: (message: string, type?: 'info' | 'success' | 'error' | 'warn') => void;
   logError: (error: unknown) => void;
   getDownloadSettings?: () => DownloadSettings | undefined;
+  getAllowedBaseDirs?: () => string[];
   resolveMp4UploadDirect?: Mp4UploadResolveFn;
   // Fichero de sesión con contexto (provider/queue/ep/server), sin URLs ni rutas.
   fileLog?: ScopedLogger;
@@ -134,6 +136,51 @@ export class EpisodeDownloadAttemptService {
   private readonly attemptControllers: AdaptiveConcurrencyController[] = [];
   private readonly engines: DownloadEngine[];
   private readonly fileTasks = new Map<string, Promise<void>>();
+  private readonly cancellationArtifacts = new Map<string, Map<string, string>>();
+
+  private fileRevision(stat: fs.Stats): string {
+    return [stat.dev, stat.ino, stat.size, stat.mtimeMs, stat.ctimeMs].join(':');
+  }
+
+  private isHlsArtifact(name: string, prefix: string): boolean {
+    if (!name.startsWith(prefix)) return false;
+    const suffix = name.slice(prefix.length);
+    return /^(?:\d{5,}|init)\.part(?:\.downloading)?$/.test(suffix) || suffix === 'mux.mp4';
+  }
+
+  private async snapshotCancellationArtifacts(dest: string): Promise<Map<string, string>> {
+    const folder = path.dirname(dest);
+    const cacheDir = path.join(folder, '.cache');
+    const art = this.episodeCacheArtifacts(cacheDir, path.basename(dest));
+    const candidates = [dest + '.part', dest + '.ytdl'];
+    if (isPathSafeForDestructiveOperation(cacheDir, [folder], false)) {
+      try {
+        const exact = new Set(
+          [art.directPartial, art.legacyPart, art.directSidecar, art.megaPartial, art.megaSidecar, art.hlsSidecar].map(
+            (file) => path.basename(file),
+          ),
+        );
+        for (const name of await fsp.readdir(cacheDir)) {
+          if (exact.has(name) || this.isHlsArtifact(name, art.hlsPrefix)) {
+            candidates.push(path.join(cacheDir, name));
+          }
+        }
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+      }
+    }
+    const snapshot = new Map<string, string>();
+    for (const candidate of candidates) {
+      if (!isPathSafeForDestructiveOperation(candidate, [folder], false)) continue;
+      try {
+        const stat = await fsp.lstat(candidate);
+        if (stat.isFile() && !stat.isSymbolicLink()) snapshot.set(candidate, this.fileRevision(stat));
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+      }
+    }
+    return snapshot;
+  }
 
   constructor(private readonly options: EpisodeDownloadAttemptOptions) {
     this.engines =
@@ -390,7 +437,7 @@ export class EpisodeDownloadAttemptService {
       const names = await fsp.readdir(cacheDir);
       await Promise.all(
         names
-          .filter((name) => name.startsWith(hlsPrefix))
+          .filter((name) => this.isHlsArtifact(name, hlsPrefix))
           .map((name) => fsp.rm(path.join(cacheDir, name), { force: true }).catch(() => undefined)),
       );
     } catch {
@@ -537,55 +584,72 @@ export class EpisodeDownloadAttemptService {
 
     try {
       await this.withEpisodeFiles(dest, async () => {
-        // Un intento = un engine. Sin dispatch por servidor: el registry resuelve
-        // el engine por la fuente y el engine delega en la implementación existente.
-        if (!attemptAbort.signal.aborted && engine) {
-          if (!dl.allowContinue) await this.purgeResumeForServer(link.server, dest);
-          if (attemptAbort.signal.aborted) return;
-          callbacks.updateTray(`Descargando ${item.animeTitle} - EP ${episode}...`);
-          const progressState = { lastPct: -1, speedWindow: undefined as SpeedWindow | undefined };
-          const engineResult = await engine.download(link, {
-            item,
-            episode,
-            dest,
-            signal: attemptAbort.signal,
-            settings: dl,
-            concurrency,
-            onProgress: (engineProgress) => {
-              markStarted();
-              // Medición cruda, antes del gate de % y de cualquier throttle.
-              telemetry.recordBytes(engineProgress.loadedBytes, engineProgress.fraction01);
-              adaptiveLog?.observe();
-              this.reportEngineProgress(item, episode, link.server, progressState, callbacks, engineProgress);
-            },
-          });
-          success = engineResult.ok;
-          if (!success && !attemptAbort.signal.aborted && engineResult.error) {
-            toolFailureMessage = engineResult.error;
+        const artifactsBefore = await this.snapshotCancellationArtifacts(dest).catch(() => null);
+        try {
+          if (!attemptAbort.signal.aborted && engine) {
+            if (!dl.allowContinue) await this.purgeResumeForServer(link.server, dest);
+            if (attemptAbort.signal.aborted) return;
+            callbacks.updateTray(`Descargando ${item.animeTitle} - EP ${episode}...`);
+            const progressState = { lastPct: -1, speedWindow: undefined as SpeedWindow | undefined };
+            const engineResult = await engine.download(link, {
+              item,
+              episode,
+              dest,
+              signal: attemptAbort.signal,
+              settings: dl,
+              concurrency,
+              onProgress: (engineProgress) => {
+                markStarted();
+                telemetry.recordBytes(engineProgress.loadedBytes, engineProgress.fraction01);
+                adaptiveLog?.observe();
+                this.reportEngineProgress(item, episode, link.server, progressState, callbacks, engineProgress);
+              },
+            });
+            success = engineResult.ok;
+            if (!success && !attemptAbort.signal.aborted && engineResult.error) {
+              toolFailureMessage = engineResult.error;
+            }
+          } else if (!attemptAbort.signal.aborted) {
+            toolFailureMessage = `Servidor no soportado: ${link.server}`;
+            this.fileLog.warn(toolFailureMessage, this.attemptContext(item, episode, link.server));
           }
-        } else if (!attemptAbort.signal.aborted) {
-          // Defensa en profundidad: la allowlist de main ya filtra servidores
-          // no canónicos antes de llegar aquí.
-          toolFailureMessage = `Servidor no soportado: ${link.server}`;
-          this.fileLog.warn(toolFailureMessage, this.attemptContext(item, episode, link.server));
-        }
 
-        if (success) {
-          const mp4Ready = await this.ensureEpisodeMp4FileWithSnapshotAsync(dest, filesBeforeAttempt);
-          if (!mp4Ready) {
-            success = false;
-            invalidMp4 = true;
-            if (link.server === 'Mega') await this.purgeMegaResumeFiles(dest);
-            this.fileLog.warn(
-              `"${link.server}" reportó éxito sin archivo válido, se prueba el siguiente.`,
-              this.attemptContext(item, episode, link.server),
-            );
-            this.options.log(
-              `WARN "${link.server}" reporto exito, pero no quedo archivo .mp4 valido. Probando siguiente...`,
-              'warn',
-            );
-          } else if (dl.cleanCacheOnComplete) {
-            await this.cleanEpisodeCacheNow(dest);
+          if (success) {
+            const mp4Ready = await this.ensureEpisodeMp4FileWithSnapshotAsync(dest, filesBeforeAttempt);
+            if (!mp4Ready) {
+              success = false;
+              invalidMp4 = true;
+              if (link.server === 'Mega') await this.purgeMegaResumeFiles(dest);
+              this.fileLog.warn(
+                `"${link.server}" reportó éxito sin archivo válido, se prueba el siguiente.`,
+                this.attemptContext(item, episode, link.server),
+              );
+              this.options.log(
+                `WARN "${link.server}" reporto exito, pero no quedo archivo .mp4 valido. Probando siguiente...`,
+                'warn',
+              );
+            } else if (dl.cleanCacheOnComplete) {
+              await this.cleanEpisodeCacheNow(dest);
+            }
+          }
+        } finally {
+          const artifactsAfter = artifactsBefore
+            ? await this.snapshotCancellationArtifacts(dest).catch(() => null)
+            : null;
+          if (!artifactsBefore || !artifactsAfter) {
+            this.cancellationArtifacts.delete(dest);
+          } else {
+            const previous = this.cancellationArtifacts.get(dest);
+            const owned = new Map<string, string>();
+            for (const [file, revision] of artifactsAfter) {
+              if (!artifactsBefore.has(file) || previous?.get(file) === artifactsBefore.get(file)) {
+                owned.set(file, revision);
+              }
+            }
+            this.cancellationArtifacts.set(dest, owned);
+            if (this.cancellationArtifacts.size > 512) {
+              this.cancellationArtifacts.delete(this.cancellationArtifacts.keys().next().value!);
+            }
           }
         }
       });
@@ -812,6 +876,31 @@ export class EpisodeDownloadAttemptService {
     return this.withEpisodeFiles(destPath, () => this.cleanEpisodeTempsNow(destPath));
   }
 
+  async cleanCancelledEpisode(destPath: string): Promise<void> {
+    return this.withEpisodeFiles(destPath, async () => {
+      const folder = path.dirname(destPath);
+      const validate = () => {
+        if (
+          this.options.getAllowedBaseDirs &&
+          !isPathSafeForDestructiveOperation(folder, this.options.getAllowedBaseDirs(), false)
+        ) {
+          throw new Error('La carpeta ya no está autorizada para la limpieza.');
+        }
+      };
+      validate();
+      const owned = this.cancellationArtifacts.get(destPath);
+      const current = await this.snapshotCancellationArtifacts(destPath);
+      for (const [file, revision] of current) {
+        validate();
+        if (owned?.get(file) !== revision || !isPathSafeForDestructiveOperation(file, [folder], false)) continue;
+        const stat = fs.lstatSync(file);
+        if (!stat.isFile() || stat.isSymbolicLink() || this.fileRevision(stat) !== revision) continue;
+        fs.unlinkSync(file);
+      }
+      this.cancellationArtifacts.delete(destPath);
+    });
+  }
+
   private async cleanEpisodeTempsNow(destPath: string): Promise<void> {
     const cacheDir = path.join(path.dirname(destPath), '.cache');
     const art = this.episodeCacheArtifacts(cacheDir, path.basename(destPath));
@@ -830,7 +919,7 @@ export class EpisodeDownloadAttemptService {
       const names = await fsp.readdir(cacheDir);
       await Promise.all(
         names
-          .filter((name) => name.startsWith(art.hlsPrefix))
+          .filter((name) => this.isHlsArtifact(name, art.hlsPrefix))
           .map((name) => fsp.rm(path.join(cacheDir, name), { force: true }).catch(() => undefined)),
       );
     } catch {
@@ -881,7 +970,7 @@ export class EpisodeDownloadAttemptService {
       const names = await fsp.readdir(cacheDir);
       await Promise.all(
         names
-          .filter((name) => name.startsWith(art.hlsPrefix))
+          .filter((name) => this.isHlsArtifact(name, art.hlsPrefix))
           .map((name) => fsp.rm(path.join(cacheDir, name), { force: true }).catch(() => undefined)),
       );
     } catch (error) {

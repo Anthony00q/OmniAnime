@@ -74,3 +74,6 @@ export interface QueueDatabaseRow {
 }
 
 export type QueueDatabaseWriteRow = QueueDatabaseRow;
+export interface CancellationResult {
+  cleanup: 'removed' | 'preserved' | 'missing' | 'incomplete';
+}

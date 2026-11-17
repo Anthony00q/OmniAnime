@@ -4,6 +4,7 @@ import { isEpisodeNumber } from '../../utils/episodeNumber';
 import type { DownloadAnimeDetails } from '../../types/anime';
 import type { FolderLibraryMeta } from '../../types/library';
 import type { DownloadProvider, QueueItem } from '../../types/queue';
+import type { LibraryFolderCleanupService } from '../library/LibraryFolderCleanupService';
 import {
   formatEpisodeCountLabel,
   normalizeDisplayAnimeTitle,
@@ -49,6 +50,7 @@ export interface QueueEnqueueResult {
 
 export interface QueueEnqueueServiceOptions {
   reserveFolder?: (folderPath: string) => () => void;
+  folderCleanup?: Pick<LibraryFolderCleanupService, 'snapshot' | 'record'>;
   getAnimeDetails: (slug: string, providerId: DownloadProvider) => Promise<DownloadAnimeDetails | null>;
   getActiveProviderId: () => string;
   getOutputDirs: () => { outputDirs: string[]; defaultOutputDir: string };
@@ -148,6 +150,7 @@ export class QueueEnqueueService {
       return false;
     }
     try {
+      const artifactsBefore = await this.options.folderCleanup?.snapshot(targetPath);
       try {
         if (!isPathSafeForDestructiveOperation(targetPath, [...dirs, defaultOutputDir])) return false;
         await fs.promises.mkdir(targetPath, { recursive: true });
@@ -193,6 +196,7 @@ export class QueueEnqueueService {
         lang,
         anilistId: anilist?.anilistId ?? null,
       });
+      if (artifactsBefore) await this.options.folderCleanup?.record(targetPath, artifactsBefore);
 
       const item: QueueItem = {
         id: `q-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,

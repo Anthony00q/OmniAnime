@@ -244,6 +244,17 @@ export function useLibraryActions() {
 
   return {
     isMutating,
+    deleteFolder: useMutation({
+      mutationKey: ['library-files', 'folder-delete'],
+      onMutate: prepare,
+      mutationFn: async (folderPath: string) =>
+        unwrap(await window.api.invoke('delete-folder', folderPath), { toast: false }),
+      onSuccess: (_data, folderPath) => {
+        queryClient.removeQueries({ queryKey: ['episodes', folderPath] });
+        setSelectedFolder((current) => (current === folderPath ? null : current));
+      },
+      onSettled: refresh,
+    }),
     openFolder: useMutation({
       mutationFn: async (folderPath: string) => unwrap(await window.api.invoke('open-folder', folderPath)),
     }),

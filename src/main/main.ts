@@ -39,6 +39,7 @@ import { ServerStatsStore } from '../services/persistence/ServerStatsStore';
 import { ConcurrencyExperimentStore, resolveCadenceProfile } from '../services/downloads/attemptExperiments';
 import { ThumbnailService } from '../services/library/ThumbnailService';
 import { LibraryMutationService } from '../services/library/LibraryMutationService';
+import { LibraryFolderCleanupService } from '../services/library/LibraryFolderCleanupService';
 import { createRuntimeDirectories } from '../services/persistence/RuntimeDirectories';
 import { SettingsManager } from '../services/persistence/SettingsManager';
 import { DatabaseManager } from '../services/persistence/DatabaseManager';
@@ -318,12 +319,7 @@ const libraryFileService = new LibraryFileService({
     const settings = SettingsManager.get();
     return settings.outputDirs || [settings.defaultOutputDir];
   },
-  queueOwnsFolder: (folderPath) =>
-    downloadQueue.some(
-      (item) =>
-        (item.status === 'pending' || item.status === 'downloading' || item.status === 'paused') &&
-        path.resolve(item.targetPath).toLowerCase() === path.resolve(folderPath).toLowerCase(),
-    ),
+  queueOwnsFolder: (folderPath) => queueProcessor.isFolderInUse(folderPath),
   getAnimeDetails: (slug, providerId) => getAnimeDetailsBySlug(slug, providerId),
   getActiveProviderId: () => providerGateway.activeProviderIdName,
   resolveAniListMeta: (input) => resolveAniListWithLink(input, database),
@@ -358,18 +354,19 @@ const thumbnailService = new ThumbnailService({
 app.on('before-quit', () => {
   void thumbnailService.close();
 });
-const libraryMutationService = new LibraryMutationService({
+const libraryMutationService: LibraryMutationService = new LibraryMutationService({
   getAllowedBaseDirs: () => {
     const settings = SettingsManager.get();
     return settings.outputDirs || [settings.defaultOutputDir];
   },
-  queueOwnsFolder: (folderPath) =>
-    downloadQueue.some(
-      (item) =>
-        ['pending', 'downloading', 'paused'].includes(item.status) &&
-        path.resolve(item.targetPath).toLowerCase() === folderPath,
-    ),
+  queueOwnsFolder: (folderPath) => queueProcessor.isFolderInUse(folderPath),
   thumbnailService,
+});
+const libraryFolderCleanup = new LibraryFolderCleanupService({
+  getAllowedBaseDirs: () => {
+    const settings = SettingsManager.get();
+    return settings.outputDirs || [settings.defaultOutputDir];
+  },
 });
 
 function cleanupThumbnails() {
@@ -443,12 +440,7 @@ const storageService = new StorageService({
     const settings = SettingsManager.get();
     return settings.outputDirs || [settings.defaultOutputDir];
   },
-  queueOwnsFolder: (folderPath) =>
-    downloadQueue.some(
-      (item) =>
-        (item.status === 'pending' || item.status === 'downloading' || item.status === 'paused') &&
-        path.resolve(item.targetPath).toLowerCase() === path.resolve(folderPath).toLowerCase(),
-    ),
+  queueOwnsFolder: (folderPath) => queueProcessor.isFolderInUse(folderPath),
   log: writeGlobalLog,
 });
 
@@ -515,6 +507,10 @@ const getNormalizedDownloadSettings = () => {
 };
 
 const episodeDownloadAttemptService = new EpisodeDownloadAttemptService({
+  getAllowedBaseDirs: () => {
+    const settings = SettingsManager.get();
+    return settings.outputDirs || [settings.defaultOutputDir];
+  },
   downloadService,
   getFfmpegTools: getFfmpegTools,
   userAgent: USER_AGENT,
@@ -569,7 +565,13 @@ const episodeLinksService = new EpisodeLinksService({
 });
 
 const queueEnqueueService = new QueueEnqueueService({
-  reserveFolder: (folderPath) => libraryMutationService.reserveDownload(folderPath),
+  reserveFolder: (folderPath) => {
+    if (queueProcessor.isFolderClosing(folderPath)) {
+      throw new Error('La carpeta todavía está terminando una cancelación.');
+    }
+    return libraryMutationService.reserveDownload(folderPath);
+  },
+  folderCleanup: libraryFolderCleanup,
   getAnimeDetails: (slug, providerId) => getAnimeDetailsBySlug(slug, providerId),
   getActiveProviderId: () => providerGateway.activeProviderIdName,
   getOutputDirs: () => {
@@ -596,7 +598,7 @@ const queueEnqueueService = new QueueEnqueueService({
   logError: (error) => writeGlobalLog(error),
 });
 
-const queueProcessor = new DownloadQueueProcessor({
+const queueProcessor: DownloadQueueProcessor = new DownloadQueueProcessor({
   queueStore,
   attemptService: episodeDownloadAttemptService,
   abortDownloadService: () => downloadService.abort(),
@@ -606,6 +608,12 @@ const queueProcessor = new DownloadQueueProcessor({
   getServerPriorityOrder: (providerId) => episodeLinksService.getServerPriorityOrder(providerId),
   getServerSpeed: (server) => SERVER_SPEED[server] || '–',
   buildEpisodePath: buildQueueEpisodePath,
+  reserveCancellation: (item) => libraryMutationService.reserveDownload(item.targetPath),
+  cleanCancelledFolder: async (item) => {
+    const result = await libraryFolderCleanup.removeIfEmpty(item.targetPath);
+    if (result === 'removed' || result === 'missing') libraryFileService.forgetFolder(item.targetPath);
+    return result;
+  },
   writeHistory,
   sendLog,
   sendProgressLog: (logId, message) => {

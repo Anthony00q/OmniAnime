@@ -1,10 +1,11 @@
 import { useEffect, useRef } from 'react';
-import { Info } from 'lucide-react';
+import { Info, Trash2 } from 'lucide-react';
 
 interface LibraryFolderMenuProps {
   x: number;
   y: number;
   onDetails: () => void;
+  onDelete?: () => void;
   onClose: () => void;
   ariaLabel?: string;
   description?: string;
@@ -14,6 +15,7 @@ export function LibraryFolderMenu({
   x,
   y,
   onDetails,
+  onDelete,
   onClose,
   ariaLabel = 'Opciones de la carpeta',
   description = 'Títulos y carpeta',
@@ -28,6 +30,18 @@ export function LibraryFolderMenu({
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) onClose();
     };
     const onKeyDown = (event: KeyboardEvent) => {
+      const buttons = Array.from(menuRef.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)') ?? []);
+      const index = buttons.indexOf(document.activeElement as HTMLButtonElement);
+      if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key) && buttons.length) {
+        event.preventDefault();
+        const next =
+          event.key === 'Home'
+            ? 0
+            : event.key === 'End'
+              ? buttons.length - 1
+              : (index + (event.key === 'ArrowUp' ? -1 : 1) + buttons.length) % buttons.length;
+        buttons[next]?.focus();
+      }
       if (event.key === 'Escape') {
         event.preventDefault();
         onClose();
@@ -49,7 +63,7 @@ export function LibraryFolderMenu({
   }, [onClose]);
 
   const posX = Math.max(8, Math.min(x, window.innerWidth - 240));
-  const posY = Math.max(8, Math.min(y, window.innerHeight - 140));
+  const posY = Math.max(8, Math.min(y, window.innerHeight - (onDelete ? 190 : 140)));
 
   return (
     <div
@@ -75,6 +89,22 @@ export function LibraryFolderMenu({
           <span className="mt-1 block text-xs text-muted-foreground">{description}</span>
         </span>
       </button>
+      {onDelete && (
+        <div className="mt-1 border-t border-border pt-1">
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              onDelete();
+              onClose();
+            }}
+            className="flex min-h-11 w-full items-center gap-3 rounded-lg p-2.5 text-left text-sm font-semibold text-destructive-fg transition-colors hover:bg-destructive/15"
+          >
+            <Trash2 className="h-4 w-4 shrink-0" aria-hidden="true" />
+            Eliminar carpeta…
+          </button>
+        </div>
+      )}
     </div>
   );
 }
