@@ -40,7 +40,7 @@ interface QueueRowProps {
   onPauseEpisode: (id: string, episode: number) => void;
   onResumeEpisode: (id: string, episode: number) => void;
   onSkipEpisode: (id: string, episode: number) => void;
-  onOpenFolder: (targetPath: string, title: string) => void;
+  onOpenFolder: (targetPath: string) => void;
   isRetryPending: boolean;
   pendingEpisodeKeys?: Set<string>;
   pendingSkipEpKeys?: Set<string>;
@@ -214,10 +214,10 @@ export const QueueItemRow = memo(
     const handleRemoveClick = useCallback(() => onRemove(item.id), [onRemove, item.id]);
     const handleResumeClick = useCallback(() => onResume(item.id), [onResume, item.id]);
     const handleRetryClick = useCallback(() => onRetryFailed(item.id), [onRetryFailed, item.id]);
-    // Ruta exacta del item: con varios destinos, buscar por título podía abrir la carpeta del otro destino
+    // No usar la ubicación base ni buscar por título: puede abrir otra carpeta.
     const handleOpenFolderClick = useCallback(
-      () => onOpenFolder(item.targetPath || item.dirFullPath || '', item.animeTitle),
-      [onOpenFolder, item.targetPath, item.dirFullPath, item.animeTitle],
+      () => onOpenFolder(item.targetPath || ''),
+      [onOpenFolder, item.targetPath],
     );
 
     return (

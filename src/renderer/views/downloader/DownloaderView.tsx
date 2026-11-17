@@ -292,18 +292,15 @@ export function DownloaderView({ onSelectAnime, activeProvider, isActive = true 
     },
     [actions],
   );
-  const handleOpenAnimeFolder = useCallback(async (targetPath: string, animeTitle: string) => {
+  const handleOpenAnimeFolder = useCallback(async (targetPath: string) => {
+    if (!targetPath) {
+      toast.error('La descarga no tiene una ruta de destino guardada.');
+      return;
+    }
     try {
-      if (targetPath) {
-        // Sin aviso: si la ruta exacta falla, informa la búsqueda difusa.
-        unwrap(await window.api.invoke('open-folder', targetPath), { toast: false });
-        return;
-      }
-    } catch {}
-    try {
-      unwrap(await window.api.invoke('open-anime-folder', animeTitle));
+      unwrap(await window.api.invoke('open-folder', targetPath));
     } catch (error) {
-      if (!isIpcFailError(error)) toast.error('Error al abrir la carpeta');
+      if (!isIpcFailError(error)) toast.error('No se pudo abrir la carpeta');
     }
   }, []);
 
