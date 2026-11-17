@@ -2,13 +2,13 @@ import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import * as os from 'node:os';
 import fsNative from 'node:fs';
 import { LibraryFolderCleanupService } from '../../src/services/library/LibraryFolderCleanupService';
+import { createTempDirectory } from '../helpers/temp';
 
 for (const extra of [null, 'subtitulos.srt', 'cover.jpg', '.oculto', '.cache/notas.txt', 'Extras/nota.txt']) {
   test(`la limpieza de carpeta conserva contenido ajeno: ${extra ?? 'solo archivos propios'}`, async () => {
-    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'omni-folder-cleanup-'));
+    const root = createTempDirectory('omni-folder-cleanup-');
     const folder = path.join(root, 'Anime');
     const cleanup = new LibraryFolderCleanupService({ getAllowedBaseDirs: () => [root] });
     try {
@@ -36,7 +36,7 @@ for (const extra of [null, 'subtitulos.srt', 'cover.jpg', '.oculto', '.cache/not
 }
 
 test('los recursos preexistentes o modificados no se consideran basura propia', async () => {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'omni-folder-existing-'));
+  const root = createTempDirectory('omni-folder-existing-');
   const folder = path.join(root, 'Anime');
   const cleanup = new LibraryFolderCleanupService({ getAllowedBaseDirs: () => [root] });
   try {
@@ -57,7 +57,7 @@ test('los recursos preexistentes o modificados no se consideran basura propia', 
 });
 
 test('la limpieza no sigue junctions ni borra entradas aparecidas al retirar la carpeta', async (t) => {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'omni-folder-race-'));
+  const root = createTempDirectory('omni-folder-race-');
   const folder = path.join(root, 'Anime');
   const elsewhere = path.join(root, 'Personal');
   const cleanup = new LibraryFolderCleanupService({ getAllowedBaseDirs: () => [root] });
@@ -83,7 +83,7 @@ test('la limpieza no sigue junctions ni borra entradas aparecidas al retirar la 
 });
 
 test('los cambios de atributos no invalidan recursos propios, pero sí cambia su contenido con igual tamaño y fecha', async () => {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'omni-folder-content-'));
+  const root = createTempDirectory('omni-folder-content-');
   const cleanup = new LibraryFolderCleanupService({ getAllowedBaseDirs: () => [root] });
   try {
     for (const changed of [false, true]) {
