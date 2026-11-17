@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.3.1] - 2026-11-17
+
+### Descargas
+
+- La cancelación limpia únicamente los temporales propios y retira las carpetas vacías, conservando los vídeos terminados, los archivos ajenos y las carpetas en uso.
+- El aviso de cancelación indica si la carpeta se eliminó, se conservó o si no pudo completarse la limpieza.
+- **Abrir carpeta** utiliza únicamente el destino guardado de la descarga y avisa si no está disponible, sin abrir otra carpeta por error.
+
+### Librería
+
+- El menú de cada carpeta incorpora **Eliminar carpeta**, con confirmación antes de borrar todo su contenido, incluidos los episodios descargados.
+- El escaneo deja de eliminar carpetas sin episodios y archivos temporales que podrían seguir siendo necesarios.
+- Al borrar el último episodio, se conserva la carpeta si todavía contiene otros archivos.
+
+### Interfaz
+
+- Inicio, Catálogo, Horarios y Librería dejan de repetir la animación de entrada de los elementos al volver a la misma sección.
+
 ## [1.3.0] - 2026-11-14
 
 ### Catálogo
