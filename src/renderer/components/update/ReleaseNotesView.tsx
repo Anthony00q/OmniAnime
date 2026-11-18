@@ -21,7 +21,7 @@ function openInSystemBrowser(href: string) {
   void window.api.invoke('open-external-url', href, { policy: 'changelog' });
 }
 
-function Inline({ nodes }: { nodes: ReleaseNotesInline[] }) {
+function Inline({ nodes, compactBold = false }: { nodes: ReleaseNotesInline[]; compactBold?: boolean }) {
   return (
     <>
       {nodes.map((node, index) => {
@@ -31,7 +31,15 @@ function Inline({ nodes }: { nodes: ReleaseNotesInline[] }) {
         ) : (
           node.text
         );
-        const styled = node.bold ? <strong className="font-semibold text-foreground">{body}</strong> : body;
+        const styled = node.bold ? (
+          <strong
+            className={compactBold ? 'text-[12px] font-semibold text-foreground' : 'font-semibold text-foreground'}
+          >
+            {body}
+          </strong>
+        ) : (
+          body
+        );
         if (href) {
           return (
             <a
@@ -59,7 +67,7 @@ function Block({ block }: { block: ReleaseNotesBlock }) {
       <ul className="list-disc space-y-2 pl-5 marker:text-text-tertiary">
         {block.items.map((item, itemIndex) => (
           <li key={itemIndex}>
-            <Inline nodes={item} />
+            <Inline nodes={item} compactBold />
           </li>
         ))}
       </ul>
@@ -68,7 +76,7 @@ function Block({ block }: { block: ReleaseNotesBlock }) {
   const text = inlineText(block.content).trim();
   return (
     <p className={isVersionLine(text) ? VERSION_VOICE : undefined}>
-      <Inline nodes={block.content} />
+      <Inline nodes={block.content} compactBold={!isVersionLine(text)} />
     </p>
   );
 }

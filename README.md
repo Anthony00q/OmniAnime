@@ -287,4 +287,4 @@ Quien reciba el instalador tiene derecho a obtener el código fuente completo co
 
 ---
 
-<p align="center"><sub>Hecho por <strong>Anthon00qy</strong> con ayuda de la IA — gran parte del proyecto fue full <em>vibe coding</em>.</sub></p>
+<p align="center"><sub>Full IA 😈</sub></p>
