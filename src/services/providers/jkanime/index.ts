@@ -33,6 +33,7 @@ import {
   parseJkDetails,
   parseJkFilterOptions,
   parseJkSearchResults,
+  isJkEmptySearchPage,
 } from './parser';
 import {
   collectJkEpisodeThumbs,
@@ -77,8 +78,6 @@ export class JkAnimeProvider implements AnimeProvider {
   }
 
   private readonly http: JkHttpClient = createJkHttpClient();
-  // aborta la búsqueda anterior al escribir rápido
-  private pendingSearchController: AbortController | null = null;
   // Contextos AJAX por slug para la carga bajo demanda de miniaturas.
   private readonly episodeAjaxContexts = new Map<string, JkEpisodeAjaxContext>();
 
@@ -129,18 +128,15 @@ export class JkAnimeProvider implements AnimeProvider {
     }
   }
 
-  async search(query: string): Promise<AnimeSearchResult[]> {
-    if (this.pendingSearchController) {
-      this.pendingSearchController.abort();
-    }
-    const controller = new AbortController();
-    this.pendingSearchController = controller;
+  async search(query: string, options?: { strict?: boolean; signal?: AbortSignal }): Promise<AnimeSearchResult[]> {
     try {
-      const { data } = await this.http.get(jkSearchUrl(query), { signal: controller.signal });
-      if (this.pendingSearchController === controller) {
-        this.pendingSearchController = null;
+      const { data } = await this.http.get(jkSearchUrl(query), { signal: options?.signal });
+      const $ = cheerio.load(data);
+      const results = parseJkSearchResults($);
+      if (!results.length && options?.strict && !isJkEmptySearchPage($)) {
+        throw new Error('No se pudo interpretar la búsqueda del proveedor.');
       }
-      return parseJkSearchResults(cheerio.load(data)).map(mapJkSearchResult);
+      return results.map(mapJkSearchResult);
     } catch (error: unknown) {
       if (
         error instanceof Error &&
@@ -148,12 +144,12 @@ export class JkAnimeProvider implements AnimeProvider {
           error.name === 'AbortError' ||
           (error as { code?: string }).code === 'ERR_CANCELED')
       ) {
+        if (options?.strict) throw new Error('La consulta se ha cancelado.');
         return [];
       }
       this.logger.error(`jkanime search: ${errorDetailForLog(error)}`);
+      if (options?.strict) throw new Error('No se pudo consultar JkAnime. Inténtalo de nuevo.');
       return [];
-    } finally {
-      if (this.pendingSearchController === controller) this.pendingSearchController = null;
     }
   }
 

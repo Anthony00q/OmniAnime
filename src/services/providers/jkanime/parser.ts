@@ -224,6 +224,22 @@ export interface JkSearchRaw {
   poster: string;
 }
 
+export function isJkEmptySearchPage($: ReturnType<typeof cheerio.load>): boolean {
+  return $('.anime__page__content')
+    .toArray()
+    .some((section) => {
+      const content = $(section);
+      const heading = content.find('.anime__page__title h4').text().trim();
+      const results = content.find('.page_directorio');
+      return (
+        /^resultados (?:del|de la|de) b[uú]squeda\s*:/i.test(heading) &&
+        results.length === 1 &&
+        results.children().length === 0 &&
+        !results.text().trim()
+      );
+    });
+}
+
 export function parseJkSearchResults($: ReturnType<typeof cheerio.load>): JkSearchRaw[] {
   const out: JkSearchRaw[] = [];
   $('.anime__item').each((i: any, el: any) => {

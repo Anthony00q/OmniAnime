@@ -9,7 +9,8 @@ export function useSearchAnime(query: string, enabled: boolean, providerOverride
 
   return useQuery({
     queryKey: ['search', provider, query],
-    queryFn: async () => unwrap(await window.api.invoke('search-anime', { query, provider })),
+    queryFn: async () => unwrap(await window.api.invoke('search-anime', { query, provider }), { toast: false }),
+    retry: false,
     enabled: enabled && query.trim().length >= 3,
     staleTime: 30 * 1000,
   });

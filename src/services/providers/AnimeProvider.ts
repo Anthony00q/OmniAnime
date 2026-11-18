@@ -17,7 +17,7 @@ export interface AnimeProvider {
   // Null solo ante fallo (la vista muestra error); lista vacía es "sin programación".
   getSchedule(force?: boolean): Promise<ScheduleData | null>;
   getCatalog(filters?: any, force?: boolean): Promise<AnimeSearchResult[]>;
-  search(query: string): Promise<AnimeSearchResult[]>;
+  search(query: string, options?: { strict?: boolean; signal?: AbortSignal }): Promise<AnimeSearchResult[]>;
   getDetails(slug: string): Promise<AnimeDetails | null>;
   getLinks(slug: string, episode: number, lang?: string, signal?: AbortSignal): Promise<DownloadLink[]>;
   getEpisodeAvailability?(

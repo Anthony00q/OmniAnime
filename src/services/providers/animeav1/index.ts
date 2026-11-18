@@ -52,7 +52,6 @@ export class AnimeAV1Provider implements AnimeProvider {
   }
 
   private client: OutboundClient = createAv1Client();
-  private pendingSearchController: AbortController | null = null;
   private readonly availabilityCache = new Map<string, { state: EpisodeAvailability; expires: number }>();
   private readonly availabilityRequests = new Map<
     string,
@@ -188,21 +187,23 @@ export class AnimeAV1Provider implements AnimeProvider {
     }
   }
 
-  async search(query: string): Promise<AnimeSearchResult[]> {
-    if (this.pendingSearchController) {
-      try {
-        this.pendingSearchController.abort();
-      } catch {}
-    }
-    const controller = new AbortController();
-    this.pendingSearchController = controller;
+  async search(query: string, options?: { strict?: boolean; signal?: AbortSignal }): Promise<AnimeSearchResult[]> {
     try {
-      const r = await this.client.get(av1SearchUrl(query), { signal: controller.signal as any });
-      if (this.pendingSearchController === controller) this.pendingSearchController = null;
+      const r = await this.client.get(av1SearchUrl(query), { signal: options?.signal });
       const html = r.data;
       const content = extractResultsContent(html);
-      if (content === null) return [];
-      return parseAv1ResultBlocks(content).map((raw) => mapAv1SearchResult(raw, {}));
+      if (content === null) {
+        const fallback = parseCatalogFallback(html, this.logger);
+        if (fallback.length || !options?.strict) return fallback;
+        throw new Error('No se pudo interpretar la búsqueda del proveedor.');
+      }
+      const results = parseAv1ResultBlocks(content);
+      if (!results.length && content.trim() && options?.strict) {
+        const fallback = parseCatalogFallback(html, this.logger);
+        if (fallback.length) return fallback;
+        throw new Error('No se pudo interpretar la búsqueda del proveedor.');
+      }
+      return results.map((raw) => mapAv1SearchResult(raw, {}));
     } catch (error: unknown) {
       if (
         error instanceof Error &&
@@ -210,12 +211,12 @@ export class AnimeAV1Provider implements AnimeProvider {
           error.name === 'AbortError' ||
           (error as { code?: string }).code === 'ERR_CANCELED')
       ) {
+        if (options?.strict) throw new Error('La consulta se ha cancelado.');
         return [];
       }
       this.logger.error('animeav1 search: ' + errorDetailForLog(error));
+      if (options?.strict) throw new Error('No se pudo consultar AnimeAV1. Inténtalo de nuevo.');
       return [];
-    } finally {
-      if (this.pendingSearchController === controller) this.pendingSearchController = null;
     }
   }
 

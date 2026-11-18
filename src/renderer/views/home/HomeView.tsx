@@ -100,10 +100,12 @@ export function HomeView({ isActive }: { isActive?: boolean }) {
 
   const isProviderChanging = previousProviderRef.current !== providerId;
 
-  const { data: searchResults = [], isFetching: isSearching } = useSearchAnime(
-    debouncedQuery,
-    !isProviderChanging && debouncedQuery.trim().length >= 3,
-  );
+  const {
+    data: searchResults = [],
+    isFetching: isSearching,
+    isError: isSearchError,
+    refetch: retrySearch,
+  } = useSearchAnime(debouncedQuery, !isProviderChanging && debouncedQuery.trim().length >= 3);
 
   useEffect(() => {
     const providerChanged = previousProviderRef.current !== providerId;
@@ -253,6 +255,17 @@ export function HomeView({ isActive }: { isActive?: boolean }) {
                       </div>
                     </button>
                   ))}
+                </div>
+              ) : isSearchError ? (
+                <div role="alert" className="p-6 text-center text-sm text-muted-foreground">
+                  No se pudo consultar el proveedor.
+                  <button
+                    type="button"
+                    className="ml-2 min-h-11 rounded-lg px-3 text-foreground hover:bg-secondary"
+                    onClick={() => void retrySearch()}
+                  >
+                    Reintentar
+                  </button>
                 </div>
               ) : showOfflineSearch ? (
                 <div className="p-6 text-center text-sm text-muted-foreground">

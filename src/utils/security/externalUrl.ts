@@ -1,5 +1,20 @@
 export type ProviderId = 'animeav1' | 'jkanime' | string;
 
+export function parseProviderAnimeUrl(raw: string, providerId: string): string | null {
+  if (!isAllowedExternalUrl(raw)) return null;
+  const url = new URL(raw);
+  if (url.search || url.hash) return null;
+  const match =
+    providerId === 'animeav1' && url.hostname === 'animeav1.com'
+      ? url.pathname.match(/^\/media\/([a-zA-Z0-9_-]+)\/?$/)
+      : providerId === 'jkanime' && url.hostname === 'jkanime.net'
+        ? url.pathname.match(/^\/([a-zA-Z0-9_-]+)\/?$/)
+        : null;
+  const slug = match?.[1] ?? null;
+  if (providerId === 'jkanime' && slug && /^(directorio|horario|buscar)$/i.test(slug)) return null;
+  return slug;
+}
+
 // Origen del repositorio; debe coincidir con `repository.url` de package.json.
 const REPOSITORY_RELEASES_URL = 'https://github.com/Anthony00q/OmniAnime/releases';
 

@@ -9,6 +9,7 @@ import { assertAllowedImageRedirect, isAllowedImageUrl } from '../../../utils/se
 import { JkAnimeProvider } from '../../../services/providers/JkAnimeProvider';
 import type { CatalogFilters, EpisodeAvailability } from '../../../types/anime';
 import type { IpcRegistryDependencies } from '../../IpcRegistry';
+import { parseProviderAnimeUrl } from '../../../utils/security/externalUrl';
 
 export function registerCatalogHandlers({
   providerGateway,
@@ -173,10 +174,27 @@ export function registerCatalogHandlers({
       const query = typeof payload === 'string' ? payload : String(payload?.query ?? '');
       const providerId =
         payload && typeof payload === 'object' && typeof payload.provider === 'string' ? payload.provider : undefined;
-      return ok(await resolveProvider(providerId).search(query));
+      if (/^https?:\/\//i.test(query)) {
+        const provider = resolveProvider(providerId);
+        const slug = parseProviderAnimeUrl(query.trim(), provider.id);
+        if (!slug) return fail('SEARCH_INVALID_URL', 'Pega una URL de ficha del proveedor elegido.');
+        const details = await provider.getDetails(slug);
+        if (!details) return fail('SEARCH_FAILED', 'No se pudo consultar la ficha del proveedor.');
+        return ok([
+          {
+            id: details.id,
+            slug,
+            title: details.title,
+            poster: details.poster,
+            year: details.year,
+            category: details.category,
+          },
+        ]);
+      }
+      return ok(await resolveProvider(providerId).search(query, { strict: true }));
     } catch (error) {
       writeGlobalLog(`Search error: ${safeErrorMessage(error)}`);
-      return ok([]);
+      return fail('SEARCH_FAILED', 'No se pudo consultar el proveedor. Inténtalo de nuevo.');
     }
   });
 
