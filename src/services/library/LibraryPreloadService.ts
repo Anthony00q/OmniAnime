@@ -62,13 +62,13 @@ export function buildLibrarySearchVariants(rawName: string): string[] {
     .replace(/\s{2,}/g, ' ')
     .trim();
 
-  const variants = [base];
+  const variants = [String(rawName || '').trim(), base];
   if (anitomyTitle && anitomyTitle !== base) {
     variants.push(anitomyTitle);
   }
   variants.push(cleaned);
 
-  return Array.from(new Set(variants.map((v) => v.trim()).filter(Boolean))).slice(0, 3);
+  return Array.from(new Set(variants.map((v) => v.trim()).filter(Boolean))).slice(0, 4);
 }
 
 const MIN_FOLDER_MATCH_SCORE = 50;
@@ -253,6 +253,7 @@ export class LibraryPreloadService {
               status: folder.localMeta.status || '',
               season: folder.localMeta.season || '',
               providerId: folder.localMeta.providerId ?? null,
+              anilistId: folder.localMeta.anilistId ?? null,
               lang: folder.localMeta.lang,
               updatedAt: Date.now(),
             };
@@ -283,6 +284,7 @@ export class LibraryPreloadService {
               status: folder.localMeta.status || '',
               season: folder.localMeta.season || '',
               providerId: folder.localMeta.providerId ?? null,
+              anilistId: folder.localMeta.anilistId ?? null,
               lang: folder.localMeta.lang,
               updatedAt: Date.now(),
             };
@@ -308,6 +310,7 @@ export class LibraryPreloadService {
             status: folder.localMeta?.status || '',
             season: folder.localMeta?.season || '',
             providerId: folder.localMeta?.providerId ?? null,
+            anilistId: folder.localMeta?.anilistId ?? null,
             lang: folder.localMeta?.lang,
             updatedAt: Date.now(),
           });
@@ -396,6 +399,8 @@ export class LibraryPreloadService {
             : null;
 
           const preloadTitle = String(details?.title || best.title || folder.name);
+          const currentMeta = await this.options.assetService.readFolderLibraryMetaAsync(folder.folderPath);
+          if (JSON.stringify(currentMeta) !== JSON.stringify(folder.localMeta)) return buildBasicRow();
           this.options.assetService.writeFolderLibraryMeta(folder.folderPath, {
             slug: String(best.slug || ''),
             title: preloadTitle,
@@ -435,6 +440,7 @@ export class LibraryPreloadService {
             status: details?.status || '',
             season: details?.season || '',
             providerId: matchingProviderId,
+            anilistId: anilist?.anilistId ?? null,
             lang: folder.localMeta?.lang,
             updatedAt: Date.now(),
           };

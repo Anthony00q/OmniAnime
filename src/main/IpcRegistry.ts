@@ -9,6 +9,7 @@ import { LibraryFileService } from '../services/library/LibraryFileService';
 import { EpisodeFileService } from '../services/library/EpisodeFileService';
 import { ThumbnailService } from '../services/library/ThumbnailService';
 import type { LibraryMutationService } from '../services/library/LibraryMutationService';
+import type { LibraryMetadataService } from '../services/library/LibraryMetadataService';
 import { QueueStore } from '../services/persistence/QueueStore';
 import { ServerStatsStore } from '../services/persistence/ServerStatsStore';
 import { DownloadQueueProcessor } from '../services/downloads/DownloadQueueProcessor';
@@ -49,6 +50,7 @@ export interface IpcRegistryDependencies {
   episodeFileService: EpisodeFileService;
   thumbnailService: ThumbnailService;
   libraryMutationService: LibraryMutationService;
+  libraryMetadataService: LibraryMetadataService;
   queueStore: QueueStore;
   queueProcessor: DownloadQueueProcessor;
   queueEnqueueService: QueueEnqueueService;

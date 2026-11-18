@@ -1,4 +1,4 @@
-import { Check, Link2, LockKeyhole } from 'lucide-react';
+import { Check, Link2, LockKeyhole, RefreshCw } from 'lucide-react';
 import { PosterImage } from '@/renderer/components/anime/PosterImage';
 import { resolveScannerRelinkProvider } from '@/renderer/views/scanner/model/relinkPolicy';
 import {
@@ -14,9 +14,17 @@ interface ScannerInspectorProps {
   id: string;
   isPending: boolean;
   onRelink: (folder: ScannerFolder) => void;
+  onRefresh?: (folder: ScannerFolder) => void;
 }
 
-export function ScannerInspector({ folder, activeProvider, id, isPending, onRelink }: ScannerInspectorProps) {
+export function ScannerInspector({
+  folder,
+  activeProvider,
+  id,
+  isPending,
+  onRelink,
+  onRefresh,
+}: ScannerInspectorProps) {
   const title = getScannerFolderTitle(folder);
   const relinkDisabled = resolveScannerRelinkProvider(folder, activeProvider) === null;
   const providerLabel = getScannerProviderLabel(folder, activeProvider);
@@ -63,9 +71,26 @@ export function ScannerInspector({ folder, activeProvider, id, isPending, onReli
           <dt>Proveedor</dt>
           <dd>{providerLabel}</dd>
         </div>
+        <div>
+          <dt>AniList</dt>
+          <dd>{folder.anilistId ? `#${folder.anilistId}` : 'Sin vínculo conocido'}</dd>
+        </div>
       </dl>
 
       <div className="scanner-inspector-actions">
+        {folder.metaSlug && onRefresh && (
+          <button
+            type="button"
+            data-keep-focus
+            className="scanner-relink-button"
+            disabled={relinkDisabled || isPending}
+            aria-describedby={relinkDisabled ? disabledReasonId : undefined}
+            onClick={() => onRefresh(folder)}
+          >
+            <RefreshCw className="h-4 w-4" aria-hidden="true" />
+            Actualizar metadatos
+          </button>
+        )}
         <button
           type="button"
           data-keep-focus

@@ -48,7 +48,7 @@ export function ScannerSkeleton() {
           </div>
         </div>
         <dl className="scanner-inspector-fields">
-          {Array.from({ length: 4 }, (_, index) => (
+          {Array.from({ length: 5 }, (_, index) => (
             <div key={index}>
               <dt>
                 <span className="block w-24 rounded bg-secondary">&nbsp;</span>
@@ -60,6 +60,7 @@ export function ScannerSkeleton() {
           ))}
         </dl>
         <div className="scanner-inspector-actions">
+          <div className="h-11 w-44 rounded-lg bg-secondary" />
           <div className="h-11 w-40 rounded-lg bg-secondary" />
         </div>
       </div>

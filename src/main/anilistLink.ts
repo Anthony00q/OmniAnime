@@ -22,6 +22,7 @@ interface LinkCacheEntry {
 }
 
 const cacheByPost = new WeakMap<AniListPost, Map<string, LinkCacheEntry>>();
+const generations = new Map<string, number>();
 
 function linkCacheKey(providerId: string, slug: string): string {
   return `${providerId.toLowerCase()}\u0000${slug.toLowerCase()}`;
@@ -30,6 +31,8 @@ function linkCacheKey(providerId: string, slug: string): string {
 export function invalidateAniLinkCache(providerId: string, slug: string, post?: AniListPost): void {
   const entries = cacheByPost.get(post ?? defaultAniListPost);
   entries?.delete(linkCacheKey(providerId, slug));
+  const key = linkCacheKey(providerId, slug);
+  generations.set(key, (generations.get(key) ?? 0) + 1);
 }
 
 export async function resolveAniListWithLink(
@@ -42,6 +45,9 @@ export async function resolveAniListWithLink(
   const slug = String(input.slug ?? '').trim();
   const hasKey = !!store && !!providerId && !!slug;
   const effectivePost = post ?? defaultAniListPost;
+  const generationKey = linkCacheKey(providerId, slug);
+  const generation = generations.get(generationKey) ?? 0;
+  if (input.forceRefresh) cacheByPost.get(effectivePost)?.delete(generationKey);
 
   if (hasKey && store) {
     const link = store.getAniLink(providerId, slug);
@@ -49,6 +55,7 @@ export async function resolveAniListWithLink(
       try {
         const resolved = await resolveLinkHit(link.anilistId, providerId, slug, effectivePost);
         if (resolved) return resolved;
+        if (link.source === 'manual') return null;
       } catch (error) {
         const status = (error as { response?: { status?: unknown } } | null)?.response?.status;
         onFailure?.(status === 429 ? 'ratelimit' : 'network');
@@ -58,7 +65,14 @@ export async function resolveAniListWithLink(
   }
 
   const resolved = await resolveAniListBannerResult(input, post, onFailure);
-  if (resolved && hasKey && store) {
+  if (
+    resolved &&
+    hasKey &&
+    store &&
+    input.persistMatch !== false &&
+    generation === (generations.get(generationKey) ?? 0) &&
+    store.getAniLink(providerId, slug)?.source !== 'manual'
+  ) {
     store.setAniLink(providerId, slug, resolved.anilistId, 'auto');
     if (store.getAniLink(providerId, slug)?.anilistId === resolved.anilistId) {
       cacheByPost.get(effectivePost)?.set(linkCacheKey(providerId, slug), {

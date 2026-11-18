@@ -6,8 +6,8 @@ export const ANILIST_API_URL = 'https://graphql.anilist.co';
 export const ANILIST_IMAGE_HOST = 's4.anilist.co';
 
 const ANILIST_SEARCH_QUERY = `
-query ($search: String) {
-  Page(perPage: 5) {
+query ($search: String, $perPage: Int) {
+  Page(perPage: $perPage) {
     media(search: $search, type: ANIME, isAdult: false, sort: SEARCH_MATCH) {
       id
       title { romaji english native }
@@ -46,6 +46,12 @@ query ($id: Int) {
     title { romaji english native }
     synonyms
     bannerImage
+    coverImage { large }
+    startDate { year }
+    season
+    seasonYear
+    format
+    episodes
     studios { edges { isMain node { name } } }
   }
 }
@@ -101,6 +107,8 @@ export interface AniListBannerInput {
   malId?: number | null;
   providerId?: string | null;
   slug?: string | null;
+  persistMatch?: boolean;
+  forceRefresh?: boolean;
 }
 
 export interface AniListBannerSource {
@@ -450,10 +458,10 @@ function extractAniListStudio(rawStudios: unknown): string | null {
   }
 }
 
-async function fetchAniListSearch(search: string, post: AniListPost): Promise<AniListCandidate[]> {
+async function fetchAniListSearch(search: string, post: AniListPost, perPage = 5): Promise<AniListCandidate[]> {
   const query = String(search || '').trim();
   if (!query) return [];
-  const envelope = (await post({ query: ANILIST_SEARCH_QUERY, variables: { search: query } })) as Record<
+  const envelope = (await post({ query: ANILIST_SEARCH_QUERY, variables: { search: query, perPage } })) as Record<
     string,
     unknown
   >;
@@ -464,9 +472,13 @@ async function fetchAniListSearch(search: string, post: AniListPost): Promise<An
 }
 
 // Variantes en paralelo con fallo aislado; dedupe por id con tope.
-export async function fetchAniListCandidates(searches: string[], post: AniListPost): Promise<AniListCandidate[]> {
+export async function fetchAniListCandidates(
+  searches: string[],
+  post: AniListPost,
+  perPage = 5,
+): Promise<AniListCandidate[]> {
   const results = await Promise.allSettled(
-    (Array.isArray(searches) ? searches : []).map((s) => fetchAniListSearch(s, post)),
+    (Array.isArray(searches) ? searches : []).map((s) => fetchAniListSearch(s, post, perPage)),
   );
   const lists = results.filter((result) => result.status === 'fulfilled').map((result) => result.value);
   if (results.length > 0 && lists.length === 0) {
@@ -540,15 +552,29 @@ export function bannerResultFrom(candidate: AniListCandidate): AniListBannerResu
   return { anilistId: candidate.id, banner, studio, titles: titlesFrom(candidate) };
 }
 
-export async function fetchAniListById(id: number, post: AniListPost): Promise<AniListCandidate | null> {
+export async function fetchAniListById(
+  id: number,
+  post: AniListPost,
+  strict = false,
+): Promise<AniListCandidate | null> {
   try {
     if (!Number.isInteger(id) || id <= 0) return null;
     const envelope = (await post({ query: ID_SEARCH_QUERY, variables: { id } })) as Record<string, unknown>;
+    if (
+      strict &&
+      (!envelope?.data ||
+        typeof envelope.data !== 'object' ||
+        !Object.hasOwn(envelope.data, 'Media') ||
+        (Array.isArray(envelope.errors) && envelope.errors.length))
+    ) {
+      throw new Error('No se pudo consultar la entrada de AniList.');
+    }
     const media = (envelope?.data as Record<string, unknown> | undefined)?.Media as unknown;
     const candidate = toCandidate(media);
     if (!candidate || Number(candidate.id) !== id) return null;
     return candidate;
   } catch {
+    if (strict) throw new Error('No se pudo consultar la entrada de AniList.');
     return null;
   }
 }

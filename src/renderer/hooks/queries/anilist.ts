@@ -33,6 +33,8 @@ export interface AniListMeta {
 }
 
 export interface AniListBannerRequest {
+  persistMatch?: boolean;
+  forceRefresh?: boolean;
   title?: string | null | undefined;
   alternativeTitles?: Array<string | null | undefined> | null;
   providerYear?: number | string | null;
@@ -44,6 +46,8 @@ export interface AniListBannerRequest {
 }
 
 export interface NormalizedAniListRequest {
+  persistMatch?: boolean;
+  forceRefresh?: boolean;
   title: string;
   alternativeTitles: string[];
   providerYear: number | string | null;
@@ -69,6 +73,8 @@ export function normalizeAniListRequest(
     : [];
   const malId = Number(raw.malId);
   return {
+    ...(raw.persistMatch === false ? { persistMatch: false } : {}),
+    ...(raw.forceRefresh === true ? { forceRefresh: true } : {}),
     title,
     alternativeTitles,
     providerYear: raw.providerYear ?? null,
@@ -91,6 +97,7 @@ export function anilistBannerKey(input: string | AniListBannerRequest | null | u
     req.providerFormat ?? '',
     req.providerSeason ?? '',
     String(req.malId ?? ''),
+    ...(req.persistMatch === false ? ['preview'] : []),
     req.providerId ?? '',
     req.slug ?? '',
   ];
@@ -150,7 +157,12 @@ export function useRetryAniList(input: string | AniListBannerRequest | null | un
   return async (): Promise<AniListMeta | null> => {
     const query = getAniListBannerQuery(input);
     await queryClient.cancelQueries({ queryKey: query.queryKey, exact: true });
-    return queryClient.fetchQuery({ ...query, retry: false, staleTime: 0 });
+    return queryClient.fetchQuery({
+      ...query,
+      queryFn: () => fetchAniListMeta({ ...normalizeAniListRequest(input), forceRefresh: true }),
+      retry: false,
+      staleTime: 0,
+    });
   };
 }
 
@@ -229,6 +241,9 @@ export interface AniListSearchItem {
   format: string | null;
   startYear: number | null;
   cover: string | null;
+  banner?: string | null;
+  native?: string | null;
+  episodes?: number | null;
 }
 
 export async function searchAniList(query: string): Promise<AniListSearchItem[]> {
@@ -248,6 +263,9 @@ export async function searchAniList(query: string): Promise<AniListSearchItem[]>
     format: item.format ?? null,
     startYear: item.startYear ?? null,
     cover: typeof item.cover === 'string' && item.cover.trim() ? item.cover : null,
+    banner: typeof item.banner === 'string' && item.banner.trim() ? item.banner : null,
+    native: item.native ?? null,
+    episodes: item.episodes ?? null,
   }));
 }
 
@@ -256,7 +274,7 @@ export function useAniListSearch(query: string, enabled = true) {
   return useQuery({
     queryKey: ['anilist-search', text],
     queryFn: () => searchAniList(text),
-    enabled: enabled && text.length >= 3,
+    enabled: enabled && (text.length >= 3 || /^\d+$/.test(text)),
     staleTime: 30 * 60 * 1000,
     gcTime: 60 * 60 * 1000,
     refetchOnWindowFocus: false,
@@ -294,7 +312,7 @@ export function useSetAniListLink() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (params: { providerId: string; slug: string; anilistId: number }) => {
-      const saved = unwrap(await window.api.invoke('set-anilist-link', params));
+      const saved = unwrap(await window.api.invoke('set-anilist-link', params), { toast: false });
       if (saved !== true) throw new Error('No se pudo guardar el vínculo de AniList');
       return saved;
     },
@@ -306,7 +324,7 @@ export function useRemoveAniListLink() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (params: { providerId: string; slug: string }) => {
-      const removed = unwrap(await window.api.invoke('remove-anilist-link', params));
+      const removed = unwrap(await window.api.invoke('remove-anilist-link', params), { toast: false });
       if (removed !== true) throw new Error('No se pudo eliminar el vínculo de AniList');
       return removed;
     },

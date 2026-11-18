@@ -1285,12 +1285,14 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
       </div>
 
       <AniListLinkDialog
+        key={`${activeProviderId}:${slug}`}
         open={linkDialogOpen}
         onClose={() => setLinkDialogOpen(false)}
         providerId={activeProviderId}
         slug={(data as AnimeDetails | undefined)?.slug || slug}
         defaultQuery={data.title}
         isManualLink={isManualAnilistLink}
+        currentId={linkedAnilistId}
       />
 
       <Dialog

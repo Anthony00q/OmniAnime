@@ -8,12 +8,14 @@ import * as path from 'path';
 import type { WebContents } from 'electron';
 import type { ThumbnailCommand, ThumbnailRequest } from '../../../types/thumbnails';
 import { safeErrorMessage } from '../../../utils/logging/redactLog';
+import type { LibraryMetadataRequest } from '../../../types/library';
 
 export function registerLibraryHandlers({
   libraryFileService,
   episodeFileService,
   thumbnailService,
   libraryMutationService,
+  libraryMetadataService,
   normalizeEpisodeFilesInFolder,
   getAllowedBaseDirs,
   writeGlobalLog,
@@ -105,10 +107,42 @@ export function registerLibraryHandlers({
           );
     });
   });
-  handleIpc('relink-folder', async (_, folderPath: string, targetSlug: string, providerId?: string | null) =>
-    (await libraryFileService.relinkFolder(folderPath, targetSlug, providerId))
-      ? ok(null)
-      : fail('RELINK_FOLDER_FAILED', 'Error al vincular la carpeta'),
+  handleIpc(
+    'relink-folder',
+    async (
+      event,
+      payload:
+        | string
+        | {
+            action: 'preview' | 'apply';
+            request?: LibraryMetadataRequest;
+            token?: string;
+          },
+      targetSlug?: string,
+      providerId?: string | null,
+    ) => {
+      try {
+        if (typeof payload === 'string') {
+          const preview = await libraryMetadataService.prepareLegacy(
+            payload,
+            targetSlug ?? '',
+            providerId,
+            event.sender.id,
+          );
+          await libraryMetadataService.apply(preview.token, event.sender.id);
+          return ok(null);
+        }
+        if (payload?.action === 'preview' && payload.request) {
+          return ok(await libraryMetadataService.prepare(payload.request, event.sender.id));
+        }
+        if (payload?.action === 'apply' && typeof payload.token === 'string') {
+          return ok(await libraryMetadataService.apply(payload.token, event.sender.id));
+        }
+        return fail('RELINK_FOLDER_INVALID', 'La revisión no es válida.');
+      } catch (error) {
+        return fail('RELINK_FOLDER_FAILED', safeErrorMessage(error) || 'No se pudo actualizar la carpeta.');
+      }
+    },
   );
   handleIpc('scan-episodes', async (_, animePath: string) => {
     try {

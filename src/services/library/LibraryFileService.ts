@@ -3,15 +3,11 @@ import * as fs from 'fs';
 import * as fsp from 'fs/promises';
 import * as path from 'path';
 import type { LibraryAssetService } from './LibraryAssetService';
+import { LibraryMetadataService } from './LibraryMetadataService';
 import { THUMBNAIL_DIR_NAME } from './ThumbnailService';
 import { withFolderLanguage } from '../../utils/downloads/folderNaming';
-import {
-  anilistBannerInputFromDetails,
-  type AniListBannerInput,
-  type AniListBannerResult,
-} from '../providers/AniListService';
-import { normalizeDisplayAnimeTitle, normalizeFolderAlternativeTitles } from '../../utils/titleUtils';
-import { errorDetailForLog, safeErrorMessage } from '../../utils/logging/redactLog';
+import type { AniListBannerInput, AniListBannerResult } from '../providers/AniListService';
+import { errorDetailForLog } from '../../utils/logging/redactLog';
 import {
   isPathWithinAnyDirectory,
   isPathSafeForDestructiveOperation,
@@ -33,6 +29,7 @@ export interface LibraryFolder {
   category?: string | null;
   season?: string | null;
   providerId?: string | null;
+  anilistId?: number | null;
   lang?: 'SUB' | 'DUB';
   hasProviderMetadata?: boolean;
   sourceDir: string;
@@ -187,6 +184,7 @@ export class LibraryFileService {
                 category: (meta as any)?.category || null,
                 season: (meta as any)?.season || null,
                 providerId: (meta as any)?.providerId || 'animeav1',
+                anilistId: Number.isSafeInteger(meta?.anilistId) ? meta.anilistId : null,
                 lang: meta?.lang === 'DUB' ? 'DUB' : 'SUB',
                 hasProviderMetadata: Boolean(meta?.providerId || meta?.slug),
                 sourceDir: baseDir,
@@ -347,60 +345,21 @@ export class LibraryFileService {
 
   async relinkFolder(folderPath: string, targetSlug: string, providerId?: string | null): Promise<boolean> {
     try {
-      if (!isPathSafeForDestructiveOperation(folderPath, this.options.getAllowedBaseDirs(), false)) return false;
-      if (!fs.existsSync(folderPath)) return false;
-      const details = await this.options.getAnimeDetails(targetSlug, providerId);
-      if (!details) return false;
-
-      try {
-        const assetDir = this.options.assetService.getFolderAssetDir(folderPath);
-        const files = ['poster.jpg', 'poster.jpeg', 'poster.png', 'banner.jpg', 'banner.jpeg', 'banner.png'];
-        for (const file of files) {
-          const filePath = path.join(assetDir, file);
-          if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-        }
-      } catch (error) {
-        this.options.log(`Error limpiando assets anteriores en relink: ${errorDetailForLog(error)}`);
-      }
-
-      // Banner como en la ficha: solo AniList validado, sin fallback al
-      // póster. Null ante error, offline o sin match.
-      let anilist: AniListBannerResult | null = null;
-      try {
-        anilist =
-          (await this.options.resolveAniListMeta?.(
-            anilistBannerInputFromDetails(details, providerId ?? this.options.getActiveProviderId()),
-          )) ?? null;
-      } catch {
-        anilist = null;
-      }
-      const anilistBannerUrl = anilist?.banner ?? null;
-
-      const relinkTitle = normalizeDisplayAnimeTitle(details.title || '') || targetSlug;
-      this.options.assetService.writeFolderLibraryMeta(folderPath, {
-        slug: targetSlug,
-        title: relinkTitle,
-        secondaryTitle: String(details.japaneseTitle || '').trim(),
-        alternativeTitles: normalizeFolderAlternativeTitles(details.alternativeTitles, relinkTitle),
-        category: details.category || '',
-        year: details.year ? String(details.year) : '',
-        status: details.status || '',
-        season: details.season || '',
-        posterUrl: details.poster,
-        bannerUrl: anilistBannerUrl,
-        providerId: providerId ?? this.options.getActiveProviderId(),
-        anilistId: anilist?.anilistId ?? null,
+      const service = new LibraryMetadataService({
+        assetService: this.options.assetService,
+        getAllowedBaseDirs: this.options.getAllowedBaseDirs,
+        getDetails: (slug, provider) => this.options.getAnimeDetails(slug, provider),
+        resolveAniListMeta: (input) => this.options.resolveAniListMeta?.(input) ?? Promise.resolve(null),
+        mutate: async (_paths, action) => {
+          if (this.options.queueOwnsFolder(folderPath)) throw new Error('La carpeta tiene una descarga pendiente.');
+          return action();
+        },
       });
-
-      setImmediate(async () => {
-        try {
-          await this.options.assetService.ensureFolderPoster(folderPath, details.poster || null);
-          if (anilistBannerUrl) await this.options.assetService.ensureFolderBanner(folderPath, anilistBannerUrl);
-        } catch (error) {
-          this.options.log(`Error descargando assets en relink: ${safeErrorMessage(error)}`);
-        }
-      });
-
+      const preview = await service.prepare(
+        { folderPath, slug: targetSlug, providerId: providerId ?? this.options.getActiveProviderId() },
+        0,
+      );
+      await service.apply(preview.token, 0);
       return true;
     } catch (error) {
       this.options.log(`Relink error: ${errorDetailForLog(error)}`);

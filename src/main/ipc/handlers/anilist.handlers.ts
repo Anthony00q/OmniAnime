@@ -2,7 +2,7 @@ import { handleIpc } from '../ipcGuard';
 import { ok } from '../../../types/api';
 import { aniListBannerResponse, defaultAniListPost, type AniListFailureKind } from '../../anilistBanner';
 import { invalidateAniLinkCache, resolveAniListWithLink } from '../../anilistLink';
-import { fetchAniListCandidates } from '../../../services/providers/AniListService';
+import { fetchAniListCandidates, fetchAniListById } from '../../../services/providers/AniListService';
 import { isAllowedImageUrl } from '../../../utils/security/networkSecurity';
 import { safeErrorMessage } from '../../../utils/logging/redactLog';
 import type { IpcRegistryDependencies } from '../../IpcRegistry';
@@ -18,6 +18,8 @@ type BannerPayload =
       malId?: unknown;
       providerId?: unknown;
       slug?: unknown;
+      persistMatch?: unknown;
+      forceRefresh?: unknown;
     }
   | null
   | undefined;
@@ -52,6 +54,8 @@ export function registerAniListHandlers({ writeGlobalLog, scopedLog, aniLinkStor
           malId: hasMalId ? malId : null,
           providerId: providerId || null,
           slug: slug || null,
+          persistMatch: raw.persistMatch !== false,
+          forceRefresh: raw.forceRefresh === true,
         },
         aniLinkStore,
         undefined,
@@ -72,7 +76,13 @@ export function registerAniListHandlers({ writeGlobalLog, scopedLog, aniLinkStor
     try {
       const query = String(typeof payload === 'string' ? payload : (payload?.query ?? '')).trim();
       if (!query) return ok([]);
-      const candidates = await fetchAniListCandidates([query], defaultAniListPost);
+      const direct = query.match(/^(?:https:\/\/anilist\.co\/anime\/)?(\d+)(?:\/[^?#]*)?\/?$/i);
+      const entry = direct ? await fetchAniListById(Number(direct[1]), defaultAniListPost, true) : null;
+      const candidates = direct
+        ? entry
+          ? [entry]
+          : []
+        : await fetchAniListCandidates([query], defaultAniListPost, 15);
       return ok(
         candidates.map((c) => ({
           id: c.id,
@@ -81,6 +91,9 @@ export function registerAniListHandlers({ writeGlobalLog, scopedLog, aniLinkStor
           format: c.format ?? null,
           startYear: c.startYear ?? null,
           cover: typeof c.coverImage === 'string' && isAllowedImageUrl(c.coverImage) ? c.coverImage : null,
+          banner: typeof c.bannerImage === 'string' && isAllowedImageUrl(c.bannerImage) ? c.bannerImage : null,
+          native: c.native ?? null,
+          episodes: c.episodes ?? null,
         })),
       );
     } catch (error) {
@@ -96,7 +109,15 @@ export function registerAniListHandlers({ writeGlobalLog, scopedLog, aniLinkStor
         const providerId = String(payload?.providerId ?? '').trim();
         const slug = String(payload?.slug ?? '').trim();
         const anilistId = Number(payload?.anilistId);
-        if (!providerId || !slug || !Number.isInteger(anilistId) || anilistId <= 0) return ok(false);
+        if (
+          !['animeav1', 'jkanime'].includes(providerId) ||
+          !slug ||
+          !Number.isSafeInteger(anilistId) ||
+          anilistId <= 0
+        )
+          return ok(false);
+        const candidate = await fetchAniListById(anilistId, defaultAniListPost, true);
+        if (!candidate) return ok(false);
         aniLinkStore.setAniLink(providerId, slug, anilistId, 'manual');
         invalidateAniLinkCache(providerId, slug);
         return ok(true);

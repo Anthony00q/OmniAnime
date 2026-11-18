@@ -16,6 +16,8 @@ export interface LibraryMetaPreloadRow {
   status?: string;
   season?: string;
   providerId?: string | null;
+  anilistId?: number | null;
+  hasProviderMetadata?: boolean;
   lang?: 'SUB' | 'DUB';
   updatedAt: number;
 }
@@ -36,4 +38,25 @@ export interface FolderLibraryMeta {
   lang?: 'SUB' | 'DUB';
   anilistId?: number | null;
   folderPath?: string;
+}
+
+export interface LibraryMetadataRequest {
+  folderPath: string;
+  providerId: string;
+  slug: string;
+  refresh?: boolean;
+}
+
+export interface LibraryMetadataPreview {
+  token: string;
+  folderPath: string;
+  current: FolderLibraryMeta | null;
+  proposed: FolderLibraryMeta;
+  warnings: string[];
+}
+
+export interface LibraryMetadataResult {
+  folderPath: string;
+  meta: FolderLibraryMeta;
+  warnings: string[];
 }

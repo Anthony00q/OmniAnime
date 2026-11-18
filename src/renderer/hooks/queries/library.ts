@@ -12,6 +12,49 @@ import type { ThumbnailCommand, ThumbnailPriority, ThumbnailRequest } from '@/ty
 import { reportRendererError } from '@/renderer/utils/rendererErrorReporting';
 import { useSetAtom } from 'jotai';
 import { selectedLibraryFolderAtom } from '@/renderer/store/atoms';
+import type { LibraryMetadataPreview, LibraryMetadataRequest, LibraryMetadataResult } from '@/types/library';
+
+export function useLibraryMetadataPreview(request: LibraryMetadataRequest | null, session: number) {
+  return useQuery({
+    queryKey: ['library-metadata-preview', request, session],
+    queryFn: async () =>
+      unwrap<LibraryMetadataPreview>(await window.api.invoke('relink-folder', { action: 'preview', request }), {
+        toast: false,
+      }),
+    enabled: request !== null,
+    staleTime: 0,
+    gcTime: 0,
+    retry: false,
+  });
+}
+
+export function useApplyLibraryMetadata() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationKey: ['library-files', 'metadata'],
+    retry: false,
+    mutationFn: async (token: string) => {
+      await client.cancelQueries({ queryKey: ['library'] });
+      return unwrap<LibraryMetadataResult>(await window.api.invoke('relink-folder', { action: 'apply', token }), {
+        toast: false,
+      });
+    },
+    onSuccess: async (result) => {
+      await client.invalidateQueries({
+        queryKey: ['anilist-banner'],
+        predicate: (query) =>
+          query.queryKey.at(-2) === result.meta.providerId && query.queryKey.at(-1) === result.meta.slug,
+      });
+    },
+    onSettled: async () => {
+      await Promise.all(
+        ['library', 'preview-rename', 'preview-folder-rename'].map((key) =>
+          client.invalidateQueries({ queryKey: [key] }),
+        ),
+      );
+    },
+  });
+}
 
 export function publishRenamedLibraryFolder(
   queryClient: QueryClient,

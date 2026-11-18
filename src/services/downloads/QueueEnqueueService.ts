@@ -111,14 +111,17 @@ export class QueueEnqueueService {
 
     // AniList primero: sus títulos pueden dar nombre a la carpeta.
     let anilist: AniListBannerResult | null = null;
+    let anilistUnavailable = false;
     try {
       anilist = await this.options.resolveAniListMeta(
         { ...anilistBannerInputFromDetails(details, queueProvider), slug },
         (kind) => {
+          if (kind !== 'nomatch') anilistUnavailable = true;
           if (kind !== 'nomatch') this.options.logAnilistWarn(`banner no resuelto (${kind})`);
         },
       );
     } catch (error) {
+      anilistUnavailable = true;
       this.options.logError(`Error resolviendo AniList para ${slug}: ${errorDetailForLog(error)}`);
     }
 
@@ -160,7 +163,13 @@ export class QueueEnqueueService {
       }
       let localPosterUrl: string | null = null;
       let localBannerUrl: string | null = null;
-      const anilistBannerUrl = anilist?.banner ?? null;
+      const existingMeta = this.options.getFolderMeta?.(targetPath);
+      const keepAniList =
+        anilistUnavailable &&
+        existingMeta?.slug === (details.slug || slug) &&
+        existingMeta.providerId === queueProvider &&
+        (existingMeta.lang || 'SUB') === lang;
+      const anilistBannerUrl = keepAniList ? (existingMeta?.bannerUrl ?? null) : (anilist?.banner ?? null);
       try {
         // Banner como en la ficha: solo AniList validado, sin fallback al póster.
         [localPosterUrl, localBannerUrl] = await Promise.all([
@@ -194,7 +203,7 @@ export class QueueEnqueueService {
         bannerUrl: anilistBannerUrl,
         providerId: queueProvider,
         lang,
-        anilistId: anilist?.anilistId ?? null,
+        anilistId: keepAniList ? (existingMeta?.anilistId ?? null) : (anilist?.anilistId ?? null),
       });
       if (artifactsBefore) await this.options.folderCleanup?.record(targetPath, artifactsBefore);
 

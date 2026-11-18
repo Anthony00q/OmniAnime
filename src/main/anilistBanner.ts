@@ -124,6 +124,7 @@ export async function resolveAniListBannerResult(
     cacheByPost.set(effectivePost, cache);
   }
   const key = anilistCacheKey(input);
+  if (input.forceRefresh) cache.delete(key);
   const now = Date.now();
   const hit = cache.get(key);
   const entry: AniListCacheEntry =

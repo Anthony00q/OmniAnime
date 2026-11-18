@@ -15,6 +15,11 @@ export interface LibraryPreloadRow {
   banner?: unknown;
   providerId?: unknown;
   lang?: unknown;
+  anilistId?: unknown;
+  year?: unknown;
+  category?: unknown;
+  season?: unknown;
+  hasProviderMetadata?: unknown;
 }
 
 export interface LibrarySeedFolder {
@@ -30,6 +35,11 @@ export interface LibrarySeedFolder {
   alternativeTitles: string[];
   providerId: string | null;
   lang?: 'SUB' | 'DUB';
+  anilistId: number | null;
+  year: string | null;
+  category: string | null;
+  season: string | null;
+  hasProviderMetadata: boolean;
   sourceDir: string;
   sourceDirIndex: number;
 }
@@ -74,6 +84,15 @@ export function adaptLibraryPreloadToFolders(rows: unknown): LibrarySeedFolder[]
         ? (row.alternativeTitles as unknown[]).filter((v): v is string => typeof v === 'string' && !!v.trim())
         : [],
       providerId: asNullableString(row.providerId),
+      anilistId:
+        typeof row.anilistId === 'number' && Number.isSafeInteger(row.anilistId) && row.anilistId > 0
+          ? row.anilistId
+          : null,
+      year: asNullableString(row.year),
+      category: asNullableString(row.category),
+      season: asNullableString(row.season),
+      hasProviderMetadata:
+        typeof row.hasProviderMetadata === 'boolean' ? row.hasProviderMetadata : Boolean(row.providerId || row.slug),
       ...(row.lang === 'DUB' ? { lang: 'DUB' as const } : {}),
       sourceDir,
       sourceDirIndex: Math.max(0, Math.floor(asNumber(row.sourceDirIndex, 0))),

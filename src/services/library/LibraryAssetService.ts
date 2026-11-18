@@ -43,9 +43,16 @@ export interface LibraryAssetServiceOptions {
   getAllowedBaseDirs?: () => string[];
 }
 
+interface ManagedArtwork {
+  identity: string;
+  poster: { file: string; source: string } | null;
+  banner: { file: string; source: string } | null;
+}
+
 export class LibraryAssetService {
   private readonly assetRootPath: string;
   private readonly inFlightDownloads = new Set<string>();
+  private readonly artworkUpdates = new Map<string, Promise<string[]>>();
   private readonly hideFile: (filePath: string) => void;
 
   constructor(private readonly options: LibraryAssetServiceOptions) {
@@ -110,6 +117,8 @@ export class LibraryAssetService {
   }
 
   getFolderPosterFilePath(folderPath: string): string | null {
+    const managed = this.managedArtworkPath(folderPath, 'poster');
+    if (managed !== undefined) return managed;
     return this.getLegacyFolderPosterFilePath(folderPath);
   }
 
@@ -118,6 +127,8 @@ export class LibraryAssetService {
   }
 
   getFolderBannerFilePath(folderPath: string): string | null {
+    const managed = this.managedArtworkPath(folderPath, 'banner');
+    if (managed !== undefined) return managed;
     return this.getLegacyFolderBannerFilePath(folderPath);
   }
 
@@ -158,6 +169,8 @@ export class LibraryAssetService {
   }
 
   async getFolderPosterFilePathAsync(folderPath: string): Promise<string | null> {
+    const managed = await this.managedArtworkPathAsync(folderPath, 'poster');
+    if (managed !== undefined) return managed;
     return this.getLegacyFolderPosterFilePathAsync(folderPath);
   }
 
@@ -167,6 +180,8 @@ export class LibraryAssetService {
   }
 
   async getFolderBannerFilePathAsync(folderPath: string): Promise<string | null> {
+    const managed = await this.managedArtworkPathAsync(folderPath, 'banner');
+    if (managed !== undefined) return managed;
     return this.getLegacyFolderBannerFilePathAsync(folderPath);
   }
 
@@ -186,13 +201,24 @@ export class LibraryAssetService {
       try {
         const raw = await fsp.readFile(newRootPath, 'utf-8');
         const parsed = JSON.parse(raw);
-        if (parsed && typeof parsed === 'object') return parsed as FolderLibraryMeta;
+        if (parsed && typeof parsed === 'object') {
+          try {
+            const full = JSON.parse(
+              await fsp.readFile(
+                path.join(this.assetRootPath, this.getFolderAssetKey(folderPath), 'library-meta.json'),
+                'utf8',
+              ),
+            ) as FolderLibraryMeta;
+            if (full.slug === parsed.slug && full.providerId === parsed.providerId) return { ...full, ...parsed };
+          } catch {}
+          return parsed as FolderLibraryMeta;
+        }
       } catch {
         // file missing or unreadable — fall through to asset meta
       }
 
       try {
-        const assetDir = this.getFolderAssetDir(folderPath);
+        const assetDir = path.join(this.assetRootPath, this.getFolderAssetKey(folderPath));
         const assetMetaPath = path.join(assetDir, 'library-meta.json');
         const raw2 = await fsp.readFile(assetMetaPath, 'utf-8');
         const parsed2 = JSON.parse(raw2);
@@ -217,10 +243,21 @@ export class LibraryAssetService {
       const newRootPath = path.join(folderPath, '.omnianime');
       if (fs.existsSync(newRootPath)) {
         const parsed = JSON.parse(fs.readFileSync(newRootPath, 'utf-8'));
-        if (parsed && typeof parsed === 'object') return parsed as FolderLibraryMeta;
+        if (parsed && typeof parsed === 'object') {
+          try {
+            const full = JSON.parse(
+              fs.readFileSync(
+                path.join(this.assetRootPath, this.getFolderAssetKey(folderPath), 'library-meta.json'),
+                'utf8',
+              ),
+            ) as FolderLibraryMeta;
+            if (full.slug === parsed.slug && full.providerId === parsed.providerId) return { ...full, ...parsed };
+          } catch {}
+          return parsed as FolderLibraryMeta;
+        }
       }
 
-      const assetMetaPath = path.join(this.getFolderAssetDir(folderPath), 'library-meta.json');
+      const assetMetaPath = path.join(this.assetRootPath, this.getFolderAssetKey(folderPath), 'library-meta.json');
       if (fs.existsSync(assetMetaPath)) {
         const parsed = JSON.parse(fs.readFileSync(assetMetaPath, 'utf-8'));
         if (parsed && typeof parsed === 'object') return parsed as FolderLibraryMeta;
@@ -232,7 +269,7 @@ export class LibraryAssetService {
     }
   }
 
-  writeFolderLibraryMeta(folderPath: string, data: FolderLibraryMeta): void {
+  writeFolderLibraryMeta(folderPath: string, data: FolderLibraryMeta, options?: { strict?: boolean }): void {
     try {
       const secondary = String(data.secondaryTitle || '').trim();
       const normalized: FolderLibraryMeta = {
@@ -265,6 +302,7 @@ export class LibraryAssetService {
         safeWriteFileSync(rootPath, minimalMarker);
         this.hideFile(rootPath);
       } catch {
+        if (options?.strict) throw new Error('No se pudo guardar el marcador de la carpeta.');
         /* hidden attribute is optional */
       }
 
@@ -274,6 +312,7 @@ export class LibraryAssetService {
       this.options.log(
         `Error guardando metadata de biblioteca en ${path.basename(folderPath)}: ${errorDetailForLog(error)}`,
       );
+      if (options?.strict) throw new Error('No se pudo confirmar el guardado de los metadatos. Revisa la carpeta.');
     }
   }
 
@@ -315,10 +354,204 @@ export class LibraryAssetService {
     return true;
   }
 
+  private artworkIdentity(meta: FolderLibraryMeta | null): string {
+    return JSON.stringify([meta?.providerId ?? '', meta?.slug ?? '', meta?.anilistId ?? null]);
+  }
+
+  private artworkManifest(folderPath: string): string {
+    return path.join(this.assetRootPath, this.getFolderAssetKey(folderPath), 'artwork.json');
+  }
+
+  private imageExtension(bytes: Buffer): 'jpg' | 'png' | 'webp' | null {
+    if (bytes.length > 5 * 1024 * 1024) return null;
+    if (bytes.length > 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return 'jpg';
+    if (bytes.length > 8 && bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) return 'png';
+    if (bytes.length > 12 && bytes.toString('ascii', 0, 4) === 'RIFF' && bytes.toString('ascii', 8, 12) === 'WEBP')
+      return 'webp';
+    return null;
+  }
+
+  private managedEntryPath(
+    folderPath: string,
+    raw: unknown,
+    kind: 'poster' | 'banner',
+    meta: FolderLibraryMeta | null,
+  ): string | null {
+    if (!raw || typeof raw !== 'object') return null;
+    const manifest = raw as ManagedArtwork;
+    if (manifest.identity !== this.artworkIdentity(meta)) return null;
+    const entry = manifest[kind];
+    const source = kind === 'poster' ? meta?.posterUrl : meta?.bannerUrl;
+    if (!entry || entry.source !== source || !/^(poster|banner)-[a-f0-9-]+\.(jpg|png|webp)$/.test(entry.file))
+      return null;
+    return path.join(this.assetRootPath, this.getFolderAssetKey(folderPath), entry.file);
+  }
+
+  private managedArtworkPath(folderPath: string, kind: 'poster' | 'banner'): string | null | undefined {
+    const manifestPath = this.artworkManifest(folderPath);
+    if (!fs.existsSync(manifestPath)) return undefined;
+    try {
+      const file = this.managedEntryPath(
+        folderPath,
+        JSON.parse(fs.readFileSync(manifestPath, 'utf8')),
+        kind,
+        this.readFolderLibraryMeta(folderPath),
+      );
+      return file && fs.statSync(file).isFile() ? file : null;
+    } catch {
+      return null;
+    }
+  }
+
+  private async managedArtworkPathAsync(
+    folderPath: string,
+    kind: 'poster' | 'banner',
+  ): Promise<string | null | undefined> {
+    let text: string;
+    try {
+      text = await fsp.readFile(this.artworkManifest(folderPath), 'utf8');
+    } catch (error) {
+      return (error as NodeJS.ErrnoException).code === 'ENOENT' ? undefined : null;
+    }
+    try {
+      const file = this.managedEntryPath(
+        folderPath,
+        JSON.parse(text),
+        kind,
+        await this.readFolderLibraryMetaAsync(folderPath),
+      );
+      return file && (await fsp.stat(file)).isFile() ? file : null;
+    } catch {
+      return null;
+    }
+  }
+
+  async refreshFolderAssets(
+    folderPath: string,
+    meta: FolderLibraryMeta,
+    options?: { previousMeta?: FolderLibraryMeta | null; missingOnly?: boolean },
+  ): Promise<string[]> {
+    const key = this.getFolderAssetKey(folderPath);
+    const previous = this.artworkUpdates.get(key);
+    const update = (previous ?? Promise.resolve())
+      .catch(() => {})
+      .then(() => this.updateFolderAssets(folderPath, meta, options));
+    this.artworkUpdates.set(key, update);
+    try {
+      return await update;
+    } finally {
+      if (this.artworkUpdates.get(key) === update) this.artworkUpdates.delete(key);
+    }
+  }
+
+  private async updateFolderAssets(
+    folderPath: string,
+    meta: FolderLibraryMeta,
+    options?: { previousMeta?: FolderLibraryMeta | null; missingOnly?: boolean },
+  ): Promise<string[]> {
+    if (!this.isFolderPathAllowed(folderPath)) throw new Error('La carpeta no está autorizada.');
+    const isCurrent = () => {
+      const current = this.readFolderLibraryMeta(folderPath);
+      return (
+        this.artworkIdentity(current) === this.artworkIdentity(meta) &&
+        (current?.posterUrl ?? null) === (meta.posterUrl ?? null) &&
+        (current?.bannerUrl ?? null) === (meta.bannerUrl ?? null)
+      );
+    };
+    if (!isCurrent()) return [];
+    const directory = this.getFolderAssetDir(folderPath);
+    const manifestPath = this.artworkManifest(folderPath);
+    let previous: ManagedArtwork | null = null;
+    try {
+      previous = JSON.parse(fs.readFileSync(manifestPath, 'utf8')) as ManagedArtwork;
+    } catch {}
+    const identity = this.artworkIdentity(meta);
+    const manifest: ManagedArtwork = { identity, poster: null, banner: null };
+    const warnings: string[] = [];
+    for (const kind of ['poster', 'banner'] as const) {
+      if (
+        previous?.identity === identity &&
+        previous[kind]?.source === (kind === 'poster' ? meta.posterUrl : meta.bannerUrl)
+      ) {
+        manifest[kind] = previous[kind];
+      }
+      const source = kind === 'poster' ? meta.posterUrl : meta.bannerUrl;
+      const previousSource = kind === 'poster' ? options?.previousMeta?.posterUrl : options?.previousMeta?.bannerUrl;
+      if (
+        !previous &&
+        source &&
+        source === previousSource &&
+        this.artworkIdentity(options?.previousMeta ?? null) === identity
+      ) {
+        const legacy =
+          kind === 'poster'
+            ? this.getLegacyFolderPosterFilePath(folderPath)
+            : this.getLegacyFolderBannerFilePath(folderPath);
+        if (legacy) {
+          try {
+            const stat = fs.lstatSync(legacy);
+            if (!stat.isFile() || stat.size > 5 * 1024 * 1024) throw new Error('Imagen no válida.');
+            const bytes = fs.readFileSync(legacy);
+            const ext = this.imageExtension(bytes);
+            if (!ext) throw new Error('Imagen no válida.');
+            const file = `${kind}-${crypto.randomUUID()}.${ext}`;
+            fs.writeFileSync(path.join(directory, file), bytes, { flag: 'wx' });
+            manifest[kind] = { file, source };
+          } catch {
+            warnings.push(`No se pudo conservar ${kind === 'poster' ? 'la carátula' : 'el banner'} local.`);
+          }
+        }
+      }
+    }
+    safeWriteFileSync(manifestPath, JSON.stringify(manifest));
+    for (const kind of ['poster', 'banner'] as const) {
+      const source = kind === 'poster' ? meta.posterUrl : meta.bannerUrl;
+      if (!source || (kind === 'banner' && source === meta.posterUrl)) continue;
+      if (options?.missingOnly && (await this.managedArtworkPathAsync(folderPath, kind))) continue;
+      if (!isAllowedImageUrl(source)) {
+        warnings.push(`No se pudo actualizar ${kind === 'poster' ? 'la carátula' : 'el banner'}.`);
+        continue;
+      }
+      const previousEntry = manifest[kind];
+      let target: string | null = null;
+      try {
+        const response = await this.options.httpClient.get(source, this.imageRequestConfig());
+        const bytes = Buffer.from(response.data as ArrayBuffer);
+        const ext = this.imageExtension(bytes);
+        if (!ext) throw new Error('Imagen no válida.');
+        if (!isCurrent()) return warnings;
+        if (!isPathWithinAnyDirectory(folderPath, this.options.getAllowedBaseDirs?.() ?? [folderPath], false)) {
+          throw new Error('La carpeta ya no está autorizada.');
+        }
+        const file = `${kind}-${crypto.randomUUID()}.${ext}`;
+        target = path.join(directory, file);
+        await fsp.writeFile(target, bytes, { flag: 'wx' });
+        if (!isCurrent()) {
+          await fsp.unlink(target).catch(() => {});
+          return warnings;
+        }
+        manifest[kind] = { file, source };
+        safeWriteFileSync(manifestPath, JSON.stringify(manifest));
+      } catch {
+        manifest[kind] = previousEntry;
+        if (target) await fsp.unlink(target).catch(() => {});
+        warnings.push(`No se pudo actualizar ${kind === 'poster' ? 'la carátula' : 'el banner'}.`);
+      }
+    }
+    for (const kind of ['poster', 'banner'] as const) {
+      const retired = previous?.[kind]?.file;
+      if (retired && retired !== manifest[kind]?.file && /^(poster|banner)-[a-f0-9-]+\.(jpg|png|webp)$/.test(retired)) {
+        await fsp.unlink(path.join(directory, retired)).catch(() => {});
+      }
+    }
+    return warnings;
+  }
+
   async ensureFolderPoster(folderPath: string, posterUrl: string | null | undefined): Promise<string | null> {
     if (!this.isFolderPathAllowed(folderPath)) return null;
     const existing = await this.getFolderPosterFileUrlAsync(folderPath);
     if (existing) return existing;
+    if (fs.existsSync(this.artworkManifest(folderPath))) return null;
 
     const raw = String(posterUrl || '').trim();
     if (!raw || !isAllowedImageUrl(raw)) return null;
@@ -345,6 +578,7 @@ export class LibraryAssetService {
     if (!this.isFolderPathAllowed(folderPath)) return null;
     const existing = await this.getFolderBannerFileUrlAsync(folderPath);
     if (existing) return existing;
+    if (fs.existsSync(this.artworkManifest(folderPath))) return null;
 
     const raw = String(bannerUrl || '').trim();
     if (!raw || !isAllowedImageUrl(raw)) return null;
@@ -373,6 +607,10 @@ export class LibraryAssetService {
     this.inFlightDownloads.add(key);
 
     try {
+      if (fs.existsSync(this.artworkManifest(folderPath))) {
+        await this.refreshFolderAssets(folderPath, meta, { missingOnly: true });
+        return;
+      }
       const hasPoster = this.getFolderPosterFilePath(folderPath);
       const hasBanner = this.getFolderBannerFilePath(folderPath);
       if (!hasPoster && meta.posterUrl) {

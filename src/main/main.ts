@@ -32,6 +32,7 @@ import { HistoryService } from '../services/library/HistoryService';
 import { LibraryAssetService } from '../services/library/LibraryAssetService';
 import { LibraryFileService } from '../services/library/LibraryFileService';
 import { LibraryPreloadService } from '../services/library/LibraryPreloadService';
+import { LibraryMetadataService } from '../services/library/LibraryMetadataService';
 import { QueueStore } from '../services/persistence/QueueStore';
 import { PausedProgressStore, applyStoredSnapshot } from '../services/persistence/PausedProgressStore';
 import { AppUpdateService } from '../services/update/AppUpdateService';
@@ -58,7 +59,7 @@ import {
 import { USER_AGENT } from '../utils/windowUtils';
 import { WindowLifecycleService, type PreloadedData } from './WindowLifecycleService';
 import { registerIpcHandlers } from './IpcRegistry';
-import { resolveAniListWithLink } from './anilistLink';
+import { invalidateAniLinkCache, resolveAniListWithLink } from './anilistLink';
 
 // Register privileged custom scheme for local posters/banners with webSecurity:true
 // Must be before app.whenReady(). Allows <img src="omni-media://..."> from both file:// and http:// (dev)
@@ -361,6 +362,29 @@ const libraryMutationService: LibraryMutationService = new LibraryMutationServic
   },
   queueOwnsFolder: (folderPath) => queueProcessor.isFolderInUse(folderPath),
   thumbnailService,
+});
+const libraryMetadataService = new LibraryMetadataService({
+  assetService: libraryAssetService,
+  getAllowedBaseDirs: () => {
+    const settings = SettingsManager.get();
+    return settings.outputDirs || [settings.defaultOutputDir];
+  },
+  getDetails: (slug, providerId) => getAnimeDetailsBySlug(slug, providerId),
+  getActiveProviderId: () => providerGateway.activeProviderIdName,
+  getAniListLinkId: (providerId, slug) => database.getAniLink(providerId, slug)?.anilistId ?? null,
+  commitAniListLink: (providerId, slug, anilistId) => {
+    database.setAniLink(providerId, slug, anilistId, 'auto');
+    invalidateAniLinkCache(providerId, slug);
+  },
+  resolveAniListMeta: async (input) => {
+    let failed = false;
+    const result = await resolveAniListWithLink(input, database, undefined, (kind) => {
+      if (kind !== 'nomatch') failed = true;
+    });
+    if (failed) throw new Error('No se pudo consultar AniList.');
+    return result;
+  },
+  mutate: (paths, action) => libraryMutationService.run(paths, action),
 });
 const libraryFolderCleanup = new LibraryFolderCleanupService({
   getAllowedBaseDirs: () => {
@@ -771,6 +795,7 @@ function processQueue(): Promise<void> {
 }
 
 registerIpcHandlers({
+  libraryMetadataService,
   libraryMutationService,
   preloadedData,
   providerGateway,

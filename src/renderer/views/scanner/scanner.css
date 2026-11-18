@@ -236,6 +236,9 @@
 }
 
 .scanner-inspector-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
   margin-top: 20px;
 }
 
@@ -265,12 +268,13 @@
 
 .scanner-inspector-help {
   display: flex;
+  flex-basis: 100%;
   align-items: flex-start;
   gap: 8px;
   color: var(--color-muted-foreground);
   font-size: 13px;
   line-height: 1.55;
-  margin-top: 12px;
+  margin-top: 4px;
 }
 
 .scanner-folder-state.text-destructive-fg,
