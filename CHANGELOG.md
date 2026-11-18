@@ -1,5 +1,33 @@
 # Changelog
 
+## [1.3.2] - 2026-11-18
+
+### Librería
+
+- El **Escáner** permite actualizar los datos y las imágenes de una carpeta vinculada sin renombrarla ni modificar los vídeos.
+- Al vincular una carpeta, se puede buscar por título o enlace del proveedor y revisar la ficha elegida antes de guardarla.
+- El renombrado individual muestra el nombre final y comprueba que el destino esté libre antes de habilitar la confirmación.
+- El renombrado masivo permite omitir carpetas o usar un título de respaldo cuando el título elegido no está disponible.
+- Los diálogos de renombrado permiten revisar el vínculo de AniList y consultar los títulos largos sin que se corten en la lista.
+
+### Búsqueda
+
+- El buscador de **Inicio** acepta enlaces directos a fichas de anime del proveedor seleccionado.
+- Los errores del proveedor se distinguen de las búsquedas sin resultados y ofrecen la opción **Reintentar**.
+
+### Catálogo
+
+- El diálogo de AniList muestra el vínculo actual y permite buscar otra ficha por título, enlace o identificador.
+- Al guardar un vínculo de AniList desde una ficha, se puede revisar la actualización de las carpetas locales asociadas.
+
+### Descargas
+
+- Al añadir episodios a una carpeta existente, se conservan su vínculo y su imagen de AniList si el servicio no responde.
+
+### Actualizaciones
+
+- Las negritas del texto de las notas de versión se muestran con un tamaño más discreto en el aviso de actualización.
+
 ## [1.3.1] - 2026-11-17
 
 ### Descargas
