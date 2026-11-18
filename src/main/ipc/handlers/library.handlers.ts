@@ -82,20 +82,38 @@ export function registerLibraryHandlers({
   handleIpc('scan-downloads', async (_, baseDirs: string | string[]) =>
     ok(await libraryFileService.scanDownloads(baseDirs)),
   );
-  handleIpc('rename-folder', async (_, { oldPath, newName }: { oldPath: string; newName: string }) => {
-    let target: string;
-    try {
-      target = libraryFileService.resolveRenameTarget(oldPath, newName);
-    } catch (error) {
-      return fail('RENAME_FOLDER_FAILED', safeErrorMessage(error) || 'El nombre de carpeta no es válido.');
-    }
-    return mutate([oldPath, target], async () => {
-      const result = await libraryFileService.renameFolder(oldPath, newName);
-      return result.success
-        ? ok(result)
-        : fail('RENAME_FOLDER_FAILED', result.error || 'No se pudo renombrar la carpeta.');
-    });
-  });
+  handleIpc(
+    'rename-folder',
+    async (
+      _,
+      {
+        oldPath,
+        newName,
+        preview,
+        expectedRevision,
+      }: {
+        oldPath: string;
+        newName: string;
+        preview?: boolean;
+        expectedRevision?: string;
+      },
+    ) => {
+      let target: string;
+      try {
+        target = libraryFileService.resolveRenameTarget(oldPath, newName);
+        if (preview) return ok(libraryFileService.previewFolderRename(oldPath, newName));
+        if (!validRevision(expectedRevision)) return fail('RENAME_FOLDER_INVALID', 'La revisión no es válida.');
+      } catch (error) {
+        return fail('RENAME_FOLDER_FAILED', safeErrorMessage(error) || 'El nombre de carpeta no es válido.');
+      }
+      return mutate([oldPath, target], async () => {
+        const result = await libraryFileService.renameFolder(oldPath, newName, expectedRevision);
+        return result.success
+          ? ok(result)
+          : fail('RENAME_FOLDER_FAILED', result.error || 'No se pudo renombrar la carpeta.');
+      });
+    },
+  );
   handleIpc('delete-folder', async (_, folderPath: string) => {
     return mutate([folderPath], () => {
       const deleted = libraryFileService.deleteFolder(folderPath);

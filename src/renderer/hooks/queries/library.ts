@@ -12,7 +12,26 @@ import type { ThumbnailCommand, ThumbnailPriority, ThumbnailRequest } from '@/ty
 import { reportRendererError } from '@/renderer/utils/rendererErrorReporting';
 import { useSetAtom } from 'jotai';
 import { selectedLibraryFolderAtom } from '@/renderer/store/atoms';
-import type { LibraryMetadataPreview, LibraryMetadataRequest, LibraryMetadataResult } from '@/types/library';
+import type {
+  LibraryMetadataPreview,
+  LibraryMetadataRequest,
+  LibraryMetadataResult,
+  FolderRenamePreview,
+} from '@/types/library';
+
+export function usePreviewFolderRename(oldPath: string, newName: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ['preview-folder-rename', oldPath, newName],
+    queryFn: async () =>
+      unwrap<FolderRenamePreview>(await window.api.invoke('rename-folder', { oldPath, newName, preview: true }), {
+        toast: false,
+      }),
+    enabled,
+    staleTime: 0,
+    gcTime: 0,
+    retry: false,
+  });
+}
 
 export function useLibraryMetadataPreview(request: LibraryMetadataRequest | null, session: number) {
   return useQuery({
@@ -342,7 +361,7 @@ export function useLibraryActions() {
     renameFolder: useMutation({
       mutationKey: ['library-files', 'folder'],
       onMutate: prepare,
-      mutationFn: async (params: { oldPath: string; newName: string }) =>
+      mutationFn: async (params: { oldPath: string; newName: string; expectedRevision?: string }) =>
         unwrap<{ newPath: string; name: string; posterLocal: string | null; bannerLocal: string | null }>(
           await window.api.invoke('rename-folder', params),
           { toast: false },

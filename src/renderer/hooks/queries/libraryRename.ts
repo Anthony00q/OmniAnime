@@ -5,10 +5,11 @@ import type { FilesRenamePreview } from '@/renderer/utils/filesRename';
 import { publishRenamedLibraryFolder } from './library';
 import { getAniListBannerQuery, ANILIST_BANNER_STALE_MS, type AniListBannerRequest } from './anilist';
 import { isIpcFailError, unwrap } from './unwrap';
+import type { FolderRenamePreview } from '@/types/library';
 
 export type LibraryRenameCommand =
   | { kind: 'files'; path: string; style: 'minimal' | 'descriptive'; revision: string }
-  | { kind: 'folders'; path: string; newName: string };
+  | { kind: 'folders'; path: string; newName: string; revision?: string };
 
 export interface LibraryRenameOutcome {
   path: string;
@@ -91,6 +92,7 @@ export function useLibraryRenameOperations() {
               await window.api.invoke('rename-folder', {
                 oldPath: command.path,
                 newName: command.newName,
+                expectedRevision: command.revision,
               }),
               { toast: false },
             );
@@ -129,6 +131,11 @@ export function useLibraryRenameOperations() {
   return {
     isMutating,
     batch,
+    inspectFolder: async (path: string, name: string) =>
+      unwrap<FolderRenamePreview>(
+        await window.api.invoke('rename-folder', { oldPath: path, newName: name, preview: true }),
+        { toast: false },
+      ),
     inspectFiles: (path: string, style: 'minimal' | 'descriptive') =>
       client.fetchQuery({
         queryKey: ['preview-rename', path, style],
@@ -146,7 +153,7 @@ export function useLibraryRenameOperations() {
       }),
     resolveTitles: (request: AniListBannerRequest, force = false) =>
       client.fetchQuery({
-        ...getAniListBannerQuery(request),
+        ...getAniListBannerQuery({ ...request, persistMatch: false, forceRefresh: force }),
         staleTime: force ? 0 : ANILIST_BANNER_STALE_MS,
         retry: false,
       }),

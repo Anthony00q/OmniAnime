@@ -2,6 +2,7 @@ import {
   buildFolderName,
   extractFolderNameYear,
   listFolderNameCandidates,
+  sanitizeFolderName,
   nextAvailableFolderName,
   withFolderLanguage,
   isValidFolderName,
@@ -11,6 +12,9 @@ import {
 } from '@/utils/downloads/folderNaming';
 
 export interface FolderRenameMeta {
+  providerId?: string | null;
+  slug?: string | null;
+  anilistId?: number | null;
   title?: string | null;
   secondaryTitle?: string | null;
   alternativeTitles?: Array<string | null | undefined> | null;
@@ -22,6 +26,9 @@ export interface FolderRenameMeta {
 
 // Input de AniList para el rename; formato y temporada de la meta ayudan a desempatar.
 export interface FolderAniListInput {
+  persistMatch: false;
+  providerId?: string | null;
+  slug?: string | null;
   title: string;
   alternativeTitles: Array<string | null | undefined> | null;
   providerYear: string | number | null;
@@ -31,6 +38,9 @@ export interface FolderAniListInput {
 
 export function anilistInputFromFolderMeta(meta: FolderRenameMeta | null): FolderAniListInput {
   return {
+    persistMatch: false,
+    ...(meta?.providerId ? { providerId: meta.providerId } : {}),
+    ...(meta?.slug ? { slug: meta.slug } : {}),
     title: meta?.title ?? '',
     alternativeTitles: meta?.alternativeTitles ?? null,
     providerYear: meta?.year ?? null,
@@ -58,6 +68,7 @@ export function computeFolderRenamePlan(
   source: FolderNameSource,
   anilistTitles: Record<string, AniListFolderTitles | null | undefined>,
   overrides: Record<string, string> = {},
+  excludedPaths?: ReadonlySet<string>,
 ): FolderRenamePlanItem[] {
   const parent = (folderPath: string) =>
     folderPath
@@ -73,6 +84,7 @@ export function computeFolderRenamePlan(
 
   const plan: FolderRenamePlanItem[] = [];
   for (const entry of entries) {
+    if (excludedPaths?.has(entry.folderPath)) continue;
     const meta = entry.meta || {};
     const titleBase = buildFolderName(
       {
@@ -122,6 +134,7 @@ export const FOLDER_CANDIDATE_LABELS: Record<FolderCandidateKey, string> = {
 };
 
 export interface FolderRenameCandidate {
+  id: string;
   key: FolderCandidateKey;
   label: string;
   name: string;
@@ -132,14 +145,27 @@ export function folderRenameCandidates(
   entry: FolderRenameEntry,
   anilistTitles: AniListFolderTitles | null | undefined,
 ): FolderRenameCandidate[] {
-  return listFolderNameCandidates({
+  const input = {
     providerTitle: entry.meta?.title ?? null,
     providerAlternativeTitles: entry.meta?.alternativeTitles ?? null,
     japaneseTitle: entry.meta?.secondaryTitle ?? null,
     anilist: anilistTitles ?? null,
     year: entry.meta?.year ?? null,
-  }).map((candidate) => ({
+  };
+  const candidates = listFolderNameCandidates(input);
+  for (const [key, values] of [
+    ['provider-alt', entry.meta?.alternativeTitles],
+    ['anilist-synonym', anilistTitles?.synonyms],
+  ] as const) {
+    for (const value of values ?? []) {
+      if (!String(value ?? '').trim()) continue;
+      const name = sanitizeFolderName(value);
+      if (!candidates.some((candidate) => candidate.name === name)) candidates.push({ key, name });
+    }
+  }
+  return candidates.map((candidate) => ({
     ...candidate,
+    id: `${candidate.key}:${candidate.name}`,
     name: withFolderLanguage(candidate.name, entry.meta?.lang),
     label: FOLDER_CANDIDATE_LABELS[candidate.key],
   }));

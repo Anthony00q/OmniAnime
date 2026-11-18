@@ -596,6 +596,9 @@ export function LibraryAnimeDetails({
         folderPath={folderData.path}
         folderName={folderData.name}
         meta={{
+          providerId: folderData.providerId ?? null,
+          slug: folderData.metaSlug ?? null,
+          anilistId: folderData.anilistId ?? null,
           title: folderData.metaTitle ?? null,
           secondaryTitle: folderData.secondaryTitle ?? null,
           alternativeTitles: folderData.alternativeTitles ?? null,

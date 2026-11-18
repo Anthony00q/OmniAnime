@@ -7,7 +7,12 @@ import {
   type FolderRenameEntry,
 } from '@/renderer/utils/folderRename';
 import { buildLibrarySearchIndex } from '@/renderer/utils/libraryFilter';
-import { isValidFolderName, type AniListFolderTitles, type FolderNameSource } from '@/utils/downloads/folderNaming';
+import {
+  isValidFolderName,
+  resolveFolderName,
+  type AniListFolderTitles,
+  type FolderNameSource,
+} from '@/utils/downloads/folderNaming';
 import {
   canIncludeRename,
   filterRenameEntries,
@@ -28,6 +33,8 @@ function toEntry(row: LibraryFolder): LibraryRenameEntry {
     skipped: 0,
     items: [],
     meta: {
+      providerId: row.providerId,
+      slug: row.metaSlug,
       title: row.metaTitle,
       secondaryTitle: row.secondaryTitle,
       alternativeTitles: row.alternativeTitles,
@@ -53,6 +60,7 @@ export function useLibraryRenameSession(
   const [reviewedRows, setReviewedRows] = useState<LibraryRenameEntry[]>([]);
   const [style, setStyle] = useState(initialStyle);
   const [source, setSource] = useState(initialSource);
+  const [missingTitlePolicy, setMissingTitlePolicy] = useState<'fallback' | 'skip'>('fallback');
   const [directory, setDirectory] = useState('all');
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<RenameFilter>('all');
@@ -86,7 +94,7 @@ export function useLibraryRenameSession(
     setDirectory('all');
   }, [dirsKey]);
 
-  const draftKey = JSON.stringify([dirsKey, mode, style, source, directory]);
+  const draftKey = JSON.stringify([dirsKey, mode, style, source, directory, missingTitlePolicy]);
   const hasPreview = reviewKey === draftKey && !inspecting;
   const plannedRows = useMemo(() => {
     if (mode === 'files') return entries;
@@ -95,18 +103,47 @@ export function useLibraryRenameSession(
       folderName: entry.name,
       meta: entry.meta ?? null,
     }));
+    const excluded = new Set(snapshot.map((entry) => entry.path));
+    const sources = new Map(
+      entries
+        .filter((entry) => entry.state === 'ready')
+        .map((entry) => {
+          const resolution = resolveFolderName(
+            {
+              providerTitle: entry.meta?.title,
+              providerAlternativeTitles: entry.meta?.alternativeTitles,
+              japaneseTitle: entry.meta?.secondaryTitle,
+              anilist: titles[entry.path],
+            },
+            source,
+          );
+          const automatic = overrides[entry.path] === undefined;
+          const usesFallback = automatic && resolution.key !== null && resolution.key !== source;
+          const skip = automatic && (resolution.key === null || (usesFallback && missingTitlePolicy === 'skip'));
+          if (!skip) excluded.delete(entry.path);
+          return [entry.path, { usesFallback, skip }] as const;
+        }),
+    );
     const plan = new Map(
-      computeFolderRenamePlan(folderEntries, source, titles, overrides).map((item) => [item.folderPath, item]),
+      computeFolderRenamePlan(folderEntries, source, titles, overrides, excluded).map((item) => [
+        item.folderPath,
+        item,
+      ]),
     );
     return entries.map((entry) => {
-      if (entry.state !== 'ready') return entry;
+      const resolution = sources.get(entry.path);
+      if (!resolution) return entry;
+      const { skip, usesFallback } = resolution;
       const item = plan.get(entry.path);
       const custom = overrides[entry.path];
       const invalid = custom !== undefined && !isValidFolderName(custom);
       return {
         ...entry,
         newName: item?.newName,
-        changes: !invalid && item?.status === 'will_rename' ? 1 : 0,
+        usesFallback,
+        omitted: skip,
+        notice: skip ? 'El título elegido no está disponible. Esta carpeta no se incluye.' : undefined,
+        changes: !skip && !invalid && item?.status === 'will_rename' ? 1 : 0,
         conflicts: invalid || item?.status === 'conflict' ? 1 : 0,
         error: invalid
           ? 'El nombre no es válido en Windows.'
@@ -115,7 +152,7 @@ export function useLibraryRenameSession(
             : undefined,
       };
     });
-  }, [mode, entries, snapshot, source, titles, overrides]);
+  }, [mode, entries, snapshot, source, titles, overrides, missingTitlePolicy]);
   const rows = step === 'review' && hasResult ? reviewedRows : plannedRows;
   const resultCounts = useMemo(() => getRenameResultCounts(plannedRows), [plannedRows]);
   const index = useMemo(() => buildLibrarySearchIndex(rows), [rows]);
@@ -145,31 +182,44 @@ export function useLibraryRenameSession(
           },
         };
       }
-      if (source.startsWith('anilist')) {
-        const resolved = await operations.resolveTitles(
-          {
-            ...anilistInputFromFolderMeta(entry.meta ?? null),
-            providerId: entry.providerId,
-            slug: entry.metaSlug,
-          },
-          force,
-        );
+      const folderPreview = await operations.inspectFolder(entry.path, entry.name);
+      const meta = folderPreview.meta;
+      const inspectedEntry = {
+        ...entry,
+        meta,
+        metaTitle: meta?.title ?? null,
+        metaSlug: meta?.slug ?? null,
+        providerId: meta?.providerId ?? null,
+        alternativeTitles: meta?.alternativeTitles ?? [],
+        lang: meta?.lang ?? 'SUB',
+        folderRevision: folderPreview.revision,
+      };
+      if (source.startsWith('anilist') || force) {
+        let resolved;
+        try {
+          resolved = await operations.resolveTitles(anilistInputFromFolderMeta(meta), force);
+        } catch {
+          const message = 'No se pudieron consultar los títulos de AniList.';
+          return {
+            entry: source.startsWith('anilist')
+              ? { ...inspectedEntry, state: 'error', changes: 0, error: `${message} Puedes reintentar.` }
+              : { ...inspectedEntry, state: 'ready', result: undefined, error: undefined, titlesNotice: message },
+            titles: null,
+          };
+        }
         return {
-          entry: { ...entry, state: 'ready', result: undefined, error: undefined },
+          entry: { ...inspectedEntry, state: 'ready', result: undefined, error: undefined, titlesNotice: undefined },
           titles: resolved?.titles ?? null,
         };
       }
-      return { entry: { ...entry, state: 'ready', result: undefined, error: undefined } };
+      return { entry: { ...inspectedEntry, state: 'ready', result: undefined, error: undefined } };
     } catch {
       return {
         entry: {
           ...entry,
           state: 'error',
           changes: 0,
-          error:
-            mode === 'files'
-              ? 'No se pudo inspeccionar la carpeta. Puedes volver a intentarlo.'
-              : 'No se pudieron consultar los títulos de AniList. Reintenta o elige el título del proveedor.',
+          error: 'No se pudo inspeccionar la carpeta. Puedes volver a intentarlo.',
         },
       };
     }
@@ -217,6 +267,7 @@ export function useLibraryRenameSession(
         const updates = new Map(pending);
         pending.clear();
         setEntries((previous) => previous.map((row) => updates.get(row.path) ?? row));
+        setSnapshot((previous) => previous.map((row) => updates.get(row.path) ?? row));
         setTitles({ ...resolvedTitles });
         setProgress({ done: completed.length, total: scope.length });
       }
@@ -235,7 +286,8 @@ export function useLibraryRenameSession(
     const next = inspected.entry;
     if ('titles' in inspected) setTitles((previous) => ({ ...previous, [entry.path]: inspected.titles ?? null }));
     setEntries((previous) => previous.map((row) => (row.path === entry.path ? next : row)));
-    if (next.state === 'ready') setSelected((previous) => new Set(previous).add(entry.path));
+    setSnapshot((previous) => previous.map((row) => (row.path === entry.path ? next : row)));
+    if (next.state === 'ready' && entry.state === 'error') setSelected((previous) => new Set(previous).add(entry.path));
     setProgress({ done: 1, total: 1 });
     setInspecting(false);
   };
@@ -256,7 +308,7 @@ export function useLibraryRenameSession(
       .map((row) =>
         mode === 'files'
           ? { kind: 'files', path: row.path, style, revision: row.preview!.revision! }
-          : { kind: 'folders', path: row.path, newName: row.newName! },
+          : { kind: 'folders', path: row.path, newName: row.newName!, revision: row.folderRevision },
       );
     const current = generation.current;
     running.current = true;
@@ -357,6 +409,13 @@ export function useLibraryRenameSession(
       }
     },
     source,
+    missingTitlePolicy,
+    setMissingTitlePolicy: (value: 'fallback' | 'skip') => {
+      if (value !== missingTitlePolicy) {
+        invalidateReview();
+        setMissingTitlePolicy(value);
+      }
+    },
     setSource: (value: FolderNameSource) => {
       if (value !== source) {
         invalidateReview();

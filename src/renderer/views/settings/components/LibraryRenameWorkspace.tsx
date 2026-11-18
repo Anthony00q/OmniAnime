@@ -164,6 +164,21 @@ export function LibraryRenameWorkspace({
                 />
               </div>
             </div>
+            {mode === 'folders' && (
+              <div className="space-y-2">
+                <span className="block text-[13px] font-semibold">Si el título elegido no está disponible</span>
+                <CustomSelect
+                  value={session.missingTitlePolicy}
+                  ariaLabel="Títulos no disponibles"
+                  className="w-full"
+                  options={[
+                    { value: 'fallback', label: 'Usar un título de respaldo' },
+                    { value: 'skip', label: 'No incluir esa carpeta' },
+                  ]}
+                  onChange={(value) => session.setMissingTitlePolicy(value as 'fallback' | 'skip')}
+                />
+              </div>
+            )}
             <p className="text-xs text-muted-foreground">
               Solo se aplica a esta operación; no cambia los ajustes de descargas nuevas.
             </p>
@@ -305,7 +320,9 @@ export function LibraryRenameWorkspace({
                             : noChanges
                               ? mode === 'files'
                                 ? 'No hay archivos que renombrar.'
-                                : 'No hay carpetas que renombrar.'
+                                : counts.issues > 0
+                                  ? 'No hay cambios listos. Revisa las incidencias.'
+                                  : 'No hay cambios de nombre con las opciones actuales.'
                               : `${counts.selected} ${counts.selected === 1 ? 'seleccionada' : 'seleccionadas'}${hiddenSelected ? ` | ${hiddenSelected} fuera del filtro` : ''}`
                     }
                   />

@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import * as fsp from 'fs/promises';
 import * as path from 'path';
 import type { LibraryAssetService } from './LibraryAssetService';
+import type { FolderRenamePreview } from '../../types/library';
 import { LibraryMetadataService } from './LibraryMetadataService';
 import { THUMBNAIL_DIR_NAME } from './ThumbnailService';
 import { withFolderLanguage } from '../../utils/downloads/folderNaming';
@@ -55,6 +56,7 @@ export interface LibraryFileServiceOptions {
   queueOwnsFolder: (folderPath: string) => boolean;
   getAnimeDetails: (slug: string, providerId?: string | null) => Promise<LibraryAnimeDetails | null>;
   getActiveProviderId: () => string;
+  getAniListLinkId?: (providerId: string, slug: string) => number | null;
   // Meta AniList validada para la carpeta, o null. Sin fallback al póster.
   resolveAniListMeta?: (input: AniListBannerInput) => Promise<AniListBannerResult | null>;
   openPath: (targetPath: string) => Promise<string>;
@@ -228,9 +230,32 @@ export class LibraryFileService {
     return path.join(path.dirname(oldPath), withFolderLanguage(newName, meta?.lang));
   }
 
+  previewFolderRename(oldPath: string, newName: string): FolderRenamePreview {
+    const target = this.resolveRenameTarget(oldPath, newName);
+    const stat = fs.statSync(oldPath);
+    if (!stat.isDirectory()) throw new Error('La carpeta original no existe.');
+    const meta = this.options.assetService.readFolderLibraryMeta(oldPath);
+    const revision = crypto
+      .createHash('sha256')
+      .update(
+        JSON.stringify([
+          path.resolve(oldPath),
+          stat.dev,
+          stat.ino,
+          stat.birthtimeMs,
+          meta,
+          meta?.providerId && meta.slug ? this.options.getAniListLinkId?.(meta.providerId, meta.slug) : null,
+        ]),
+      )
+      .digest('hex');
+    const same = path.resolve(oldPath).toLowerCase() === path.resolve(target).toLowerCase();
+    return { name: path.basename(target), revision, available: same || !fs.existsSync(target), meta };
+  }
+
   async renameFolder(
     oldPath: string,
     newName: string,
+    expectedRevision?: string,
   ): Promise<{
     success: boolean;
     newPath?: string;
@@ -240,6 +265,9 @@ export class LibraryFileService {
     error?: string;
   }> {
     try {
+      if (expectedRevision && this.previewFolderRename(oldPath, newName).revision !== expectedRevision) {
+        return { success: false, error: 'La carpeta o sus metadatos cambiaron. Prepara otra revisión.' };
+      }
       const allowedBaseDirs = this.options.getAllowedBaseDirs();
       if (!isPathSafeForDestructiveOperation(oldPath, allowedBaseDirs, false)) {
         return { success: false, error: 'La carpeta está fuera de la librería configurada.' };
@@ -271,6 +299,11 @@ export class LibraryFileService {
         this.options.assetService.getFolderAssetKey(newPath),
       );
 
+      if (expectedRevision && this.previewFolderRename(oldPath, newName).revision !== expectedRevision) {
+        return { success: false, error: 'La carpeta o sus metadatos cambiaron. Prepara otra revisión.' };
+      }
+      if (fs.existsSync(newPath) && !sameFolder)
+        return { success: false, error: 'Ya existe una carpeta con ese nombre.' };
       if (oldPath !== newPath) await fsp.rename(oldPath, newPath);
 
       try {

@@ -323,6 +323,7 @@ const libraryFileService = new LibraryFileService({
   queueOwnsFolder: (folderPath) => queueProcessor.isFolderInUse(folderPath),
   getAnimeDetails: (slug, providerId) => getAnimeDetailsBySlug(slug, providerId),
   getActiveProviderId: () => providerGateway.activeProviderIdName,
+  getAniListLinkId: (providerId, slug) => database.getAniLink(providerId, slug)?.anilistId ?? null,
   resolveAniListMeta: (input) => resolveAniListWithLink(input, database),
   openPath: (targetPath) => shell.openPath(targetPath),
   userDataDir: app.getPath('userData'),

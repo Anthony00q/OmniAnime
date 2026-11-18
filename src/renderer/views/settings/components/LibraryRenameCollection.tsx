@@ -46,11 +46,13 @@ const RenameCollectionRow = memo(function RenameCollectionRow({
                   ? 'Cambios parciales'
                   : row.state === 'failed'
                     ? 'No completado'
-                    : row.changes > 0
-                      ? `${row.changes} ${row.changes === 1 ? 'cambio' : 'cambios'}`
-                      : row.conflicts > 0 || row.skipped > 0
-                        ? 'Requiere revisión'
-                        : 'Sin cambios';
+                    : row.omitted
+                      ? 'No incluido: sin título'
+                      : row.changes > 0
+                        ? `${row.changes} ${row.changes === 1 ? 'cambio' : 'cambios'}`
+                        : row.conflicts > 0 || row.skipped > 0
+                          ? 'Requiere revisión'
+                          : 'Sin cambios';
   return (
     <li className="library-rename-row" data-selected={active || undefined}>
       {!readonly && (
@@ -91,6 +93,9 @@ const RenameCollectionRow = memo(function RenameCollectionRow({
             ) : null}
             {status}
           </span>
+          {row.usesFallback && !row.result && (
+            <span className="mt-1 block text-[11px] text-muted-foreground">Título de respaldo</span>
+          )}
         </span>
       </button>
     </li>

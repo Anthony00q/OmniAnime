@@ -1,4 +1,6 @@
-import { AlertCircle, Loader2, RotateCcw } from 'lucide-react';
+import { useState } from 'react';
+import { AlertCircle, Link2, Loader2, RefreshCw, RotateCcw } from 'lucide-react';
+import { AniListLinkDialog } from '@/renderer/views/animeDetails/components/AniListLinkDialog';
 import { CustomInput } from '@/renderer/components/CustomInput';
 import { CustomSelect } from '@/renderer/components/CustomSelect';
 import { folderRenameCandidates, FOLDER_CANDIDATE_LABELS } from '@/renderer/utils/folderRename';
@@ -8,6 +10,7 @@ import type { RenameMode } from '@/renderer/views/settings/model/libraryRenameMo
 import { RenameLibraryComparison, RenameLibraryResult, RenameLibrarySummary } from './RenameLibraryPreview';
 
 export function LibraryRenameInspector({ session, mode }: { session: LibraryRenameSession; mode: RenameMode }) {
+  const [linkPath, setLinkPath] = useState<string | null>(null);
   const row = session.active;
   if (!row)
     return (
@@ -33,7 +36,7 @@ export function LibraryRenameInspector({ session, mode }: { session: LibraryRena
     ? 'custom'
     : override === undefined
       ? 'global'
-      : (candidates.find((item) => item.name === override)?.key ?? 'custom');
+      : (candidates.find((item) => item.name === override)?.id ?? 'custom');
   const editable =
     session.step === 'review' && !session.hasResult && !session.inspecting && !session.blocked && row.state === 'ready';
   const phase = session.hasResult ? (row.result?.state === 'done' ? 'done' : 'incomplete') : 'preview';
@@ -56,9 +59,10 @@ export function LibraryRenameInspector({ session, mode }: { session: LibraryRena
                 value={candidateKey}
                 ariaLabel="Nombre de esta carpeta"
                 className="w-full"
+                wrapOptions
                 options={[
                   { value: 'global', label: 'Usar el origen elegido' },
-                  ...candidates.map((item) => ({ value: item.key, label: item.label })),
+                  ...candidates.map((item) => ({ value: item.id, label: `${item.label}: ${item.name}` })),
                   { value: 'custom', label: 'Nombre personalizado' },
                 ]}
                 onChange={(value) =>
@@ -68,7 +72,7 @@ export function LibraryRenameInspector({ session, mode }: { session: LibraryRena
                       ? null
                       : value === 'custom'
                         ? ''
-                        : candidates.find((item) => item.key === value)!.name,
+                        : candidates.find((item) => item.id === value)!.name,
                     value === 'custom',
                   )
                 }
@@ -84,7 +88,42 @@ export function LibraryRenameInspector({ session, mode }: { session: LibraryRena
               )}
             </div>
           )}
-          {mode === 'folders' && row.state !== 'error' && (
+          {mode === 'folders' && !session.hasResult && row.providerId && row.metaSlug && (
+            <>
+              <div className="library-rename-inspector-actions" role="group" aria-label="Acciones de AniList">
+                <button
+                  type="button"
+                  disabled={session.inspecting || session.blocked}
+                  onClick={() => setLinkPath(row.path)}
+                >
+                  <Link2 aria-hidden="true" className="h-4 w-4 shrink-0" />
+                  Revisar vínculo AniList
+                </button>
+                <button
+                  type="button"
+                  disabled={session.inspecting || session.blocked}
+                  onClick={() => void session.retryInspection(row)}
+                >
+                  <RefreshCw aria-hidden="true" className="h-4 w-4 shrink-0" />
+                  Actualizar títulos
+                </button>
+              </div>
+              {linkPath === row.path && (
+                <AniListLinkDialog
+                  open
+                  providerId={row.providerId}
+                  slug={row.metaSlug}
+                  defaultQuery={row.metaTitle || row.name}
+                  currentId={row.meta?.anilistId}
+                  onClose={() => setLinkPath(null)}
+                  onLinked={() => {
+                    void session.retryInspection(row);
+                  }}
+                />
+              )}
+            </>
+          )}
+          {mode === 'folders' && row.state !== 'error' && !row.omitted && (
             <>
               <div className="mt-4">
                 <RenameLibraryComparison from={row.name} to={row.newName || ''} phase={phase} />
@@ -141,6 +180,16 @@ export function LibraryRenameInspector({ session, mode }: { session: LibraryRena
             <p role="alert" className="mt-4 flex items-start gap-2 text-[13px] text-destructive-fg leading-relaxed">
               <AlertCircle aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" />
               {row.error}
+            </p>
+          )}
+          {row.notice && (
+            <p role="note" className="mt-4 text-[13px] text-muted-foreground">
+              {row.notice}
+            </p>
+          )}
+          {row.titlesNotice && (
+            <p role="note" className="mt-4 text-[13px] text-muted-foreground">
+              {row.titlesNotice}
             </p>
           )}
           {row.state === 'error' && session.step === 'review' && !session.hasResult && (

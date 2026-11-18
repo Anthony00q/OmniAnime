@@ -26,6 +26,11 @@ export interface LibraryRenameEntry {
   items: FilesRenameItem[];
   preview?: FilesRenamePreview;
   newName?: string;
+  folderRevision?: string;
+  usesFallback?: boolean;
+  titlesNotice?: string;
+  omitted?: boolean;
+  notice?: string;
   error?: string;
   result?: LibraryRenameOutcome;
 }
@@ -54,7 +59,7 @@ export function getRenameCounts(rows: readonly LibraryRenameEntry[], selected: R
       }
       if (hasRenameIssue(row)) counts.issues++;
       if (row.state === 'pending') counts.pending++;
-      if (row.state === 'ready' && row.changes === 0 && !hasRenameIssue(row)) counts.unchanged++;
+      if (row.state === 'ready' && row.changes === 0 && !row.omitted && !hasRenameIssue(row)) counts.unchanged++;
       return counts;
     },
     { selected: 0, files: 0, changes: 0, issues: 0, unchanged: 0, pending: 0 },
@@ -70,7 +75,8 @@ export function filterRenameEntries(
   return filterLibraryIndex(index, directory, query).filter((row) => {
     if (filter === 'changes') return canIncludeRename(row);
     if (filter === 'issues') return hasRenameIssue(row);
-    if (filter === 'unchanged') return row.state === 'ready' && row.changes === 0 && !hasRenameIssue(row);
+    if (filter === 'unchanged')
+      return row.state === 'ready' && row.changes === 0 && !row.omitted && !hasRenameIssue(row);
     if (filter === 'completed') return row.state === 'done';
     if (filter === 'not-included') return row.state === 'ready' && !row.result && !hasRenameIssue(row);
     return true;

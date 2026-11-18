@@ -60,3 +60,10 @@ export interface LibraryMetadataResult {
   meta: FolderLibraryMeta;
   warnings: string[];
 }
+
+export interface FolderRenamePreview {
+  name: string;
+  revision: string;
+  available: boolean;
+  meta: FolderLibraryMeta | null;
+}

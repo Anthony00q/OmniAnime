@@ -22,6 +22,7 @@ interface CustomSelectProps {
   // Disabled real (Radix): bloquea interacción y se expone a accesibilidad.
   disabled?: boolean;
   describedBy?: string;
+  wrapOptions?: boolean;
 }
 
 export function CustomSelect({
@@ -36,6 +37,7 @@ export function CustomSelect({
   ariaLabel,
   disabled = false,
   describedBy,
+  wrapOptions = false,
 }: CustomSelectProps) {
   const selectedValue = String(value);
   const selectedOption = options.find((o) => o.value === selectedValue);
@@ -84,11 +86,13 @@ export function CustomSelect({
           className,
         )}
       >
-        <SelectPrimitive.Value placeholder={placeholder} className="min-w-0 flex-1 truncate text-left">
-          {selectedValues && selectedValues.length > 0
-            ? `${selectedValues.length} ${selectedValues.length === 1 ? 'seleccionado' : 'seleccionados'}`
-            : (selectedOption?.label ?? placeholder)}
-        </SelectPrimitive.Value>
+        <span className="min-w-0 flex-1 truncate text-left">
+          <SelectPrimitive.Value placeholder={placeholder}>
+            {selectedValues && selectedValues.length > 0
+              ? `${selectedValues.length} ${selectedValues.length === 1 ? 'seleccionado' : 'seleccionados'}`
+              : (selectedOption?.label ?? placeholder)}
+          </SelectPrimitive.Value>
+        </span>
         <SelectPrimitive.Icon asChild>
           <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
         </SelectPrimitive.Icon>
@@ -98,7 +102,11 @@ export function CustomSelect({
         <SelectPrimitive.Content
           position="popper"
           sideOffset={4}
-          className="z-[9999] max-h-60 overflow-y-auto rounded-xl border border-border/70 bg-popover shadow-2xl motion-origin-popper animate-in fade-in zoom-in-95 duration-150"
+          collisionPadding={8}
+          className={clsx(
+            'z-[9999] max-h-[min(15rem,var(--radix-select-content-available-height))] overflow-y-auto rounded-xl border border-border/70 bg-popover shadow-2xl motion-origin-popper animate-in fade-in zoom-in-95 duration-150',
+            wrapOptions && 'w-[min(var(--radix-select-trigger-width),var(--radix-select-content-available-width))]',
+          )}
         >
           <SelectPrimitive.Viewport className="flex flex-col gap-0.5 p-1.5">
             {selectableOptions.map((option) => {
@@ -117,7 +125,11 @@ export function CustomSelect({
                   )}
                 >
                   {isCurrentlySelected && <Check className="absolute right-2 h-4 w-4 text-primary" />}
-                  <SelectPrimitive.ItemText>{option.label}</SelectPrimitive.ItemText>
+                  <SelectPrimitive.ItemText
+                    className={wrapOptions ? 'min-w-0 whitespace-normal wrap-anywhere' : undefined}
+                  >
+                    {option.label}
+                  </SelectPrimitive.ItemText>
                   {option.badge && (
                     <span className="ml-auto shrink-0 rounded-full border border-primary/30 bg-primary/10 px-1.5 py-px text-[11px] font-semibold uppercase tracking-wider text-primary">
                       {option.badge}
