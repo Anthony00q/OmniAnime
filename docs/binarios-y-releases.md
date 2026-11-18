@@ -59,18 +59,20 @@ El workflow `.github/workflows/release.yml` (runner `windows-latest`)
 hace el resto: comprueba que el tag tiene forma `vX.X.X` y coincide con
 `package.json`, extrae la sección `## [X.Y.Z] - fecha` del CHANGELOG a
 `release-notes.md` (falla si no existe), `npm ci`, descarga herramientas,
-`lint`, `format:check`, `build`, empaqueta el instalador NSIS **sin
-publicar**, verifica el trío exe + blockmap + `latest.yml`
-(versión y `sha512`/`size` contra el exe real, falla si no cuadra)
+`lint`, `format:check`, compila y empaqueta el instalador NSIS **sin
+publicar**. Después ejecuta las pruebas críticas y el piloto de Electron,
+verifica el trío exe + blockmap + `latest.yml` (versión y `sha512`/`size`
+contra el exe real, falla si no cuadra)
 y sube exe + blockmap + `latest.yml` + notas como artefactos.
 Un segundo job publica la release en GitHub **directamente como _Latest_**
 con lista explícita de ficheros (`fail_on_unmatched_files`, falla a la voz
 si falta algo) y las notas como body vía `body_path`. Solo los tags con
 forma `v*.*.*` disparan el workflow.
 
-Al publicarse sin pasar por draft, las apps instaladas la ven en cuanto
-termina el workflow y muestran el modal con esas notas. Revisa el
-CHANGELOG **antes** de crear el tag: no hay borrador intermedio que revisar.
+Al publicarse sin pasar por borrador, la app instalada puede detectar la versión
+en su siguiente arranque. Las notas se pueden consultar desde **Actualizar**
+en la barra lateral, incluso si se han desactivado los avisos automáticos.
+Revisa el CHANGELOG **antes** de crear el tag: no hay borrador intermedio.
 
 ## Cómo escribir las novedades del CHANGELOG
 
@@ -96,10 +98,8 @@ Requisitos:
 
 - El repositorio GitHub debe coincidir con `repository.url` de
   `package.json` (o fijar `owner`/`repo` explícitos en `build.publish`).
-- `electron-updater` (ya en `dependencies`) lee ese `latest.yml` para
-  el auto-update de la app instalada (servicio `AppUpdateService`,
-  canales `app-update-check/download/install` + evento
-  `app-update-status`; sin UI todavía).
+- `electron-updater` lee `latest.yml` para comprobar si hay una versión nueva.
+  La descarga y el reinicio para instalarla requieren confirmación desde la interfaz.
 
 ## Avisos
 

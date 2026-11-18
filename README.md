@@ -23,7 +23,8 @@
 </div>
 
 <p align="center">
-  <a href="https://github.com/Anthony00q/OmniAnime/releases"><strong>Última versión</strong></a> ·
+  <a href="https://github.com/Anthony00q/OmniAnime/releases/latest"><strong>Última versión</strong></a> ·
+  <a href="CHANGELOG.md">Novedades</a> ·
   <a href="https://github.com/Anthony00q/OmniAnime/issues">Reportar un bug</a>
 </p>
 
@@ -63,13 +64,13 @@ Permite descargar anime subtitulado (SUB) y episodios doblados (DUB) en AnimeAV1
 ### Descargar
 
 - **Descargas que insisten**: cada episodio prueba varios servidores en orden hasta completarse. Si uno falla, pasa al siguiente sin que hagas nada.
-- **Cola con control total**: pausa, cancela, reintenta solo lo que falló o salta de servidor sin perder el progreso.
-- **Conexiones adaptativas** (Ajustes → Descargas): con **ON**, la app ajusta automáticamente las conexiones internas de cada episodio según el rendimiento que observa, y con **OF** se usa el número de conexiones tal cual lo dejaste (comportamiento de siempre). Las instalaciones nuevas arrancan con él activado; las existentes conservan su valor (y si nunca lo tocaron, se queda desactivado). La app aprende qué nivel le va bien a cada servidor y arranca desde ahí; con enlaces compartidos entre varios episodios simultáneos no aprende (solo se usa tu conexión, no la de los demás). Los detalles internos del ajuste automático están calibrados y no se exponen.
+- **Cola de descargas**: pausa, cancela, reintenta solo lo que falló o salta al siguiente servidor. Si cambia el enlace, la descarga puede empezar de nuevo.
+- **Conexiones adaptativas** (Ajustes → Descargas): ajustan el número de conexiones según el rendimiento en MediaFire, MP4Upload y Voe. Puedes desactivarlas por servidor para recuperar el ajuste manual. Las instalaciones nuevas las tienen activadas; las existentes conservan su configuración.
 
 ### Organizar
 
 - **Biblioteca local**: organiza en hasta **3 carpetas**, filtra por destino y busca dentro de tu colección. Solo se reconocen archivos de video (`.mp4`, `.mkv`, `.avi`, `.flv`, `.webm`).
-- **Gestión de archivos**: renombra y reordena episodios con vista previa, y abre o elimina archivos desde la app.
+- **Gestión de archivos**: renombra y reordena episodios con vista previa, y abre o elimina archivos desde la app. En Ajustes → Descargas puedes revisar y renombrar varias carpetas a la vez.
 - **Historial**: todo lo que has descargado, agrupado por anime y carpeta.
 - **Ajustes completos**: carpetas, descargas, almacenamiento, apariencia con 3 temas (`Oscuro`, `OLED`, `Quantum`), notificaciones y atajos.
 - **Miniaturas y caché**: genera portadas automáticamente y te deja limpiar temporales cuando quieras.
@@ -77,12 +78,11 @@ Permite descargar anime subtitulado (SUB) y episodios doblados (DUB) en AnimeAV1
 
 ## Instalación
 
-1. Ve a **[Releases](https://github.com/Anthony00q/OmniAnime/releases)**.
-2. Descarga el instalador (`.exe`) desde **[Última versión](https://github.com/Anthony00q/OmniAnime/releases/latest)**.
-3. Ejecuta el instalador y pulsa **Instalar**. Es una instalación por usuario, en español, sin permisos de administrador: crea accesos en Escritorio y Menú Inicio y no te pide elegir carpeta.
-4. Al abrirlo por primera vez, la app prepara su base de datos local y verifica sus herramientas internas. Tu carpeta inicial es `Descargas\OmniAnime`, cambiable en Ajustes.
+1. Abre **[Última versión](https://github.com/Anthony00q/OmniAnime/releases/latest)** y descarga `OmniAnime-Setup-<versión>.exe`.
+2. Ejecuta el instalador. Es una instalación por usuario, en español, sin permisos de administrador: crea accesos en el Escritorio y el menú Inicio y no te pide elegir carpeta.
+3. Al abrir la app por primera vez, prepara su base de datos local y verifica sus herramientas internas. Tu carpeta inicial es `Descargas\OmniAnime`; puedes cambiarla en Ajustes.
 
-**Requisito:** Windows 10/11 de 64 bits.
+**Requisito:** Windows 10 u 11 (x64).
 
 > Node.js y npm solo hacen falta si vas a desarrollar (ver [Desarrollo y Build](#desarrollo-y-build)). Para usar la app instalada no necesitas nada más.
 
@@ -90,7 +90,7 @@ Permite descargar anime subtitulado (SUB) y episodios doblados (DUB) en AnimeAV1
 
 1. **Elige la fuente** arriba en la barra lateral (`AnimeAV1` o `JkAnime`). Puedes cambiarla cuando quieras.
 2. **Revisa tu carpeta** en Ajustes si no quieres usar la de por defecto (`Descargas\OmniAnime`). Puedes tener hasta 3.
-3. **Busca** en Inicio o explora el Catálogo con filtros. Abre la ficha para ver sinopsis, episodios y relaciones.
+3. **Busca** en Inicio por título o pega el enlace a una ficha del proveedor activo. También puedes explorar el Catálogo con filtros.
 4. **Descarga**: elige episodios y mándalos a la cola. Sigue el progreso en **Descargas**: ahí puedes pausar, cancelar, reintentar fallidos o saltar de servidor.
 5. **Organiza**: lo descargado aparece en **Librería** (reproducir, renombrar, reordenar, eliminar) y queda registrado en **Historial**.
 
@@ -98,11 +98,12 @@ Permite descargar anime subtitulado (SUB) y episodios doblados (DUB) en AnimeAV1
 |-------|----------------|
 | **Inicio** | Buscar anime en la fuente activa |
 | **Catálogo** | Explorar con filtros |
+| **Horarios** | Consultar la programación semanal de la fuente activa |
 | **Detalles** | Ver sinopsis, episodios y relaciones |
 | **Descargas** | Seguir el progreso: pausar, cancelar, reintentar fallidos o saltar de servidor |
 | **Librería** | Reproducir, renombrar, reordenar y eliminar lo descargado |
 | **Historial** | Ver todo lo descargado, agrupado por anime y carpeta |
-| **Escáner** | Vincular las carpetas de tus destinos con su anime |
+| **Escáner** | Revisar qué anime está vinculado a cada carpeta, cambiar el vínculo o actualizar sus datos e imágenes sin modificar los vídeos |
 
 ## Datos, actualización y desinstalación
 
@@ -114,7 +115,9 @@ Permite descargar anime subtitulado (SUB) y episodios doblados (DUB) en AnimeAV1
 
 ### Actualizar
 
-Descarga el nuevo instalador desde [Releases](https://github.com/Anthony00q/OmniAnime/releases/latest) y ejecútalo. Conserva tus carpetas, historial y ajustes.
+La app instalada busca actualizaciones al arrancar. Si hay una disponible, abre el aviso o selecciona **Actualizar** en la barra lateral. Pulsa **Descargar e instalar** y, cuando termine la descarga, **Reiniciar para instalar**.
+
+También puedes descargar y ejecutar el instalador de la [última versión](https://github.com/Anthony00q/OmniAnime/releases/latest). Ambas opciones conservan tus carpetas, historial y ajustes.
 
 ### Desinstalar
 
@@ -148,9 +151,9 @@ No, el máximo es 3.
 
 ## Seguridad
 
-- La app solo lee, escribe o borra dentro de las carpetas que configures. Nunca toca otras rutas.
-- Los enlaces externos solo pueden abrir [animeav1.com](https://animeav1.com/) y [jkanime.net](https://jkanime.net/).
-- Las imágenes solo se cargan desde `cdn.animeav1.com`, `cdn.jkdesa.com` y `s4.anilist.co` (banners de AniList).
+- Las operaciones sobre vídeos y carpetas de la librería y las descargas se limitan a los destinos que configures. Los datos internos de la app se guardan por separado.
+- Los enlaces de fichas se abren por HTTPS en [AnimeAV1](https://animeav1.com/), [JkAnime](https://jkanime.net/) o [AniList](https://anilist.co/). Las notas de versión tienen una política aparte para enlaces HTTPS a dominios públicos, incluida la página de la versión en GitHub.
+- La interfaz admite imágenes remotas de `cdn.animeav1.com`, `cdn.jkdesa.com` y `s4.anilist.co`, además de las imágenes locales de la app.
 
 ## Desarrollo y Build
 
@@ -186,11 +189,12 @@ hace falta ninguna variable de entorno.
 ```bash
 npm ci
 npm run setup:tools  # obligatorio en clon fresco (los .exe no van en git)
-npm run build          # compila renderer + main + typecheck
-npm run build:win      # verifica herramientas y genera el instalador en release/
+npm run build:win  # verifica herramientas, compila y genera el instalador en release/
 ```
 
 Antes de publicar: `npm run lint` y `npm run format:check`.
+
+Consulta la [guía de binarios y releases](docs/binarios-y-releases.md) para el proceso de publicación.
 
 ### Herramientas de desarrollo
 
@@ -260,7 +264,8 @@ OmniAnime/
 ├─ index.js              # entrada de Electron
 ├─ LICENSE               # GPL-3.0-or-later
 ├─ THIRD-PARTY-NOTICES.md # licencia de ffmpeg
-├─ .github/workflows/    # CI: release por tags vX.X.X
+├─ .github/workflows/    # validación y publicación por tags vX.X.X
+├─ package.json          # scripts y configuración del instalador NSIS
 ├─ docs/                 # binarios-y-releases.md (pipeline de tools)
 ├─ src/
 │  ├─ main/              # proceso principal (ventanas, IPC)
@@ -271,7 +276,7 @@ OmniAnime/
 │  ├─ types/             # tipos compartidos
 │  └─ utils/             # utilidades
 ├─ assets/               # iconos y recursos del instalador
-├─ scripts/              # instalador NSIS + setup-tools.mjs/tools-versions.json
+├─ scripts/              # herramientas de desarrollo y publicación
 ├─ tools/win/            # ffmpeg (no versionado)
 ```
 
