@@ -92,7 +92,6 @@ export function SettingsView({
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const prevHwAccelRef = useRef<boolean | null>(settings ? settings.hardwareAcceleration !== false : null);
   const prevProviderRef = useRef<string | null>(settings ? settings.defaultProvider || 'animeav1' : null);
-  const accentRafRef = useRef<number | null>(null);
 
   const setGlobalSettings = useSetAtom(settingsAtom);
   const queryDirs = useMemo(() => {
@@ -180,7 +179,6 @@ export function SettingsView({
   useEffect(() => {
     return () => {
       clearTimeout(saveTimerRef.current);
-      if (accentRafRef.current !== null) cancelAnimationFrame(accentRafRef.current);
     };
   }, []);
 
@@ -216,24 +214,8 @@ export function SettingsView({
       setAccentInput(normalizedSettings.accentColor || '#e8a33d');
       prevHwAccelRef.current = normalizedSettings.hardwareAcceleration !== false;
       prevProviderRef.current = normalizedSettings.defaultProvider || 'animeav1';
-      // --color-primary is now owned solely by App.tsx (via settingsAtom), no direct setProperty here
     }
   }, [loadedSettings, settings]);
-
-  // Preview live: gate by visibility to avoid RAF when Settings hidden (hidden keep-alive)
-  useEffect(() => {
-    if (!isActive || activeTab !== 'apariencia') return;
-    const raw = (settings as AppSettings | null)?.accentColor;
-    if (!raw) return;
-    const hex = getAccentHex(raw);
-    if (!isValidAccentColor(raw) && raw.trim() !== '') return;
-    if (accentRafRef.current !== null) cancelAnimationFrame(accentRafRef.current);
-    accentRafRef.current = requestAnimationFrame(() => {
-      document.documentElement.style.setProperty('--color-primary', hex);
-      accentRafRef.current = null;
-    });
-    // oxlint-disable-next-line react/exhaustive-deps
-  }, [settings?.accentColor, isActive, activeTab]);
 
   const handleSave = async () => {
     const nextSettings = normalizeSettings(settings) as AppSettings;
@@ -332,15 +314,6 @@ export function SettingsView({
   const handleDiscard = useCallback(() => {
     setPendingEpView(null);
     if (!initialSettings) return;
-    // Revierte el preview en vivo del acento (el efecto RAF solo corre en el tab apariencia)
-    if (accentRafRef.current !== null) {
-      cancelAnimationFrame(accentRafRef.current);
-      accentRafRef.current = null;
-    }
-    document.documentElement.style.setProperty(
-      '--color-primary',
-      getAccentHex(initialSettings.accentColor || DEFAULT_ACCENT_HEX),
-    );
     setSettings(initialSettings);
     setAccentInput(initialSettings.accentColor || DEFAULT_ACCENT_HEX);
     toast.info('Cambios descartados');
@@ -520,6 +493,7 @@ export function SettingsView({
               <AppearanceTab
                 theme={(settings as AppSettings).theme}
                 savedTheme={(initialSettings as AppSettings)?.theme ?? (settings as AppSettings).theme}
+                savedAccentHex={getAccentHex(initialSettings?.accentColor || DEFAULT_ACCENT_HEX)}
                 accentHex={accentHex}
                 accentInput={accentInput}
                 accentInputValid={accentInputValid}

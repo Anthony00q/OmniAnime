@@ -61,6 +61,7 @@ export function useKeyboardNavigation(): void {
           : (index + (e.shiftKey ? -1 : 1) + focusable.length) % focusable.length;
       const next = focusable[nextIndex];
       if (next?.closest('[data-provider-switcher]')) return;
+      if (target?.hasAttribute('data-native-tab') || next?.hasAttribute('data-native-tab')) return;
       e.preventDefault();
       e.stopPropagation();
       const active = document.activeElement as HTMLElement | null;

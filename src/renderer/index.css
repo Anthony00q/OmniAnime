@@ -1,10 +1,10 @@
 @import 'tailwindcss';
 
 @theme {
-  --color-background: hsl(28 18% 4.5%);
-  --color-foreground: hsl(35 20% 90%);
+  --color-background: var(--base-background);
+  --color-foreground: var(--base-foreground);
 
-  --color-card: hsl(30 14% 6%);
+  --color-card: var(--base-card);
   --color-card-foreground: hsl(35 20% 90%);
 
   --color-surface: hsl(30 12% 6.5%);
@@ -12,19 +12,19 @@
   --color-surface-elevated: hsl(30 12% 9.5%);
   --color-surface-elevated-foreground: hsl(35 20% 90%);
 
-  --color-popover: hsl(30 14% 7.5%);
+  --color-popover: var(--base-popover);
   --color-popover-foreground: hsl(35 20% 90%);
 
   --color-primary: hsl(35 78% 57%);
-  --color-primary-foreground: hsl(35 70% 7%);
+  --color-primary-foreground: var(--base-primary-foreground);
   --color-brand: hsl(36 55% 68%);
   --color-brand-foreground: hsl(30 45% 10%);
 
-  --color-secondary: hsl(30 10% 14%);
+  --color-secondary: var(--base-secondary);
   --color-secondary-foreground: hsl(35 20% 90%);
 
   --color-muted: hsl(30 10% 14%);
-  --color-muted-foreground: hsl(35 8% 62%);
+  --color-muted-foreground: var(--base-muted-foreground);
 
   --color-accent: hsl(30 10% 14%);
   --color-accent-foreground: hsl(35 20% 90%);
@@ -39,7 +39,7 @@
   --color-info: hsl(208 35% 58%);
   --color-info-foreground: hsl(210 50% 10%);
 
-  --color-border: hsl(30 10% 14%);
+  --color-border: var(--base-border);
   --color-border-strong: hsl(30 10% 24%);
   --color-input: hsl(30 10% 14%);
   --color-text-tertiary: hsl(30 7% 49%);
@@ -56,6 +56,28 @@
 
   --font-sans: 'Instrument Sans', system-ui, -apple-system, sans-serif;
   --font-display: 'Bricolage Grotesque', 'Instrument Sans', system-ui, sans-serif;
+}
+
+:root {
+  --base-background: hsl(28 18% 4.5%);
+  --base-foreground: hsl(35 20% 90%);
+  --base-card: hsl(30 14% 6%);
+  --base-popover: hsl(30 14% 7.5%);
+  --base-primary-foreground: hsl(35 70% 7%);
+  --base-secondary: hsl(30 10% 14%);
+  --base-muted-foreground: hsl(35 8% 62%);
+  --base-border: hsl(30 10% 14%);
+}
+
+:where(.theme-preview) {
+  --color-background: var(--base-background);
+  --color-foreground: var(--base-foreground);
+  --color-card: var(--base-card);
+  --color-popover: var(--base-popover);
+  --color-primary-foreground: var(--base-primary-foreground);
+  --color-secondary: var(--base-secondary);
+  --color-muted-foreground: var(--base-muted-foreground);
+  --color-border: var(--base-border);
 }
 
 .theme-oled {

@@ -5,7 +5,6 @@ import {
   Layers,
   Eye,
   SlidersHorizontal,
-  Info,
   ChevronDown,
   FolderDown,
   FileText,
@@ -23,7 +22,7 @@ import {
   isConnectionControlLocked,
   managedHintId,
 } from '@/renderer/views/settings/utils/adaptiveConnections';
-import { AppTooltip } from '@/renderer/components/ui/AppTooltip';
+import { DownloadHelpIcon } from '@/renderer/views/settings/components/DownloadHelpIcon';
 import { DEFAULT_DOWNLOAD_SETTINGS, normalizeAdaptiveConnections } from '@/utils/downloads/downloadSettings';
 import { normalizeFolderNameSource } from '@/utils/downloads/folderNaming';
 import { folderNameSourceHint, snapToClosestOption } from '@/renderer/views/settings/utils/settingsHelpers';
@@ -63,13 +62,14 @@ interface DownloadsTabProps {
 }
 
 const DescargasConcurrencia = memo(function DescargasConcurrencia({ settings, onChange }: DownloadsTabProps) {
+  const episodeScopeId = useId();
   const adaptiveHintId = useId();
   const dl = { ...DEFAULT_DOWNLOAD_SETTINGS, ...(settings.download || {}) };
-  // La configuración Adaptive puede llegar como boolean legacy: siempre objeto.
   const adaptive = normalizeAdaptiveConnections(dl.adaptiveConnections);
   const onDlChange = (key: string, value: any) => onChange(key, value, 'download');
-  // Con Adaptive activo para un servidor, su control manual queda visible pero
-  // bloqueado: muestra el valor guardado sin tocarlo. HLS no entra.
+  const setAdaptiveEnabled = (enabled: boolean) => onDlChange('adaptiveConnections', { ...adaptive, enabled });
+  const setAdaptiveServer = (server: keyof typeof adaptive.servers, on: boolean) =>
+    onDlChange('adaptiveConnections', { ...adaptive, servers: { ...adaptive.servers, [server]: on } });
   const locked = {
     mediafireConnections: isConnectionControlLocked('mediafireConnections', adaptive),
     mp4uploadConnections: isConnectionControlLocked('mp4uploadConnections', adaptive),
@@ -79,29 +79,25 @@ const DescargasConcurrencia = memo(function DescargasConcurrencia({ settings, on
   return (
     <section className="settings-section">
       <div className="p-5 sm:p-6">
-        <div className="flex items-start gap-3 mb-5">
+        <div className="mb-4 flex items-center gap-3">
           <div className="settings-section-icon">
             <Gauge className="w-5 h-5" />
           </div>
-          <div>
-            <h2 className="text-base font-semibold">Concurrencia</h2>
-            <p className="text-[13px] text-muted-foreground mt-0.5">
-              Controla cuántos episodios y partes se descargan a la vez.
-            </p>
-          </div>
+          <h2 className="text-base font-semibold">Rendimiento</h2>
         </div>
 
         <div className="grid grid-cols-1 gap-3 @2xl/settings:grid-cols-[minmax(0,1fr)_15rem] @2xl/settings:items-center @2xl/settings:gap-6">
           <div className="min-w-0">
             <h3 className="text-sm font-semibold">Episodios en paralelo</h3>
-            <p className="text-[13px] text-muted-foreground mt-1 leading-relaxed">
-              Cuántos episodios del mismo anime se descargan a la vez.
+            <p id={episodeScopeId} className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
+              Del mismo anime.
             </p>
           </div>
           <CustomSelect
             value={String(dl.maxParallelEpisodes)}
             onChange={(v) => onDlChange('maxParallelEpisodes', Number(v))}
             ariaLabel="Episodios en paralelo"
+            describedBy={episodeScopeId}
             className="w-full"
             options={DOWNLOAD_PARALLEL_OPTIONS.map((o) => ({ ...o }))}
           />
@@ -112,109 +108,155 @@ const DescargasConcurrencia = memo(function DescargasConcurrencia({ settings, on
           </p>
         )}
 
-        <div className="mt-5 border-t border-border/40 pt-5">
-          <h3 className="text-sm font-semibold">Conexiones por archivo</h3>
-          <p className="text-[13px] text-muted-foreground leading-relaxed mt-1">
+        <div className="mt-6 border-t border-border/40 pt-6">
+          <div className="flex items-center gap-1">
+            <h3 className="text-sm font-semibold">Conexiones por archivo</h3>
+            <DownloadHelpIcon
+              label="Ayuda sobre conexiones por archivo"
+              content="Si un servidor no admite varias conexiones, se usa una."
+            />
+          </div>
+          <p className="text-[13px] leading-relaxed text-muted-foreground">
             Partes del mismo archivo que se descargan a la vez.
           </p>
-          {Object.values(locked).some(Boolean) && (
-            <p id={adaptiveHintId} className="mt-2 mb-2 text-[13px] text-muted-foreground leading-relaxed" role="note">
-              {ADAPTIVE_MANAGED_HINT}
-            </p>
-          )}
-          <div className="settings-option-row grid grid-cols-1 gap-3 @2xl/settings:grid-cols-[minmax(0,1fr)_15rem] @2xl/settings:items-center @2xl/settings:gap-6">
-            <div className="min-w-0 flex flex-wrap items-center gap-x-2 gap-y-1">
-              <span className="text-sm font-medium">MediaFire</span>
-              {locked.mediafireConnections && (
-                <span id={managedHintId('mediafireConnections')} className="text-xs text-muted-foreground">
-                  Automático
-                </span>
-              )}
-            </div>
-            <CustomSelect
-              value={snapToClosestOption(
-                dl.mediafireConnections ?? 1,
-                DOWNLOAD_DIRECT_CONNECTIONS_OPTIONS.map((o) => o.value),
-              )}
-              onChange={(v) => onDlChange('mediafireConnections', Number(v))}
-              ariaLabel="Conexiones por archivo en MediaFire"
-              className="w-full"
-              options={DOWNLOAD_DIRECT_CONNECTIONS_OPTIONS.map((o) => ({ ...o }))}
-              disabled={locked.mediafireConnections}
-              describedBy={
-                locked.mediafireConnections ? `${managedHintId('mediafireConnections')} ${adaptiveHintId}` : undefined
-              }
-            />
-          </div>
-          <div className="settings-option-row grid grid-cols-1 gap-3 @2xl/settings:grid-cols-[minmax(0,1fr)_15rem] @2xl/settings:items-center @2xl/settings:gap-6">
-            <div className="min-w-0 flex flex-wrap items-center gap-x-2 gap-y-1">
-              <span className="text-sm font-medium">MP4Upload</span>
-              {locked.mp4uploadConnections && (
-                <span id={managedHintId('mp4uploadConnections')} className="text-xs text-muted-foreground">
-                  Automático
-                </span>
-              )}
-            </div>
-            <CustomSelect
-              value={snapToClosestOption(
-                dl.mp4uploadConnections ?? 1,
-                DOWNLOAD_DIRECT_CONNECTIONS_OPTIONS.map((o) => o.value),
-              )}
-              onChange={(v) => onDlChange('mp4uploadConnections', Number(v))}
-              ariaLabel="Conexiones por archivo en MP4Upload"
-              className="w-full"
-              options={DOWNLOAD_DIRECT_CONNECTIONS_OPTIONS.map((o) => ({ ...o }))}
-              disabled={locked.mp4uploadConnections}
-              describedBy={
-                locked.mp4uploadConnections ? `${managedHintId('mp4uploadConnections')} ${adaptiveHintId}` : undefined
-              }
-            />
-          </div>
-          <div className="settings-option-row grid grid-cols-1 gap-3 @2xl/settings:grid-cols-[minmax(0,1fr)_15rem] @2xl/settings:items-center @2xl/settings:gap-6">
-            <div className="min-w-0 flex flex-wrap items-center gap-x-2 gap-y-1">
-              <span className="text-sm font-medium">Voe</span>
-              {locked.voeConnections && (
-                <span id={managedHintId('voeConnections')} className="text-xs text-muted-foreground">
-                  Automático
-                </span>
-              )}
-            </div>
-            <CustomSelect
-              value={snapToClosestOption(
-                dl.voeConnections ?? 4,
-                DOWNLOAD_DIRECT_CONNECTIONS_OPTIONS.map((o) => o.value),
-              )}
-              onChange={(v) => onDlChange('voeConnections', Number(v))}
-              ariaLabel="Conexiones por archivo en Voe"
-              className="w-full"
-              options={DOWNLOAD_DIRECT_CONNECTIONS_OPTIONS.map((o) => ({ ...o }))}
-              disabled={locked.voeConnections}
-              describedBy={locked.voeConnections ? `${managedHintId('voeConnections')} ${adaptiveHintId}` : undefined}
-            />
-          </div>
-          <div className="settings-option-row grid grid-cols-1 gap-3 @2xl/settings:grid-cols-[minmax(0,1fr)_15rem] @2xl/settings:items-center @2xl/settings:gap-6">
+          <div className="mt-4 flex items-center justify-between gap-4">
             <div className="min-w-0">
-              <span className="text-sm font-medium">Mega</span>
-              <p className="text-[13px] text-muted-foreground mt-1 leading-relaxed">
-                Conexión fija. No usa Conexiones adaptativas.
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-semibold">
+                <span>Conexiones adaptativas</span>
+                <span className="inline-flex items-center rounded border border-primary/30 bg-primary/10 px-1 py-px text-[10px] font-semibold uppercase leading-none tracking-wider text-primary">
+                  Experimental
+                </span>
+              </div>
+              <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
+                Ajusta las conexiones según su rendimiento durante la descarga.
               </p>
             </div>
-            <p className="text-[13px] text-muted-foreground tabular-nums @2xl/settings:text-right">1 conexión</p>
+            <div className="shrink-0">
+              <CustomSwitch
+                checked={adaptive.enabled}
+                onChange={setAdaptiveEnabled}
+                ariaLabel="Conexiones adaptativas (experimental)"
+              />
+            </div>
           </div>
-          <p className="mt-2 text-[13px] text-muted-foreground leading-relaxed">
-            Si el servidor no permite varias conexiones, se utiliza una.
-          </p>
+          <details className="group mt-2">
+            <summary
+              data-keep-focus
+              className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground [&::-webkit-details-marker]:hidden"
+            >
+              Elegir servidores para el modo adaptativo
+              <ChevronDown className="size-4 shrink-0 group-open:rotate-180" aria-hidden="true" />
+            </summary>
+            <div className="settings-subpanel mb-1 mt-1 bg-surface-elevated">
+              <p className="text-[13px] leading-relaxed text-muted-foreground">
+                {adaptive.enabled
+                  ? 'Los servidores que desactives aquí usarán su ajuste manual.'
+                  : 'Activa Conexiones adaptativas para elegir los servidores.'}
+              </p>
+              <div className="mt-2 grid gap-x-6 gap-y-1 @2xl/settings:grid-cols-3">
+                {ADAPTIVE_SERVER_ROWS.map((row) => (
+                  <div key={row.id} className="flex min-h-11 items-center justify-between gap-3">
+                    <span className="text-sm font-medium">{row.label}</span>
+                    <CustomSwitch
+                      checked={adaptive.servers[row.id]}
+                      disabled={!adaptive.enabled}
+                      onChange={(c) => setAdaptiveServer(row.id, c)}
+                      ariaLabel={`Conexiones adaptativas en ${row.label}`}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </details>
+          <div className="mt-3 border-t border-border/40 pt-4">
+            <h4 className="text-sm font-semibold">Ajuste por servidor</h4>
+            {Object.values(locked).some(Boolean) && (
+              <p
+                id={adaptiveHintId}
+                className="mt-3 rounded-lg bg-surface-elevated px-3 py-2 text-[13px] leading-relaxed text-muted-foreground"
+                role="note"
+              >
+                {ADAPTIVE_MANAGED_HINT}
+              </p>
+            )}
+            <div className="settings-option-row mt-2 grid grid-cols-1 gap-3 @2xl/settings:grid-cols-[minmax(0,1fr)_15rem] @2xl/settings:items-center @2xl/settings:gap-6">
+              <div className="min-w-0 flex flex-wrap items-center gap-x-2 gap-y-1">
+                <span className="text-sm font-medium">MediaFire</span>
+                {locked.mediafireConnections && (
+                  <span id={managedHintId('mediafireConnections')} className="text-xs text-muted-foreground">
+                    Automático
+                  </span>
+                )}
+              </div>
+              <CustomSelect
+                value={snapToClosestOption(
+                  dl.mediafireConnections ?? 1,
+                  DOWNLOAD_DIRECT_CONNECTIONS_OPTIONS.map((o) => o.value),
+                )}
+                onChange={(v) => onDlChange('mediafireConnections', Number(v))}
+                ariaLabel="Conexiones por archivo en MediaFire"
+                className="w-full"
+                options={DOWNLOAD_DIRECT_CONNECTIONS_OPTIONS.map((o) => ({ ...o }))}
+                disabled={locked.mediafireConnections}
+                describedBy={
+                  locked.mediafireConnections ? `${managedHintId('mediafireConnections')} ${adaptiveHintId}` : undefined
+                }
+              />
+            </div>
+            <div className="settings-option-row grid grid-cols-1 gap-3 @2xl/settings:grid-cols-[minmax(0,1fr)_15rem] @2xl/settings:items-center @2xl/settings:gap-6">
+              <div className="min-w-0 flex flex-wrap items-center gap-x-2 gap-y-1">
+                <span className="text-sm font-medium">MP4Upload</span>
+                {locked.mp4uploadConnections && (
+                  <span id={managedHintId('mp4uploadConnections')} className="text-xs text-muted-foreground">
+                    Automático
+                  </span>
+                )}
+              </div>
+              <CustomSelect
+                value={snapToClosestOption(
+                  dl.mp4uploadConnections ?? 1,
+                  DOWNLOAD_DIRECT_CONNECTIONS_OPTIONS.map((o) => o.value),
+                )}
+                onChange={(v) => onDlChange('mp4uploadConnections', Number(v))}
+                ariaLabel="Conexiones por archivo en MP4Upload"
+                className="w-full"
+                options={DOWNLOAD_DIRECT_CONNECTIONS_OPTIONS.map((o) => ({ ...o }))}
+                disabled={locked.mp4uploadConnections}
+                describedBy={
+                  locked.mp4uploadConnections ? `${managedHintId('mp4uploadConnections')} ${adaptiveHintId}` : undefined
+                }
+              />
+            </div>
+            <div className="settings-option-row grid grid-cols-1 gap-3 @2xl/settings:grid-cols-[minmax(0,1fr)_15rem] @2xl/settings:items-center @2xl/settings:gap-6">
+              <div className="min-w-0 flex flex-wrap items-center gap-x-2 gap-y-1">
+                <span className="text-sm font-medium">Voe</span>
+                {locked.voeConnections && (
+                  <span id={managedHintId('voeConnections')} className="text-xs text-muted-foreground">
+                    Automático
+                  </span>
+                )}
+              </div>
+              <CustomSelect
+                value={snapToClosestOption(
+                  dl.voeConnections ?? 4,
+                  DOWNLOAD_DIRECT_CONNECTIONS_OPTIONS.map((o) => o.value),
+                )}
+                onChange={(v) => onDlChange('voeConnections', Number(v))}
+                ariaLabel="Conexiones por archivo en Voe"
+                className="w-full"
+                options={DOWNLOAD_DIRECT_CONNECTIONS_OPTIONS.map((o) => ({ ...o }))}
+                disabled={locked.voeConnections}
+                describedBy={locked.voeConnections ? `${managedHintId('voeConnections')} ${adaptiveHintId}` : undefined}
+              />
+            </div>
+          </div>
         </div>
-        <div className="mt-5 border-t border-border/40 pt-5">
-          <h3 className="text-sm font-semibold">Descarga HLS</h3>
-          <p className="mt-1 text-[13px] text-muted-foreground leading-relaxed">
-            Solo AnimeAV1. Más segmentos no siempre aceleran la descarga.
-          </p>
-          <div className="mt-3 grid grid-cols-1 gap-3 @2xl/settings:grid-cols-[minmax(0,1fr)_15rem] @2xl/settings:items-center @2xl/settings:gap-6">
+        <div className="mt-6 border-t border-border/40 pt-6">
+          <div className="grid grid-cols-1 gap-3 @2xl/settings:grid-cols-[minmax(0,1fr)_15rem] @2xl/settings:items-center @2xl/settings:gap-6">
             <div className="min-w-0">
-              <span className="text-sm font-medium">Segmentos en paralelo</span>
+              <h3 className="text-sm font-semibold">Segmentos HLS en paralelo</h3>
               <p className="text-[13px] text-muted-foreground mt-1 leading-relaxed">
-                Fragmentos del episodio que se descargan a la vez.
+                Cuántas partes del episodio se descargan a la vez. Solo en AnimeAV1.
               </p>
             </div>
             <CustomSelect
@@ -229,8 +271,11 @@ const DescargasConcurrencia = memo(function DescargasConcurrencia({ settings, on
             />
           </div>
         </div>
-        <p className="mt-5 border-t border-border/40 pt-4 text-[13px] leading-relaxed text-muted-foreground">
-          Solo afecta a las próximas descargas. Las que están en curso no cambian.
+        <p
+          className="mt-5 border-t border-border/40 pt-4 text-[13px] leading-relaxed text-muted-foreground"
+          role="note"
+        >
+          Los cambios no alteran una transferencia en curso. Se aplican al iniciar nuevos episodios o intentos.
         </p>
       </div>
     </section>
@@ -247,7 +292,7 @@ const DescargasServidores = memo(function DescargasServidores({ settings, onChan
         <div className="settings-section-icon">
           <Server className="w-5 h-5" />
         </div>
-        <h3 className="text-base font-semibold">Servidores disponibles</h3>
+        <h2 className="text-base font-semibold">Servidores disponibles</h2>
       </div>
       <p className="mb-4 text-[13px] leading-relaxed text-muted-foreground">
         Los servidores se prueban en este orden; si uno falla o no está, se pasa al siguiente.
@@ -299,11 +344,11 @@ const DescargasNombrado = memo(function DescargasNombrado({
         <div className="settings-section-icon">
           <Layers className="w-5 h-5" />
         </div>
-        <h3 className="text-base font-semibold">Nombrado de archivos y carpetas</h3>
+        <h2 className="text-base font-semibold">Archivos y carpetas</h2>
       </div>
       <div className="grid grid-cols-1 gap-5 @xl/settings:grid-cols-2">
         <div className="space-y-2">
-          <span className="block text-sm font-semibold">Estilo de nombre</span>
+          <span className="block text-sm font-semibold">Nombre de los archivos</span>
           <CustomSelect
             value={settings.namingStyle || 'descriptive'}
             onChange={(v) => onChange('namingStyle', v)}
@@ -329,7 +374,7 @@ const DescargasNombrado = memo(function DescargasNombrado({
       </div>
       <div className="mt-5 pt-5 border-t border-border/40 grid grid-cols-1 gap-5 @xl/settings:grid-cols-2">
         <div className="space-y-2">
-          <span className="block text-sm font-semibold">Carpeta de descarga</span>
+          <span className="block text-sm font-semibold">Nombre de la carpeta de descarga</span>
           <CustomSelect
             value={folderSource}
             onChange={(v) => onDlChange('folderNameSource', v)}
@@ -353,28 +398,37 @@ const DescargasNombrado = memo(function DescargasNombrado({
       <div className="mt-4 text-xs leading-relaxed text-muted-foreground">
         Si el título elegido no está disponible, se usa el siguiente que sí lo esté. Solo afecta a descargas nuevas.
       </div>
-      <div className="mt-4 flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => setFilesRenameOpen(true)}
-          onPointerEnter={renameFilesTool.preload}
-          onFocus={renameFilesTool.preload}
-          className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-border/60 bg-surface-elevated px-4 py-2 text-[13px] font-semibold text-foreground transition-colors hover:bg-secondary/60"
+      <details className="group mt-3 border-t border-border/40">
+        <summary
+          data-keep-focus
+          className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 rounded-lg text-sm font-semibold [&::-webkit-details-marker]:hidden"
         >
-          <FileText className="w-3.5 h-3.5" />
-          Renombrar archivos de la librería…
-        </button>
-        <button
-          type="button"
-          onClick={() => setRenameOpen(true)}
-          onPointerEnter={renameFoldersTool.preload}
-          onFocus={renameFoldersTool.preload}
-          className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-border/60 bg-surface-elevated px-4 py-2 text-[13px] font-semibold text-foreground transition-colors hover:bg-secondary/60"
-        >
-          <FolderDown className="w-3.5 h-3.5" />
-          Renombrar carpetas de la librería…
-        </button>
-      </div>
+          Herramientas para renombrar la librería
+          <ChevronDown className="size-4 shrink-0 text-muted-foreground group-open:rotate-180" aria-hidden="true" />
+        </summary>
+        <div className="mt-2 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setFilesRenameOpen(true)}
+            onPointerEnter={renameFilesTool.preload}
+            onFocus={renameFilesTool.preload}
+            className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-border/60 bg-surface-elevated px-4 py-2 text-[13px] font-semibold text-foreground transition-colors hover:bg-secondary/60"
+          >
+            <FileText className="w-3.5 h-3.5" />
+            Renombrar archivos de la librería…
+          </button>
+          <button
+            type="button"
+            onClick={() => setRenameOpen(true)}
+            onPointerEnter={renameFoldersTool.preload}
+            onFocus={renameFoldersTool.preload}
+            className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-border/60 bg-surface-elevated px-4 py-2 text-[13px] font-semibold text-foreground transition-colors hover:bg-secondary/60"
+          >
+            <FolderDown className="w-3.5 h-3.5" />
+            Renombrar carpetas de la librería…
+          </button>
+        </div>
+      </details>
       {filesRenameOpen && (
         <DeferredSettingsTool
           tool={renameFilesTool}
@@ -409,161 +463,86 @@ const DescargasNombrado = memo(function DescargasNombrado({
 });
 
 const DescargasAvanzado = memo(function DescargasAvanzado({ settings, onChange }: DownloadsTabProps) {
-  const [advancedOpen, setAdvancedOpen] = useState(false);
   const dl = { ...DEFAULT_DOWNLOAD_SETTINGS, ...(settings.download || {}) };
-  // La configuración Adaptive puede llegar como boolean legacy: siempre objeto.
-  const adaptive = normalizeAdaptiveConnections(dl.adaptiveConnections);
   const onDlChange = (key: string, value: any) => onChange(key, value, 'download');
-  const setAdaptiveEnabled = (enabled: boolean) => onDlChange('adaptiveConnections', { ...adaptive, enabled });
-  const setAdaptiveServer = (server: keyof typeof adaptive.servers, on: boolean) =>
-    onDlChange('adaptiveConnections', { ...adaptive, servers: { ...adaptive.servers, [server]: on } });
 
   return (
-    <section className="settings-section overflow-hidden">
-      <button
-        type="button"
-        onClick={() => setAdvancedOpen((v) => !v)}
-        aria-expanded={advancedOpen}
-        className="w-full flex items-center justify-between gap-3 p-5 sm:px-6 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-inset"
-      >
-        <span className="flex items-center gap-2">
-          <span className="settings-section-icon">
-            <SlidersHorizontal className="w-5 h-5" />
-          </span>
-          <span>
-            <span className="block text-base font-semibold">Opciones avanzadas</span>
-            <span className="block text-[13px] text-muted-foreground mt-0.5">
-              Reintentos, tiempos de espera y archivos temporales. Ya viene bien configurado.
-            </span>
-          </span>
-        </span>
-        <ChevronDown
-          className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${advancedOpen ? 'rotate-180' : ''}`}
-        />
-      </button>
-      <div
-        className={`grid transition-[grid-template-rows] duration-200 ease-out ${advancedOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}
-      >
-        <div className="overflow-hidden">
-          <div className="px-5 sm:px-6 pb-5 sm:pb-6 grid grid-cols-1 gap-5 @xl/settings:grid-cols-2">
-            <div className="space-y-2">
-              <span className="block text-sm font-semibold">Reintentos</span>
-              <CustomSelect
-                value={snapToClosestOption(
-                  dl.retries,
-                  DOWNLOAD_RETRIES_OPTIONS.map((o) => o.value),
-                )}
-                onChange={(v) => onDlChange('retries', Number(v))}
-                ariaLabel="Reintentos por descarga"
-                className="w-full"
-                options={DOWNLOAD_RETRIES_OPTIONS.map((o) => ({ ...o }))}
+    <section className="settings-section p-5 sm:p-6">
+      <div className="mb-2 flex items-center gap-3">
+        <div className="settings-section-icon">
+          <SlidersHorizontal className="size-5" />
+        </div>
+        <h2 className="text-base font-semibold">Reintentos y recuperación</h2>
+      </div>
+      <div className="flex flex-col">
+        <div className="settings-option-row flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5 text-sm font-semibold leading-tight">
+              Continuar descargas interrumpidas
+              <DownloadHelpIcon
+                label="Ayuda sobre continuar descargas interrumpidas"
+                content="Si cambia el enlace o el servidor no lo permite, empieza de cero."
               />
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Cuántas veces se vuelve a intentar si una descarga falla.
-              </p>
             </div>
-            <div className="space-y-2">
-              <span className="block text-sm font-semibold">Tiempo de espera al iniciar</span>
-              <CustomSelect
-                value={snapToClosestOption(
-                  dl.startTimeoutSec,
-                  DOWNLOAD_START_TIMEOUT_OPTIONS.map((o) => o.value),
-                )}
-                onChange={(v) => onDlChange('startTimeoutSec', Number(v))}
-                ariaLabel="Tiempo de espera al iniciar"
-                className="w-full"
-                options={DOWNLOAD_START_TIMEOUT_OPTIONS.map((o) => ({ ...o }))}
-              />
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Cuánto se espera a que la descarga empiece antes de cancelar el intento.
-              </p>
-            </div>
+            <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
+              Retoma el episodio donde se quedó, en vez de empezar de cero.
+            </p>
           </div>
-          <div className="mx-5 sm:mx-6 mb-5 sm:mb-6 flex flex-col">
-            <div className="settings-option-row flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <div className="text-sm font-semibold leading-tight flex items-center gap-1.5">
-                  Continuar descargas interrumpidas
-                  <AppTooltip content="Si cambia el enlace o el servidor no lo permite, empieza de cero.">
-                    <span aria-hidden="true" className="inline-flex text-muted-foreground">
-                      <Info className="w-3.5 h-3.5" />
-                    </span>
-                  </AppTooltip>
-                </div>
-                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                  Retoma el episodio donde se quedó, en vez de empezar de cero.
-                </p>
-              </div>
-              <CustomSwitch
-                checked={dl.allowContinue}
-                onChange={(c) => onDlChange('allowContinue', c)}
-                ariaLabel="Continuar descargas parciales"
-              />
-            </div>
-            <div className="settings-option-row flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <div className="text-sm font-semibold leading-tight flex items-center gap-1.5">
-                  <FolderDown className="w-3.5 h-3.5 text-muted-foreground" /> Limpiar al terminar
-                  <AppTooltip content="Si lo desactivas, los puedes borrar luego desde Almacenamiento.">
-                    <span aria-hidden="true" className="inline-flex text-muted-foreground">
-                      <Info className="w-3.5 h-3.5" />
-                    </span>
-                  </AppTooltip>
-                </div>
-                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                  Borra los archivos temporales del episodio cuando termina bien.
-                </p>
-              </div>
-              <CustomSwitch
-                checked={dl.cleanCacheOnComplete}
-                onChange={(c) => onDlChange('cleanCacheOnComplete', c)}
-                ariaLabel="Limpiar temporales al terminar"
-              />
-            </div>
-            <div className="settings-option-row">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="text-sm font-semibold leading-tight">
-                    Conexiones adaptativas{' '}
-                    <span className="inline-flex items-center rounded border border-primary/30 bg-primary/10 px-1 py-px align-middle text-[10px] font-semibold uppercase leading-none tracking-wider text-primary">
-                      Experimental
-                    </span>{' '}
-                    <AppTooltip content="El número de conexiones que elijas es solo el punto de partida. Puede cambiar en próximas versiones.">
-                      <span aria-hidden="true" className="inline-flex align-middle text-muted-foreground">
-                        <Info className="w-3.5 h-3.5" />
-                      </span>
-                    </AppTooltip>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                    Ajusta las conexiones del episodio según el rendimiento de tu conexión.
-                  </p>
-                </div>
-                <CustomSwitch
-                  checked={adaptive.enabled}
-                  onChange={setAdaptiveEnabled}
-                  ariaLabel="Conexiones adaptativas (experimental)"
-                />
-              </div>
-              <div className="mt-3 border-t border-border/40 pt-3">
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  Los servidores sin Adaptive usan el número de conexiones que configures a mano.
-                </p>
-                <div className="mt-1 grid gap-x-6 gap-y-1 @xl/settings:grid-cols-3">
-                  {ADAPTIVE_SERVER_ROWS.map((row) => (
-                    <div key={row.id} className="flex items-center justify-between gap-3">
-                      <span className="text-sm font-medium select-none">{row.label}</span>
-                      <CustomSwitch
-                        checked={adaptive.servers[row.id]}
-                        disabled={!adaptive.enabled}
-                        onChange={(c) => setAdaptiveServer(row.id, c)}
-                        ariaLabel={`Conexiones adaptativas en ${row.label}`}
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
+          <CustomSwitch
+            checked={dl.allowContinue}
+            onChange={(c) => onDlChange('allowContinue', c)}
+            ariaLabel="Continuar descargas parciales"
+          />
+        </div>
+        <div className="settings-option-row grid grid-cols-1 gap-3 @2xl/settings:grid-cols-[minmax(0,1fr)_15rem] @2xl/settings:items-center @2xl/settings:gap-6">
+          <span className="text-sm font-semibold">Reintentos por descarga</span>
+          <CustomSelect
+            value={snapToClosestOption(
+              dl.retries,
+              DOWNLOAD_RETRIES_OPTIONS.map((o) => o.value),
+            )}
+            onChange={(v) => onDlChange('retries', Number(v))}
+            ariaLabel="Reintentos por descarga"
+            className="w-full"
+            options={DOWNLOAD_RETRIES_OPTIONS.map((o) => ({ ...o }))}
+          />
+        </div>
+        <div className="settings-option-row grid grid-cols-1 gap-3 @2xl/settings:grid-cols-[minmax(0,1fr)_15rem] @2xl/settings:items-center @2xl/settings:gap-6">
+          <div className="space-y-2">
+            <span className="block text-sm font-semibold">Tiempo de espera al iniciar</span>
+            <p className="text-[13px] leading-relaxed text-muted-foreground">
+              Cuánto se espera a que la descarga empiece antes de cancelar el intento.
+            </p>
           </div>
+          <CustomSelect
+            value={snapToClosestOption(
+              dl.startTimeoutSec,
+              DOWNLOAD_START_TIMEOUT_OPTIONS.map((o) => o.value),
+            )}
+            onChange={(v) => onDlChange('startTimeoutSec', Number(v))}
+            ariaLabel="Tiempo de espera al iniciar"
+            className="w-full"
+            options={DOWNLOAD_START_TIMEOUT_OPTIONS.map((o) => ({ ...o }))}
+          />
+        </div>
+        <div className="settings-option-row flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-sm font-semibold leading-tight flex items-center gap-1.5">
+              Limpiar temporales al terminar
+              <DownloadHelpIcon
+                label="Ayuda sobre limpiar temporales"
+                content="Si lo desactivas, los puedes borrar luego desde Almacenamiento."
+              />
+            </div>
+            <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
+              Borra los archivos temporales del episodio cuando termina bien.
+            </p>
+          </div>
+          <CustomSwitch
+            checked={dl.cleanCacheOnComplete}
+            onChange={(c) => onDlChange('cleanCacheOnComplete', c)}
+            ariaLabel="Limpiar temporales al terminar"
+          />
         </div>
       </div>
     </section>

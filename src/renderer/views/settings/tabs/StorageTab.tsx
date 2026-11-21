@@ -1,7 +1,6 @@
 import { memo } from 'react';
 import { BarChart3, Database, Eraser, Eye, HardDrive, Loader2, Shield, Trash2 } from 'lucide-react';
 import { runToastTask } from '@/renderer/utils/toastTask';
-import { AppTooltip } from '@/renderer/components/ui/AppTooltip';
 
 const StorageDiskRow = memo(function StorageDiskRow({
   disk,
@@ -102,7 +101,7 @@ export const StorageTab = memo(function StorageTab({
           <div className="settings-section-icon">
             <BarChart3 className="w-5 h-5" />
           </div>
-          <h3 className="text-base font-semibold">Estado de almacenamiento</h3>
+          <h2 className="text-base font-semibold">Estado de almacenamiento</h2>
         </div>
 
         {storageStatsQuery.isLoading ? (
@@ -128,97 +127,103 @@ export const StorageTab = memo(function StorageTab({
           <div className={`space-y-4 ${storageStatsQuery.isFetching && !storageStatsQuery.data ? 'opacity-60' : ''}`}>
             {(storageStatsQuery.data as any)?.disks?.length > 0 && (
               <div>
+                <h3 className="mb-1 text-sm font-semibold">Discos</h3>
                 {(storageStatsQuery.data as any).disks.map((d: any, idx: number) => (
                   <StorageDiskRow key={idx} disk={d} formatBytes={formatBytes} formatDiskPercent={formatDiskPercent} />
                 ))}
               </div>
             )}
 
-            <div className="grid grid-cols-1 border-t border-border/40 pt-5 @2xl/settings:grid-cols-3">
-              <div className="min-w-0 border-b border-border/40 py-4 @2xl/settings:border-b-0 @2xl/settings:py-0 @2xl/settings:pr-5">
-                <div className="flex items-center gap-2 text-xs font-bold tracking-wide uppercase text-muted-foreground mb-2">
-                  <Database className="w-3.5 h-3.5" /> Datos guardados
+            <div
+              className={(storageStatsQuery.data as any)?.disks?.length ? 'border-t border-border/40 pt-5' : undefined}
+            >
+              <h3 className="text-sm font-semibold @2xl/settings:mb-4">Uso de espacio de OmniAnime</h3>
+              <div className="grid grid-cols-1 @2xl/settings:grid-cols-3">
+                <div className="min-w-0 border-b border-border/40 py-4 @2xl/settings:border-b-0 @2xl/settings:py-0 @2xl/settings:pr-5">
+                  <div className="flex items-center gap-2 text-xs font-bold tracking-wide uppercase text-muted-foreground mb-2">
+                    <Database className="w-3.5 h-3.5" /> Datos guardados
+                  </div>
+                  {(() => {
+                    const db = (storageStatsQuery.data as any)?.db;
+                    if (!db) return <div className="text-xs text-muted-foreground">—</div>;
+                    return (
+                      <>
+                        <div className="text-sm tabular-nums font-medium">{formatBytes(db.total)}</div>
+                        <div className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                          Información de tu biblioteca y ajustes
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
-                {(() => {
-                  const db = (storageStatsQuery.data as any)?.db;
-                  if (!db) return <div className="text-xs text-muted-foreground">—</div>;
-                  return (
-                    <>
-                      <div className="text-sm tabular-nums font-medium">{formatBytes(db.total)}</div>
-                      <div className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
-                        Información de tu biblioteca y ajustes
-                      </div>
-                    </>
-                  );
-                })()}
-              </div>
-              <div className="min-w-0 border-b border-border/40 py-4 @2xl/settings:border-b-0 @2xl/settings:border-l @2xl/settings:px-5 @2xl/settings:py-0">
-                <div className="flex items-center gap-2 text-xs font-bold tracking-wide uppercase text-muted-foreground mb-2">
-                  <Eraser className="w-3.5 h-3.5" /> Archivos temporales
+                <div className="min-w-0 border-b border-border/40 py-4 @2xl/settings:border-b-0 @2xl/settings:border-l @2xl/settings:px-5 @2xl/settings:py-0">
+                  <div className="flex items-center gap-2 text-xs font-bold tracking-wide uppercase text-muted-foreground mb-2">
+                    <Eraser className="w-3.5 h-3.5" /> Archivos temporales
+                  </div>
+                  {(() => {
+                    const cache = (storageStatsQuery.data as any)?.cache;
+                    if (!cache) return <div className="text-xs text-muted-foreground">—</div>;
+                    const isEmpty = cache.count === 0;
+                    return (
+                      <>
+                        <div
+                          className={`text-sm tabular-nums ${isEmpty ? 'font-normal text-muted-foreground' : 'font-medium text-foreground'}`}
+                        >
+                          {isEmpty ? (
+                            'Vacío'
+                          ) : (
+                            <>
+                              {cache.count} {cache.count === 1 ? 'archivo' : 'archivos'}{' '}
+                              <span aria-hidden="true" className="text-border-strong font-normal">
+                                |
+                              </span>{' '}
+                              {formatBytes(cache.size)}
+                            </>
+                          )}
+                        </div>
+                        <div className="text-[11px] text-muted-foreground mt-1">
+                          {isEmpty ? 'No hay restos de descargas' : 'Restos de descargas sin terminar'}
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
-                {(() => {
-                  const cache = (storageStatsQuery.data as any)?.cache;
-                  if (!cache) return <div className="text-xs text-muted-foreground">—</div>;
-                  const isEmpty = cache.count === 0;
-                  return (
-                    <>
-                      <div
-                        className={`text-sm tabular-nums ${isEmpty ? 'font-normal text-muted-foreground' : 'font-medium text-foreground'}`}
-                      >
-                        {isEmpty ? (
-                          'Vacío'
-                        ) : (
-                          <>
-                            {cache.count} {cache.count === 1 ? 'archivo' : 'archivos'}{' '}
-                            <span aria-hidden="true" className="text-border-strong font-normal">
-                              |
-                            </span>{' '}
-                            {formatBytes(cache.size)}
-                          </>
-                        )}
-                      </div>
-                      <div className="text-[11px] text-muted-foreground mt-1">
-                        {isEmpty ? 'No hay restos de descargas' : 'Restos de descargas sin terminar'}
-                      </div>
-                    </>
-                  );
-                })()}
-              </div>
-              <div className="min-w-0 py-4 @2xl/settings:border-l @2xl/settings:border-border/40 @2xl/settings:py-0 @2xl/settings:pl-5">
-                <div className="flex items-center gap-2 text-xs font-bold tracking-wide uppercase text-muted-foreground mb-2">
-                  <Eye className="w-3.5 h-3.5" /> Vistas previas
+                <div className="min-w-0 py-4 @2xl/settings:border-l @2xl/settings:border-border/40 @2xl/settings:py-0 @2xl/settings:pl-5">
+                  <div className="flex items-center gap-2 text-xs font-bold tracking-wide uppercase text-muted-foreground mb-2">
+                    <Eye className="w-3.5 h-3.5" /> Vistas previas
+                  </div>
+                  {(() => {
+                    const th = (storageStatsQuery.data as any)?.thumbnails;
+                    if (!th) return <div className="text-xs text-muted-foreground">—</div>;
+                    const isEmpty = th.count === 0;
+                    return (
+                      <>
+                        <div
+                          className={`text-sm tabular-nums ${isEmpty ? 'font-normal text-muted-foreground' : 'font-medium text-foreground'}`}
+                        >
+                          {isEmpty ? (
+                            'Vacío'
+                          ) : (
+                            <>
+                              {th.count} {th.count === 1 ? 'imagen' : 'imágenes'}{' '}
+                              <span aria-hidden="true" className="text-border-strong font-normal">
+                                |
+                              </span>{' '}
+                              {formatBytes(th.size)}
+                            </>
+                          )}
+                        </div>
+                        <div className="text-[11px] text-muted-foreground mt-1">
+                          {isEmpty
+                            ? 'Sin vistas previas'
+                            : th.expiredCount > 0
+                              ? `${th.expiredCount} antiguas (más de 30 días)`
+                              : 'Todas están al día'}
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
-                {(() => {
-                  const th = (storageStatsQuery.data as any)?.thumbnails;
-                  if (!th) return <div className="text-xs text-muted-foreground">—</div>;
-                  const isEmpty = th.count === 0;
-                  return (
-                    <>
-                      <div
-                        className={`text-sm tabular-nums ${isEmpty ? 'font-normal text-muted-foreground' : 'font-medium text-foreground'}`}
-                      >
-                        {isEmpty ? (
-                          'Vacío'
-                        ) : (
-                          <>
-                            {th.count} {th.count === 1 ? 'imagen' : 'imágenes'}{' '}
-                            <span aria-hidden="true" className="text-border-strong font-normal">
-                              |
-                            </span>{' '}
-                            {formatBytes(th.size)}
-                          </>
-                        )}
-                      </div>
-                      <div className="text-[11px] text-muted-foreground mt-1">
-                        {isEmpty
-                          ? 'Sin vistas previas'
-                          : th.expiredCount > 0
-                            ? `${th.expiredCount} antiguas (más de 30 días)`
-                            : 'Todas están al día'}
-                      </div>
-                    </>
-                  );
-                })()}
               </div>
             </div>
             <div className="flex min-h-[28px] items-center justify-center gap-2 pt-1 text-xs text-muted-foreground">
@@ -237,7 +242,7 @@ export const StorageTab = memo(function StorageTab({
           <div className="settings-section-icon">
             <Trash2 className="w-5 h-5" />
           </div>
-          <h3 className="text-base font-semibold">Limpieza</h3>
+          <h2 className="text-base font-semibold">Limpieza</h2>
         </div>
         <div className="grid grid-cols-1 @2xl/settings:grid-cols-2">
           <div className="flex min-w-0 flex-col border-b border-border/40 pb-5 @2xl/settings:border-b-0 @2xl/settings:border-r @2xl/settings:pb-0 @2xl/settings:pr-6">
@@ -314,28 +319,24 @@ export const StorageTab = memo(function StorageTab({
                 )}
                 Limpiar antiguas
               </button>
-              <AppTooltip content="Limpiar todas las vistas previas">
-                <span className="inline-flex">
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      await runToastTask(() => storageActions.cleanThumbnails.mutateAsync('all'), {
-                        loading: 'Borrando todas las vistas previas…',
-                        success: (res: any) =>
-                          res.cleaned > 0
-                            ? `Se limpiaron ${res.cleaned} imágenes (${formatBytes(res.freed)})`
-                            : 'No había vistas previas',
-                        error: 'No se pudieron borrar las vistas previas',
-                        timeoutMs: 305_000,
-                      }).catch(() => undefined);
-                    }}
-                    disabled={storageActions.cleanThumbnails.isPending}
-                    className="min-h-11 px-3.5 py-2 bg-transparent hover:bg-secondary border border-border rounded-lg text-[13px] font-medium text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Limpiar todas
-                  </button>
-                </span>
-              </AppTooltip>
+              <button
+                type="button"
+                onClick={async () => {
+                  await runToastTask(() => storageActions.cleanThumbnails.mutateAsync('all'), {
+                    loading: 'Borrando todas las vistas previas…',
+                    success: (res: any) =>
+                      res.cleaned > 0
+                        ? `Se limpiaron ${res.cleaned} imágenes (${formatBytes(res.freed)})`
+                        : 'No había vistas previas',
+                    error: 'No se pudieron borrar las vistas previas',
+                    timeoutMs: 305_000,
+                  }).catch(() => undefined);
+                }}
+                disabled={storageActions.cleanThumbnails.isPending}
+                className="min-h-11 px-3.5 py-2 bg-transparent hover:bg-secondary border border-border rounded-lg text-[13px] font-medium text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Limpiar todas
+              </button>
             </div>
           </div>
         </div>

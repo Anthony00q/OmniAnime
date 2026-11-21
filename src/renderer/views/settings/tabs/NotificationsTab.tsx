@@ -1,5 +1,5 @@
 import { memo, useState } from 'react';
-import { Bell, Volume2, Info, Zap, Play, ChevronDown, Music } from 'lucide-react';
+import { Bell, Volume2, Info, Play, ChevronDown, Music, LayoutDashboard } from 'lucide-react';
 import { toast } from 'sonner';
 import { CustomSwitch } from '@/renderer/components/CustomSwitch';
 import { ToastPositionSelector } from '@/renderer/components/ToastPositionSelector';
@@ -63,16 +63,19 @@ function SoundSlider({
   onChange,
   ariaLabel,
   compact = false,
+  disabled = false,
 }: {
   value: number;
   onChange: (v: number) => void;
   ariaLabel: string;
   compact?: boolean;
+  disabled?: boolean;
 }) {
   const pct = Math.round(value * 100);
   return (
     <input
       aria-label={ariaLabel}
+      disabled={disabled}
       type="range"
       min="0"
       max="1"
@@ -97,10 +100,9 @@ function PlayButton({ label, onClick }: { label: string; onClick: () => void }) 
       type="button"
       onClick={onClick}
       aria-label={label}
-      title={label}
       className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors after:absolute after:-inset-2 after:content-[''] hover:text-foreground hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
     >
-      <Play className="w-3.5 h-3.5" fill="currentColor" />
+      <Play className="w-3.5 h-3.5" fill="currentColor" aria-hidden="true" />
     </button>
   );
 }
@@ -170,138 +172,238 @@ export const NotificationsTab = memo(function NotificationsTab({
 
   return (
     <div className="space-y-6">
-      <section className="settings-section">
-        <div className="p-5 sm:p-6">
-          <div className="flex items-center gap-3 mb-5">
+      <div className="grid min-w-0 grid-cols-1 items-start gap-6 @3xl/settings:grid-cols-[minmax(0,1fr)_min(45%,25rem)]">
+        <section aria-labelledby="notification-events" className="settings-section min-w-0 space-y-3 p-5 sm:p-6">
+          <div className="flex items-center gap-2">
             <div className="settings-section-icon">
-              <Bell className="w-5 h-5" />
+              <Bell className="size-5" aria-hidden="true" />
             </div>
-            <div>
-              <h2 className="text-base font-semibold">Notificaciones y alertas</h2>
-              <p className="text-[13px] text-muted-foreground mt-0.5">Elige qué avisos ver y qué sonidos oír.</p>
+            <h2 id="notification-events" className="text-base font-semibold">
+              Eventos de notificación
+            </h2>
+          </div>
+          <div>
+            {EVENT_ROWS.map((item) => (
+              <div
+                key={item.key}
+                className="flex items-center justify-between gap-3 py-3 border-b last:border-0 border-border/40"
+              >
+                <div className="min-w-0">
+                  <div className="text-sm font-semibold leading-snug">{item.label}</div>
+                  <div className="text-[13px] text-muted-foreground mt-0.5 leading-relaxed">{item.desc}</div>
+                </div>
+                <CustomSwitch
+                  checked={settings.notificationSettings?.[item.key] !== false}
+                  onChange={(c) => onChange(item.key, c, 'notificationSettings')}
+                  ariaLabel={item.label}
+                />
+              </div>
+            ))}
+          </div>
+
+          <p className="flex items-start gap-2 text-xs leading-relaxed text-muted-foreground">
+            <Info className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+            Si desactivas un evento, no verás ni oirás sus avisos.
+          </p>
+        </section>
+
+        <section aria-labelledby="notification-position" className="settings-section flex min-w-0 flex-col p-5 sm:p-6">
+          <div className="mb-4 flex items-start gap-2">
+            <div className="settings-section-icon">
+              <LayoutDashboard className="size-5" aria-hidden="true" />
+            </div>
+            <div className="flex min-h-8 min-w-0 flex-1 flex-wrap items-center justify-between gap-x-2 gap-y-0.5">
+              <h2 id="notification-position" className="text-base font-semibold">
+                Posición de alertas internas
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                {TOAST_POSITION_LABELS[settings.toastPosition] || 'Arriba al centro'}
+              </p>
+            </div>
+          </div>
+          <div className="mx-auto w-full max-w-80">
+            <ToastPositionSelector
+              value={settings.toastPosition || 'top-center'}
+              onChange={(v) => onChange('toastPosition', v)}
+            />
+            <button
+              type="button"
+              onClick={() => {
+                toast.success('Notificación de prueba.', {
+                  id: 'notification-preview',
+                  position: settings.toastPosition || 'top-center',
+                });
+                if (soundsOn) onTestSound('success');
+              }}
+              className="mt-3 min-h-11 w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-background hover:bg-secondary border border-border rounded-lg text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+            >
+              <Bell className="w-4 h-4 text-muted-foreground" /> Probar notificación
+            </button>
+            <p className="mt-2 text-center text-xs leading-relaxed text-muted-foreground">
+              Esta posición no cambia las notificaciones de Windows.
+            </p>
+          </div>
+        </section>
+
+        <section
+          aria-labelledby="notification-sounds"
+          className="settings-section min-w-0 space-y-3 p-5 sm:p-6 @3xl/settings:col-span-2"
+        >
+          <div className="flex items-center gap-2">
+            <div className="settings-section-icon">
+              <Volume2 className="size-5" aria-hidden="true" />
+            </div>
+            <h2 id="notification-sounds" className="text-base font-semibold">
+              Alertas sonoras
+            </h2>
+          </div>
+
+          <div className="settings-option-row">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="text-sm font-semibold">Activar sonidos</div>
+                <p className="text-[13px] text-muted-foreground mt-1 leading-relaxed">
+                  Suena al iniciar, al terminar o si algo falla.
+                </p>
+              </div>
+              <CustomSwitch
+                checked={soundsOn}
+                onChange={(c) => onChange('notificationsSound', c)}
+                ariaLabel="Activar sonidos"
+              />
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-6 @3xl/settings:grid-cols-2">
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <h3 className="text-sm font-semibold">Eventos de notificación</h3>
+          <fieldset disabled={!soundsOn} className="min-w-0 space-y-4 transition-opacity disabled:opacity-50">
+            <div className="settings-option-row">
+              <div className="text-sm font-semibold mb-1">Sonido</div>
+              <p className="text-[13px] text-muted-foreground leading-relaxed mb-3">
+                Elige el timbre. Al pulsar uno suena una muestra.
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                {SOUND_PACK_CHOICES.map((id) => {
+                  const selected = activePack === id;
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      aria-pressed={selected}
+                      onClick={() => {
+                        onChange('soundPack', id);
+                        onTestSound('success', id);
+                      }}
+                      className={`h-8 rounded-full border px-3.5 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 ${
+                        selected
+                          ? 'border-primary/30 bg-primary/15 text-primary'
+                          : 'border-border/60 text-muted-foreground hover:text-foreground hover:border-border-strong'
+                      }`}
+                    >
+                      {SOUND_PACK_LABELS[id]}
+                    </button>
+                  );
+                })}
               </div>
-              <div>
-                {EVENT_ROWS.map((item) => (
-                  <div
-                    key={item.key}
-                    className="flex items-center justify-between gap-3 py-3 border-b last:border-0 border-border/40"
-                  >
-                    <div className="min-w-0">
-                      <div className="text-sm font-semibold leading-snug">{item.label}</div>
-                      <div className="text-[13px] text-muted-foreground mt-0.5 leading-relaxed">{item.desc}</div>
-                    </div>
-                    <CustomSwitch
-                      checked={settings.notificationSettings?.[item.key] !== false}
-                      onChange={(c) => onChange(item.key, c, 'notificationSettings')}
-                      ariaLabel={item.label}
-                    />
-                  </div>
-                ))}
-              </div>
+              <p className="text-[11px] text-muted-foreground mt-2">{SOUND_PACK_HINTS[activePack]}</p>
 
-              <div className="settings-subpanel">
-                <div className="flex items-center justify-between gap-2 mb-3 min-w-0">
-                  <h4 className="text-sm font-bold leading-tight truncate min-w-0 flex-1">
-                    Posición de alertas internas
-                  </h4>
-                  <span className="shrink-0 whitespace-nowrap text-[11px] text-muted-foreground">
-                    {TOAST_POSITION_LABELS[settings.toastPosition] || 'Arriba al centro'}
-                  </span>
+              {activePack === 'custom' && (
+                <div className="mt-4 pt-4 border-t border-border/40 space-y-1">
+                  <div className="text-xs font-bold tracking-wide uppercase text-muted-foreground flex items-center gap-1.5 mb-2">
+                    <Music className="w-3.5 h-3.5" /> Sonidos por tipo
+                  </div>
+                  {TYPE_ROWS.map((item) => {
+                    const current = describeSoundRef(soundCustom[item.key], customFiles);
+                    return (
+                      <div
+                        key={item.key}
+                        className="flex items-center justify-between gap-3 py-2.5 border-b last:border-0 border-border/40"
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <PlayButton label={`Probar sonido de ${item.label}`} onClick={() => onTestSound(item.key)} />
+                          <div className="min-w-0">
+                            <div className="text-sm font-semibold leading-snug">{item.label}</div>
+                            <div className="text-[13px] text-muted-foreground mt-0.5 leading-relaxed truncate">
+                              {current || 'Predeterminado'}
+                            </div>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setPickerType(item.key)}
+                          onPointerEnter={soundPickerTool.preload}
+                          onFocus={soundPickerTool.preload}
+                          className="shrink-0 inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-semibold transition-colors hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                        >
+                          Cambiar
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
-                <ToastPositionSelector
-                  value={settings.toastPosition || 'top-center'}
-                  onChange={(v) => onChange('toastPosition', v)}
+              )}
+            </div>
+
+            <div className="settings-option-row">
+              <div className="flex justify-between items-center mb-3">
+                <label htmlFor="sound-volume" className="text-sm font-semibold text-foreground">
+                  Volumen general
+                </label>
+                <span className="text-[13px] font-medium tabular-nums text-muted-foreground">
+                  {Math.round((settings.soundVolume ?? 0.5) * 100)}%
+                </span>
+              </div>
+              <div className="relative py-2">
+                <SoundSlider
+                  value={settings.soundVolume ?? 0.5}
+                  onChange={(v) => onChange('soundVolume', v)}
+                  ariaLabel="Volumen general de sonidos"
                 />
+              </div>
+              <div className="flex justify-between items-center mt-3 gap-2">
+                <span className="text-[11px] text-muted-foreground">Silencio</span>
                 <button
                   type="button"
-                  onClick={() => {
-                    toast.success('Notificación de prueba.', {
-                      id: 'notification-preview',
-                      position: settings.toastPosition || 'top-center',
-                    });
-                    if (soundsOn) onTestSound('success');
-                  }}
-                  className="mt-4 min-h-11 w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-background hover:bg-secondary border border-border rounded-lg text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                  onClick={() => onTestSound('success')}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-background hover:bg-secondary border border-border rounded-full text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
                 >
-                  <Bell className="w-4 h-4 text-muted-foreground" /> Probar notificación
+                  <Volume2 className="w-3.5 h-3.5 text-muted-foreground" /> Probar sonido
                 </button>
-                <p className="text-[11px] text-muted-foreground mt-2 text-center">
-                  Se aplica a todas las notificaciones de la app.
-                </p>
+                <span className="text-[11px] text-muted-foreground">Alto</span>
               </div>
             </div>
 
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <h3 className="text-sm font-semibold">Alertas sonoras</h3>
-              </div>
-
-              <div className="settings-option-row">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="text-sm font-semibold">Activar sonidos</div>
-                    <p className="text-[13px] text-muted-foreground mt-1 leading-relaxed">
-                      Suena al iniciar, al terminar o si algo falla.
-                    </p>
-                  </div>
-                  <CustomSwitch
-                    checked={soundsOn}
-                    onChange={(c) => onChange('notificationsSound', c)}
-                    ariaLabel="Activar sonidos"
-                  />
-                </div>
-              </div>
-
-              <div className={`space-y-4 transition-opacity ${soundsOn ? '' : 'opacity-50 pointer-events-none'}`}>
-                <div className="settings-option-row">
-                  <div className="text-sm font-semibold mb-1">Sonido</div>
-                  <p className="text-[13px] text-muted-foreground leading-relaxed mb-3">
-                    Elige el timbre. Al pulsar uno suena una muestra.
-                  </p>
-                  <div className="flex flex-wrap items-center gap-2">
-                    {SOUND_PACK_CHOICES.map((id) => {
-                      const selected = activePack === id;
+            <div className="settings-option-row">
+              <button
+                type="button"
+                onClick={() => setTypesOpen((v) => !v)}
+                aria-expanded={typesOpen}
+                className="w-full flex items-center justify-between gap-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-inset"
+              >
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold">Volumen por tipo</span>
+                  <span className="block text-[13px] text-muted-foreground mt-0.5 leading-relaxed">
+                    Ajuste fino de cada aviso.
+                  </span>
+                </span>
+                <ChevronDown
+                  className={`w-4 h-4 text-muted-foreground shrink-0 transition-transform duration-200 ${typesOpen ? 'rotate-180' : ''}`}
+                />
+              </button>
+              <div
+                inert={!typesOpen}
+                className={`grid transition-[grid-template-rows] duration-200 ease-out ${typesOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}
+              >
+                <div className="overflow-hidden">
+                  <div className="pt-3">
+                    {TYPE_ROWS.map((item) => {
+                      const enabled = (settings.soundEnabled?.[item.key] ?? true) !== false;
+                      const vol = settings.soundProfiles?.[item.key] ?? DEFAULT_TYPE_VOLUMES[item.key];
+                      const pct = Math.round(vol * 100);
                       return (
-                        <button
-                          key={id}
-                          type="button"
-                          aria-pressed={selected}
-                          onClick={() => {
-                            onChange('soundPack', id);
-                            onTestSound('success', id);
-                          }}
-                          className={`h-8 rounded-full border px-3.5 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 ${
-                            selected
-                              ? 'border-primary/30 bg-primary/15 text-primary'
-                              : 'border-border/60 text-muted-foreground hover:text-foreground hover:border-border-strong'
-                          }`}
+                        <div
+                          key={item.key}
+                          className="flex flex-col gap-2 py-2.5 border-b last:border-0 border-border/40"
                         >
-                          {SOUND_PACK_LABELS[id]}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <p className="text-[11px] text-muted-foreground mt-2">{SOUND_PACK_HINTS[activePack]}</p>
-
-                  {activePack === 'custom' && (
-                    <div className="mt-4 pt-4 border-t border-border/40 space-y-1">
-                      <div className="text-xs font-bold tracking-wide uppercase text-muted-foreground flex items-center gap-1.5 mb-2">
-                        <Music className="w-3.5 h-3.5" /> Sonidos por tipo
-                      </div>
-                      {TYPE_ROWS.map((item) => {
-                        const current = describeSoundRef(soundCustom[item.key], customFiles);
-                        return (
-                          <div
-                            key={item.key}
-                            className="flex items-center justify-between gap-3 py-2.5 border-b last:border-0 border-border/40"
-                          >
+                          <div className="flex items-center justify-between gap-3">
                             <div className="flex items-center gap-2 min-w-0">
                               <PlayButton
                                 label={`Probar sonido de ${item.label}`}
@@ -309,144 +411,43 @@ export const NotificationsTab = memo(function NotificationsTab({
                               />
                               <div className="min-w-0">
                                 <div className="text-sm font-semibold leading-snug">{item.label}</div>
-                                <div className="text-[13px] text-muted-foreground mt-0.5 leading-relaxed truncate">
-                                  {current || 'Predeterminado'}
+                                <div className="text-[13px] text-muted-foreground mt-0.5 leading-relaxed">
+                                  {item.desc}
                                 </div>
                               </div>
                             </div>
-                            <button
-                              type="button"
-                              onClick={() => setPickerType(item.key)}
-                              onPointerEnter={soundPickerTool.preload}
-                              onFocus={soundPickerTool.preload}
-                              className="shrink-0 inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-semibold transition-colors hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
-                            >
-                              Cambiar
-                            </button>
+                            <CustomSwitch
+                              checked={enabled && soundsOn}
+                              onChange={(c) => onChange(item.key, c, 'soundEnabled')}
+                              ariaLabel={`${item.label} sonido`}
+                            />
                           </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-
-                <div className="settings-option-row">
-                  <div className="flex justify-between items-center mb-3">
-                    <label htmlFor="sound-volume" className="text-sm font-semibold text-foreground">
-                      Volumen general
-                    </label>
-                    <span className="text-[13px] font-medium tabular-nums text-muted-foreground">
-                      {Math.round((settings.soundVolume ?? 0.5) * 100)}%
-                    </span>
-                  </div>
-                  <div className="relative py-2">
-                    <SoundSlider
-                      value={settings.soundVolume ?? 0.5}
-                      onChange={(v) => onChange('soundVolume', v)}
-                      ariaLabel="Volumen general de sonidos"
-                    />
-                  </div>
-                  <div className="flex justify-between items-center mt-3 gap-2">
-                    <span className="text-[11px] text-muted-foreground">Silencio</span>
-                    <button
-                      type="button"
-                      onClick={() => onTestSound('success')}
-                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-background hover:bg-secondary border border-border rounded-full text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
-                    >
-                      <Volume2 className="w-3.5 h-3.5 text-muted-foreground" /> Probar sonido
-                    </button>
-                    <span className="text-[11px] text-muted-foreground">Alto</span>
-                  </div>
-                </div>
-
-                <div className="settings-option-row">
-                  <button
-                    type="button"
-                    onClick={() => setTypesOpen((v) => !v)}
-                    aria-expanded={typesOpen}
-                    className="w-full flex items-center justify-between gap-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-inset"
-                  >
-                    <span className="min-w-0">
-                      <span className="block text-sm font-semibold">Volumen por tipo</span>
-                      <span className="block text-[13px] text-muted-foreground mt-0.5 leading-relaxed">
-                        Ajuste fino de cada aviso.
-                      </span>
-                    </span>
-                    <ChevronDown
-                      className={`w-4 h-4 text-muted-foreground shrink-0 transition-transform duration-200 ${typesOpen ? 'rotate-180' : ''}`}
-                    />
-                  </button>
-                  <div
-                    className={`grid transition-[grid-template-rows] duration-200 ease-out ${typesOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}
-                  >
-                    <div className="overflow-hidden">
-                      <div className="pt-3">
-                        {TYPE_ROWS.map((item) => {
-                          const enabled = (settings.soundEnabled?.[item.key] ?? true) !== false;
-                          const vol = settings.soundProfiles?.[item.key] ?? DEFAULT_TYPE_VOLUMES[item.key];
-                          const pct = Math.round(vol * 100);
-                          return (
-                            <div
-                              key={item.key}
-                              className="flex flex-col gap-2 py-2.5 border-b last:border-0 border-border/40"
-                            >
-                              <div className="flex items-center justify-between gap-3">
-                                <div className="flex items-center gap-2 min-w-0">
-                                  <PlayButton
-                                    label={`Probar sonido de ${item.label}`}
-                                    onClick={() => onTestSound(item.key)}
-                                  />
-                                  <div className="min-w-0">
-                                    <div className="text-sm font-semibold leading-snug">{item.label}</div>
-                                    <div className="text-[13px] text-muted-foreground mt-0.5 leading-relaxed">
-                                      {item.desc}
-                                    </div>
-                                  </div>
-                                </div>
-                                <CustomSwitch
-                                  checked={enabled && soundsOn}
-                                  onChange={(c) => onChange(item.key, c, 'soundEnabled')}
-                                  ariaLabel={`${item.label} sonido`}
-                                />
-                              </div>
-                              <div
-                                className={`flex items-center gap-3 pl-9 ${!enabled ? 'opacity-40 pointer-events-none' : ''}`}
-                              >
-                                <SoundSlider
-                                  compact
-                                  value={vol}
-                                  onChange={(v) => onChange(item.key, v, 'soundProfiles')}
-                                  ariaLabel={`Volumen ${item.label}`}
-                                />
-                                <span className="shrink-0 text-xs font-medium tabular-nums text-muted-foreground min-w-[4ch] text-right">
-                                  {pct}%
-                                </span>
-                              </div>
-                            </div>
-                          );
-                        })}
-                        <p className="text-[11px] text-muted-foreground leading-relaxed pt-3">
-                          El volumen final combina el general con el de cada tipo. Si desactivas un tipo, no sonará.
-                        </p>
-                      </div>
-                    </div>
+                          <div
+                            className={`flex items-center gap-3 pl-9 ${!enabled ? 'opacity-40 pointer-events-none' : ''}`}
+                          >
+                            <SoundSlider
+                              compact
+                              disabled={!enabled}
+                              value={vol}
+                              onChange={(v) => onChange(item.key, v, 'soundProfiles')}
+                              ariaLabel={`Volumen ${item.label}`}
+                            />
+                            <span className="shrink-0 text-xs font-medium tabular-nums text-muted-foreground min-w-[4ch] text-right">
+                              {pct}%
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    <p className="text-[11px] text-muted-foreground leading-relaxed pt-3">
+                      El volumen final combina el general con el de cada tipo. Si desactivas un tipo, no sonará.
+                    </p>
                   </div>
                 </div>
               </div>
-
-              <p className="text-xs text-muted-foreground leading-relaxed flex items-start gap-2 px-1">
-                <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" /> Si desactivas un evento, no verás ni oirás sus avisos.
-              </p>
             </div>
-          </div>
-        </div>
-      </section>
-
-      <div className="flex items-start gap-2 px-1">
-        <Zap className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
-        <p className="text-xs leading-relaxed text-muted-foreground">
-          Los mensajes del sistema salen como notificaciones del sistema; los de descargas aparecen dentro de la app.
-        </p>
+          </fieldset>
+        </section>
       </div>
 
       {pickerRow && (

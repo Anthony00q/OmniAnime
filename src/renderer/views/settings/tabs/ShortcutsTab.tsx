@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useId } from 'react';
 import { toast } from 'sonner';
 import { Keyboard, Layers, RotateCcw, X } from 'lucide-react';
 
@@ -10,6 +10,7 @@ interface ShortcutsTabProps {
 }
 
 export const ShortcutsTab = memo(function ShortcutsTab({ settings, onChange }: ShortcutsTabProps) {
+  const searchKeyHintId = useId();
   return (
     <div className="space-y-6">
       <section className="settings-section">
@@ -21,7 +22,7 @@ export const ShortcutsTab = memo(function ShortcutsTab({ settings, onChange }: S
             <div>
               <h2 className="text-base font-semibold">Atajos de teclado</h2>
               <p className="text-[13px] text-muted-foreground mt-0.5">
-                No funcionan mientras escribes en un campo de texto.
+                Buscar y cambiar de vista no funcionan mientras escribes.
               </p>
             </div>
           </div>
@@ -43,7 +44,7 @@ export const ShortcutsTab = memo(function ShortcutsTab({ settings, onChange }: S
                 </div>
               </div>
               <div className="pl-11 @xl/settings:min-w-40 @xl/settings:justify-self-end @xl/settings:pl-0">
-                <div className="flex items-center gap-2 @xl/settings:justify-end">
+                <div className="flex items-center gap-2">
                   <kbd className="inline-flex h-9 items-center px-2.5 bg-secondary/40 border border-border rounded-lg text-xs font-semibold">
                     CTRL
                   </kbd>
@@ -51,6 +52,7 @@ export const ShortcutsTab = memo(function ShortcutsTab({ settings, onChange }: S
                   <label className="relative">
                     <input
                       aria-label="Atajo de teclado para buscar"
+                      aria-describedby={searchKeyHintId}
                       type="text"
                       maxLength={1}
                       value={settings.shortcuts?.search || 'F'}
@@ -69,7 +71,9 @@ export const ShortcutsTab = memo(function ShortcutsTab({ settings, onChange }: S
                     />
                   </label>
                 </div>
-                <p className="mt-1.5 text-xs text-muted-foreground @xl/settings:text-right">Una letra o número</p>
+                <p id={searchKeyHintId} className="mt-1.5 text-xs text-muted-foreground">
+                  Una letra o número
+                </p>
               </div>
             </div>
 
@@ -79,14 +83,16 @@ export const ShortcutsTab = memo(function ShortcutsTab({ settings, onChange }: S
                   <X className="w-4 h-4 text-muted-foreground" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="text-sm font-semibold leading-snug">Cerrar diálogos / Salir</div>
+                  <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-sm font-semibold leading-snug">
+                    Cerrar diálogos
+                    <span className="text-[11px] font-medium text-muted-foreground">Fija</span>
+                  </div>
                   <p className="text-[13px] text-muted-foreground mt-1 leading-relaxed">
-                    Cierra diálogos o suelta el campo de texto.
+                    Si estás escribiendo, quita el foco del campo.
                   </p>
-                  <p className="mt-1.5 text-xs text-muted-foreground">Fija: no se puede cambiar.</p>
                 </div>
               </div>
-              <div className="pl-11 @xl/settings:min-w-40 @xl/settings:justify-self-end @xl/settings:pl-0 @xl/settings:text-right">
+              <div className="pl-11 @xl/settings:min-w-40 @xl/settings:justify-self-end @xl/settings:pl-0">
                 <kbd className="inline-flex h-9 min-w-9 items-center justify-center px-2.5 bg-secondary/40 border border-border rounded-lg text-xs font-semibold">
                   ESC
                 </kbd>
@@ -101,16 +107,12 @@ export const ShortcutsTab = memo(function ShortcutsTab({ settings, onChange }: S
                 <div className="min-w-0 flex-1">
                   <div className="text-sm font-semibold leading-snug">Cambiar de vista</div>
                   <p className="text-[13px] text-muted-foreground mt-1 leading-relaxed">
-                    Muévete entre secciones con ← y →.
+                    Ve a la vista anterior o a la siguiente.
                   </p>
-                  <div className="mt-1.5 flex flex-wrap gap-3">
-                    <span className="text-xs text-muted-foreground">← Anterior</span>
-                    <span className="text-xs text-muted-foreground">→ Siguiente</span>
-                  </div>
                 </div>
               </div>
               <div
-                className="flex items-center gap-2 pl-11 @xl/settings:min-w-40 @xl/settings:justify-end @xl/settings:justify-self-end @xl/settings:pl-0"
+                className="flex items-center gap-2 pl-11 @xl/settings:min-w-40 @xl/settings:justify-self-end @xl/settings:pl-0"
                 aria-label="Flechas izquierda y derecha"
               >
                 <kbd className="inline-flex h-9 min-w-9 items-center justify-center px-2.5 bg-secondary/40 border border-border rounded-lg text-xs font-semibold">

@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowDown, ArrowUp, Info, RotateCcw } from 'lucide-react';
-import { AppTooltip } from '@/renderer/components/ui/AppTooltip';
+import { DownloadHelpIcon } from './DownloadHelpIcon';
 import { CustomSwitch } from '@/renderer/components/CustomSwitch';
 import { SortableHandle } from './SortableHandle';
 import { useSortableList } from '@/renderer/views/settings/utils/useSortableList';
@@ -80,14 +80,10 @@ export const ServerOrderCard = memo(function ServerOrderCard({
         <span className="ml-auto shrink-0 select-none text-[13px] font-medium tabular-nums text-text-tertiary">
           {active.length} de {candidates.length} activos
         </span>
-        <AppTooltip content="Si lo apagas, se salta y no se intenta; al activarlo de nuevo, se añade al final.">
-          <span
-            aria-hidden="true"
-            className="inline-flex h-6 w-6 items-center justify-center rounded-lg text-muted-foreground"
-          >
-            <Info className="h-3.5 w-3.5" />
-          </span>
-        </AppTooltip>
+        <DownloadHelpIcon
+          label={`Ayuda sobre servidores de ${providerLabel}`}
+          content="Si lo apagas, se salta y no se intenta; al activarlo de nuevo, se añade al final."
+        />
       </div>
 
       <div ref={listRef} role="list" aria-label={`Servidores de ${providerLabel}`}>
@@ -230,16 +226,14 @@ export const ServerOrderCard = memo(function ServerOrderCard({
       )}
 
       <div className="mt-3 flex items-center justify-end">
-        <AppTooltip content="Vuelve al orden por defecto.">
-          <button
-            type="button"
-            onClick={handleResetClick}
-            aria-label={`Restablecer servidores de ${providerLabel}`}
-            className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
-          >
-            <RotateCcw className="h-3.5 w-3.5" /> Restablecer
-          </button>
-        </AppTooltip>
+        <button
+          type="button"
+          onClick={handleResetClick}
+          aria-label={`Restablecer servidores de ${providerLabel}`}
+          className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+        >
+          <RotateCcw className="h-3.5 w-3.5" /> Restablecer
+        </button>
       </div>
 
       <span aria-live="polite" className="sr-only">

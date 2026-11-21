@@ -1,4 +1,4 @@
-import { memo, useCallback } from 'react';
+import { memo, useCallback, type CSSProperties } from 'react';
 import { Palette, Eye, Check, AlertCircle, Copy, LayoutGrid, List, Minus, Square, X } from 'lucide-react';
 import { THEME_META, THEME_IDS, ACCENT_PRESETS, THEME_SUGGESTED_ACCENT } from '@/renderer/views/settings/constants';
 import type { ThemeId } from '@/types/settings';
@@ -25,8 +25,15 @@ const EpisodeViewSetting = memo(function EpisodeViewSetting({
   ];
   return (
     <div>
-      <div className="block text-sm font-semibold">Vista de episodios</div>
-      <p className="text-xs text-muted-foreground mt-0.5 mb-3">Cómo se muestran los episodios en Detalles.</p>
+      <div className="mb-4 flex items-center gap-2">
+        <div className="settings-section-icon">
+          <LayoutGrid className="size-5" aria-hidden="true" />
+        </div>
+        <div>
+          <h2 className="text-base font-semibold">Vista de episodios</h2>
+          <p className="mt-0.5 text-[13px] text-muted-foreground">Cómo se muestran los episodios en Detalles.</p>
+        </div>
+      </div>
       <div role="radiogroup" aria-label="Vista de episodios" className="grid grid-cols-2 gap-3">
         {options.map(({ value, label, desc, Icon }) => {
           const active = view === value;
@@ -60,6 +67,7 @@ const EpisodeViewSetting = memo(function EpisodeViewSetting({
 interface AppearanceTabProps {
   theme: ThemeId;
   savedTheme: ThemeId;
+  savedAccentHex: string;
   accentHex: string;
   accentInput: string;
   accentInputValid: boolean;
@@ -78,11 +86,11 @@ const ThemeMiniPreview = memo(function ThemeMiniPreview({
   accentHex: string;
 }) {
   const themeClass = themeId === 'dark' ? '' : `theme-${themeId}`;
-  const accentStyle = { background: accentHex } as const;
   return (
     <div
       aria-hidden="true"
-      className={`relative overflow-hidden rounded-[10px] border border-border/50 bg-background min-w-0 ${themeClass}`}
+      className={`theme-preview relative overflow-hidden rounded-[10px] border border-border/50 bg-background min-w-0 ${themeClass}`}
+      style={{ '--color-primary': accentHex } as CSSProperties}
     >
       <div className="h-6 flex items-center gap-2 px-2 bg-card border-b border-border/40 text-muted-foreground">
         <span className="w-8 h-1.5 rounded bg-foreground/15" />
@@ -92,7 +100,7 @@ const ThemeMiniPreview = memo(function ThemeMiniPreview({
       </div>
       <div className="p-2 flex gap-2">
         <div className="w-7 rounded-md bg-secondary border border-border/40 flex flex-col items-center gap-1.5 py-1.5 shrink-0">
-          <span className="w-4 h-4 rounded-md" style={accentStyle} />
+          <span className="w-4 h-4 rounded-md bg-primary" />
           <span className="w-4 h-1 rounded bg-foreground/15" />
           <span className="w-4 h-1 rounded bg-foreground/8" />
         </div>
@@ -104,7 +112,7 @@ const ThemeMiniPreview = memo(function ThemeMiniPreview({
             <div className="h-1.5 w-3/4 rounded bg-foreground/15 mb-1" />
             <div className="h-1 w-1/2 rounded bg-foreground/8 mb-1.5" />
             <div className="h-1 w-full rounded-full bg-secondary border border-border/30 overflow-hidden">
-              <div className="h-full rounded-full" style={{ width: '62%', background: accentHex }} />
+              <div className="h-full w-[62%] rounded-full bg-primary" />
             </div>
           </div>
         </div>
@@ -117,6 +125,7 @@ export const AppearanceTab = memo(
   function AppearanceTab({
     theme,
     savedTheme,
+    savedAccentHex,
     accentHex,
     accentInput,
     accentInputValid,
@@ -193,21 +202,20 @@ export const AppearanceTab = memo(
                 <Palette className="w-5 h-5" />
               </div>
               <div>
-                <h2 className="text-base font-semibold">Apariencia</h2>
-                <p className="text-[13px] text-muted-foreground mt-0.5">Diseño, color y vista de episodios.</p>
+                <h2 className="text-base font-semibold">Tema y color</h2>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-6 xl:grid-cols-5">
-              <div className="xl:col-span-3 space-y-6">
-                <div>
+            <div className="grid grid-cols-1 gap-6 @4xl/settings:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+              <div className="min-w-0 space-y-6">
+                <div className="@container/themes">
                   <div className="flex items-baseline gap-2 mb-5">
-                    <label className="block text-sm font-semibold">Tema de la interfaz</label>
+                    <h3 className="text-sm font-semibold">Tema de la interfaz</h3>
                   </div>
                   <div
                     role="radiogroup"
                     aria-label="Selector de tema"
-                    className="grid grid-cols-[repeat(auto-fit,minmax(158px,1fr))] gap-3"
+                    className="grid grid-cols-1 gap-3 @min-[21rem]/themes:grid-cols-2 @min-[41rem]/themes:grid-cols-4"
                     onKeyDown={handleThemeKeyDown}
                   >
                     {THEME_IDS.map((t) => {
@@ -239,7 +247,7 @@ export const AppearanceTab = memo(
                               <span className="w-5 h-5 shrink-0" aria-hidden="true" />
                             )}
                           </div>
-                          <ThemeMiniPreview themeId={t} accentHex={accentHex} />
+                          <ThemeMiniPreview themeId={t} accentHex={savedAccentHex} />
                           <div className="text-[11px] text-muted-foreground mt-2 leading-tight line-clamp-2 min-h-[28px]">
                             {meta.desc}
                           </div>
@@ -247,9 +255,6 @@ export const AppearanceTab = memo(
                       );
                     })}
                   </div>
-                  <p className="text-xs text-muted-foreground mt-2.5 leading-relaxed">
-                    Los cuatro son oscuros, para usar con poca luz.
-                  </p>
                 </div>
 
                 <div className="h-px bg-border/40" role="separator" />
@@ -362,23 +367,23 @@ export const AppearanceTab = memo(
                         );
                       })}
                     </div>
-                    <p className="text-[11px] text-muted-foreground mt-2">5 tonos para modo oscuro.</p>
                   </div>
                 </div>
-
-                <div className="h-px bg-border/40" role="separator" />
-
-                <EpisodeViewSetting pending={epViewPending} onChange={onEpViewChange} />
               </div>
 
-              <div className="xl:col-span-2 min-w-0">
-                <div className="xl:sticky xl:top-4">
+              <div className="min-w-0">
+                <div className="w-full max-w-[30rem] @4xl/settings:sticky @4xl/settings:top-4 @4xl/settings:max-w-none">
                   <div className="settings-subpanel min-w-0 overflow-hidden">
-                    <div className="text-xs font-bold tracking-widest uppercase text-muted-foreground mb-3 flex items-center gap-1.5">
-                      <Eye className="w-3.5 h-3.5" aria-hidden="true" /> Vista previa
-                    </div>
+                    <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold">
+                      <Eye className="size-3.5 text-muted-foreground" aria-hidden="true" /> Vista previa del tema y
+                      acento
+                    </h3>
 
-                    <div className="space-y-3" aria-hidden="true">
+                    <div
+                      className={`theme-preview space-y-3 text-foreground ${theme === 'dark' ? '' : `theme-${theme}`}`}
+                      style={{ '--color-primary': accentHex } as CSSProperties}
+                      aria-hidden="true"
+                    >
                       <div className="rounded-lg border border-border/50 bg-card overflow-hidden">
                         <div className="h-7 flex items-center gap-3 px-3 bg-secondary/40 border-b border-border/30 text-muted-foreground">
                           <span className="mr-auto text-[11px] font-semibold tracking-wide">OmniAnime</span>
@@ -394,15 +399,9 @@ export const AppearanceTab = memo(
                                 aria-hidden="true"
                               />
                               <div className="absolute inset-x-1.5 bottom-1.5 h-1 rounded-full bg-secondary/80 border border-border/30 overflow-hidden">
-                                <div
-                                  className="h-full rounded-full transition-[width] duration-200"
-                                  style={{ width: '68%', background: accentHex }}
-                                />
+                                <div className="h-full w-[68%] rounded-full bg-primary" />
                               </div>
-                              <div
-                                className="absolute top-1.5 left-1.5 text-[9px] font-semibold tracking-wide uppercase px-1.5 py-0.5 rounded text-primary-foreground"
-                                style={{ background: accentHex }}
-                              >
+                              <div className="absolute top-1.5 left-1.5 rounded bg-primary px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-primary-foreground">
                                 EP 7
                               </div>
                             </div>
@@ -410,37 +409,23 @@ export const AppearanceTab = memo(
                             <div className="h-2 w-1/2 rounded bg-foreground/5 mt-1" />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <div
-                              className="h-2 w-14 rounded-full mb-2"
-                              style={{ background: accentHex }}
-                              aria-hidden="true"
-                            />
+                            <div className="mb-2 h-2 w-14 rounded-full bg-primary" aria-hidden="true" />
                             <div className="h-3 w-full rounded bg-foreground/10 mb-1.5" />
                             <div className="h-3 w-2/3 rounded bg-foreground/5 mb-3" />
                             <div className="flex flex-wrap gap-1.5 mb-3">
-                              <span
-                                className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold text-primary-foreground"
-                                style={{ background: accentHex }}
-                              >
+                              <span className="inline-flex items-center rounded bg-primary px-2 py-0.5 text-[11px] font-semibold text-primary-foreground">
                                 Primario
                               </span>
                               <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-secondary border border-border">
                                 Secundario
                               </span>
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-secondary border border-border">
-                                <span
-                                  className="w-1.5 h-1.5 rounded-full"
-                                  style={{ background: accentHex }}
-                                  aria-hidden="true"
-                                />
+                                <span className="size-1.5 rounded-full bg-primary" aria-hidden="true" />
                                 En curso
                               </span>
                             </div>
                             <div className="flex gap-2 flex-wrap">
-                              <div
-                                className="flex-1 min-w-[74px] rounded-lg px-3 py-2 text-center text-xs font-semibold text-primary-foreground cursor-default select-none transition-colors"
-                                style={{ background: accentHex }}
-                              >
+                              <div className="flex-1 min-w-[74px] rounded-lg bg-primary px-3 py-2 text-center text-xs font-semibold text-primary-foreground cursor-default select-none transition-colors">
                                 Botón
                               </div>
                               <div className="flex-1 min-w-[104px] rounded-lg px-3 py-2 text-center text-xs font-semibold bg-secondary border border-border cursor-default select-none">
@@ -453,8 +438,7 @@ export const AppearanceTab = memo(
 
                       <div className="rounded-lg border border-border/50 bg-popover p-2.5 flex items-center gap-2.5">
                         <span
-                          className="w-7 h-7 rounded-full flex items-center justify-center text-primary-foreground shrink-0"
-                          style={{ background: accentHex }}
+                          className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground"
                           aria-hidden="true"
                         >
                           <Check className="w-3.5 h-3.5" />
@@ -468,8 +452,7 @@ export const AppearanceTab = memo(
 
                       <div className="flex items-center gap-2 text-xs text-muted-foreground px-1">
                         <span
-                          className="w-2 h-2 rounded-full transition-colors duration-200"
-                          style={{ background: accentHex }}
+                          className="size-2 rounded-full bg-primary transition-colors duration-200"
                           aria-hidden="true"
                         />
                         Anillo de foco, selección y barra de descarga usarán este acento.
@@ -477,12 +460,15 @@ export const AppearanceTab = memo(
                     </div>
                   </div>
                   <p className="text-xs text-muted-foreground mt-3 leading-relaxed">
-                    Vista previa orientativa; la interfaz cambia al guardar.
+                    El tema y el acento se aplican a la interfaz al guardar.
                   </p>
                 </div>
               </div>
             </div>
           </div>
+        </section>
+        <section className="settings-section p-5 sm:p-6">
+          <EpisodeViewSetting pending={epViewPending} onChange={onEpViewChange} />
         </section>
       </div>
     );
@@ -490,6 +476,7 @@ export const AppearanceTab = memo(
   (prev, next) =>
     prev.theme === next.theme &&
     prev.savedTheme === next.savedTheme &&
+    prev.savedAccentHex === next.savedAccentHex &&
     prev.accentHex === next.accentHex &&
     prev.accentInput === next.accentInput &&
     prev.accentInputValid === next.accentInputValid &&

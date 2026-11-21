@@ -17,7 +17,6 @@ import {
 import { toast } from 'sonner';
 import { CustomSelect } from '@/renderer/components/CustomSelect';
 import { Dialog } from '@/renderer/components/Dialog';
-import { AppTooltip } from '@/renderer/components/ui/AppTooltip';
 import { EmptyState } from '@/renderer/components/ui/EmptyState';
 import { useLogFilePage, useLogFilenames, useDeleteLogFiles, fetchLogPageSnapshot } from '@/renderer/hooks/useQueries';
 import { isIpcFailError } from '@/renderer/hooks/queries/unwrap';
@@ -82,25 +81,21 @@ function RowCheck({
   onToggle: () => void;
 }) {
   return (
-    <AppTooltip content={disabled ? 'La sesión en curso se conserva siempre.' : ''}>
-      <span className="inline-flex shrink-0">
-        <button
-          type="button"
-          role="checkbox"
-          aria-checked={checked}
-          aria-label={label}
-          disabled={disabled}
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggle();
-          }}
-          className="inline-flex h-[18px] w-[18px] items-center justify-center rounded-[5px] border border-border bg-background transition-colors hover:border-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:cursor-not-allowed disabled:opacity-40 data-[checked=true]:border-primary data-[checked=true]:bg-primary data-[checked=true]:text-primary-foreground"
-          data-checked={checked}
-        >
-          {checked ? <Check className="w-3 h-3" /> : null}
-        </button>
-      </span>
-    </AppTooltip>
+    <button
+      type="button"
+      role="checkbox"
+      aria-checked={checked}
+      aria-label={label}
+      disabled={disabled}
+      onClick={(e) => {
+        e.stopPropagation();
+        onToggle();
+      }}
+      className="inline-flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-[5px] border border-border bg-background transition-colors hover:border-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:cursor-not-allowed disabled:opacity-40 data-[checked=true]:border-primary data-[checked=true]:bg-primary data-[checked=true]:text-primary-foreground"
+      data-checked={checked}
+    >
+      {checked ? <Check className="w-3 h-3" /> : null}
+    </button>
   );
 }
 
@@ -252,59 +247,60 @@ export const LogsTab = memo(function LogsTab({ isActive = true }: LogsTabProps) 
   return (
     <>
       <section className="settings-section p-5 sm:p-6" aria-label="Registro de sesiones">
-        <div className="flex items-center gap-2 mb-1">
+        <div className="mb-4 flex items-center gap-2">
           <div className="settings-section-icon">
             <SquarePen className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="text-base font-semibold">Registro de sesiones</h3>
+            <h2 className="text-base font-semibold">Registro de sesiones</h2>
             <p className="text-[13px] text-muted-foreground">Un fichero por cada arranque de la aplicación.</p>
           </div>
-          <AppTooltip content="Recargar">
-            <span className="ml-auto inline-flex">
-              <button
-                type="button"
-                onClick={() => void handleReload()}
-                disabled={filesQuery.isFetching || spinning}
-                aria-label="Recargar registro"
-                className="rounded-lg border border-border/70 bg-secondary p-2 text-foreground transition-colors hover:bg-secondary/80 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
-              >
-                <RefreshCcw className={`h-4 w-4 ${filesQuery.isFetching || spinning ? 'animate-spin' : ''}`} />
-              </button>
-            </span>
-          </AppTooltip>
         </div>
 
-        <div className="mt-4 flex flex-col sm:flex-row gap-2">
-          <button
-            type="button"
-            onClick={() => void handleCopyCurrent()}
-            disabled={copying || !currentName}
-            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-secondary hover:bg-secondary/80 border border-border rounded-lg text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-50"
-          >
-            {copying ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Copy className="w-3.5 h-3.5" />}
-            Copiar sesión actual
-          </button>
-          <button
-            type="button"
-            onClick={() => void revealLogFile()}
-            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-secondary hover:bg-secondary/80 border border-border rounded-lg text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
-          >
-            <FolderOpen className="w-3.5 h-3.5" />
-            Abrir carpeta
-          </button>
+        <div className="mb-3 flex flex-col gap-3 @2xl/settings:flex-row @2xl/settings:items-center @2xl/settings:justify-between">
+          <div className="flex min-w-0 items-center gap-2">
+            <CustomSelect
+              value={fileFilter}
+              options={FILE_FILTER_OPTIONS}
+              onChange={setFileFilter}
+              ariaLabel="Filtrar registro"
+              className="min-w-0"
+            />
+            <button
+              type="button"
+              onClick={() => void handleReload()}
+              disabled={filesQuery.isFetching || spinning}
+              aria-label="Recargar registro"
+              className="inline-flex size-11 shrink-0 items-center justify-center rounded-lg border border-border/70 bg-secondary text-foreground transition-colors hover:bg-secondary/80 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+            >
+              <RefreshCcw
+                aria-hidden="true"
+                className={`h-4 w-4 ${filesQuery.isFetching || spinning ? 'animate-spin' : ''}`}
+              />
+            </button>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => void handleCopyCurrent()}
+              disabled={copying || !currentName}
+              className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-border/60 px-3 py-2 text-xs font-semibold text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-50"
+            >
+              {copying ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Copy className="w-3.5 h-3.5" />}
+              Copiar sesión actual
+            </button>
+            <button
+              type="button"
+              onClick={() => void revealLogFile()}
+              className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-border/60 px-3 py-2 text-xs font-semibold text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+            >
+              <FolderOpen className="w-3.5 h-3.5" />
+              Abrir carpeta
+            </button>
+          </div>
         </div>
 
-        <div className="mt-3 w-full sm:max-w-56">
-          <CustomSelect
-            value={fileFilter}
-            options={FILE_FILTER_OPTIONS}
-            onChange={setFileFilter}
-            ariaLabel="Filtrar registro"
-          />
-        </div>
-
-        <div className="mt-3 rounded-xl border border-border/60 bg-background overflow-hidden">
+        <div className="overflow-hidden rounded-xl border border-border/60 bg-background">
           {filesQuery.isLoading ? (
             <div className="flex items-center justify-center py-10" role="status" aria-label="Cargando registro">
               <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
@@ -388,7 +384,7 @@ export const LogsTab = memo(function LogsTab({ isActive = true }: LogsTabProps) 
                         </span>
                         <span className="block pl-6 text-[11px] text-muted-foreground tabular-nums">
                           {formatSize(f.size)}
-                          {f.isCurrent ? ' · en curso' : ''}
+                          {f.isCurrent ? ' · En curso: no se puede eliminar' : ''}
                         </span>
                       </button>
                     </div>
@@ -453,7 +449,7 @@ export const LogsTab = memo(function LogsTab({ isActive = true }: LogsTabProps) 
             <FolderOpen className="w-5 h-5" />
           </div>
           <div className="min-w-0">
-            <h3 className="text-base font-semibold">Archivo y exportación</h3>
+            <h2 className="text-base font-semibold">Archivo y exportación</h2>
             <p className="text-[13px] text-muted-foreground mt-1 leading-relaxed">
               Exporta el diagnóstico actual para revisarlo o compartirlo.
             </p>

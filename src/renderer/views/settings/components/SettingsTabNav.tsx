@@ -34,7 +34,7 @@ const TABS: TabDef[] = [
     id: 'registros',
     icon: <ScrollText className="w-4 h-4" />,
     label: 'Registros',
-    desc: 'Nivel, visor y diagnóstico',
+    desc: 'Sesiones y diagnóstico',
   },
   {
     id: 'apariencia',

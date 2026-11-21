@@ -124,7 +124,7 @@ export function ToastPositionSelector({ value, onChange }: ToastPositionSelector
         </div>
       </div>
       <p className="text-[11px] text-muted-foreground text-center leading-relaxed">
-        Toca una zona para mover la alerta. Se guarda al pulsar “Guardar cambios”.
+        Selecciona una zona para mover la alerta.
       </p>
     </div>
   );
