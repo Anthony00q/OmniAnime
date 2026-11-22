@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.3.3] - 2026-11-21
+
+### Catálogo
+
+- **Horarios** distingue la falta de conexión de un error del proveedor y permite volver a intentar la consulta.
+- La programación ya cargada sigue visible si falla la actualización de los horarios.
+
+### Ajustes
+
+- **Apariencia** permite previsualizar el tema y el color de acento juntos sin cambiar la interfaz hasta guardar.
+- El modo adaptativo se configura junto a las conexiones manuales, con un apartado desplegable para elegir los servidores.
+- Las opciones de reintento y recuperación de descargas quedan a la vista, y las ayudas de Descargas se pueden consultar con el teclado.
+- **Notificaciones** separa los eventos, la posición de los avisos internos y las opciones de sonido.
+- Al desactivar los sonidos, sus controles dejan de responder también al teclado, y los avisos desactivados no permiten ajustar su volumen.
+- **Almacenamiento** distingue el uso de cada disco del espacio ocupado por OmniAnime, y Registros reúne el filtro y las acciones en una misma barra.
+
+### Librería
+
+- Las herramientas de renombrado masivo se agrupan en un apartado desplegable dentro de los ajustes de Descargas.
+
 ## [1.3.2] - 2026-11-18
 
 ### Librería
