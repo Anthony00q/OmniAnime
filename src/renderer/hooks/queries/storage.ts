@@ -27,6 +27,7 @@ export function useConnectivityStatus(enabled = true) {
     queryKey: ['connectivity-status'],
     queryFn: async () => unwrap(await window.api.invoke('get-connectivity-status')) as boolean,
     enabled,
+    networkMode: 'always',
     staleTime: 30 * 1000,
     refetchOnWindowFocus: false,
     retry: false,

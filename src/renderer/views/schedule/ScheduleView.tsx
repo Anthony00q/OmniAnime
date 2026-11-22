@@ -111,9 +111,10 @@ export function ScheduleView({ isActive }: { isActive?: boolean }) {
     [queryClient, getProviderId, openAnime],
   );
 
-  const isEmpty = !isLoading && !isError && entries.length === 0;
-  const { data: isOnline } = useConnectivityStatus(isEmpty || isError);
-  const showOfflineEmpty = shouldShowOfflineEmpty(isError ? 1 : entries.length, isOnline);
+  const isEmpty = entries.length === 0;
+  const checkConnectivity = !isLoading && isEmpty;
+  const { data: isOnline, isLoading: isCheckingConnectivity } = useConnectivityStatus(checkConnectivity);
+  const showOfflineEmpty = shouldShowOfflineEmpty(entries.length, isOnline);
 
   return (
     <div className="empty-state-page flex flex-col h-full">
@@ -123,7 +124,7 @@ export function ScheduleView({ isActive }: { isActive?: boolean }) {
         data-view-scroller
         className="empty-state-scroller relative z-0 min-h-0 flex-1 overflow-y-auto px-4 pb-12 sm:px-8 [scrollbar-gutter:stable]"
       >
-        {isLoading ? (
+        {isLoading || (checkConnectivity && isCheckingConnectivity) ? (
           <>
             {/* Espejo de la barra semanal: el skeleton arranca donde va el contenido real. */}
             <div
@@ -139,37 +140,35 @@ export function ScheduleView({ isActive }: { isActive?: boolean }) {
             </div>
             <ScheduleSkeleton count={7} />
           </>
-        ) : isError ? (
+        ) : showOfflineEmpty ? (
+          <EmptyState
+            variant="page"
+            isActive={isActive}
+            breathing={false}
+            icon={<CalendarDays className="h-6 w-6" aria-hidden="true" />}
+            title="Sin conexión a internet"
+            description={`No se pudo consultar la programación de ${providerName}. Comprueba tu conexión e inténtalo de nuevo.`}
+            actionLabel="Reintentar"
+            onAction={() => refetch()}
+          />
+        ) : isEmpty && isError ? (
           <ErrorState
             title="No se pudo cargar el horario"
             description={`No se pudo consultar la programación de ${providerName}.`}
             onRetry={() => refetch()}
           />
-        ) : entries.length === 0 ? (
-          showOfflineEmpty ? (
-            <EmptyState
-              variant="page"
-              isActive={isActive}
-              breathing={false}
-              icon={<CalendarDays className="h-6 w-6" aria-hidden="true" />}
-              title="Sin conexión a internet"
-              description={`No se pudo consultar la programación de ${providerName}. Comprueba tu conexión e inténtalo de nuevo.`}
-              actionLabel="Reintentar"
-              onAction={() => refetch()}
-            />
-          ) : (
-            <EmptyState
-              variant="page"
-              isActive={isActive}
-              icon={<CalendarDays className="h-6 w-6" aria-hidden="true" />}
-              title="No hay programación disponible"
-              description={`Ahora mismo ${providerName} no publica horarios de emisión. Vuelve a intentarlo más tarde.`}
-              actionLabel="Explorar catálogo"
-              onAction={() => navigateToCatalog()}
-              secondaryActionLabel="Reintentar"
-              onSecondaryAction={() => refetch()}
-            />
-          )
+        ) : isEmpty ? (
+          <EmptyState
+            variant="page"
+            isActive={isActive}
+            icon={<CalendarDays className="h-6 w-6" aria-hidden="true" />}
+            title="No hay programación disponible"
+            description={`Ahora mismo ${providerName} no publica horarios de emisión. Vuelve a intentarlo más tarde.`}
+            actionLabel="Explorar catálogo"
+            onAction={() => navigateToCatalog()}
+            secondaryActionLabel="Reintentar"
+            onSecondaryAction={() => refetch()}
+          />
         ) : (
           <>
             <div className="sticky top-0 z-20 -mx-4 flex min-h-[64px] flex-wrap items-center gap-x-4 gap-y-2 bg-background px-4 pb-4 pt-4 sm:-mx-8 sm:px-8">

@@ -5,7 +5,7 @@ import axios from 'axios';
 import { createMainContext } from './appContext';
 import { setupHardwareAcceleration } from './bootstrap/hardwareAcceleration';
 import { setupBackgroundBehavior } from './bootstrap/backgroundBehavior';
-import { checkConnectivity, getConnectivityStatus as getConnectivityStatusImpl } from './bootstrap/connectivity';
+import { checkConnectivity } from './bootstrap/connectivity';
 import { registerOmniMediaProtocol } from './bootstrap/protocol';
 import { setupContextMenu } from './bootstrap/contextMenu';
 import { createNativeNotificationSender } from './notificationDelivery';
@@ -819,7 +819,7 @@ registerIpcHandlers({
     const settings = SettingsManager.get();
     return settings.outputDirs || [settings.defaultOutputDir];
   },
-  getConnectivityStatus: () => getConnectivityStatusImpl(),
+  checkConnectivity,
   getAnimeDetailsBySlug,
   normalizeEpisodeFilesInFolder,
   processQueue,

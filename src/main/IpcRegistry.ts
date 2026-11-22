@@ -61,7 +61,7 @@ export interface IpcRegistryDependencies {
   aniLinkStore: AniLinkStore;
   getMainWindow: () => BrowserWindow | null;
   getAllowedBaseDirs: () => string[];
-  getConnectivityStatus: () => boolean;
+  checkConnectivity: () => Promise<boolean>;
   getAnimeDetailsBySlug: (slug: string, providerId?: DownloadProvider) => Promise<DownloadAnimeDetails | null>;
   normalizeEpisodeFilesInFolder: (
     animePath: string,
