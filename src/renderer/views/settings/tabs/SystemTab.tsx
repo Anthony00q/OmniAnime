@@ -139,7 +139,7 @@ export const SystemTab = memo(function SystemTab({
                             <span className="text-muted-foreground italic">Sin definir. Elige una carpeta</span>
                           )}
                         </div>
-                        {dir && <div className="text-xs text-muted-foreground truncate select-text">{dir}</div>}
+                        {dir && <div className="text-xs text-muted-foreground truncate">{dir}</div>}
                       </div>
                       {dir && (
                         <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground bg-secondary/60 px-2 py-0.5 rounded-full border border-border/50 shrink-0">

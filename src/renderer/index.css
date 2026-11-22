@@ -182,8 +182,15 @@
   }
 
   ::selection {
-    background: var(--color-primary);
-    color: var(--color-primary-foreground);
+    background-color: color-mix(in oklab, var(--color-foreground) 25%, transparent);
+    color: var(--color-foreground);
+  }
+
+  @media (forced-colors: active) {
+    ::selection {
+      background-color: Highlight;
+      color: HighlightText;
+    }
   }
 
   :focus-visible {
@@ -1328,7 +1335,8 @@ html[dir='ltr'] {
 
 @layer components {
   .settings-section {
-    @apply rounded-xl border border-border/50 bg-card;
+    @apply rounded-xl border border-border/50;
+    background-color: color-mix(in oklab, var(--color-background), var(--color-card));
   }
 
   .settings-section-icon {

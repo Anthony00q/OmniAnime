@@ -67,6 +67,7 @@ export const ShortcutsTab = memo(function ShortcutsTab({ settings, onChange }: S
                         onChange('search', next, 'shortcuts');
                       }}
                       onFocus={(e) => e.target.select()}
+                      data-focus-tone="neutral"
                       className="field-input w-10 h-9 text-center bg-surface border border-border rounded-lg text-sm font-semibold focus:outline-none uppercase"
                     />
                   </label>

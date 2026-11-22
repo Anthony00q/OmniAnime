@@ -1,8 +1,6 @@
 import { memo, useEffect, useState } from 'react';
-import { useAtomValue } from 'jotai';
-import { settingsAtom } from '@/renderer/store/atoms';
 import { unwrap } from '@/renderer/hooks/queries/unwrap';
-import { HardDrive, Download, Database, Palette, Bell, Keyboard, Info, ScrollText } from 'lucide-react';
+import { HardDrive, Download, Database, Palette, Bell, Keyboard, ScrollText } from 'lucide-react';
 
 interface TabDef {
   id: string;
@@ -60,8 +58,6 @@ interface SettingsTabNavProps {
 
 export const SettingsTabNav = memo(function SettingsTabNav({ activeTab, onTabChange }: SettingsTabNavProps) {
   const [appVersion, setAppVersion] = useState<string | null>(null);
-  const globalSettings = useAtomValue(settingsAtom) as { shortcuts?: { search?: string } } | null;
-  const searchKey = (globalSettings?.shortcuts?.search || 'F').toUpperCase();
 
   useEffect(() => {
     let cancelled = false;
@@ -102,18 +98,6 @@ export const SettingsTabNav = memo(function SettingsTabNav({ activeTab, onTabCha
           </span>
         </button>
       ))}
-      <div className="hidden min-[960px]:block mt-4 border-t border-border/40 px-3 pt-4">
-        <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
-          <Info className="w-3.5 h-3.5 text-muted-foreground" /> Consejo
-        </div>
-        <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
-          Usa{' '}
-          <span className="font-mono text-foreground bg-background px-1 py-0.5 rounded border border-border">
-            CTRL+{searchKey}
-          </span>{' '}
-          para buscar anime desde cualquier vista.
-        </p>
-      </div>
       {appVersion && (
         <p className="hidden min-[960px]:block mt-3 text-center text-[11px] text-muted-foreground/70 tabular-nums">
           OmniAnime v{appVersion}
