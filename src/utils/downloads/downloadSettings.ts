@@ -55,6 +55,7 @@ export const DEFAULT_DOWNLOAD_SETTINGS: DownloadSettings = {
   startTimeoutSec: 90,
   allowContinue: true,
   cleanCacheOnComplete: false,
+  removeEmptyFolderOnCancel: true,
   // Instalaciones nuevas se siembran con ON desde main; sin clave, OFF.
   adaptiveConnections: adaptiveConnectionsAll(false),
   mediafireConnections: 1,
@@ -121,6 +122,10 @@ export function normalizeDownloadSettings(input: unknown): DownloadSettings {
     startTimeoutSec: clampInt(raw.startTimeoutSec, 30, 120, DEFAULT_DOWNLOAD_SETTINGS.startTimeoutSec),
     allowContinue: toBoolean(raw.allowContinue, DEFAULT_DOWNLOAD_SETTINGS.allowContinue),
     cleanCacheOnComplete: toBoolean(raw.cleanCacheOnComplete, DEFAULT_DOWNLOAD_SETTINGS.cleanCacheOnComplete),
+    removeEmptyFolderOnCancel: toBoolean(
+      raw.removeEmptyFolderOnCancel,
+      DEFAULT_DOWNLOAD_SETTINGS.removeEmptyFolderOnCancel,
+    ),
     adaptiveConnections: normalizeAdaptiveConnections(raw.adaptiveConnections),
     mediafireConnections: clampInt(raw.mediafireConnections, 1, 8, DEFAULT_DOWNLOAD_SETTINGS.mediafireConnections),
     mp4uploadConnections: clampInt(raw.mp4uploadConnections, 1, 8, DEFAULT_DOWNLOAD_SETTINGS.mp4uploadConnections),

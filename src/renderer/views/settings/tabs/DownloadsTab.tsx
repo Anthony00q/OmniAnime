@@ -544,6 +544,19 @@ const DescargasAvanzado = memo(function DescargasAvanzado({ settings, onChange }
             ariaLabel="Limpiar temporales al terminar"
           />
         </div>
+        <div className="settings-option-row flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-sm font-semibold leading-tight">Eliminar carpeta vacía al cancelar</div>
+            <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
+              Solo al cancelar toda la descarga. Los temporales propios se limpian aunque conserves la carpeta.
+            </p>
+          </div>
+          <CustomSwitch
+            checked={dl.removeEmptyFolderOnCancel}
+            onChange={(checked) => onDlChange('removeEmptyFolderOnCancel', checked)}
+            ariaLabel="Eliminar carpeta vacía al cancelar"
+          />
+        </div>
       </div>
     </section>
   );

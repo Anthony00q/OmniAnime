@@ -68,7 +68,7 @@ export interface PauseControllerDeps {
   queueStore: QueueStore;
   attemptService: EpisodeDownloadAttemptService;
   pausedProgress?: PausedProgressSink;
-  getDownloadSettings?: () => { allowContinue?: boolean } | undefined;
+  getDownloadSettings?: () => { allowContinue?: boolean; removeEmptyFolderOnCancel?: boolean } | undefined;
   buildEpisodePath: (item: QueueItem, episode: number) => string;
   writeHistory: (record: HistoryWriteRecord) => boolean;
   sendQueueUpdate: () => void;
@@ -404,6 +404,7 @@ export class PauseController {
           const dest = this.deps.buildEpisodePath(item, ep);
           await this.deps.attemptService.cleanCancelledEpisode(dest);
         }
+        if (this.deps.getDownloadSettings?.()?.removeEmptyFolderOnCancel === false) return { cleanup: 'preserved' };
         return { cleanup: (await this.deps.cleanCancelledFolder?.(item)) ?? 'preserved' };
       } catch {
         return { cleanup: 'incomplete' };

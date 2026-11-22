@@ -26,6 +26,7 @@ export interface DownloadQueueProcessorOptions {
     | {
         maxParallelEpisodes?: number;
         allowContinue?: boolean;
+        removeEmptyFolderOnCancel?: boolean;
         startTimeoutSec?: number;
       }
     | undefined;
