@@ -97,6 +97,37 @@ async function probeFfmpegTool(exe, kind, version) {
   return firstLine.startsWith(`${kind} version ${version}`);
 }
 
+function extractFfmpeg(archive, entry, dest) {
+  const command = `
+    $ErrorActionPreference = 'Stop'
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    $zip = [System.IO.Compression.ZipFile]::OpenRead($env:OMNI_FFMPEG_ZIP)
+    try {
+      $entry = $zip.GetEntry($env:OMNI_FFMPEG_ENTRY)
+      if ($null -eq $entry) { exit 3 }
+      [System.IO.Compression.ZipFileExtensions]::ExtractToFile($entry, $env:OMNI_FFMPEG_DEST, $false)
+    } finally {
+      $zip.Dispose()
+    }
+  `;
+  return new Promise((resolve, reject) => {
+    execFile(
+      'powershell.exe',
+      ['-NoProfile', '-NonInteractive', '-Command', command],
+      {
+        timeout: 300_000,
+        windowsHide: true,
+        env: { ...process.env, OMNI_FFMPEG_ZIP: archive, OMNI_FFMPEG_ENTRY: entry, OMNI_FFMPEG_DEST: dest },
+      },
+      (err) => {
+        if (!err) resolve();
+        else if (err.code === 3) reject(new Error(`No se encontró la entrada fijada de ffmpeg en el ZIP: ${entry}`));
+        else reject(new Error('No se pudo extraer ffmpeg.exe del ZIP.'));
+      },
+    );
+  });
+}
+
 async function ensureFfmpegTools(ffmpegPin, force) {
   const ffmpegDest = path.join(TOOLS_DIR, 'ffmpeg.exe');
   if (!force && (await probeFfmpegTool(ffmpegDest, 'ffmpeg', ffmpegPin.version))) {
@@ -104,11 +135,10 @@ async function ensureFfmpegTools(ffmpegPin, force) {
     return false;
   }
   if (process.platform !== 'win32') {
-    throw new Error('La extraccion de ffmpeg requiere Windows (Expand-Archive).');
+    throw new Error('La extracción de ffmpeg requiere Windows.');
   }
-  const stamp = `${process.pid}-${Date.now()}`;
-  const tmpZip = path.join(tmpdir(), `omnianime-ffmpeg-${stamp}.zip`);
-  const tmpDir = path.join(tmpdir(), `omnianime-ffmpeg-${stamp}`);
+  const tmpDir = await fsp.mkdtemp(path.join(tmpdir(), 'omnianime-ffmpeg-'));
+  const tmpZip = path.join(tmpDir, 'ffmpeg.zip');
   const stagedFfmpeg = stagedPath('ffmpeg.exe');
   try {
     console.log('Descargando paquete ffmpeg...');
@@ -118,25 +148,7 @@ async function ensureFfmpegTools(ffmpegPin, force) {
       throw new Error(`SHA256 del paquete ffmpeg no coincide (esperado ${ffmpegPin.sha256}, obtenido ${actual})`);
     }
     console.log('Extrayendo ffmpeg.exe...');
-    await new Promise((resolve, reject) => {
-      execFile(
-        'powershell',
-        [
-          '-NoProfile',
-          '-NonInteractive',
-          '-Command',
-          `Expand-Archive -LiteralPath ${JSON.stringify(tmpZip)} -DestinationPath ${JSON.stringify(tmpDir)} -Force`,
-        ],
-        { timeout: 300_000, windowsHide: true },
-        (err) => (err ? reject(err) : resolve()),
-      );
-    });
-    const ffmpegExe = await findInDir(tmpDir, ffmpegPin.exePathInArchive);
-    if (!ffmpegExe) {
-      throw new Error('No se encontro bin/ffmpeg.exe en el paquete descargado.');
-    }
-    await fsp.mkdir(TOOLS_DIR, { recursive: true });
-    await fsp.copyFile(ffmpegExe, stagedFfmpeg);
+    await extractFfmpeg(tmpZip, ffmpegPin.exePathInArchive, stagedFfmpeg);
     if (!(await probeFfmpegTool(stagedFfmpeg, 'ffmpeg', ffmpegPin.version))) {
       throw new Error(`ffmpeg extraido no reporta la version fijada (${ffmpegPin.version})`);
     }
@@ -148,23 +160,8 @@ async function ensureFfmpegTools(ffmpegPin, force) {
     throw err;
   } finally {
     await removeQuiet(tmpZip);
-    await fsp.rm(tmpDir, { recursive: true, force: true }).catch(() => {});
+    await fsp.rmdir(tmpDir).catch(() => {});
   }
-}
-
-async function findInDir(dir, suffix) {
-  const wanted = suffix.toLowerCase().replace(/\\/g, '/');
-  const entries = await fsp.readdir(dir, { withFileTypes: true });
-  for (const entry of entries) {
-    const full = path.join(dir, entry.name);
-    if (entry.isDirectory()) {
-      const found = await findInDir(full, suffix);
-      if (found) return found;
-    } else if (full.toLowerCase().replace(/\\/g, '/').endsWith(wanted)) {
-      return full;
-    }
-  }
-  return null;
 }
 
 function requireFields(pins, key, fields) {
@@ -220,4 +217,4 @@ if (isDirectRun) {
   });
 }
 
-export { findInDir };
+export { extractFfmpeg };

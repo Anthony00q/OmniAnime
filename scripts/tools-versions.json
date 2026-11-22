@@ -1,6 +1,6 @@
 {
   "ffmpeg": {
-    "exePathInArchive": "bin/ffmpeg.exe",
+    "exePathInArchive": "ffmpeg-8.1.2-essentials_build/bin/ffmpeg.exe",
     "license": "GPLv3 (build estatico gyan.dev)",
     "name": "ffmpeg",
     "sha256": "db580001caa24ac104c8cb856cd113a87b0a443f7bdf47d8c12b1d740584a2ec",

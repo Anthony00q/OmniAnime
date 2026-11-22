@@ -26,11 +26,11 @@ node scripts/setup-tools.mjs --check   :: solo comprueba, sin descargar
 node scripts/setup-tools.mjs --force   :: re-descarga todo
 ```
 
-- Solo permite URLs `https`, sigue redirects con límite y verifica el
-  SHA256 antes de colocar cada binario; después confirma la versión
-  ejecutando `--version` / `-version`.
-- Sin dependencias externas (solo Node). Windows únicamente, igual que
-  el objetivo de distribución del proyecto.
+- Solo permite URLs `https`, sigue redirecciones con límite y verifica el
+  SHA256 antes de extraer la ruta exacta de `ffmpeg.exe` del ZIP. Comprueba
+  la versión con `-version` antes de sustituir un binario existente.
+- Usa Node y Windows PowerShell, sin paquetes adicionales. Windows únicamente,
+  igual que el objetivo de distribución del proyecto.
 - El CI de release lo ejecuta antes de empaquetar, así que el instalador
   incluye los binarios vía `extraResources` sin ningún cambio de código
   (`getToolsDir()` resuelve `tools/win` en dev y `resources/tools/win`
@@ -39,7 +39,8 @@ node scripts/setup-tools.mjs --force   :: re-descarga todo
 ## Subir de versión un binario
 
 1. Edita `scripts/tools-versions.json` (versión + URL del ZIP de la release
-   de Gyan en GitHub + SHA-256 publicado). No uses el enlace al último build
+   de Gyan en GitHub + SHA-256 publicado + ruta exacta de `ffmpeg.exe` dentro
+   del ZIP). No uses el enlace al último build
    ni el directorio `packages/` de gyan.dev: allí se retiran los builds antiguos.
 2. Ejecuta `node scripts/setup-tools.mjs --force`.
 3. Comprueba la app en dev y commitea el JSON.
