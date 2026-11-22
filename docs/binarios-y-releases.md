@@ -11,8 +11,9 @@ descargan con versión fijada y SHA256 verificado.
 
 Único lugar donde se fijan versión + URL + SHA256 del binario:
 
-- **ffmpeg** `8.1.2` variante `essentials_build` — paquete versionado de
-  gyan.dev con sidecar `.sha256` público (solo se instala `ffmpeg.exe`;
+- **ffmpeg** `8.1.2` variante `essentials_build` — ZIP versionado del
+  [archivo de Gyan en GitHub](https://github.com/GyanD/codexffmpeg/releases)
+  con SHA-256 público (solo se instala `ffmpeg.exe`;
   la duración la lee `music-metadata`, sin binarios).
 
 ## `npm run setup:tools`
@@ -37,7 +38,9 @@ node scripts/setup-tools.mjs --force   :: re-descarga todo
 
 ## Subir de versión un binario
 
-1. Edita `scripts/tools-versions.json` (versión + URL + SHA256 oficial).
+1. Edita `scripts/tools-versions.json` (versión + URL del ZIP de la release
+   de Gyan en GitHub + SHA-256 publicado). No uses el enlace al último build
+   ni el directorio `packages/` de gyan.dev: allí se retiran los builds antiguos.
 2. Ejecuta `node scripts/setup-tools.mjs --force`.
 3. Comprueba la app en dev y commitea el JSON.
 

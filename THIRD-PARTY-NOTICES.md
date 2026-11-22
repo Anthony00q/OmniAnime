@@ -10,7 +10,7 @@ cómo cumplir las condiciones de redistribución.
 
 - Origen: Gyan Doshi (gyan.dev), variante **`essentials_build`**.
 - Paquete:
-  `https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-8.1.2-essentials_build.zip`
+  `https://github.com/GyanD/codexffmpeg/releases/download/8.1.2/ffmpeg-8.1.2-essentials_build.zip`
   (SHA-256 fijado en `tools-versions.json`); de él se extrae
   `bin/ffmpeg.exe` (la duración de vídeo la lee `music-metadata`, sin binarios).
 - Licencia: **GPLv3** (build estático; según la página oficial de builds,
