@@ -318,23 +318,21 @@ export const AppearanceTab = memo(
                   </div>
 
                   <div className="mt-4">
-                    <div className="mb-2.5 flex items-center justify-between gap-2">
+                    <div className="mb-2.5 flex flex-wrap items-center gap-2">
                       <div className="text-xs font-semibold text-muted-foreground">Paleta rápida</div>
-                      {showSuggested && (
-                        <button
-                          type="button"
-                          onClick={() => onAccentPreset(suggestedHex)}
-                          aria-label={`Usar el acento sugerido para ${THEME_META[savedTheme].shortLabel}: ${suggestedHex}`}
-                          className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border/60 px-2.5 py-1 text-[11px] font-semibold text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
-                        >
-                          <span
-                            className="h-3 w-3 rounded-full border border-black/10"
-                            style={{ background: suggestedHex }}
-                            aria-hidden="true"
-                          />
-                          Sugerido: {THEME_META[savedTheme].shortLabel}
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        onClick={() => onAccentPreset(suggestedHex)}
+                        aria-label={`Usar el acento sugerido para ${THEME_META[savedTheme].shortLabel}: ${suggestedHex}`}
+                        className={`ml-auto inline-flex max-w-full items-center gap-1.5 rounded-full border border-border/60 px-2.5 py-1 text-[11px] font-semibold text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 ${showSuggested ? '' : 'invisible'}`}
+                      >
+                        <span
+                          className="h-3 w-3 shrink-0 rounded-full border border-black/10"
+                          style={{ background: suggestedHex }}
+                          aria-hidden="true"
+                        />
+                        Sugerido: {THEME_META[savedTheme].shortLabel}
+                      </button>
                     </div>
                     <div
                       role="radiogroup"
