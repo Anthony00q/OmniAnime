@@ -417,7 +417,14 @@ export const QueueItemRow = memo(
               {isDownloading && !isPreparing && (
                 <>
                   <span aria-hidden="true" className="h-3 w-px shrink-0 bg-border-strong/70" />
-                  <span className="min-w-[9ch]">{speedText || '—'}</span>
+                  <span className="inline-grid justify-items-end whitespace-nowrap">
+                    <span aria-hidden="true" className="invisible col-start-1 row-start-1">
+                      00,0 MB/s
+                    </span>
+                    <span className={`col-start-1 row-start-1${speedText ? '' : ' justify-self-center'}`}>
+                      {speedText || '—'}
+                    </span>
+                  </span>
                 </>
               )}
               {hasFailedEpisodes && (
