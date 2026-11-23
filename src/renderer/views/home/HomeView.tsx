@@ -175,11 +175,11 @@ export function HomeView({ isActive }: { isActive?: boolean }) {
 
   const visibleSearchQuery = isProviderChanging ? '' : searchQuery;
   const dropdownOpen = !isProviderChanging && showDropdown && searchQuery.trim().length >= 3;
-  const isHomeEmpty = !isLoading && !isError && items.length === 0;
+  const isHomeEmpty = !isLoading && items.length === 0;
   const needConnectivity =
     isHomeEmpty || (dropdownOpen && !isSearching && searchResults.length === 0 && debouncedQuery.trim().length >= 3);
   const { data: isOnline } = useConnectivityStatus(needConnectivity);
-  const showOfflineEmpty = shouldShowOfflineEmpty(isError ? 1 : items.length, isOnline);
+  const showOfflineEmpty = shouldShowOfflineEmpty(items.length, isOnline);
   const showOfflineSearch = dropdownOpen && !isSearching && shouldShowOfflineEmpty(searchResults.length, isOnline);
 
   return (
@@ -296,7 +296,7 @@ export function HomeView({ isActive }: { isActive?: boolean }) {
             </div>
             <PosterGridSkeleton count={12} />
           </>
-        ) : isError ? (
+        ) : isError && !showOfflineEmpty && items.length === 0 ? (
           <ErrorState
             title="No se pudieron cargar los episodios"
             description={`No se pudo actualizar el contenido de ${providerName}.`}

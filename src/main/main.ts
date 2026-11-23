@@ -26,7 +26,7 @@ import { EpisodeLinksService } from '../services/downloads/EpisodeLinksService';
 import { QueueEnqueueService } from '../services/downloads/QueueEnqueueService';
 import { AppLogger, type LogScope, type ScopedLogger } from '../services/logging/AppLogger';
 import { effectiveMinLevel, normalizeLoggingSettings } from '../utils/logging/loggingSettings';
-import { buildLibraryScanStatusText } from '../utils/splashBoot';
+import { collectStartupSnapshot } from '../utils/splashBoot';
 import { EpisodeFileService } from '../services/library/EpisodeFileService';
 import { HistoryService } from '../services/library/HistoryService';
 import { LibraryAssetService } from '../services/library/LibraryAssetService';
@@ -731,38 +731,15 @@ windowLifecycleService = new WindowLifecycleService({
   },
   loadStartupData: async (settings, updateStatus): Promise<PreloadedData> => {
     updateStatus('Precargando inicio, filtros y catálogo...', 36);
-
-    // Resiliente por etapa: un proveedor caído no tumba home+filtros+catálogo+librería
-    const [home, filters, catalog, libraryMeta] = await Promise.all([
-      homeFeedService.getHomeFeed('anime', 30, false).catch((e) => {
-        writeGlobalLog(`preload home falló: ${String(e)}`);
-        return null;
-      }),
-      providerGateway.activeProvider.getFiltersData().catch((e) => {
-        writeGlobalLog(`preload filters falló: ${String(e)}`);
-        return null;
-      }),
-      providerGateway.activeProvider.getCatalog({ page: 1 }).catch((e) => {
-        writeGlobalLog(`preload catalog falló: ${String(e)}`);
-        return null;
-      }),
-      (async () => {
-        updateStatus('Escaneando librería local...', 52);
-        const libDirs = settings.outputDirs || [settings.defaultOutputDir];
-        return libraryPreloadService.buildMetaPreload(
-          libDirs,
-          0,
-          ({ processed, total }) => {
-            // El escaneo vive en 52→74: los pasos siguientes arrancan en 80.
-            const pct = total > 0 ? Math.min(74, Math.round((processed / total) * 22) + 52) : 52;
-            updateStatus(buildLibraryScanStatusText(processed, total), pct);
-          },
-          false,
-        );
-      })(),
-    ]);
-
-    return { providerId: providerGateway.activeProvider.id, home, filters, catalog, libraryMeta };
+    const provider = providerGateway.activeProvider;
+    const libDirs = settings.outputDirs || [settings.defaultOutputDir];
+    const snapshot = await collectStartupSnapshot({
+      home: homeFeedService.getHomeFeed('anime', 30, false, provider.id),
+      filters: provider.getFiltersData(),
+      catalog: provider.getCatalog({ page: 1 }),
+      libraryMeta: libraryPreloadService.buildMetaPreload(libDirs, 0, undefined, false),
+    });
+    return { providerId: provider.id, ...snapshot };
   },
   warmLibrary: async (settings) => {
     await libraryPreloadService.buildMetaPreload(
@@ -798,7 +775,13 @@ function processQueue(): Promise<void> {
 registerIpcHandlers({
   libraryMetadataService,
   libraryMutationService,
-  preloadedData,
+  getPreloadedData: async () => {
+    await windowLifecycleService?.waitForStartupData();
+    const providerId = providerGateway.activeProvider.id;
+    return preloadedData.providerId === providerId
+      ? preloadedData
+      : { providerId, home: null, filters: null, catalog: null, libraryMeta: null };
+  },
   providerGateway,
   homeFeedService,
   scheduleService,

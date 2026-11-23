@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import type { ScheduleData } from '@/types/anime';
+import type { HomeEpisode, ScheduleData } from '@/types/anime';
 import { useDeferredProvider } from './internal';
 import { unwrap } from './unwrap';
 
@@ -7,16 +7,23 @@ export function useHomeData() {
   const provider = useDeferredProvider();
   const queryClient = useQueryClient();
 
+  const fetchHome = async (force: boolean): Promise<HomeEpisode[]> => {
+    const data = unwrap<HomeEpisode[] | null>(await window.api.invoke('get-home-data', { force, provider }), {
+      toast: false,
+    });
+    if (!Array.isArray(data)) throw new Error('No se pudieron actualizar los episodios');
+    return data;
+  };
+
   const query = useQuery({
     queryKey: ['home', provider],
-    queryFn: async () => unwrap(await window.api.invoke('get-home-data', { force: false, provider })),
+    queryFn: () => fetchHome(false),
     staleTime: 4 * 60 * 1000,
   });
 
   const refresh = async () => {
     await queryClient.cancelQueries({ queryKey: ['home', provider], exact: true });
-    const data = unwrap(await window.api.invoke('get-home-data', { force: true, provider }), { toast: false });
-    if (!data) throw new Error('No se pudieron actualizar los episodios');
+    const data = await fetchHome(true);
     queryClient.setQueryData(['home', provider], data);
     return data;
   };

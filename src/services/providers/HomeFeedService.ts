@@ -48,7 +48,6 @@ export interface HomeFeedLogger {
 export class HomeFeedService {
   private readonly freshCache: Record<string, FreshCacheEntry> = {};
   private readonly staleCache: Record<string, StaleCacheEntry> = {};
-  private readonly backoff: Record<string, { until: number; strikes: number }> = {};
   private readonly inFlight: Record<string, Promise<HomeEpisode[]> | undefined> = {};
 
   constructor(
@@ -80,31 +79,22 @@ export class HomeFeedService {
       return stale.data;
     };
 
-    const saveFresh = (data: HomeEpisode[], ttlMs: number): HomeEpisode[] => {
-      this.freshCache[cacheKey] = { data, expiresAt: now + ttlMs };
-      this.staleCache[cacheKey] = { data, fetchedAt: now };
-      this.backoff[cacheKey] = { until: 0, strikes: 0 };
-      return data;
-    };
-
-    if (force) {
-      delete this.freshCache[cacheKey];
-    }
-
     const cached = this.freshCache[cacheKey];
-    if (cached && cached.expiresAt > now) {
-      return cached.data;
-    }
+    if (!force && cached && cached.expiresAt > now) return cached.data;
 
-    if (!force && this.inFlight[cacheKey]) {
-      return this.inFlight[cacheKey];
-    }
+    if (!force && this.inFlight[cacheKey]) return this.inFlight[cacheKey];
 
-    const pending = (async () => {
+    const pending: Promise<HomeEpisode[]> = Promise.resolve().then(async () => {
       try {
-        const rows = await target.getHome(force);
-        return saveFresh(limitPerKind(rows, perTypeLimit), 4 * 60 * 1000);
+        const rows = limitPerKind(await target.getHome(force), perTypeLimit);
+        if (this.inFlight[cacheKey] === pending) {
+          const fetchedAt = Date.now();
+          this.freshCache[cacheKey] = { data: rows, expiresAt: fetchedAt + 4 * 60 * 1000 };
+          this.staleCache[cacheKey] = { data: rows, fetchedAt };
+        }
+        return rows;
       } catch (error) {
+        if (force) throw error;
         const stale = readStale();
         if (stale) {
           this.logger.warn(`[HomeFeed] fallo en ${cacheKey}. Usando cache de respaldo.`);
@@ -112,7 +102,7 @@ export class HomeFeedService {
         }
         throw error;
       }
-    })();
+    });
 
     this.inFlight[cacheKey] = pending;
     try {

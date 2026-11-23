@@ -109,7 +109,7 @@ function readJkHomeCard($: ReturnType<typeof cheerio.load>, el: any): Omit<HomeE
 }
 
 // Paneles de la portada con su seccion. Sin paneles reconocibles, todo cuenta como anime.
-export function collectJkHomeEpisodes($: ReturnType<typeof cheerio.load>): HomeEpisode[] {
+export function collectJkHomeEpisodes($: ReturnType<typeof cheerio.load>, strict = false): HomeEpisode[] {
   const out: HomeEpisode[] = [];
   const cardSelector = '.mb-4.d-flex.align-items-stretch .card';
   const panels = JK_HOME_SECTIONS.map((section) => ({ kind: section.kind, el: $(`#${section.id}`).first() })).filter(
@@ -122,19 +122,26 @@ export function collectJkHomeEpisodes($: ReturnType<typeof cheerio.load>): HomeE
     });
   }
   // Fuera de los paneles (o sin paneles): cuentan como anime.
-  $(cardSelector).each((_: any, el: any) => {
+  const cards = $(cardSelector);
+  cards.each((_: any, el: any) => {
     if ($(el).closest('#animes, #donghuas, #ovas').length > 0) return;
     const card = readJkHomeCard($, el);
     if (card) out.push({ ...card, kind: 'anime' });
   });
+  if (strict && !out.length && (!panels.length || cards.length)) {
+    throw new Error('Portada de JkAnime no reconocida.');
+  }
   return out;
 }
 
 // Horario semanal (/horario): día y frescura del último capítulo; la fuente no publica hora.
-export function collectJkSchedule($: ReturnType<typeof cheerio.load>): ScheduleData {
+export function collectJkSchedule($: ReturnType<typeof cheerio.load>): ScheduleData | null {
   const entries: ScheduleEntry[] = [];
+  const days = $('.box.semana');
+  const containers = days.find('.cajas');
+  if (!containers.length) return null;
 
-  $('.box.semana').each((dayIdx: number, el: any) => {
+  days.each((dayIdx: number, el: any) => {
     const day = jkDayNumber($(el).find('h2').first().text()) ?? dayIdx + 1;
     $(el)
       .find('.cajas .box.img')
@@ -170,7 +177,9 @@ export function collectJkSchedule($: ReturnType<typeof cheerio.load>): ScheduleD
       });
   });
 
-  return { entries };
+  return entries.length || (days.length === containers.length && !containers.find('.box.img, a[href]').length)
+    ? { entries }
+    : null;
 }
 
 // Bloque "Titulos Alternativos": Sinonimos / Ingles / Japones. Solo fondo

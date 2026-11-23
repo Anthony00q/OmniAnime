@@ -72,12 +72,17 @@ export class WindowLifecycleService {
   private tray: Tray | null = null;
   private youtubeEmbedIdentityConfigured = false;
   private rendererReady = false;
+  private startupDataReady: Promise<void> | null = null;
   private lastTrayTooltip: string | null = null;
 
   constructor(private readonly dependencies: WindowLifecycleDependencies) {}
 
   getMainWindow(): BrowserWindow | null {
     return this.mainWindow;
+  }
+
+  waitForStartupData(): Promise<void> | null {
+    return this.startupDataReady;
   }
 
   private getAliveSplash(): BrowserWindow | null {
@@ -345,6 +350,31 @@ export class WindowLifecycleService {
       updateStatus('Cargando preferencias locales...', 16);
       const settings = this.dependencies.getSettings();
       this.dependencies.setActiveProvider(settings.defaultProvider || 'animeav1');
+      updateStatus('Preparando interfaz principal...', 28);
+
+      let startupSettled = false;
+      const startupUpdate = (text: string, progress: number): void => {
+        if (!startupSettled) updateStatus(text, progress);
+      };
+      this.startupDataReady = withStartupTimeout(
+        this.dependencies.loadStartupData(settings, startupUpdate),
+        SPLASH_BOOT_TIMEOUT_MS,
+      ).then(({ value }) => {
+        startupSettled = true;
+        if (!value) {
+          this.dependencies.writeLog('Splash: precarga incompleta, continuando degradado');
+          updateStatus('No se pudo cargar todo. Continuando con datos locales...', 76);
+        }
+        this.dependencies.setPreloadedData(
+          value ?? {
+            providerId: this.dependencies.getActiveProviderId(),
+            home: null,
+            filters: null,
+            catalog: null,
+            libraryMeta: [],
+          },
+        );
+      });
 
       this.mainWindow = new BrowserWindow({
         width: 1300,
@@ -406,8 +436,6 @@ export class WindowLifecycleService {
       if (settings.minimizeToTrayOnClose === true) {
         this.createTray();
       }
-      updateStatus('Preparando interfaz principal...', 28);
-
       this.mainWindow.once('ready-to-show', () => {
         windowIsReady = true;
         emitWindowState();
@@ -436,33 +464,7 @@ export class WindowLifecycleService {
         }
       }
 
-      // Precarga con timeout: si la red/proveedor cuelga, degradado con
-      // datos locales en vez de splash infinito. Ignora updates tardíos.
-      let startupSettled = false;
-      const startupUpdate = (text: string, progress: number): void => {
-        if (!startupSettled) updateStatus(text, progress);
-      };
-      const startupResult = await withStartupTimeout(
-        this.dependencies.loadStartupData(settings, startupUpdate),
-        SPLASH_BOOT_TIMEOUT_MS,
-      );
-      startupSettled = true;
-
-      let preloadedData: PreloadedData;
-      if (startupResult.timedOut || !startupResult.value) {
-        this.dependencies.writeLog('Splash: precarga incompleta, continuando degradado');
-        updateStatus('No se pudo cargar todo. Continuando con datos locales...', 76);
-        preloadedData = {
-          providerId: this.dependencies.getActiveProviderId(),
-          home: null,
-          filters: null,
-          catalog: null,
-          libraryMeta: [],
-        };
-      } else {
-        preloadedData = startupResult.value;
-      }
-      this.dependencies.setPreloadedData(preloadedData);
+      await this.startupDataReady;
 
       // Sin sleep artificial: la caché ya quedó sembrada en loadStartupData.
       // Se cede un tick para pintar el 80% antes del check de tools (<10ms).

@@ -95,22 +95,29 @@ export function extractAkaTitles(scope: string): { en: string; ja: string } {
 
 // Horario semanal (/horario): día y hora salen del último episodio publicado,
 // misma heurística que la propia web (los horarios son referenciales).
-export function parseAv1Schedule(html: string): ScheduleData {
+export function parseAv1Schedule(html: string): ScheduleData | null {
   const entries: ScheduleEntry[] = [];
   const content = extractBalancedBlock(html, 'media:[', '[', ']');
-  if (content === null) return { entries };
-  for (const object of extractBalancedObjects(content)) {
+  if (content === null) return null;
+  if (!content.trim()) return { entries };
+  let withoutEpisodes = 0;
+  const objects = extractBalancedObjects(content);
+  for (const object of objects) {
     try {
       const inner = object.slice(1, -1);
-      const epInner = extractBalancedBlock(inner, 'latestEpisode:{', '{', '}');
-      if (epInner === null) continue;
-      const numM = epInner.match(/number:(\d+)/);
-      const dateM = epInner.match(/createdAt:"([^"]+)"/);
-      const published = dateM ? parseAv1Timestamp(dateM[1]) : null;
       const slugM = inner.match(/slug:"([^"]+)"/);
       const titleM = inner.match(/title:"((?:[^"\\]|\\.)*)"/);
       const idM = matchAtTopLevel(inner, /id:(\d+)/);
-      if (!numM || published === null || !slugM || !titleM || !idM) continue;
+      if (!slugM || !titleM || !idM) continue;
+      const epInner = extractBalancedBlock(inner, 'latestEpisode:{', '{', '}');
+      if (epInner === null) {
+        if (matchAtTopLevel(inner, /latestEpisode:null\b/)) withoutEpisodes++;
+        continue;
+      }
+      const numM = epInner.match(/number:(\d+)/);
+      const dateM = epInner.match(/createdAt:"([^"]+)"/);
+      const published = dateM ? parseAv1Timestamp(dateM[1]) : null;
+      if (!numM || published === null) continue;
       entries.push({
         slug: slugM[1],
         title: unescapeSvelteString(titleM[1]),
@@ -126,7 +133,7 @@ export function parseAv1Schedule(html: string): ScheduleData {
       continue;
     }
   }
-  return { entries };
+  return entries.length || (objects.length && withoutEpisodes === objects.length) ? { entries } : null;
 }
 
 function extractArrayInner(html: string, key: string): string | null {
@@ -189,14 +196,14 @@ export interface Av1HomeRaw {
   publishedAt: string | null;
 }
 
-export function parseAv1HomeRaw(html: string): Av1HomeRaw[] {
+export function parseAv1HomeRaw(html: string): Av1HomeRaw[] | null {
   let content = extractArrayInner(html, 'latestEpisodes');
   if (content === null) {
     const legacy = html.match(REGEX.LATEST_EPISODES);
     content = legacy ? legacy[1] : null;
   }
   const out: Av1HomeRaw[] = [];
-  if (content === null) return out;
+  if (content === null) return null;
   for (const block of splitTopLevelItems(content)) {
     try {
       const numM = block.match(REGEX.EP_NUMBER);
@@ -216,7 +223,7 @@ export function parseAv1HomeRaw(html: string): Av1HomeRaw[] {
       continue;
     }
   }
-  return out;
+  return out.length || !content.trim() ? out : null;
 }
 
 // `results:[...]` sin exigir que le siga `,total:N`.

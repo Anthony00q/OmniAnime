@@ -113,7 +113,7 @@ export function registerCatalogHandlers({
         return ok(await homeFeedService.getHomeFeed('anime', 30, force, providerId));
       } catch (error) {
         writeGlobalLog(`Home error: ${safeErrorMessage(error)}`);
-        return ok([]);
+        return ok(null);
       }
     },
   );

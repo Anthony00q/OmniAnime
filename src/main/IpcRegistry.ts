@@ -41,7 +41,7 @@ const rendererReadyChannel: InvokeChannel = 'renderer-ready';
 const logErrorChannel: SendChannel = 'log-error';
 
 export interface IpcRegistryDependencies {
-  preloadedData: PreloadedData;
+  getPreloadedData: () => Promise<PreloadedData>;
   providerGateway: ProviderGateway;
   homeFeedService: HomeFeedService;
   scheduleService: ScheduleService;

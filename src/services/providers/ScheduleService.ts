@@ -44,12 +44,8 @@ export class ScheduleService {
       return stale.data;
     };
 
-    if (force) {
-      delete this.freshCache[cacheKey];
-    }
-
     const cached = this.freshCache[cacheKey];
-    if (cached && cached.expiresAt > now) {
+    if (!force && cached && cached.expiresAt > now) {
       return cached.data;
     }
 
@@ -57,20 +53,24 @@ export class ScheduleService {
       return this.inFlight[cacheKey];
     }
 
-    const pending = (async () => {
+    const pending: Promise<ScheduleData | null> = Promise.resolve().then(async () => {
       const data = await target.getSchedule(force);
       if (data) {
-        this.freshCache[cacheKey] = { data, expiresAt: now + freshTtlMs };
-        this.staleCache[cacheKey] = { data, fetchedAt: now };
+        if (this.inFlight[cacheKey] === pending) {
+          const fetchedAt = Date.now();
+          this.freshCache[cacheKey] = { data, expiresAt: fetchedAt + freshTtlMs };
+          this.staleCache[cacheKey] = { data, fetchedAt };
+        }
         return data;
       }
+      if (force) return null;
       const stale = readStale();
       if (stale) {
         this.logger.warn(`[Schedule] fallo en ${cacheKey}. Usando cache de respaldo.`);
         return stale;
       }
       return null;
-    })();
+    });
 
     this.inFlight[cacheKey] = pending;
     try {

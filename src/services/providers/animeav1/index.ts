@@ -1,3 +1,4 @@
+import { ProviderReadCache } from '../ProviderReadCache';
 import {
   AnimeSearchResult,
   AnimeDetails,
@@ -52,6 +53,8 @@ export class AnimeAV1Provider implements AnimeProvider {
   }
 
   private client: OutboundClient = createAv1Client();
+  private homeRequest = 0;
+  private scheduleRequest = 0;
   private readonly availabilityCache = new Map<string, { state: EpisodeAvailability; expires: number }>();
   private readonly availabilityRequests = new Map<
     string,
@@ -65,20 +68,24 @@ export class AnimeAV1Provider implements AnimeProvider {
   private cache: {
     home: { data: HomeEpisode[]; timestamp: number } | null;
     schedule: { data: ScheduleData; timestamp: number } | null;
-    filters: { data: CatalogFiltersData; timestamp: number } | null;
-    catalog: Map<string, { data: AnimeSearchResult[]; timestamp: number }>;
   } = {
     home: null,
     schedule: null,
-    filters: null,
-    catalog: new Map(),
   };
+  private readonly catalogCache = new ProviderReadCache<AnimeSearchResult[]>(
+    5 * 60_000,
+    20,
+    (results) => results.length > 0,
+  );
+  private readonly filtersCache = new ProviderReadCache<CatalogFiltersData>(
+    60 * 60_000,
+    1,
+    (data) => data.categories.length > 0 || data.genres.length > 0,
+  );
 
   private readonly CACHE_TTL = {
     home: 2 * 60 * 1000, // 2m
     schedule: 30 * 60 * 1000, // 30m
-    catalog: 5 * 60 * 1000, // 5m
-    filters: 60 * 60 * 1000, // 1h
   };
 
   async getHome(force = false, signal?: AbortSignal): Promise<HomeEpisode[]> {
@@ -87,11 +94,14 @@ export class AnimeAV1Provider implements AnimeProvider {
       return this.cache.home.data;
     }
 
+    const request = ++this.homeRequest;
     try {
       const r = await this.client.get(AV1_BASE_URL, { signal });
+      const rows = parseAv1HomeRaw(r.data);
+      if (rows === null) throw new Error('Portada de AnimeAV1 no reconocida.');
       const eps: HomeEpisode[] = [];
       const seen = new Set<string>();
-      for (const raw of parseAv1HomeRaw(r.data)) {
+      for (const raw of rows) {
         const key = `${raw.slug}-${raw.episode}`;
         if (seen.has(key)) continue;
         seen.add(key);
@@ -99,13 +109,13 @@ export class AnimeAV1Provider implements AnimeProvider {
         if (eps.length >= 24) break;
       }
 
-      if (eps.length > 0) {
-        this.cache.home = { data: eps, timestamp: now };
+      if (request === this.homeRequest) {
+        this.cache.home = { data: eps, timestamp: Date.now() };
       }
       return eps;
     } catch (e) {
       this.logger.error('animeav1 home: ' + errorDetailForLog(e));
-      return [];
+      throw new Error('No se pudo consultar el inicio de AnimeAV1.');
     }
   }
 
@@ -114,10 +124,11 @@ export class AnimeAV1Provider implements AnimeProvider {
     if (!force && this.cache.schedule && now - this.cache.schedule.timestamp < this.CACHE_TTL.schedule) {
       return this.cache.schedule.data;
     }
+    const request = ++this.scheduleRequest;
     try {
       const r = await this.client.get(av1ScheduleUrl(), { signal });
       const data = parseAv1Schedule(r.data);
-      this.cache.schedule = { data, timestamp: now };
+      if (data && request === this.scheduleRequest) this.cache.schedule = { data, timestamp: Date.now() };
       return data;
     } catch (e) {
       this.logger.error('animeav1 schedule: ' + errorDetailForLog(e));
@@ -126,19 +137,11 @@ export class AnimeAV1Provider implements AnimeProvider {
   }
 
   async getFiltersData(force = false): Promise<CatalogFiltersData> {
-    const now = Date.now();
-    if (!force && this.cache.filters && now - this.cache.filters.timestamp < this.CACHE_TTL.filters) {
-      return this.cache.filters.data;
-    }
-
     try {
-      const r = await this.client.get(av1CatalogPageUrl());
-      const data = mapAv1FiltersData(parseAv1Filters(r.data));
-
-      if (data.categories.length > 0 || data.genres.length > 0) {
-        this.cache.filters = { data, timestamp: now };
-      }
-      return data;
+      return await this.filtersCache.read('directory', force, async () => {
+        const r = await this.client.get(av1CatalogPageUrl());
+        return mapAv1FiltersData(parseAv1Filters(r.data));
+      });
     } catch (e) {
       this.logger.error('animeav1 filters: ' + errorDetailForLog(e));
       return { categories: [], genres: [], years: [] };
@@ -146,41 +149,23 @@ export class AnimeAV1Provider implements AnimeProvider {
   }
 
   async getCatalog(filters: CatalogFilters = {}, force = false): Promise<AnimeSearchResult[]> {
-    const cacheKey = JSON.stringify(filters);
-    const now = Date.now();
-    const cached = this.cache.catalog.get(cacheKey);
-    if (!force && cached && now - cached.timestamp < this.CACHE_TTL.catalog) {
-      return cached.data;
-    }
-
     try {
-      const r = await this.client.get(av1CatalogUrl(filters));
-      const html = r.data;
-      let results: AnimeSearchResult[] = [];
-
-      const content = extractResultsContent(html);
-      if (content !== null) {
-        try {
-          const catDict = parseCategoryDict(html);
-          results = parseAv1ResultBlocks(content).map((raw) => mapAv1SearchResult(raw, catDict));
-        } catch (e) {
-          this.logger.error('animeav1 parse svelte: ' + errorDetailForLog(e));
-          results = [];
+      const url = av1CatalogUrl(filters);
+      return await this.catalogCache.read(url, force, async () => {
+        const r = await this.client.get(url);
+        const html = r.data;
+        let results: AnimeSearchResult[] = [];
+        const content = extractResultsContent(html);
+        if (content !== null) {
+          try {
+            const catDict = parseCategoryDict(html);
+            results = parseAv1ResultBlocks(content).map((raw) => mapAv1SearchResult(raw, catDict));
+          } catch (e) {
+            this.logger.error('animeav1 parse svelte: ' + errorDetailForLog(e));
+          }
         }
-      }
-
-      if (results.length === 0) {
-        results = parseCatalogFallback(html, this.logger);
-      }
-
-      if (results.length > 0) {
-        this.cache.catalog.set(cacheKey, { data: results, timestamp: now });
-        if (this.cache.catalog.size > 20) {
-          const oldestKey = this.cache.catalog.keys().next().value;
-          if (oldestKey) this.cache.catalog.delete(oldestKey);
-        }
-      }
-      return results;
+        return results.length ? results : parseCatalogFallback(html, this.logger);
+      });
     } catch (e) {
       this.logger.error('animeav1 search: ' + errorDetailForLog(e));
       return [];

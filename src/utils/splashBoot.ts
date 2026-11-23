@@ -3,6 +3,7 @@
 export const SPLASH_BOOT_TIMEOUT_MS = 15_000;
 export const SPLASH_STATUS_BUFFER_LIMIT = 50;
 export const RENDERER_READY_TIMEOUT_MS = 3_000;
+export const STARTUP_HOME_BUDGET_MS = 1500;
 // Red de seguridad del bootstrap completo (precarga + handoff): si algo se cuelga
 // fuera de esos topes, el splash nunca debe quedarse para siempre.
 export const SPLASH_WATCHDOG_TIMEOUT_MS = 30_000;
@@ -69,6 +70,35 @@ export function waitForRendererReady(isReady: () => boolean, timeoutMs: number, 
       if (ready) done(true);
     }, pollMs);
   });
+}
+
+export async function collectStartupSnapshot<H, C, F, L>(
+  tasks: { home: Promise<H>; catalog: Promise<C>; filters: Promise<F>; libraryMeta: Promise<L> },
+  budgetMs = STARTUP_HOME_BUDGET_MS,
+) {
+  let catalog: C | null = null;
+  let filters: F | null = null;
+  let libraryMeta: L | null = null;
+  void tasks.catalog.then(
+    (value) => {
+      catalog = value;
+    },
+    () => undefined,
+  );
+  void tasks.filters.then(
+    (value) => {
+      filters = value;
+    },
+    () => undefined,
+  );
+  void tasks.libraryMeta.then(
+    (value) => {
+      libraryMeta = value;
+    },
+    () => undefined,
+  );
+  const { value: home } = await withStartupTimeout(tasks.home, budgetMs);
+  return { home, catalog, filters, libraryMeta };
 }
 
 export function buildLibraryScanStatusText(processed: number, total: number): string {

@@ -1,5 +1,6 @@
 import * as cheerio from 'cheerio';
 import { isEpisodeNumber, parseEpisodeNumber } from '../../../utils/episodeNumber';
+import { ProviderReadCache } from '../ProviderReadCache';
 import {
   AnimeSearchResult,
   AnimeDetails,
@@ -78,16 +79,26 @@ export class JkAnimeProvider implements AnimeProvider {
   }
 
   private readonly http: JkHttpClient = createJkHttpClient();
+  private readonly catalogCache = new ProviderReadCache<AnimeSearchResult[]>(
+    120_000,
+    20,
+    (results) => results.length > 0,
+  );
+  private readonly filtersCache = new ProviderReadCache<CatalogFiltersData>(
+    30 * 60_000,
+    1,
+    (data) => data.categories.length > 0 || data.genres.length > 0,
+  );
   // Contextos AJAX por slug para la carga bajo demanda de miniaturas.
   private readonly episodeAjaxContexts = new Map<string, JkEpisodeAjaxContext>();
 
   async getHome(): Promise<HomeEpisode[]> {
     try {
       const { data } = await this.http.get(jkHomeUrl());
-      return collectJkHomeEpisodes(cheerio.load(data));
+      return collectJkHomeEpisodes(cheerio.load(data), true);
     } catch (error) {
       this.logger.error(`jkanime home: ${errorDetailForLog(error)}`);
-      return [];
+      throw new Error('No se pudo consultar el inicio de JkAnime.');
     }
   }
 
@@ -101,7 +112,7 @@ export class JkAnimeProvider implements AnimeProvider {
     }
   }
 
-  async getCatalog(filters: any = {}): Promise<AnimeSearchResult[]> {
+  async getCatalog(filters: any = {}, force = false): Promise<AnimeSearchResult[]> {
     try {
       const page = filters.page || 1;
 
@@ -111,17 +122,20 @@ export class JkAnimeProvider implements AnimeProvider {
         return mapJkCatalogFromSearch(searchResults);
       }
 
-      const { data } = await this.http.get(jkDirectoryResultsUrl(filters));
-      const catalog = extractJkAnimesEntries(data, this.logger);
-      const results: AnimeSearchResult[] = [];
-      for (const item of catalog.entries) {
-        const mapped = mapJkAnimeEntry(item);
-        if (mapped) results.push(mapped);
-        else if (!catalog.recovered) {
-          this.logger.warn('jkanime catalog: entrada de anime descartada (slug/título ausente).');
+      const url = jkDirectoryResultsUrl(filters);
+      return await this.catalogCache.read(url, force, async () => {
+        const { data } = await this.http.get(url);
+        const catalog = extractJkAnimesEntries(data, this.logger);
+        const results: AnimeSearchResult[] = [];
+        for (const item of catalog.entries) {
+          const mapped = mapJkAnimeEntry(item);
+          if (mapped) results.push(mapped);
+          else if (!catalog.recovered) {
+            this.logger.warn('jkanime catalog: entrada de anime descartada (slug/título ausente).');
+          }
         }
-      }
-      return results;
+        return results;
+      });
     } catch (error) {
       this.logger.error(`jkanime catalog: ${errorDetailForLog(error)}`);
       return [];
@@ -388,10 +402,12 @@ export class JkAnimeProvider implements AnimeProvider {
     }
   }
 
-  async getFiltersData(): Promise<CatalogFiltersData> {
+  async getFiltersData(force = false): Promise<CatalogFiltersData> {
     try {
-      const { data } = await this.http.get(jkDirectoryUrl());
-      return mapJkFiltersData(parseJkFilterOptions(cheerio.load(data), this.logger));
+      return await this.filtersCache.read('directory', force, async () => {
+        const { data } = await this.http.get(jkDirectoryUrl());
+        return mapJkFiltersData(parseJkFilterOptions(cheerio.load(data), this.logger));
+      });
     } catch (error) {
       this.logger.error(`jkanime filters: ${errorDetailForLog(error)}`);
       return { genres: [], categories: [], years: [], statuses: [], orders: [] };

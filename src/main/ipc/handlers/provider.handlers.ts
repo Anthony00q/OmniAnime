@@ -3,11 +3,11 @@ import { fail, ok } from '../../../types/api';
 import type { IpcRegistryDependencies } from '../../IpcRegistry';
 
 export function registerProviderHandlers({
-  preloadedData,
+  getPreloadedData,
   providerGateway,
   checkConnectivity,
 }: IpcRegistryDependencies): void {
-  handleIpc('get-preloaded-data', () => ok(preloadedData));
+  handleIpc('get-preloaded-data', async () => ok(await getPreloadedData()));
   handleIpc('get-providers', () => ok(providerGateway.getProvidersList()));
   handleIpc('get-active-provider', () => ok(providerGateway.activeProviderIdName));
   handleIpc('set-active-provider', (_, id) =>

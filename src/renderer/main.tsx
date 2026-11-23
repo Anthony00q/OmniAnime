@@ -145,8 +145,7 @@ async function bootstrap(): Promise<void> {
     </React.StrictMode>,
   );
 
-  // Handoff del splash: avisar al main cuando home está listo para pintar sin
-  // skeleton. Con tope para no retener el splash si la red falla.
+  // No retener el splash una vez que Inicio puede mostrar datos, vacío o error.
   void (async () => {
     const signal = (): void => {
       try {
@@ -160,8 +159,8 @@ async function bootstrap(): Promise<void> {
       if (providerId) {
         const startedAt = Date.now();
         while (Date.now() - startedAt < 2500) {
-          const home = queryClient.getQueryData(['home', providerId]) as unknown;
-          if (Array.isArray(home) && home.length > 0) break;
+          const status = queryClient.getQueryState(['home', providerId])?.status;
+          if (status === 'success' || status === 'error') break;
           await new Promise((resolve) => setTimeout(resolve, 60));
         }
       }
