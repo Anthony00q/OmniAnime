@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.3.4] - 2026-11-22
+
+### Descargas
+
+- La nueva opción **Eliminar carpeta vacía al cancelar** permite elegir si se conserva la carpeta, sin afectar la limpieza de archivos temporales.
+- El indicador de velocidad mantiene las cifras alineadas para reducir los saltos al cambiar el valor mostrado.
+
+### Ajustes
+
+- Las secciones se distinguen con un fondo más discreto, y el consejo de búsqueda deja de ocupar espacio en la barra lateral.
+
+### Interfaz
+
+- El texto seleccionado usa un resaltado neutro en toda la aplicación y respeta los colores del sistema en modo de alto contraste.
+
 ## [1.3.3] - 2026-11-21
 
 ### Catálogo
