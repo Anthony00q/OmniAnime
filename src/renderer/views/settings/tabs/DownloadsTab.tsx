@@ -369,7 +369,7 @@ const DescargasNombrado = memo(function DescargasNombrado({
           <div className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1.5">
             <Eye className="w-3.5 h-3.5" aria-hidden="true" /> Vista previa
           </div>
-          <div className="font-mono text-xs leading-relaxed text-foreground break-all select-text">{namingPreview}</div>
+          <div className="font-mono text-xs leading-relaxed text-foreground break-all select-none">{namingPreview}</div>
         </div>
       </div>
       <div className="mt-5 pt-5 border-t border-border/40 grid grid-cols-1 gap-5 @xl/settings:grid-cols-2">
@@ -390,7 +390,7 @@ const DescargasNombrado = memo(function DescargasNombrado({
           <div className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1.5">
             <FolderDown className="w-3.5 h-3.5" aria-hidden="true" /> Vista previa
           </div>
-          <div className="font-mono text-xs leading-relaxed text-foreground break-all select-text">
+          <div className="font-mono text-xs leading-relaxed text-foreground break-all select-none">
             {folderNamingPreview}
           </div>
         </div>
@@ -401,10 +401,10 @@ const DescargasNombrado = memo(function DescargasNombrado({
       <details className="group mt-3 border-t border-border/40">
         <summary
           data-keep-focus
-          className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 rounded-lg text-sm font-semibold [&::-webkit-details-marker]:hidden"
+          className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground [&::-webkit-details-marker]:hidden"
         >
           Herramientas para renombrar la librería
-          <ChevronDown className="size-4 shrink-0 text-muted-foreground group-open:rotate-180" aria-hidden="true" />
+          <ChevronDown className="size-4 shrink-0 group-open:rotate-180" aria-hidden="true" />
         </summary>
         <div className="mt-2 flex flex-wrap gap-2">
           <button
