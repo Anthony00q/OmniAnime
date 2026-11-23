@@ -15,6 +15,7 @@ interface PosterCardProps {
   disabled?: boolean;
   describedBy?: string;
   priority?: boolean;
+  nearViewport?: boolean;
   ariaLabel?: string;
   progress?: number;
   onClick: () => void;
@@ -34,6 +35,7 @@ export function PosterCard({
   disabled = false,
   describedBy,
   priority = false,
+  nearViewport = false,
   ariaLabel,
   progress,
   onClick,
@@ -66,6 +68,7 @@ export function PosterCard({
           alt={title}
           fallbackLabel={fallbackLabel}
           priority={priority}
+          nearViewport={nearViewport}
           className="absolute inset-0 h-full w-full object-cover"
         />
       </div>

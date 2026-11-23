@@ -231,13 +231,14 @@ export function ScheduleView({ isActive }: { isActive?: boolean }) {
                       <span aria-hidden="true" className="h-px flex-1 self-center bg-border/40" />
                     </div>
                     <ul>
-                      {group.entries.map((entry) => (
+                      {group.entries.map((entry, index) => (
                         <li key={entry.slug} className="schedule-row border-b border-border/40 last:border-0">
                           <ScheduleAgendaRow
                             entry={entry}
                             nowMs={nowMs}
                             onSelect={handleSelectAnime}
                             isNext={entry.slug === nextSlug}
+                            priority={idx === 0 && index < 2}
                           />
                         </li>
                       ))}

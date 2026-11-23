@@ -41,6 +41,7 @@ const CatalogPosterItem = memo(function CatalogPosterItem({ item, priority }: { 
       title={item.title}
       poster={item.poster}
       priority={priority}
+      nearViewport
       badge={
         <>
           {item.category && (

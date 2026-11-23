@@ -14,6 +14,7 @@ interface ScheduleAgendaRowProps {
   nowMs: number;
   onSelect: (slug: string) => void;
   isNext?: boolean;
+  priority?: boolean;
 }
 
 const LABEL_TONE: Record<ScheduleLabelTone, string> = {
@@ -52,6 +53,7 @@ export const ScheduleAgendaRow = memo(function ScheduleAgendaRow({
   nowMs,
   onSelect,
   isNext = false,
+  priority = false,
 }: ScheduleAgendaRowProps) {
   const label = scheduleRowLabel(entry, scheduleEntryState(entry, nowMs));
 
@@ -66,7 +68,13 @@ export const ScheduleAgendaRow = memo(function ScheduleAgendaRow({
       )}
     >
       <span className="h-[96px] w-[64px] shrink-0 overflow-hidden rounded bg-secondary">
-        <PosterImage src={entry.poster} alt={entry.title} className="h-full w-full rounded object-cover" />
+        <PosterImage
+          src={entry.poster}
+          alt={entry.title}
+          className="h-full w-full rounded object-cover"
+          priority={priority}
+          nearViewport
+        />
       </span>
       <span className="min-w-0 flex-1">
         <span className="line-clamp-2 text-[15px] font-semibold leading-snug text-foreground transition-colors group-hover:text-primary">

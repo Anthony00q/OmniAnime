@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ImageOff } from 'lucide-react';
 import clsx from 'clsx';
+import { usePosterWindow } from './usePosterWindow';
 
 interface PosterImageProps {
   src?: string | null;
@@ -8,6 +9,7 @@ interface PosterImageProps {
   fallbackLabel?: string;
   className?: string;
   priority?: boolean;
+  nearViewport?: boolean;
   draggable?: boolean;
   onError?: () => void;
   onLoad?: () => void;
@@ -19,6 +21,7 @@ export function PosterImage({
   fallbackLabel,
   className,
   priority = false,
+  nearViewport = false,
   draggable = false,
   onError,
   onLoad,
@@ -26,6 +29,7 @@ export function PosterImage({
   const [hasError, setHasError] = useState(false);
   const normalizedSrc = typeof src === 'string' ? src.trim() : '';
   const hasSource = normalizedSrc.length > 0;
+  const { ref, waiting } = usePosterWindow(nearViewport && !priority && hasSource && !hasError, priority);
 
   useEffect(() => {
     setHasError(false);
@@ -49,11 +53,15 @@ export function PosterImage({
     );
   }
 
+  if (waiting) {
+    return <div ref={ref} aria-hidden="true" className={clsx('bg-surface', className)} />;
+  }
+
   return (
     <img
       src={normalizedSrc}
       alt={alt}
-      loading={priority ? 'eager' : 'lazy'}
+      loading={priority || nearViewport ? 'eager' : 'lazy'}
       fetchPriority={priority ? 'high' : undefined}
       decoding="async"
       draggable={draggable}

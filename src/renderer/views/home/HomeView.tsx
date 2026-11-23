@@ -39,6 +39,7 @@ const HomePosterItem = memo(function HomePosterItem({ item, priority }: { item: 
       title={item.title}
       poster={item.poster}
       priority={priority}
+      nearViewport
       meta={
         <>
           <span className="shrink-0 text-[11px] font-bold uppercase tracking-[0.08em] text-primary tabular-nums">
