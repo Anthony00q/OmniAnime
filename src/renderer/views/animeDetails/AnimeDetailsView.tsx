@@ -114,7 +114,6 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
     data: anilistBanner,
     isFetching: isBannerFetching,
     isSuccess: isAnilistSuccess,
-    isError: isAnilistError,
     failureReason: anilistFailureReason,
     error: anilistError,
   } = useAniListBanner(anilistInput, anilistEnabled);
@@ -122,7 +121,6 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
   const { data: anilistStudio } = useAniListStudio(anilistInput, anilistEnabled);
   const { data: anilistId } = useAniListId(anilistInput, anilistEnabled);
   const { data: anilistLinkSource } = useAniListLinkSource(anilistInput, anilistEnabled);
-  const isAnilistSettled = isAnilistSuccess || isAnilistError;
   const [bannerFailed, setBannerFailed] = useState(false);
   const [bannerShown, setBannerShown] = useState(false);
   const {
@@ -143,7 +141,6 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
     applyDimRef.current();
   }, []);
   const [graceExpired, setGraceExpired] = useState(false);
-  const [anilistGraceExpired, setAnilistGraceExpired] = useState(false);
   const bannerUrl = !bannerFailed && anilistBanner ? anilistBanner : null;
   const awaitingBanner = !bannerShown && !bannerFailed && (isBannerFetching || !!anilistBanner);
   const showBanner = bannerShown && !!bannerUrl;
@@ -193,7 +190,6 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
     setBannerShown(false);
     innerDimRef.current = 0;
     setGraceExpired(false);
-    setAnilistGraceExpired(false);
     setRangeFrom('1');
     setRangeTo('');
     setRangeError(null);
@@ -262,13 +258,6 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
     const timer = setTimeout(() => setGraceExpired(true), 2000);
     return () => clearTimeout(timer);
   }, [awaitingBanner, bannerShown, graceExpired, slug]);
-
-  // La ficha espera a AniList con tope de 2 s.
-  useEffect(() => {
-    if (!anilistEnabled || isAnilistSettled || anilistGraceExpired) return;
-    const timer = setTimeout(() => setAnilistGraceExpired(true), 2000);
-    return () => clearTimeout(timer);
-  }, [anilistEnabled, isAnilistSettled, anilistGraceExpired, slug]);
 
   const supportsDub = activeProviderId === 'animeav1' && data?.supportsDub === true;
 
@@ -381,21 +370,24 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
     title?: string;
     thumbnail?: string;
   }
-  const allEpisodes = useMemo<VisibleEpisode[]>(() => {
+  const publishedEpisodes = useMemo<VisibleEpisode[]>(() => {
     const eps = data?.episodes;
     if (!eps) return [];
     return eps.map((e: unknown, i: number) => {
       const num = typeof e === 'number' ? e : ((e as { episodeNumber?: number })?.episodeNumber ?? i + 1);
       const title = (e as { title?: string })?.title;
-      const thumbnail = episodeThumbnails?.[num];
-      return { num, title, thumbnail };
+      return { num, title };
     });
-  }, [data?.episodes, episodeThumbnails]);
+  }, [data?.episodes]);
 
-  const allEpNums = useMemo(() => allEpisodes.map((e: { num: number }) => e.num), [allEpisodes]);
+  const episodeNumbers = useMemo(() => publishedEpisodes.map(({ num }) => num), [publishedEpisodes]);
+  const allEpisodes = useMemo(
+    () => publishedEpisodes.map((episode) => ({ ...episode, thumbnail: episodeThumbnails?.[episode.num] })),
+    [publishedEpisodes, episodeThumbnails],
+  );
 
   // Orden + filtro solo-vista: la selección (por número) no se ve afectada.
-  const episodeFilter = useMemo(() => parseEpisodeFilter(epQuery, allEpNums), [epQuery, allEpNums]);
+  const episodeFilter = useMemo(() => parseEpisodeFilter(epQuery, episodeNumbers), [epQuery, episodeNumbers]);
   const visibleEpisodes = useMemo<VisibleEpisode[]>(() => {
     const list = episodeFilter ? allEpisodes.filter((e) => episodeFilter.has(e.num)) : [...allEpisodes];
     list.sort((a, b) => (sortDir === 'asc' ? a.num - b.num : b.num - a.num));
@@ -415,6 +407,7 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
     [visibleEpisodes],
   );
   const { should: shouldVirtualize, containerRef: episodesRef } = useShouldVirtualize(
+    !!data && !isLoading && !isError,
     rows.length,
     cols,
     withThumbs,
@@ -433,10 +426,17 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
     isActive !== false &&
     dataSlug === slug &&
     activeProviderId === deferredProvider;
-  const dub = useDubAvailability(queryClient, deferredProvider, slug, dubVisible, dubEnabled);
+  const dub = useDubAvailability(
+    queryClient,
+    deferredProvider,
+    slug,
+    episodeNumbers,
+    dubVisible.length ? dubVisible : visibleEpNums,
+    dubEnabled,
+  );
   const selectableEpNums = useMemo(
-    () => (selectedLang === 'DUB' ? allEpNums.filter((num) => dub.states[num] === 'available') : allEpNums),
-    [selectedLang, allEpNums, dub.states],
+    () => (selectedLang === 'DUB' ? episodeNumbers.filter((num) => dub.states[num] === 'available') : episodeNumbers),
+    [selectedLang, episodeNumbers, dub.states],
   );
   const selectableSet = useMemo(() => new Set(selectableEpNums), [selectableEpNums]);
   const selectableSetRef = useRef(selectableSet);
@@ -452,7 +452,7 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
       pending = 0,
       errors = 0,
       unsupported = 0;
-    for (const num of allEpNums) {
+    for (const num of episodeNumbers) {
       const state = dub.states[num];
       if (state === 'available') available++;
       else if (!state) pending++;
@@ -460,7 +460,7 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
       else if (state === 'unsupported') unsupported++;
     }
     return { available, pending, errors, unsupported };
-  }, [allEpNums, dub.states]);
+  }, [episodeNumbers, dub.states]);
 
   useEffect(() => {
     if (!dubEnabled || !episodesRef.current) {
@@ -514,7 +514,7 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
       observer.disconnect();
       mutations.disconnect();
     };
-  }, [dubEnabled, episodesRef, shouldVirtualize, epView, rows, isLoading, isAnilistSettled, anilistGraceExpired]);
+  }, [dubEnabled, episodesRef, shouldVirtualize, epView, rows, isLoading]);
 
   const changeLanguage = useCallback(
     (lang: AnimeLanguage) => {
@@ -537,7 +537,7 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
   }, [selectedLang, selectableSet]);
   const lastThumbReqRef = useRef<string>('');
   const requestTailThumbs = useCallback(() => {
-    if (!isActive || deferredProvider !== 'jkanime' || !withThumbs || !data) return;
+    if (!isActive || deferredProvider !== 'jkanime' || !withThumbs || !data || shouldVirtualize === null) return;
     const thumbs = ((data as AnimeDetails).episodeThumbnails || {}) as Record<number, string>;
     let nums: number[];
     if (shouldVirtualize && vlistRef.current) {
@@ -609,7 +609,16 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
     });
   }, []);
 
-  const selectAll = useCallback(() => setSelected(new Set<number>(visibleSelectable)), [visibleSelectable]);
+  const selectAll = useCallback(() => {
+    if (selectedLang === 'DUB' && visibleEpNums.some((num) => !dub.states[num])) {
+      toast.info('Espera a que termine la comprobación de estos episodios.', { id: 'dub-selection-pending' });
+      return;
+    }
+    setSelected(new Set<number>(visibleSelectable));
+    if (selectedLang === 'DUB' && visibleEpNums.some((num) => dub.states[num] === 'error')) {
+      toast.warning('No se incluyeron los episodios que no se pudieron comprobar.', { id: 'dub-selection-errors' });
+    }
+  }, [selectedLang, visibleEpNums, visibleSelectable, dub.states]);
   const selectNone = useCallback(() => setSelected(new Set<number>()), []);
 
   const applyRange = useCallback(() => {
@@ -619,11 +628,21 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
       setRangeError('Introduce un rango válido: el episodio final debe ser igual o mayor que el inicial.');
       return;
     }
+    if (selectedLang === 'DUB' && episodeNumbers.some((num) => num >= from && num <= to && !dub.states[num])) {
+      setRangeError('Todavía se están comprobando episodios de este rango.');
+      return;
+    }
     const inRange = new Set<number>(selectableEpNums.filter((n: number) => n >= from && n <= to));
     setSelected(inRange);
     setRangeError(null);
     setShowRangeModal(false);
-  }, [rangeFrom, rangeTo, selectableEpNums]);
+    if (
+      selectedLang === 'DUB' &&
+      episodeNumbers.some((num) => num >= from && num <= to && dub.states[num] === 'error')
+    ) {
+      toast.warning('No se incluyeron los episodios que no se pudieron comprobar.', { id: 'dub-selection-errors' });
+    }
+  }, [rangeFrom, rangeTo, selectableEpNums, selectedLang, episodeNumbers, dub.states]);
 
   const handleDownloadSelected = async () => {
     if (selected.size === 0) return toast.error('No hay episodios seleccionados');
@@ -674,7 +693,7 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
     );
   }
 
-  if (isLoading || (anilistEnabled && !isAnilistSettled && !anilistGraceExpired)) {
+  if (isLoading) {
     return <LoadingState className="h-full bg-background" label="Cargando detalles" />;
   }
 
@@ -904,7 +923,7 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
                         ? `${visibleEpisodes.length} de ${allEpisodes.length}`
                         : `${allEpisodes.length} disponibles`
                     }
-                    totalEpisodes={allEpNums.length}
+                    totalEpisodes={episodeNumbers.length}
                     counts={dubCounts}
                     checking={dub.checking}
                     onRetry={dub.retry}
@@ -1030,7 +1049,7 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
                 ) : (
                   <div className="py-8 text-center text-sm text-muted-foreground">No hay episodios disponibles</div>
                 )
-              ) : shouldVirtualize ? (
+              ) : shouldVirtualize === null ? null : shouldVirtualize ? (
                 <VList
                   data={rows}
                   ref={vlistRef}
@@ -1317,10 +1336,7 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
             <CustomNumberInput
               value={rangeFrom}
               maximumFractionDigits={20}
-              onChange={(v) => {
-                setRangeError(null);
-                setRangeFrom(v);
-              }}
+              onChange={setRangeFrom}
               min={0}
               ariaLabel="Desde"
               inputClassName="bg-secondary/50 py-2 pl-3 text-sm"
@@ -1332,10 +1348,7 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
             <CustomNumberInput
               value={rangeTo}
               maximumFractionDigits={20}
-              onChange={(v) => {
-                setRangeError(null);
-                setRangeTo(v);
-              }}
+              onChange={setRangeTo}
               min={0}
               ariaLabel="Hasta"
               inputClassName="bg-secondary/50 py-2 pl-3 text-sm"

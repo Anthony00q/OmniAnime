@@ -82,6 +82,7 @@ export function EpisodeAvailabilityControl({
             aria-expanded={open}
             aria-controls="dub-availability-popover"
             aria-label="Ver disponibilidad y opciones de DUB"
+            aria-describedby="dub-availability-summary"
             className="relative ml-auto flex h-8 w-auto max-w-full items-center gap-1.5 rounded-lg px-2 text-xs font-medium tabular-nums text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground before:absolute before:inset-x-0 before:-inset-y-1.5 before:content-['']"
           >
             {(checking || counts.errors > 0) && (
@@ -93,9 +94,9 @@ export function EpisodeAvailabilityControl({
                 )}
               </span>
             )}
-            <span className="min-w-0 truncate">
+            <span id="dub-availability-summary" className="min-w-0 truncate">
               {checking
-                ? 'Comprobando DUB'
+                ? `DUB: ${totalEpisodes - counts.pending} de ${totalEpisodes}`
                 : counts.available > 0
                   ? `${counts.available} ${counts.available === 1 ? 'disponible' : 'disponibles'} en DUB`
                   : counts.errors > 0
@@ -117,9 +118,9 @@ export function EpisodeAvailabilityControl({
       {lang === 'DUB' && (
         <>
           <p id="dub-availability-note" className="sr-only" role="status" aria-live="polite">
-            {checking ? 'Comprobando DUB. ' : ''}
-            {counts.available} disponibles, {counts.pending} sin comprobar, {counts.errors} sin verificar y{' '}
-            {counts.unsupported} sin servidor compatible. Solo puedes seleccionar episodios comprobados y compatibles.
+            {checking
+              ? 'Comprobando DUB. Puedes seleccionar los episodios disponibles.'
+              : `${counts.available} disponibles, ${counts.errors} sin verificar y ${counts.unsupported} sin servidor compatible.`}
           </p>
           <div
             ref={panelRef}

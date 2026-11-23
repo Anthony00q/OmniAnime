@@ -1,6 +1,7 @@
 import { useQuery, type QueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import type { EpisodeAvailability } from '@/types/anime';
+import { scanEpisodeAvailability } from '@/utils/episodeAvailabilityScan';
 import { useDeferredProvider } from './internal';
 import { unwrap } from './unwrap';
 
@@ -45,7 +46,8 @@ export function useDubAvailability(
   queryClient: QueryClient,
   provider: string,
   slug: string,
-  visible: number[],
+  episodes: readonly number[],
+  priority: readonly number[],
   enabled: boolean,
 ) {
   const key = useMemo(() => ['episode-availability', provider, slug, 'DUB'], [provider, slug]);
@@ -55,106 +57,82 @@ export function useDubAvailability(
     enabled: false,
     gcTime: 30 * 60_000,
   });
-  const [checking, setChecking] = useState(false);
-  const [retryEpisodes, setRetryEpisodes] = useState<number[]>([]);
-  const runRef = useRef<{ id: string; cancelled: boolean } | null>(null);
-  const busyRef = useRef(false);
-  const scopeRef = useRef(0);
-  const targets = useMemo(() => [...new Set([...visible, ...retryEpisodes])], [visible, retryEpisodes]);
-
-  const cancel = useCallback(() => {
-    const run = runRef.current;
-    if (run) {
-      run.cancelled = true;
-      void window.api
-        .invoke('cancel-episode-availability', run.id)
-        .then(unwrap)
-        .catch(() => undefined);
-      runRef.current = null;
-    }
-    busyRef.current = false;
-  }, []);
+  const priorityRef = useRef(priority);
+  const retryRef = useRef<(() => void) | null>(null);
+  useEffect(() => {
+    priorityRef.current = priority;
+  }, [priority]);
 
   useEffect(() => {
-    scopeRef.current++;
-    setRetryEpisodes([]);
-    setChecking(false);
-    return cancel;
-  }, [provider, slug, enabled, cancel]);
-
-  useEffect(() => {
-    if (!enabled || provider !== 'animeav1' || busyRef.current) return;
-    const cached = queryClient.getQueryData<AvailabilityCache>(key) || {};
-    const next = targets.filter((ep) => !cached[ep] || cached[ep].expires <= Date.now()).slice(0, 2);
-    if (!next.length) {
-      setChecking(false);
-      if (retryEpisodes.length) setRetryEpisodes([]);
-      return;
-    }
-    const scope = scopeRef.current;
-    const timer = setTimeout(() => {
-      if (scope !== scopeRef.current) return;
-      const run = { id: crypto.randomUUID(), cancelled: false };
-      runRef.current = run;
-      busyRef.current = true;
-      setChecking(true);
-      void window.api
-        .invoke('get-episode-availability', {
-          provider,
-          slug,
-          episodes: next,
-          lang: 'DUB',
-          requestId: run.id,
-        })
-        .then((value) => unwrap(value, { toast: false }) as Record<number, EpisodeAvailability> | null)
-        .catch(() => Object.fromEntries(next.map((ep) => [ep, 'error'])) as Record<number, EpisodeAvailability>)
-        .then((result) => {
-          if (run.cancelled || scope !== scopeRef.current) return;
-          const now = Date.now();
-          queryClient.setQueryData<AvailabilityCache>(key, (old) => {
-            const updated = { ...old };
-            for (const ep of next) {
-              const state = result?.[ep] || 'error';
-              updated[ep] = { state, expires: now + (state === 'available' ? 30 : state === 'error' ? 1 : 5) * 60_000 };
-            }
-            return updated;
-          });
-        })
-        .finally(() => {
-          if (runRef.current !== run) return;
-          runRef.current = null;
-          busyRef.current = false;
-          setChecking(false);
+    if (!enabled || provider !== 'animeav1' || episodes.length === 0) return;
+    const controller = new AbortController();
+    const inFlight = new Set<string>();
+    let scanning = false;
+    const check = async (episode: number) => {
+      const requestId = crypto.randomUUID();
+      inFlight.add(requestId);
+      let state: EpisodeAvailability = 'error';
+      try {
+        const result = await window.api
+          .invoke('get-episode-availability', { provider, slug, episodes: [episode], lang: 'DUB', requestId })
+          .then((value) => unwrap<Record<number, EpisodeAvailability> | null>(value, { toast: false }));
+        state = result?.[episode] ?? 'error';
+      } catch {
+        state = 'error';
+      } finally {
+        inFlight.delete(requestId);
+      }
+      if (!controller.signal.aborted) {
+        queryClient.setQueryData<AvailabilityCache>(key, (old) => ({
+          ...old,
+          [episode]: {
+            state,
+            expires: Date.now() + (state === 'available' ? 30 : state === 'error' ? 1 : 5) * 60_000,
+          },
+        }));
+      }
+    };
+    const start = (shouldCheck: (entry: AvailabilityEntry | undefined) => boolean) => {
+      if (scanning) return;
+      const cached = queryClient.getQueryData<AvailabilityCache>(key) ?? EMPTY_AVAILABILITY_CACHE;
+      const pending = episodes.filter((episode) => shouldCheck(cached[episode]));
+      if (pending.length === 0) return;
+      if (pending.some((episode) => cached[episode])) {
+        queryClient.setQueryData<AvailabilityCache>(key, (old) => {
+          const next = { ...old };
+          for (const episode of pending) delete next[episode];
+          return next;
         });
-    }, 100);
-    return () => clearTimeout(timer);
-  }, [enabled, provider, slug, targets, entries, retryEpisodes, key, queryClient, checking]);
-
-  const states = useMemo(() => {
+      }
+      scanning = true;
+      void scanEpisodeAvailability(pending, controller.signal, () => priorityRef.current, check).finally(() => {
+        scanning = false;
+      });
+    };
     const now = Date.now();
-    return Object.fromEntries(
-      Object.entries(entries)
-        .filter(([, entry]) => entry.expires > now)
-        .map(([ep, entry]) => [ep, entry.state]),
-    ) as Record<number, EpisodeAvailability>;
-  }, [entries]);
-  const retry = useCallback(() => {
-    const cached = queryClient.getQueryData<AvailabilityCache>(key) || {};
-    setRetryEpisodes(
-      Object.entries(cached)
-        .filter(([, entry]) => entry.state === 'error')
-        .map(([ep]) => Number(ep)),
-    );
-    queryClient.setQueryData<AvailabilityCache>(key, (old) =>
-      Object.fromEntries(Object.entries(old || {}).filter(([, entry]) => entry.state !== 'error')),
-    );
-  }, [queryClient, key]);
+    start((entry) => !entry || entry.expires <= now);
+    retryRef.current = () => start((entry) => entry?.state === 'error');
+    return () => {
+      retryRef.current = null;
+      controller.abort();
+      for (const requestId of inFlight) {
+        void window.api
+          .invoke('cancel-episode-availability', requestId)
+          .then((value) => unwrap(value, { toast: false }))
+          .catch(() => undefined);
+      }
+    };
+  }, [enabled, provider, slug, episodes, key, queryClient]);
 
-  const now = Date.now();
-  const checkingTargets =
-    enabled &&
-    provider === 'animeav1' &&
-    (checking || targets.some((ep) => !entries[ep] || entries[ep].expires <= now));
-
-  return { states, checking: checkingTargets, retry };
+  const states = useMemo(
+    () =>
+      Object.fromEntries(Object.entries(entries).map(([ep, entry]) => [ep, entry.state])) as Record<
+        number,
+        EpisodeAvailability
+      >,
+    [entries],
+  );
+  const retry = useCallback(() => retryRef.current?.(), []);
+  const checking = enabled && provider === 'animeav1' && episodes.some((ep) => !entries[ep]);
+  return { states, checking, retry };
 }

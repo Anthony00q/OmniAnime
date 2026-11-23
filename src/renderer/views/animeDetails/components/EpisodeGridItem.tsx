@@ -27,6 +27,7 @@ export const EpisodeGridItem = memo(
     onContextMenu,
   }: EpisodeGridItemProps) {
     const blocked = availability !== undefined && availability !== 'available';
+    const showThumbnail = !isListView && Boolean(thumbnail);
     const stateLabel =
       availability === 'pending'
         ? 'DUB sin comprobar'
@@ -61,7 +62,7 @@ export const EpisodeGridItem = memo(
           aria-describedby={availability ? 'dub-availability-note' : undefined}
           data-episode-number={num}
           aria-label={`Episodio ${num}${title && title !== 'Sin título' ? `: ${title}` : ''}${stateLabel ? `. ${stateLabel}` : ''}. Clic derecho para cambiar la vista.`}
-          className={`${isListView ? 'details-episode-row' : 'details-episode-card'} ${blocked ? 'cursor-not-allowed' : ''} group relative flex flex-col overflow-hidden rounded-xl border text-left transition-[background-color,border-color,box-shadow,color] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 ${
+          className={`${isListView ? 'details-episode-row' : 'details-episode-card'} ${blocked ? 'cursor-not-allowed' : ''} @container/episode-tile group relative flex flex-col overflow-hidden rounded-xl border text-left transition-[background-color,border-color,box-shadow,color] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 ${
             isChecked
               ? isListView
                 ? 'bg-primary/15 border-primary/70 shadow-[0_8px_24px_rgba(0,0,0,0.35)]'
@@ -71,38 +72,39 @@ export const EpisodeGridItem = memo(
                 : 'bg-card border-border/50 hover:border-primary/50 hover:bg-secondary/50'
           }`}
         >
-          <span className="relative block aspect-video w-full shrink-0 overflow-hidden bg-secondary/50">
-            {thumbnail ? (
-              <PosterImage
-                src={thumbnail}
-                alt=""
-                className="h-full w-full object-cover"
-                fallbackLabel={`EP ${num}`}
-                draggable={false}
-              />
+          <span
+            className={`relative aspect-video w-full shrink-0 overflow-hidden bg-secondary/50 ${showThumbnail ? 'block' : isListView ? 'flex min-h-12' : 'flex min-h-[76px] @[128px]/episode-tile:min-h-[60px]'}`}
+          >
+            {showThumbnail ? (
+              <PosterImage src={thumbnail} alt="" className="h-full w-full object-cover" />
             ) : (
               <span
-                className={`flex h-full w-full flex-col items-center justify-center gap-0.5 py-2 text-center ${isListView ? 'px-7' : 'px-2'}`}
+                className={`flex w-full flex-col items-center justify-center gap-0.5 px-1.5 text-center ${isListView ? '' : 'pt-6 pb-1.5 @[128px]/episode-tile:py-2'}`}
               >
-                <span className="max-w-full truncate text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
+                <span
+                  className={`text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground ${isListView ? 'max-w-[calc(100%-2.75rem)] truncate leading-3.5' : 'max-w-full leading-4'}`}
+                >
                   Episodio
                 </span>
                 <span
-                  className={`max-w-full truncate text-xl font-bold tabular-nums sm:text-2xl ${isListView && isChecked ? 'text-primary' : blocked ? 'text-muted-foreground' : 'text-foreground'}`}
+                  className={`max-w-full text-xl font-bold tabular-nums ${isListView ? 'leading-6 sm:text-2xl/6' : 'leading-7 sm:text-2xl/7'} ${isChecked ? 'text-primary' : blocked ? 'text-muted-foreground' : 'text-foreground'}`}
                 >
                   {num}
                 </span>
               </span>
             )}
-            {thumbnail && (
+            {showThumbnail && (
               <span
                 aria-hidden="true"
                 className={`pointer-events-none absolute inset-0 bg-background/50 transition-opacity duration-[var(--duration-motion-micro)] motion-reduce:transition-none ${blocked ? 'opacity-100' : 'opacity-0'}`}
               />
             )}
-            {isListView ? (
+            {!showThumbnail ? (
               isChecked && (
-                <span className="absolute right-1.5 top-1.5 rounded-full bg-primary p-1 text-primary-foreground shadow-md">
+                <span
+                  aria-hidden="true"
+                  className="pointer-events-none absolute right-1.5 top-1.5 rounded-full bg-primary p-0.5 text-primary-foreground shadow-md @[128px]/episode-tile:p-1"
+                >
                   <CheckSquare className="h-3.5 w-3.5" />
                 </span>
               )
@@ -119,12 +121,12 @@ export const EpisodeGridItem = memo(
                 </span>
                 <span
                   aria-hidden="true"
-                  className={`absolute inset-0 flex items-center justify-center transition-[opacity,transform] duration-150 [transition-timing-function:var(--ease-out)] ${
-                    isChecked ? 'scale-100 opacity-100' : 'pointer-events-none scale-90 opacity-0'
+                  className={`pointer-events-none absolute inset-0 flex items-start justify-end p-1.5 transition-[opacity,transform] duration-150 [transition-timing-function:var(--ease-out)] @[160px]/episode-tile:items-center @[160px]/episode-tile:justify-center ${
+                    isChecked ? 'scale-100 opacity-100' : 'scale-90 opacity-0'
                   }`}
                 >
-                  <span className="rounded-full bg-primary p-2 text-primary-foreground shadow-lg">
-                    <CheckSquare className="h-4 w-4" />
+                  <span className="rounded-full bg-primary p-1 text-primary-foreground shadow-md @[160px]/episode-tile:p-2 @[160px]/episode-tile:shadow-lg">
+                    <CheckSquare className="size-3.5 @[160px]/episode-tile:size-4" />
                   </span>
                 </span>
               </>
@@ -132,7 +134,7 @@ export const EpisodeGridItem = memo(
             {StateIcon && (
               <span
                 aria-hidden="true"
-                className={`pointer-events-none absolute right-1.5 ${isListView ? 'bottom-1.5' : 'top-1.5'} flex h-5 w-5 items-center justify-center rounded-md bg-background/90 text-muted-foreground`}
+                className={`pointer-events-none absolute right-1.5 top-1.5 ${showThumbnail ? '' : '@[128px]/episode-tile:top-auto @[128px]/episode-tile:bottom-1.5'} flex size-5 items-center justify-center rounded-md bg-background/90 text-muted-foreground`}
               >
                 <StateIcon className="h-3 w-3" />
               </span>

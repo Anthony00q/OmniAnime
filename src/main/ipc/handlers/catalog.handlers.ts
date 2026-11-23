@@ -1,5 +1,6 @@
 import { dialog } from 'electron';
 import { isEpisodeNumber } from '../../../utils/episodeNumber';
+import { EPISODE_AVAILABILITY_CONCURRENCY } from '../../../utils/episodeAvailabilityScan';
 import { handleIpc } from '../ipcGuard';
 import axios from 'axios';
 import { ok, fail } from '../../../types/api';
@@ -18,7 +19,7 @@ export function registerCatalogHandlers({
   getAnimeDetailsBySlug,
   writeGlobalLog,
 }: IpcRegistryDependencies): void {
-  const availabilityRuns = new Map<number, { id: string; controller: AbortController }>();
+  const availabilityRuns = new Map<number, Map<string, { controller: AbortController; size: number }>>();
   const resolveProvider = (id: unknown) => {
     const key = typeof id === 'string' ? id.trim() : '';
     if (!key) return providerGateway.activeProvider;
@@ -249,7 +250,8 @@ export function registerCatalogHandlers({
         typeof payload.slug !== 'string' ||
         !/^[a-z0-9][a-z0-9-]{0,199}$/i.test(payload.slug) ||
         !Array.isArray(payload.episodes) ||
-        payload.episodes.length > 2 ||
+        payload.episodes.length === 0 ||
+        payload.episodes.length > EPISODE_AVAILABILITY_CONCURRENCY ||
         !payload.episodes.every((ep) => isEpisodeNumber(ep) && ep > 0 && ep <= 100_000) ||
         typeof payload.requestId !== 'string' ||
         !/^[a-z0-9-]{1,100}$/i.test(payload.requestId)
@@ -261,29 +263,38 @@ export function registerCatalogHandlers({
       const sender = event.sender;
       if (sender.isDestroyed?.()) return ok(null);
       const senderId: number = sender.id;
-      availabilityRuns.get(senderId)?.controller.abort();
-      const run = { id: payload.requestId, controller: new AbortController() };
-      availabilityRuns.set(senderId, run);
+      const episodes = [...new Set(payload.episodes)];
+      const runs = availabilityRuns.get(senderId) ?? new Map();
+      const occupied = [...runs.values()].reduce(
+        (count, run) => count + (run.controller.signal.aborted ? 0 : run.size),
+        0,
+      );
+      if (runs.has(payload.requestId) || occupied + episodes.length > EPISODE_AVAILABILITY_CONCURRENCY) {
+        return fail('AVAILABILITY_BUSY', 'Ya hay comprobaciones de doblaje en curso.');
+      }
+      const run = { controller: new AbortController(), size: episodes.length };
+      runs.set(payload.requestId, run);
+      availabilityRuns.set(senderId, runs);
       const abort = () => run.controller.abort();
       sender.once('destroyed', abort);
       try {
         const result: Record<number, EpisodeAvailability> = {};
         await Promise.all(
-          [...new Set(payload.episodes)].map(async (ep) => {
+          episodes.map(async (ep) => {
             result[ep] = await provider.getEpisodeAvailability!(payload.slug!, ep, 'DUB', run.controller.signal);
           }),
         );
         return ok(run.controller.signal.aborted ? null : result);
       } finally {
         sender.removeListener('destroyed', abort);
-        if (availabilityRuns.get(senderId) === run) availabilityRuns.delete(senderId);
+        runs.delete(payload.requestId);
+        if (runs.size === 0) availabilityRuns.delete(senderId);
       }
     },
   );
 
   handleIpc('cancel-episode-availability', (event, requestId: unknown) => {
-    const run = availabilityRuns.get(event.sender.id);
-    if (run && run.id === requestId) run.controller.abort();
+    if (typeof requestId === 'string') availabilityRuns.get(event.sender.id)?.get(requestId)?.controller.abort();
     return ok(null);
   });
 

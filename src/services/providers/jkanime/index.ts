@@ -49,6 +49,19 @@ import {
 // Eager topado en 12 páginas (~192); la cola va bajo demanda.
 const JK_EPISODE_PAGES_MAX = 12;
 
+async function mapEpisodePages<T>(first: number, last: number, load: (page: number) => Promise<T>): Promise<T[]> {
+  const results: T[] = [];
+  let next = first;
+  const worker = async () => {
+    while (next <= last) {
+      const page = next++;
+      results[page - first] = await load(page);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(3, last - first + 1) }, worker));
+  return results;
+}
+
 // Contexto AJAX por slug con TTL corto.
 const JK_EPISODE_CONTEXT_TTL_MS = 120_000;
 // Tope de episodios por petición bajo demanda: acota el canal IPC.
@@ -248,28 +261,23 @@ export class JkAnimeProvider implements AnimeProvider {
       const lastPage = Math.min(ctx.lastPage, Math.floor((to - 1) / ctx.pageSize) + 1);
       if (firstPage > ctx.lastPage) return {};
       const out: Record<number, string> = {};
-      for (let blockStart = firstPage; blockStart <= lastPage; blockStart += 3) {
-        const block = [blockStart, blockStart + 1, blockStart + 2].filter((page) => page <= lastPage);
-        const results = await Promise.all(
-          block.map(async (page) => {
-            try {
-              const pageParams = new URLSearchParams({ _token: ctx.token, id: ctx.animeId, p: String(page) });
-              const rp = await this.http.post(jkEpisodesAjaxUrl(ctx.animeId, page), pageParams.toString(), {
-                headers: {
-                  'Content-Type': 'application/x-www-form-urlencoded',
-                  'X-Requested-With': 'XMLHttpRequest',
-                  Cookie: ctx.cookieStr,
-                  Referer: jkAnimePageUrl(String(slug).trim()),
-                },
-              });
-              return collectJkEpisodeThumbs(rp.data?.data, ctx.img);
-            } catch {
-              return {};
-            }
-          }),
-        );
-        for (const thumbs of results) Object.assign(out, thumbs);
-      }
+      const results = await mapEpisodePages(firstPage, lastPage, async (page) => {
+        try {
+          const pageParams = new URLSearchParams({ _token: ctx.token, id: ctx.animeId, p: String(page) });
+          const rp = await this.http.post(jkEpisodesAjaxUrl(ctx.animeId, page), pageParams.toString(), {
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+              'X-Requested-With': 'XMLHttpRequest',
+              Cookie: ctx.cookieStr,
+              Referer: jkAnimePageUrl(String(slug).trim()),
+            },
+          });
+          return collectJkEpisodeThumbs(rp.data?.data, ctx.img);
+        } catch {
+          return {};
+        }
+      });
+      for (const thumbs of results) Object.assign(out, thumbs);
       // Solo el rango pedido: el mapa por página puede traer vecinos.
       const ranged: Record<number, string> = {};
       for (const [key, url] of Object.entries(out)) {
@@ -340,28 +348,18 @@ export class JkAnimeProvider implements AnimeProvider {
             typeof lastPage === 'number' && Number.isFinite(lastPage)
               ? Math.min(Math.max(1, Math.floor(lastPage)), JK_EPISODE_PAGES_MAX)
               : 1;
-          // Bloques de 3: misma carga que en secuencial; un fallo aísla su página.
-          for (let blockStart = 2; blockStart <= pages; blockStart += 3) {
-            const block = [blockStart, blockStart + 1, blockStart + 2].filter((page) => page <= pages);
-            const results = await Promise.all(
-              block.map(async (page) => {
-                try {
-                  const pageParams = new URLSearchParams(params.toString());
-                  pageParams.set('p', String(page));
-                  const rp = await this.http.post(
-                    jkEpisodesAjaxUrl(animeId, page),
-                    pageParams.toString(),
-                    ajaxConfig(),
-                  );
-                  collectEpisodes(rp.data?.data);
-                  return collectJkEpisodeThumbs(rp.data?.data, img);
-                } catch {
-                  return {};
-                }
-              }),
-            );
-            for (const thumbs of results) Object.assign(episodeThumbnails, thumbs);
-          }
+          const results = await mapEpisodePages(2, pages, async (page) => {
+            try {
+              const pageParams = new URLSearchParams(params);
+              pageParams.set('p', String(page));
+              const rp = await this.http.post(jkEpisodesAjaxUrl(animeId, page), pageParams.toString(), ajaxConfig());
+              collectEpisodes(rp.data?.data);
+              return collectJkEpisodeThumbs(rp.data?.data, img);
+            } catch {
+              return {};
+            }
+          });
+          for (const thumbs of results) Object.assign(episodeThumbnails, thumbs);
         }
       } catch (e) {
         this.logger.warn(`jkanime details: sin conteo exacto de episodios, fallback. ${errorDetailForLog(e)}`);
