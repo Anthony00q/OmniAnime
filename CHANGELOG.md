@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.3.5] - 2026-11-24
+
+### General
+
+- La ventana principal puede abrirse aunque el catálogo y la librería sigan cargando.
+
+### Catálogo
+
+- En AnimeAV1, al elegir **DUB**, la ficha comprueba el doblaje de todos los episodios sin tener que recorrer la lista. El contador indica cuántos se han comprobado.
+- En modo DUB, la ficha avisa si aún hay episodios por comprobar al intentar seleccionar todos los visibles o un rango.
+- La ficha muestra los datos del anime y sus episodios aunque la información de AniList todavía no haya llegado.
+- Si falla una actualización manual de **Inicio** u **Horarios**, aparece un aviso y el contenido anterior sigue a la vista.
+- Inicio, Horarios y Catálogo dan prioridad a las portadas visibles. Las demás se van cargando al desplazarse.
+- La lista de episodios muestra el número en lugar de la miniatura. En las tarjetas estrechas, la marca de selección queda en una esquina.
+
+### Ajustes
+
+- En **Archivos y carpetas**, el texto de las vistas previas de nombres ya no se puede seleccionar por accidente.
+
 ## [1.3.4] - 2026-11-22
 
 ### Descargas
