@@ -24,7 +24,6 @@ import {
   ChevronDown,
   ChevronUp,
   Link2,
-  Loader2,
   RefreshCcw,
   ListFilter,
 } from 'lucide-react';
@@ -46,7 +45,7 @@ import { useEpisodeView } from '@/renderer/utils/episodeView';
 import { EpisodeViewMenu } from '@/renderer/views/library/components/EpisodeViewMenu';
 import { normalizeSeasonLabel } from '@/renderer/utils/seasonLabel';
 import { HERO_DIM_MAX, HERO_DIM_DISTANCE, createHeroDimController } from '@/renderer/utils/heroDim';
-import { useHeroReveal, useReducedMotion, useBusySpin } from '@/renderer/utils/motion';
+import { useReducedMotion, useBusySpin } from '@/renderer/utils/motion';
 import { buildExternalUrl, buildAniListUrl } from '@/utils/security/externalUrl';
 import {
   useAnimeDetails,
@@ -74,6 +73,7 @@ import type { AnimeDetails, AnimeLanguage } from '@/types/anime';
 
 import { getStatusStyles } from '@/renderer/views/animeDetails/model/animeDetailsModel';
 import { EpisodeGridItem } from '@/renderer/views/animeDetails/components/EpisodeGridItem';
+import { DetailsHeroBanner } from '@/renderer/views/animeDetails/components/DetailsHeroBanner';
 import { EpisodeAvailabilityControl } from '@/renderer/views/animeDetails/components/EpisodeAvailabilityControl';
 import { FranchiseRelationItem } from '@/renderer/views/animeDetails/components/FranchiseRelationItem';
 import { AniListLinkDialog } from '@/renderer/views/animeDetails/components/AniListLinkDialog';
@@ -121,8 +121,6 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
   const { data: anilistStudio } = useAniListStudio(anilistInput, anilistEnabled);
   const { data: anilistId } = useAniListId(anilistInput, anilistEnabled);
   const { data: anilistLinkSource } = useAniListLinkSource(anilistInput, anilistEnabled);
-  const [bannerFailed, setBannerFailed] = useState(false);
-  const [bannerShown, setBannerShown] = useState(false);
   const {
     ref: anilistRetryIconRef,
     busy: isAnilistRetrying,
@@ -140,12 +138,6 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
     innerDimRef.current = ratio * HERO_DIM_MAX;
     applyDimRef.current();
   }, []);
-  const [graceExpired, setGraceExpired] = useState(false);
-  const bannerUrl = !bannerFailed && anilistBanner ? anilistBanner : null;
-  const awaitingBanner = !bannerShown && !bannerFailed && (isBannerFetching || !!anilistBanner);
-  const showBanner = bannerShown && !!bannerUrl;
-  const showShimmer = !bannerShown && awaitingBanner && !graceExpired;
-  const revealRef = useHeroReveal<HTMLDivElement>(showBanner ? bannerUrl : null);
   const reducedMotion = useReducedMotion();
   const isActiveRef = useRef(isActive);
   useEffect(() => {
@@ -186,10 +178,7 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
     setSelected(new Set());
     selectionsRef.current = { SUB: new Set(), DUB: new Set() };
     setSelectedLang('SUB');
-    setBannerFailed(false);
-    setBannerShown(false);
     innerDimRef.current = 0;
-    setGraceExpired(false);
     setRangeFrom('1');
     setRangeTo('');
     setRangeError(null);
@@ -252,13 +241,6 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
     };
   }, [scrollNode, bannerFadeNode, slug, reducedMotion]);
 
-  // Pasados 2 s sin banner, el hero queda en plano; si llega, disuelve igual.
-  useEffect(() => {
-    if (!awaitingBanner || bannerShown || graceExpired) return;
-    const timer = setTimeout(() => setGraceExpired(true), 2000);
-    return () => clearTimeout(timer);
-  }, [awaitingBanner, bannerShown, graceExpired, slug]);
-
   const supportsDub = activeProviderId === 'animeav1' && data?.supportsDub === true;
 
   const outputDirs = useAtomValue(outputDirsAtom);
@@ -305,9 +287,20 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
   const linkedAnilistId = currentAnilistId ?? rememberedAnilistLink?.id ?? null;
   const isAnilistUnavailable = !!anilistFailure;
   const showAnilistRecovery = isAnilistUnavailable || isAnilistRetrying;
+  const isAnilistPending = isBannerFetching && !isAnilistSuccess && !showAnilistRecovery;
+  const [showAnilistPending, setShowAnilistPending] = useState(false);
+  useEffect(() => {
+    if (!isAnilistPending) {
+      setShowAnilistPending(false);
+      return;
+    }
+    const timer = setTimeout(() => setShowAnilistPending(true), 250);
+    return () => clearTimeout(timer);
+  }, [isAnilistPending]);
   const canLinkAnilist = isAnilistSuccess && !isAnilistUnavailable && !isBannerFetching && !linkedAnilistId;
   const isManualAnilistLink = (currentLinkSource ?? rememberedAnilistLink?.source) === 'manual';
   const anilistUrl = useMemo(() => buildAniListUrl(linkedAnilistId), [linkedAnilistId]);
+  const [providerIconFailed, setProviderIconFailed] = useState(false);
   const [anilistIconFailed, setAnilistIconFailed] = useState(false);
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
 
@@ -316,8 +309,9 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
   }, [showAnilistRecovery]);
 
   useEffect(() => {
+    setProviderIconFailed(false);
     setAnilistIconFailed(false);
-  }, [slug]);
+  }, [activeProviderId, slug]);
 
   const handleOpenExternal = useCallback(async () => {
     if (!externalUrl) return;
@@ -726,37 +720,15 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
     <div className="relative flex h-full min-w-0 flex-col overflow-hidden bg-background">
       <div
         style={heroBottom > 0 ? { height: `max(46vh, ${heroBottom}px)` } : undefined}
-        className="absolute left-0 top-0 z-0 h-[46vh] min-h-[240px] w-full overflow-hidden bg-background"
+        className="absolute left-0 top-0 z-0 h-[46vh] min-h-[240px] w-full overflow-hidden bg-background bg-gradient-to-b from-secondary/20 via-background/60 to-background"
       >
-        {bannerUrl && (
-          <div ref={setBannerFadeNode} className="absolute inset-0">
-            <div ref={revealRef} className={`absolute inset-0 ${showBanner ? '' : 'invisible opacity-0'}`}>
-              <PosterImage
-                src={bannerUrl}
-                alt={`Banner de ${data.title}`}
-                priority={!!isActive}
-                onLoad={() => setBannerShown(true)}
-                onError={() => setBannerFailed(true)}
-                className="h-full w-full object-cover object-[center_20%]"
-              />
-            </div>
-          </div>
-        )}
-        {showShimmer && <div aria-hidden="true" className="absolute inset-0 animate-pulse bg-secondary/40" />}
-        {showBanner ? (
-          <>
-            <div aria-hidden="true" className="absolute inset-0 bg-black/20" />
-            <div
-              aria-hidden="true"
-              className="absolute inset-0 bg-gradient-to-r from-background/80 via-background/35 to-transparent"
-            />
-            <div aria-hidden="true" className="hero-top-fade" />
-            <div aria-hidden="true" className="hero-bottom-fade" />
-          </>
-        ) : (
-          <div
-            aria-hidden="true"
-            className="absolute inset-0 bg-gradient-to-b from-secondary/20 via-background/60 to-background"
+        {anilistBanner && (
+          <DetailsHeroBanner
+            key={anilistBanner}
+            src={anilistBanner}
+            title={data.title}
+            priority={isActive !== false}
+            onDimNode={setBannerFadeNode}
           />
         )}
       </div>
@@ -1129,14 +1101,6 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
                     {data.type || 'TV'}
                   </span>
                 </li>
-                {anilistStudio && (
-                  <li className="flex items-center justify-between gap-3 border-b border-border/40 py-2.5 last:border-0">
-                    <span className="text-[13px] text-muted-foreground">Estudio</span>
-                    <span className="min-w-0 text-right text-sm font-medium text-foreground [overflow-wrap:anywhere]">
-                      {anilistStudio}
-                    </span>
-                  </li>
-                )}
                 {normalizeSeasonLabel(data.season) && (
                   <li className="flex items-center justify-between gap-3 border-b border-border/40 py-2.5 last:border-0">
                     <span className="text-[13px] text-muted-foreground">Temporada</span>
@@ -1154,12 +1118,12 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
                   </li>
                 )}
                 {externalUrl && (
-                  <li className="border-b border-border/40 py-2.5 last:border-0">
+                  <li className="py-2.5">
                     <div className="flex items-center justify-between gap-3">
                       <span className="text-[13px] text-muted-foreground">Fuente</span>
                       <span
                         data-details-source-actions
-                        className="inline-flex min-w-0 flex-wrap items-center justify-end gap-4"
+                        className="grid shrink-0 grid-cols-[30px_46px_30px] items-center gap-4"
                       >
                         <AppTooltip content={`Ver en ${providerName}`}>
                           <button
@@ -1167,28 +1131,32 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
                             onClick={handleOpenExternal}
                             data-details-provider-action
                             aria-label={`Abrir ${data.title} en ${providerName} en el navegador`}
-                            className={`relative inline-flex items-center justify-center gap-2 rounded-md border border-transparent bg-secondary/50 py-1 text-xs font-medium text-foreground transition-colors after:absolute after:-inset-2 hover:bg-secondary hover:border-border/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 ${anilistUrl ? 'px-1' : 'px-2'}`}
+                            className="relative inline-flex h-[30px] items-center justify-center rounded-md border border-transparent bg-secondary/50 text-[11px] font-medium text-foreground transition-colors after:absolute after:-inset-2 hover:bg-secondary hover:border-border/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
                           >
-                            <img
-                              src={activeProviderId === 'jkanime' ? jkanimeIcon : animeav1Icon}
-                              srcSet={`${activeProviderId === 'jkanime' ? jkanimeIcon2x : animeav1Icon2x} 2x`}
-                              width={20}
-                              height={20}
-                              alt=""
-                              aria-hidden="true"
-                              draggable={false}
-                              decoding="async"
-                              className="h-5 w-5 rounded-[3px] object-contain"
-                              onError={(e) => {
-                                (e.currentTarget as HTMLImageElement).style.display = 'none';
-                              }}
-                            />
-                            {!anilistUrl && <span>{providerName}</span>}
+                            {providerIconFailed ? (
+                              <span aria-hidden="true">{activeProviderId === 'jkanime' ? 'JK' : 'AV1'}</span>
+                            ) : (
+                              <img
+                                src={activeProviderId === 'jkanime' ? jkanimeIcon : animeav1Icon}
+                                srcSet={`${activeProviderId === 'jkanime' ? jkanimeIcon2x : animeav1Icon2x} 2x`}
+                                width={20}
+                                height={20}
+                                alt=""
+                                aria-hidden="true"
+                                draggable={false}
+                                decoding="async"
+                                className="h-5 w-5 rounded-[3px] object-contain"
+                                onError={() => setProviderIconFailed(true)}
+                              />
+                            )}
                           </button>
                         </AppTooltip>
-                        {anilistUrl && (
-                          <>
-                            <span aria-hidden="true" className="-mx-2 text-xs text-muted-foreground">
+                        {anilistUrl ? (
+                          <span className="relative col-start-2 flex justify-center">
+                            <span
+                              aria-hidden="true"
+                              className="pointer-events-none absolute -left-1 top-1/2 -translate-x-1/2 -translate-y-1/2 text-xs text-muted-foreground"
+                            >
                               /
                             </span>
                             <AppTooltip content="Ver en AniList">
@@ -1216,15 +1184,21 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
                                 )}
                               </button>
                             </AppTooltip>
-                          </>
-                        )}
+                          </span>
+                        ) : isAnilistPending && showAnilistPending ? (
+                          <span
+                            role="status"
+                            aria-label="Consultando AniList"
+                            className="col-start-2 h-1.5 w-4 justify-self-center rounded-full bg-border-strong/50"
+                          />
+                        ) : null}
                         {!showAnilistRecovery && !isBannerFetching && (anilistUrl || canLinkAnilist) && (
                           <AppTooltip content={anilistUrl ? 'Cambiar vínculo de AniList' : 'Vincular con AniList'}>
                             <button
                               type="button"
                               onClick={() => setLinkDialogOpen(true)}
                               aria-label={anilistUrl ? 'Cambiar el vínculo de AniList' : 'Vincular con AniList'}
-                              className="relative inline-flex items-center justify-center rounded-md border border-transparent bg-secondary/50 p-1 text-foreground transition-colors after:absolute after:-inset-2 hover:bg-secondary hover:border-border/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                              className="relative col-start-3 inline-flex items-center justify-center rounded-md border border-transparent bg-secondary/50 p-1 text-foreground transition-colors after:absolute after:-inset-2 hover:bg-secondary hover:border-border/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
                             >
                               <Link2 className="h-5 w-5" aria-hidden="true" />
                             </button>
@@ -1255,7 +1229,7 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
                                     });
                                   });
                               }}
-                              className="relative inline-flex items-center justify-center rounded-md border border-transparent bg-secondary/50 p-1 text-foreground transition-colors after:absolute after:-inset-2 hover:bg-secondary hover:border-border/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:cursor-default"
+                              className="relative col-start-3 inline-flex items-center justify-center rounded-md border border-transparent bg-secondary/50 p-1 text-foreground transition-colors after:absolute after:-inset-2 hover:bg-secondary hover:border-border/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:cursor-default"
                             >
                               <RefreshCcw
                                 ref={anilistRetryIconRef}
@@ -1264,14 +1238,6 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
                               />
                             </button>
                           </AppTooltip>
-                        ) : isBannerFetching && !anilistUrl ? (
-                          <span
-                            role="status"
-                            aria-label="Consultando AniList"
-                            className="rounded-md border border-transparent p-1 text-muted-foreground"
-                          >
-                            <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />
-                          </span>
                         ) : null}
                       </span>
                     </div>
@@ -1283,6 +1249,21 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
                       >
                         No se pudo consultar AniList.
                       </p>
+                    )}
+                  </li>
+                )}
+                {(anilistStudio || isAnilistPending) && (
+                  <li
+                    aria-hidden={!anilistStudio || undefined}
+                    className={`flex min-h-[41px] items-center justify-between gap-3 border-t border-border/40 py-2.5 ${!anilistStudio && !showAnilistPending ? 'invisible' : ''}`}
+                  >
+                    <span className="text-[13px] text-muted-foreground">Estudio</span>
+                    {anilistStudio ? (
+                      <span className="min-w-0 text-right text-sm font-medium text-foreground [overflow-wrap:anywhere]">
+                        {anilistStudio}
+                      </span>
+                    ) : (
+                      <span className="h-2 w-16 rounded-full bg-border-strong/50" />
                     )}
                   </li>
                 )}
