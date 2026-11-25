@@ -308,38 +308,12 @@ export function DownloaderView({ onSelectAnime, activeProvider, isActive = true 
     () => queue.some((i: any) => i.status === 'done' || i.status === 'failed' || i.status === 'cancelled'),
     [queue],
   );
-  const activeCount = queue.filter((item) => item.status === 'downloading').length;
-  const pausedCount = queue.filter((item) => item.status === 'paused').length;
-  const waitingCount = queue.filter((item) => item.status === 'pending').length;
-  const issueCount = queue.filter((item) => item.status === 'failed' || (item.failedEps?.length ?? 0) > 0).length;
-  const queueSummary = [
-    activeCount && `${activeCount} en curso`,
-    waitingCount && `${waitingCount} en espera`,
-    pausedCount && `${pausedCount} en pausa`,
-    issueCount && `${issueCount} con incidencias`,
-  ].filter(Boolean);
 
   return (
     <div className="empty-state-page flex h-full min-w-0 flex-col bg-background">
       <PageHeader
         className="overflow-y-hidden [scrollbar-gutter:stable] [&>div]:mx-auto [&>div]:w-full [&>div]:max-w-[1600px]"
         title="Descargas"
-        description={
-          queueSummary.length ? (
-            <span className="flex flex-wrap items-center gap-x-2 gap-y-1 tabular-nums">
-              {queueSummary.map((label, index) => (
-                <span key={label} className="inline-flex items-center gap-2">
-                  {index > 0 && <span aria-hidden="true" className="h-3 w-px bg-border-strong" />}
-                  {label}
-                </span>
-              ))}
-            </span>
-          ) : queue.length > 0 ? (
-            'No hay descargas en curso'
-          ) : (
-            'Cola de descargas'
-          )
-        }
         actions={
           queue.length > 0 && (
             <button

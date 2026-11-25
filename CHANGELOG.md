@@ -1,5 +1,44 @@
 # Changelog
 
+## [1.3.6] - 2026-11-25
+
+### Catálogo
+
+- La barra de episodios de **Detalles** reúne los botones para cambiar al instante entre miniaturas y lista, sin pasar por Ajustes ni usar el menú contextual.
+- Al filtrar los episodios, la ficha indica cuántos de los seleccionados quedan fuera del filtro.
+- El botón del proveedor mantiene su posición mientras se consulta AniList, y el banner aparece de forma gradual cuando termina de cargar.
+- En **Horarios**, los episodios de un mismo bloque comparten la hora del encabezado, sin repetirla en cada fila.
+
+### Librería
+
+- Cada episodio descargado tiene un botón para consultar los detalles del archivo sin abrir el menú contextual.
+- Al ver todas las ubicaciones de la librería, **Abrir carpeta principal** aclara qué carpeta se abrirá.
+- El **Escáner** destaca la acción de vincular en las carpetas pendientes y separa los filtros de ubicación y estado del vínculo.
+
+### Historial
+
+- El **Historial** usa tarjetas en ventanas más estrechas y reserva la tabla para las más anchas.
+- Las acciones para expandir o contraer todos los grupos aparecen solo cuando hay grupos a los que se pueden aplicar.
+
+### Búsqueda
+
+- Los filtros del **Catálogo** separan los criterios de búsqueda de las opciones para ordenar los resultados.
+- Los resultados de **Inicio** muestran hasta dos líneas del título y solo indican la categoría si el proveedor la publica.
+
+### Ajustes
+
+- **Guardar cambios** y **Descartar cambios** quedan juntos al pie de la vista. El aviso indica si hay cambios pendientes, si se están guardando o si es necesario corregir el color de acento.
+- La navegación de Ajustes se adapta al ancho disponible y mantiene visible la sección seleccionada.
+- En **Apariencia y UI**, la vista previa muestra el tema y el acento en un ejemplo de descarga. El acento sugerido sigue el tema seleccionado y solo se aplica al elegirlo.
+- En **Notificaciones**, la maqueta muestra la alerta en la zona seleccionada antes de guardar.
+- Al elegir una tecla reservada para el atajo de búsqueda, el aviso aparece junto al campo.
+- En **Registros**, la acción para eliminar sesiones indica qué se va a borrar y el filtro de respaldos avisa si no encuentra ninguno.
+
+### Interfaz
+
+- La barra lateral compacta muestra el nombre de cada sección al pasar el puntero sobre su icono.
+- Los acentos muy oscuros se aclaran en la interfaz para distinguir mejor los controles, sin modificar el color guardado.
+
 ## [1.3.5] - 2026-11-24
 
 ### General
