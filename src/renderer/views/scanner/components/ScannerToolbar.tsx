@@ -38,6 +38,7 @@ export function ScannerToolbar({
       <div className="scanner-locations">
         {dirs.length > 1 && (
           <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Ubicación de las carpetas">
+            <span className="text-xs font-medium text-muted-foreground">Ubicación</span>
             {['all', ...dirs].map((dir) => (
               <button
                 key={dir}
@@ -68,6 +69,7 @@ export function ScannerToolbar({
         </div>
       )}
       <div className="scanner-status-filters" role="group" aria-label="Estado del vínculo">
+        <span className="self-center text-xs font-medium text-muted-foreground">Vínculo</span>
         {(
           [
             ['all', 'Todas'],

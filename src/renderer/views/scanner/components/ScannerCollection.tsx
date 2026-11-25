@@ -56,7 +56,7 @@ export const ScannerCollection = memo(function ScannerCollection({
                     <span aria-hidden="true" className="scanner-meta-divider" />
                     <span>{getScannerProviderLabel(folder, activeProvider)}</span>
                   </span>
-                  <span className={`scanner-folder-state ${!folder.metaSlug && !blocked ? 'text-destructive-fg' : ''}`}>
+                  <span className={`scanner-folder-state ${!folder.metaSlug && !blocked ? 'text-warning' : ''}`}>
                     <StatusIcon className="h-3 w-3 shrink-0" aria-hidden="true" />
                     {blocked ? 'Otro proveedor' : folder.metaSlug ? 'Vinculada' : 'Sin vínculo'}
                   </span>

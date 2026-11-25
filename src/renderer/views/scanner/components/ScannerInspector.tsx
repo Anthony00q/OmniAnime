@@ -41,7 +41,7 @@ export function ScannerInspector({
           priority
         />
         <div className="min-w-0">
-          <p className={`scanner-inspector-status ${!folder.metaSlug && !relinkDisabled ? 'text-destructive-fg' : ''}`}>
+          <p className={`scanner-inspector-status ${!folder.metaSlug && !relinkDisabled ? 'text-warning' : ''}`}>
             <StatusIcon className="h-4 w-4 shrink-0" aria-hidden="true" />
             {relinkDisabled ? 'Otro proveedor' : folder.metaSlug ? 'Vinculada' : 'Sin vínculo'}
           </p>
@@ -96,7 +96,7 @@ export function ScannerInspector({
           data-keep-focus
           disabled={relinkDisabled || isPending}
           aria-describedby={relinkDisabled ? disabledReasonId : undefined}
-          className="scanner-relink-button"
+          className={`scanner-relink-button ${!folder.metaSlug && !relinkDisabled ? 'scanner-relink-primary' : ''}`}
           onClick={() => onRelink(folder)}
         >
           <Link2 className="h-4 w-4" aria-hidden="true" />

@@ -261,6 +261,17 @@
   background: var(--color-secondary);
 }
 
+.scanner-relink-button.scanner-relink-primary {
+  border-color: transparent;
+  background: var(--color-primary);
+  color: var(--color-primary-foreground);
+  font-weight: 600;
+}
+
+.scanner-relink-button.scanner-relink-primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-primary) 88%, black);
+}
+
 .scanner-relink-button:disabled {
   opacity: 0.5;
   cursor: default;
@@ -277,9 +288,9 @@
   margin-top: 4px;
 }
 
-.scanner-folder-state.text-destructive-fg,
-.scanner-inspector-status.text-destructive-fg {
-  color: var(--color-destructive-fg);
+.scanner-folder-state.text-warning,
+.scanner-inspector-status.text-warning {
+  color: var(--color-warning);
 }
 
 @container scanner (min-width: 640px) {
