@@ -159,28 +159,30 @@ export function Sidebar({ currentView, setCurrentView }: SidebarProps) {
                   </h3>
                 </div>
               )}
-              <button
-                type="button"
-                onClick={() => setCurrentView(item.id)}
-                aria-current={isActive ? 'page' : undefined}
-                aria-label={item.label}
-                className={clsx(
-                  'sidebar-nav-item relative w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium border transition-[background-color,border-color,color,box-shadow] duration-150 [transition-timing-function:var(--ease-out)] outline-none focus-visible:ring-2 focus-visible:ring-primary/60',
-                  isActive
-                    ? 'bg-foreground/[0.06] text-foreground border-foreground/10 shadow-none'
-                    : 'bg-transparent text-muted-foreground border-transparent hover:bg-secondary hover:text-foreground hover:border-border/50',
-                )}
-              >
-                <span
-                  aria-hidden="true"
+              <AppTooltip content={item.label} enabled={!isExpanded} side="right">
+                <button
+                  type="button"
+                  onClick={() => setCurrentView(item.id)}
+                  aria-current={isActive ? 'page' : undefined}
+                  aria-label={item.label}
                   className={clsx(
-                    'absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-full transition-opacity duration-150 [transition-timing-function:var(--ease-out)]',
-                    isActive ? 'bg-primary opacity-100' : 'bg-transparent opacity-0',
+                    'sidebar-nav-item relative w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium border transition-[background-color,border-color,color,box-shadow] duration-150 [transition-timing-function:var(--ease-out)] outline-none focus-visible:ring-2 focus-visible:ring-primary/60',
+                    isActive
+                      ? 'bg-foreground/[0.06] text-foreground border-foreground/10 shadow-none'
+                      : 'bg-transparent text-muted-foreground border-transparent hover:bg-secondary hover:text-foreground hover:border-border/50',
                   )}
-                />
-                <Icon strokeWidth={isActive ? 2 : 1.5} className="w-[18px] h-[18px]" />
-                <span className="sidebar-label">{item.label}</span>
-              </button>
+                >
+                  <span
+                    aria-hidden="true"
+                    className={clsx(
+                      'absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-full transition-opacity duration-150 [transition-timing-function:var(--ease-out)]',
+                      isActive ? 'bg-primary opacity-100' : 'bg-transparent opacity-0',
+                    )}
+                  />
+                  <Icon strokeWidth={isActive ? 2 : 1.5} className="w-[18px] h-[18px]" />
+                  <span className="sidebar-label">{item.label}</span>
+                </button>
+              </AppTooltip>
             </Fragment>
           );
         })}
@@ -202,27 +204,30 @@ export function Sidebar({ currentView, setCurrentView }: SidebarProps) {
           </div>
         )}
         <div aria-hidden="true" className="mx-1 mb-3 h-px bg-border/30" />
-        <button
-          type="button"
-          onClick={() => setCurrentView('settings')}
-          aria-current={currentView === 'settings' ? 'page' : undefined}
-          className={clsx(
-            'sidebar-nav-item relative w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium border transition-[background-color,border-color,color,box-shadow] duration-150 [transition-timing-function:var(--ease-out)] outline-none focus-visible:ring-2 focus-visible:ring-primary/60',
-            currentView === 'settings'
-              ? 'bg-foreground/[0.06] text-foreground border-foreground/10 shadow-none'
-              : 'bg-transparent text-muted-foreground border-transparent hover:bg-secondary hover:text-foreground hover:border-border/50',
-          )}
-        >
-          <span
-            aria-hidden="true"
+        <AppTooltip content="Ajustes" enabled={!isExpanded} side="right">
+          <button
+            type="button"
+            onClick={() => setCurrentView('settings')}
+            aria-current={currentView === 'settings' ? 'page' : undefined}
+            aria-label="Ajustes"
             className={clsx(
-              'absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-full transition-opacity duration-150 [transition-timing-function:var(--ease-out)]',
-              currentView === 'settings' ? 'bg-primary opacity-100' : 'bg-transparent opacity-0',
+              'sidebar-nav-item relative w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium border transition-[background-color,border-color,color,box-shadow] duration-150 [transition-timing-function:var(--ease-out)] outline-none focus-visible:ring-2 focus-visible:ring-primary/60',
+              currentView === 'settings'
+                ? 'bg-foreground/[0.06] text-foreground border-foreground/10 shadow-none'
+                : 'bg-transparent text-muted-foreground border-transparent hover:bg-secondary hover:text-foreground hover:border-border/50',
             )}
-          />
-          <Settings strokeWidth={1.5} className="w-[18px] h-[18px]" />
-          <span className="sidebar-label">Ajustes</span>
-        </button>
+          >
+            <span
+              aria-hidden="true"
+              className={clsx(
+                'absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-full transition-opacity duration-150 [transition-timing-function:var(--ease-out)]',
+                currentView === 'settings' ? 'bg-primary opacity-100' : 'bg-transparent opacity-0',
+              )}
+            />
+            <Settings strokeWidth={1.5} className="w-[18px] h-[18px]" />
+            <span className="sidebar-label">Ajustes</span>
+          </button>
+        </AppTooltip>
       </div>
     </nav>
   );

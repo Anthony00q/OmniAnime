@@ -42,7 +42,7 @@
   --color-border: var(--base-border);
   --color-border-strong: hsl(30 10% 24%);
   --color-input: hsl(30 10% 14%);
-  --color-text-tertiary: hsl(30 7% 49%);
+  --color-text-tertiary: hsl(30 7% 53%);
   --color-ring: hsl(35 20% 80%);
 
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
@@ -91,7 +91,7 @@
   --color-border: hsl(30 8% 12%);
   --color-border-strong: hsl(30 8% 22%);
   --color-input: hsl(30 8% 12%);
-  --color-text-tertiary: hsl(30 6% 45%);
+  --color-text-tertiary: hsl(30 6% 52%);
   --color-brand: hsl(36 60% 72%);
   --color-brand-foreground: hsl(30 45% 8%);
   --font-display: 'Sora', 'Instrument Sans', system-ui, sans-serif;
@@ -108,7 +108,7 @@
   --color-border: hsl(30 18% 18%);
   --color-border-strong: hsl(30 18% 28%);
   --color-input: hsl(30 18% 18%);
-  --color-text-tertiary: hsl(30 12% 51%);
+  --color-text-tertiary: hsl(30 12% 54%);
   --color-brand: hsl(36 75% 68%);
   --color-brand-foreground: hsl(30 45% 10%);
   --font-display: 'Outfit', 'Instrument Sans', system-ui, sans-serif;
@@ -134,7 +134,7 @@
   --color-border: hsl(220 12% 15%);
   --color-border-strong: hsl(220 12% 25%);
   --color-input: hsl(220 12% 15%);
-  --color-text-tertiary: hsl(215 8% 50%);
+  --color-text-tertiary: hsl(215 8% 54%);
   --color-primary: hsl(8 72% 55%);
   --color-primary-foreground: hsl(10 60% 8%);
   --color-brand: hsl(215 25% 68%);
@@ -530,6 +530,26 @@ html[dir='ltr'] {
   transition:
     color 150ms var(--ease-out),
     background-color 150ms var(--ease-out);
+}
+
+.sidebar-provider-button:focus-visible {
+  text-decoration: underline 2px;
+  text-underline-offset: 4px;
+}
+
+.sidebar-provider-button:focus-visible::after {
+  position: absolute;
+  inset: auto calc(50% - 6px) 4px;
+  height: 2px;
+  background: currentColor;
+  content: '';
+}
+
+@media (forced-colors: active) {
+  .sidebar-provider-button:focus-visible::after {
+    forced-color-adjust: none;
+    background: CanvasText;
+  }
 }
 
 .sidebar-provider-indicator {
