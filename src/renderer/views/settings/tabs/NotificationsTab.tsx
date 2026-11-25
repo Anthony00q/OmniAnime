@@ -207,41 +207,48 @@ export const NotificationsTab = memo(function NotificationsTab({
           </p>
         </section>
 
-        <section aria-labelledby="notification-position" className="settings-section flex min-w-0 flex-col p-5 sm:p-6">
-          <div className="mb-4 flex items-start gap-2">
-            <div className="settings-section-icon">
-              <LayoutDashboard className="size-5" aria-hidden="true" />
+        <section
+          aria-labelledby="notification-position"
+          className="settings-section @container/position min-w-0 p-5 sm:p-6"
+        >
+          <div className="grid gap-y-3 @[34rem]/position:grid-cols-[minmax(0,1fr)_20rem] @[34rem]/position:grid-rows-[auto_1fr] @[34rem]/position:gap-x-6">
+            <div className="mb-1 flex items-start gap-2">
+              <div className="settings-section-icon">
+                <LayoutDashboard className="size-5" aria-hidden="true" />
+              </div>
+              <div className="min-w-0 flex-1 space-y-0.5">
+                <h2 id="notification-position" className="text-base font-semibold">
+                  Posición de alertas internas
+                </h2>
+                <p className="text-xs text-muted-foreground">
+                  {TOAST_POSITION_LABELS[settings.toastPosition] || 'Arriba al centro'}
+                </p>
+              </div>
             </div>
-            <div className="flex min-h-8 min-w-0 flex-1 flex-wrap items-center justify-between gap-x-2 gap-y-0.5">
-              <h2 id="notification-position" className="text-base font-semibold">
-                Posición de alertas internas
-              </h2>
-              <p className="text-xs text-muted-foreground">
-                {TOAST_POSITION_LABELS[settings.toastPosition] || 'Arriba al centro'}
+            <div className="w-full max-w-80 @[34rem]/position:col-start-2 @[34rem]/position:row-span-2 @[34rem]/position:row-start-1">
+              <ToastPositionSelector
+                value={settings.toastPosition || 'top-center'}
+                onChange={(v) => onChange('toastPosition', v)}
+              />
+            </div>
+            <div className="w-full max-w-80 @[34rem]/position:col-start-1 @[34rem]/position:self-start">
+              <button
+                type="button"
+                onClick={() => {
+                  toast.success('Notificación de prueba.', {
+                    id: 'notification-preview',
+                    position: settings.toastPosition || 'top-center',
+                  });
+                  if (soundsOn) onTestSound('success');
+                }}
+                className="min-h-11 w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-background hover:bg-secondary border border-border rounded-lg text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+              >
+                <Bell className="w-4 h-4 text-muted-foreground" /> Probar notificación
+              </button>
+              <p className="mt-2 text-center text-xs leading-relaxed text-muted-foreground">
+                Esta posición no cambia las notificaciones de Windows.
               </p>
             </div>
-          </div>
-          <div className="mx-auto w-full max-w-80">
-            <ToastPositionSelector
-              value={settings.toastPosition || 'top-center'}
-              onChange={(v) => onChange('toastPosition', v)}
-            />
-            <button
-              type="button"
-              onClick={() => {
-                toast.success('Notificación de prueba.', {
-                  id: 'notification-preview',
-                  position: settings.toastPosition || 'top-center',
-                });
-                if (soundsOn) onTestSound('success');
-              }}
-              className="mt-3 min-h-11 w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-background hover:bg-secondary border border-border rounded-lg text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
-            >
-              <Bell className="w-4 h-4 text-muted-foreground" /> Probar notificación
-            </button>
-            <p className="mt-2 text-center text-xs leading-relaxed text-muted-foreground">
-              Esta posición no cambia las notificaciones de Windows.
-            </p>
           </div>
         </section>
 
@@ -274,9 +281,12 @@ export const NotificationsTab = memo(function NotificationsTab({
             </div>
           </div>
 
-          <fieldset disabled={!soundsOn} className="min-w-0 space-y-4 transition-opacity disabled:opacity-50">
+          {!soundsOn && (
+            <p className="text-[13px] text-muted-foreground">Activa los sonidos para elegir el timbre y el volumen.</p>
+          )}
+          <fieldset disabled={!soundsOn} className="min-w-0 space-y-4 transition-opacity disabled:opacity-75">
             <div className="settings-option-row">
-              <div className="text-sm font-semibold mb-1">Sonido</div>
+              <div className="text-sm font-semibold mb-1">Timbre</div>
               <p className="text-[13px] text-muted-foreground leading-relaxed mb-3">
                 Elige el timbre. Al pulsar uno suena una muestra.
               </p>
