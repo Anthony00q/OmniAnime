@@ -67,6 +67,13 @@ export function LibraryAnimeDetails({
   const [episodeDetails, setEpisodeDetails] = useState<{ path: string; folderPath: string } | null>(null);
   const episodeTriggerRef = useRef<HTMLButtonElement | null>(null);
   const closeEpisodeMenu = useCallback(() => setEpisodeMenu(null), []);
+  const openEpisodeDetails = useCallback(
+    (path: string, trigger: HTMLButtonElement) => {
+      episodeTriggerRef.current = trigger;
+      setEpisodeDetails({ path, folderPath: folderData.path });
+    },
+    [folderData.path],
+  );
   const handleEpisodeContextMenu = useCallback(
     (event: ReactMouseEvent<HTMLButtonElement> | ReactKeyboardEvent<HTMLButtonElement>, path: string) => {
       event.preventDefault();
@@ -383,19 +390,18 @@ export function LibraryAnimeDetails({
                 onClick={handleOpenFolder}
                 className="group flex items-center gap-2 rounded-full border border-border bg-secondary/80 px-3 py-2 text-sm font-medium text-foreground backdrop-blur-md transition-[background-color,border-color,box-shadow,transform] duration-200 hover:bg-secondary hover:border-border-strong hover:shadow-md hover:shadow-black/10 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 sm:px-4"
               >
-                <FolderOpen className="h-4 w-4 transition-transform duration-200 group-hover:scale-110" /> Abrir
-                Directorio
+                <FolderOpen className="h-4 w-4" /> Abrir carpeta
               </button>
 
               <button
                 type="button"
                 onClick={() => setShowMenu(!showMenu)}
                 disabled={libActions.isMutating}
-                aria-label="Abrir gestión de archivos"
+                aria-label="Gestionar archivos"
                 aria-expanded={showMenu}
-                className="group flex items-center justify-center rounded-full border border-border bg-secondary/80 p-2 text-foreground backdrop-blur-md transition-[background-color,border-color,box-shadow,transform] duration-200 hover:bg-secondary hover:border-border-strong hover:shadow-md hover:shadow-black/10 active:scale-[0.95] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                className="flex min-h-11 items-center gap-2 rounded-full border border-border bg-secondary/80 px-3 text-sm font-medium text-foreground transition-colors hover:border-border-strong hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-50"
               >
-                <Settings className="h-4 w-4 transition-transform duration-300 group-hover:rotate-90" />
+                <Settings className="size-4 shrink-0" aria-hidden="true" /> Gestionar archivos
               </button>
             </div>
 
@@ -552,6 +558,7 @@ export function LibraryAnimeDetails({
                   onPlay={handlePlay}
                   onDelete={handleDelete}
                   onContextMenu={handleEpisodeContextMenu}
+                  onDetails={openEpisodeDetails}
                   thumbToken={thumbEpoch}
                 />
               ))}

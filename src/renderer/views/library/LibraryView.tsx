@@ -231,7 +231,7 @@ export function LibraryView({ onSelectAnime, activeProvider, isActive }: Library
   return (
     <div className="empty-state-page flex h-full min-w-0 flex-col bg-background pt-10">
       <PageHeader
-        title="Librería Local"
+        title="Librería local"
         description="Tu colección, estante por estante"
         actions={
           <div className="flex items-center gap-2 sm:gap-3">
@@ -254,7 +254,9 @@ export function LibraryView({ onSelectAnime, activeProvider, isActive }: Library
               className="flex items-center gap-2 rounded-lg border border-border/70 bg-secondary px-3 py-2 text-sm text-foreground transition-colors hover:bg-secondary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 sm:px-4"
             >
               <FolderOpen className="h-4 w-4" />
-              <span>Abrir Carpeta</span>
+              <span>
+                {selectedDirFilter === 'all' && dirs.length > 1 ? 'Abrir carpeta principal' : 'Abrir carpeta'}
+              </span>
             </button>
           </div>
         }
@@ -326,7 +328,7 @@ export function LibraryView({ onSelectAnime, activeProvider, isActive }: Library
             variant="page"
             isActive={isActive}
             icon={<FolderOpen className="h-6 w-6" aria-hidden="true" />}
-            title="Aún sin estantes"
+            title="No hay carpetas configuradas"
             description="Configura al menos una carpeta de descarga en Ajustes para comenzar tu colección."
             actionLabel="Abrir Ajustes"
             onAction={() => setView('settings')}
@@ -342,7 +344,7 @@ export function LibraryView({ onSelectAnime, activeProvider, isActive }: Library
             variant="page"
             isActive={isActive}
             icon={<Library className="h-6 w-6" aria-hidden="true" />}
-            title="Estantería vacía"
+            title="Tu librería está vacía"
             description="No se encontraron animes en las carpetas configuradas. Explora el catálogo para añadir contenido."
             actionLabel="Explorar catálogo"
             onAction={() => navigateToCatalog()}
@@ -362,7 +364,7 @@ export function LibraryView({ onSelectAnime, activeProvider, isActive }: Library
           <EmptyState
             variant="contextual"
             icon={<Search className="h-6 w-6" aria-hidden="true" />}
-            title="Nada en esta balda"
+            title="No hay animes en esta ubicación"
             description="No hay animes en la carpeta seleccionada. Prueba con otra ubicación o descarga contenido nuevo."
             actionLabel="Ver todas"
             onAction={() => setSelectedDirFilter('all')}

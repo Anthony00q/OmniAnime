@@ -1,5 +1,5 @@
 import { memo, type MouseEvent as ReactMouseEvent, type KeyboardEvent as ReactKeyboardEvent } from 'react';
-import { Trash2 } from 'lucide-react';
+import { Info, Trash2 } from 'lucide-react';
 import { EpisodeThumbnail } from '@/renderer/components/EpisodeThumbnail';
 import { AppTooltip } from '@/renderer/components/ui/AppTooltip';
 import { buildLibraryEpisodeTitle } from '@/renderer/views/library/libraryEpisodePresentation';
@@ -9,12 +9,14 @@ export const EpisodeRow = memo(
     ep,
     onPlay,
     onDelete,
+    onDetails,
     onContextMenu,
     thumbToken = 0,
   }: {
     ep: any;
     onPlay: (path: string) => void;
     onDelete: (path: string) => void;
+    onDetails?: (path: string, trigger: HTMLButtonElement) => void;
     onContextMenu: (
       event: ReactMouseEvent<HTMLButtonElement> | ReactKeyboardEvent<HTMLButtonElement>,
       path: string,
@@ -43,7 +45,7 @@ export const EpisodeRow = memo(
         >
           <EpisodeThumbnail videoPath={ep.path} thumbToken={thumbToken} />
         </button>
-        <div className="library-episode-file flex min-w-0 items-start gap-3">
+        <div className="library-episode-file flex min-w-0 items-start gap-1">
           <div className="library-episode-title min-w-0 select-none">
             <span className="line-clamp-2 text-base font-semibold leading-snug tracking-tight text-foreground/75">
               {displayName}
@@ -52,13 +54,27 @@ export const EpisodeRow = memo(
               <span className="mt-1 block text-[13px] tabular-nums text-muted-foreground">{episodeLabel}</span>
             )}
           </div>
+          {onDetails && (
+            <AppTooltip content="Detalles del archivo">
+              <button
+                type="button"
+                onClick={(event) => onDetails(ep.path, event.currentTarget)}
+                aria-label={`Ver detalles de ${ep.name}`}
+                data-native-tab
+                data-keep-focus
+                className="grid size-11 shrink-0 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+              >
+                <Info className="size-4" aria-hidden="true" />
+              </button>
+            </AppTooltip>
+          )}
           <AppTooltip content="Eliminar archivo">
             <button
               type="button"
               onClick={() => onDelete(ep.path)}
               aria-label={`Eliminar ${ep.name}`}
               data-keep-focus
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive-fg"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-text-tertiary transition-colors hover:bg-destructive/10 hover:text-destructive-fg"
             >
               <Trash2 className="h-4 w-4" />
             </button>
@@ -75,6 +91,7 @@ export const EpisodeRow = memo(
     prev.ep.ext === next.ep.ext &&
     prev.thumbToken === next.thumbToken &&
     prev.onPlay === next.onPlay &&
+    prev.onDetails === next.onDetails &&
     prev.onContextMenu === next.onContextMenu &&
     prev.onDelete === next.onDelete,
 );
