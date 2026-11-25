@@ -299,6 +299,7 @@ export function CatalogView() {
         >
           <div className="catalog-filters-content">
             <div className="custom-scrollbar grid max-h-[40vh] shrink-0 grid-cols-2 gap-3 overflow-y-auto px-4 pb-4 pt-2 sm:grid-cols-3 sm:px-8 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
+              <h2 className="col-span-full text-sm font-semibold">Refinar por</h2>
               {filterData.categories && filterData.categories.length > 0 && (
                 <CustomSelect
                   value={(activeFilters.category as string) || ''}
@@ -345,36 +346,6 @@ export function CatalogView() {
                   ]}
                   onChange={(v) => updateFilter('status', v)}
                   ariaLabel="Filtrar por estado"
-                  allowClear
-                />
-              )}
-
-              {filterData.orders && filterData.orders.length > 0 && (
-                <CustomSelect
-                  value={(activeFilters.order as string) || ''}
-                  options={[
-                    { value: '', label: 'Orden' },
-                    ...filterData.orders
-                      .filter((o: any) => o.id !== '')
-                      .map((o: any) => ({ value: o.id || o.name, label: o.name })),
-                  ]}
-                  onChange={(v) => updateFilter('order', v)}
-                  ariaLabel="Ordenar catálogo"
-                  allowClear
-                />
-              )}
-
-              {filterData.orderDirs && filterData.orderDirs.length > 0 && (
-                <CustomSelect
-                  value={(activeFilters.orderDir as string) || ''}
-                  options={[
-                    { value: '', label: 'Descendente' },
-                    ...filterData.orderDirs
-                      .filter((d: any) => d.id !== '')
-                      .map((d: any) => ({ value: d.id || d.name, label: d.name })),
-                  ]}
-                  onChange={(v) => updateFilter('orderDir', v)}
-                  ariaLabel="Dirección del orden"
                   allowClear
                 />
               )}
@@ -497,6 +468,39 @@ export function CatalogView() {
                     <span className="text-sm font-bold text-foreground tabular-nums">{shownMaxYear}</span>
                   </div>
                 </div>
+              )}
+              {((filterData.orders?.length ?? 0) > 0 || (filterData.orderDirs?.length ?? 0) > 0) && (
+                <h2 className="col-span-full border-t border-border/60 pt-3 text-sm font-semibold">
+                  Ordenar resultados
+                </h2>
+              )}
+              {filterData.orders && filterData.orders.length > 0 && (
+                <CustomSelect
+                  value={(activeFilters.order as string) || ''}
+                  options={[
+                    { value: '', label: 'Orden' },
+                    ...filterData.orders
+                      .filter((o: any) => o.id !== '')
+                      .map((o: any) => ({ value: o.id || o.name, label: o.name })),
+                  ]}
+                  onChange={(v) => updateFilter('order', v)}
+                  ariaLabel="Ordenar catálogo"
+                  allowClear
+                />
+              )}
+              {filterData.orderDirs && filterData.orderDirs.length > 0 && (
+                <CustomSelect
+                  value={(activeFilters.orderDir as string) || ''}
+                  options={[
+                    { value: '', label: 'Descendente' },
+                    ...filterData.orderDirs
+                      .filter((d: any) => d.id !== '')
+                      .map((d: any) => ({ value: d.id || d.name, label: d.name })),
+                  ]}
+                  onChange={(v) => updateFilter('orderDir', v)}
+                  ariaLabel="Dirección del orden"
+                  allowClear
+                />
               )}
             </div>
           </div>
