@@ -39,7 +39,7 @@ export const HistoryTable = memo(function HistoryTable({
 }: HistoryTableProps) {
   return (
     <div
-      className="mx-auto hidden w-full max-w-5xl overflow-x-auto rounded-xl border border-border/50 bg-card shadow-sm lg:block xl:max-w-6xl 2xl:max-w-7xl"
+      className="mx-auto w-full max-w-5xl overflow-x-auto rounded-xl border border-border/50 bg-card shadow-sm xl:max-w-6xl 2xl:max-w-7xl"
       role="region"
       aria-label="Historial agrupado por anime — tabla"
     >

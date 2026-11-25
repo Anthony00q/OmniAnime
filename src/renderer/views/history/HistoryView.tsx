@@ -50,7 +50,9 @@ export function HistoryView({ isActive, activeProvider, onSelectAnime }: History
   const grouped = useMemo(() => groupHistory(history), [history]);
   const totalEpisodes = grouped.reduce((total, group) => total + group.requestedCount, 0);
   const totalGroups = grouped.length;
-  const isDesktopLayout = useDesktopBreakpoint();
+  const isDesktopLayout = useDesktopBreakpoint('(min-width: 1160px)');
+  const allExpanded = totalGroups > 0 && grouped.every(({ key }) => expandedGroups.has(key));
+  const anyExpanded = grouped.some(({ key }) => expandedGroups.has(key));
 
   const handleClearHistory = async () => {
     setClearModal(false);
@@ -111,7 +113,9 @@ export function HistoryView({ isActive, activeProvider, onSelectAnime }: History
   return (
     <div className="empty-state-page flex h-full min-w-0 flex-col bg-background">
       <PageHeader
-        className="overflow-y-hidden [scrollbar-gutter:stable] [&>div]:mx-auto [&>div]:w-full [&>div]:max-w-2xl lg:[&>div]:max-w-5xl xl:[&>div]:max-w-6xl 2xl:[&>div]:max-w-7xl"
+        className={`overflow-y-hidden [scrollbar-gutter:stable] [&>div]:mx-auto [&>div]:w-full ${
+          isDesktopLayout ? '[&>div]:max-w-5xl xl:[&>div]:max-w-6xl 2xl:[&>div]:max-w-7xl' : '[&>div]:max-w-2xl'
+        }`}
         title="Historial"
         description={
           <span className="flex flex-col gap-1">
@@ -142,26 +146,24 @@ export function HistoryView({ isActive, activeProvider, onSelectAnime }: History
           </span>
         }
         actions={
-          <div className="flex items-center gap-2">
-            {totalGroups > 0 && (
-              <>
-                <button
-                  type="button"
-                  onClick={handleExpandAll}
-                  className="hidden min-h-11 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 sm:flex"
-                >
-                  <ChevronDown className="w-3.5 h-3.5" />
-                  <span>Expandir</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={collapseAll}
-                  className="hidden min-h-11 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 sm:flex"
-                >
-                  <ChevronRight className="w-3.5 h-3.5" />
-                  <span>Colapsar</span>
-                </button>
-              </>
+          <div className="flex flex-wrap items-center gap-2">
+            {totalGroups > 0 && !allExpanded && (
+              <button
+                type="button"
+                onClick={handleExpandAll}
+                className="flex min-h-11 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+              >
+                <ChevronDown className="size-3.5" /> Expandir todo
+              </button>
+            )}
+            {anyExpanded && (
+              <button
+                type="button"
+                onClick={collapseAll}
+                className="flex min-h-11 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+              >
+                <ChevronRight className="size-3.5" /> Contraer todo
+              </button>
             )}
             {history.length > 0 && (
               <button
@@ -214,7 +216,7 @@ export function HistoryView({ isActive, activeProvider, onSelectAnime }: History
                 onDeleteGroup={setDeleteGroupKey}
               />
             ) : (
-              <div className="mx-auto flex max-w-2xl flex-col gap-3 lg:hidden">
+              <div className="mx-auto flex max-w-2xl flex-col gap-3">
                 {grouped.map((group) => (
                   <HistoryGroupCard
                     key={group.key}
