@@ -238,6 +238,7 @@ export function ScheduleView({ isActive }: { isActive?: boolean }) {
                             nowMs={nowMs}
                             onSelect={handleSelectAnime}
                             isNext={entry.slug === nextSlug}
+                            timeInHeading={Boolean(group.time)}
                             priority={idx === 0 && index < 2}
                           />
                         </li>

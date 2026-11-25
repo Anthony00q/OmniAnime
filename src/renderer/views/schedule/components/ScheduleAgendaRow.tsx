@@ -15,6 +15,7 @@ interface ScheduleAgendaRowProps {
   onSelect: (slug: string) => void;
   isNext?: boolean;
   priority?: boolean;
+  timeInHeading?: boolean;
 }
 
 const LABEL_TONE: Record<ScheduleLabelTone, string> = {
@@ -25,8 +26,18 @@ const LABEL_TONE: Record<ScheduleLabelTone, string> = {
 
 // Etiqueta con la forma de la fuente: estado pegado a la hora con hairline, nunca
 // con punto. "Sigue" ocupa el hueco del estado.
-function ScheduleLabelPill({ label, isNext }: { label: ScheduleRowLabel; isNext: boolean }) {
+function ScheduleLabelPill({
+  label,
+  isNext,
+  timeInHeading,
+}: {
+  label: ScheduleRowLabel;
+  isNext: boolean;
+  timeInHeading: boolean;
+}) {
   const state = isNext ? 'Sigue' : label.state;
+  const time = timeInHeading ? null : label.time;
+  if (!state && !time) return null;
   return (
     <span
       className={clsx(
@@ -34,15 +45,14 @@ function ScheduleLabelPill({ label, isNext }: { label: ScheduleRowLabel; isNext:
         isNext ? 'border-primary/30 bg-primary/15 text-primary' : LABEL_TONE[label.tone],
       )}
     >
-      <span className="sr-only">{isNext ? `Sigue · ${label.text}` : label.text}</span>
       <span aria-hidden="true" className="flex flex-nowrap items-center gap-1.5">
         {state ? (
           <>
             <span>{state}</span>
-            {label.time ? <span className="h-3 w-px bg-border-strong/70" /> : null}
+            {time ? <span className="h-3 w-px bg-border-strong/70" /> : null}
           </>
         ) : null}
-        {label.time ? <span className="text-foreground">{label.time}</span> : null}
+        {time ? <span className="text-foreground">{time}</span> : null}
       </span>
     </span>
   );
@@ -54,6 +64,7 @@ export const ScheduleAgendaRow = memo(function ScheduleAgendaRow({
   onSelect,
   isNext = false,
   priority = false,
+  timeInHeading = false,
 }: ScheduleAgendaRowProps) {
   const label = scheduleRowLabel(entry, scheduleEntryState(entry, nowMs));
 
@@ -62,6 +73,7 @@ export const ScheduleAgendaRow = memo(function ScheduleAgendaRow({
       type="button"
       onClick={() => onSelect(entry.slug)}
       aria-label={`Ver ficha de ${entry.title}`}
+      aria-description={isNext ? `Sigue · ${label?.text ?? ''}` : label?.text}
       className={clsx(
         'group flex w-full items-center gap-4 px-2 py-4 text-left transition-colors hover:bg-secondary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/60',
         isNext && 'bg-primary/5 hover:bg-primary/10',
@@ -83,7 +95,7 @@ export const ScheduleAgendaRow = memo(function ScheduleAgendaRow({
       </span>
       {label && (
         <span className="flex shrink-0 items-center justify-end sm:w-40">
-          <ScheduleLabelPill label={label} isNext={isNext} />
+          <ScheduleLabelPill label={label} isNext={isNext} timeInHeading={timeInHeading} />
         </span>
       )}
     </button>
