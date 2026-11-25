@@ -525,6 +525,7 @@ const DescargasAvanzado = memo(function DescargasAvanzado({ settings, onChange }
             options={DOWNLOAD_START_TIMEOUT_OPTIONS.map((o) => ({ ...o }))}
           />
         </div>
+        <h3 className="mt-3 text-sm font-semibold">Limpieza de descargas</h3>
         <div className="settings-option-row flex items-center justify-between gap-3">
           <div className="min-w-0">
             <div className="text-sm font-semibold leading-tight flex items-center gap-1.5">

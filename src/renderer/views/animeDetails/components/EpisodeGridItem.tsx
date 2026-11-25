@@ -1,4 +1,4 @@
-import { memo, type MouseEvent as ReactMouseEvent } from 'react';
+import { memo } from 'react';
 import { Ban, CheckSquare, TriangleAlert, VolumeX } from 'lucide-react';
 import { PosterImage } from '@/renderer/components/anime/PosterImage';
 import { AppTooltip } from '@/renderer/components/ui/AppTooltip';
@@ -12,7 +12,6 @@ interface EpisodeGridItemProps {
   isListView: boolean;
   availability?: EpisodeAvailability | 'pending';
   onToggle: (num: number) => void;
-  onContextMenu?: (event: ReactMouseEvent) => void;
 }
 
 export const EpisodeGridItem = memo(
@@ -24,7 +23,6 @@ export const EpisodeGridItem = memo(
     isListView,
     availability,
     onToggle,
-    onContextMenu,
   }: EpisodeGridItemProps) {
     const blocked = availability !== undefined && availability !== 'available';
     const showThumbnail = !isListView && Boolean(thumbnail);
@@ -56,12 +54,11 @@ export const EpisodeGridItem = memo(
           onClick={() => {
             if (!blocked) onToggle(num);
           }}
-          onContextMenu={onContextMenu}
           aria-pressed={isChecked}
           aria-disabled={blocked || undefined}
           aria-describedby={availability ? 'dub-availability-note' : undefined}
           data-episode-number={num}
-          aria-label={`Episodio ${num}${title && title !== 'Sin título' ? `: ${title}` : ''}${stateLabel ? `. ${stateLabel}` : ''}. Clic derecho para cambiar la vista.`}
+          aria-label={`Episodio ${num}${title && title !== 'Sin título' ? `: ${title}` : ''}${stateLabel ? `. ${stateLabel}` : ''}`}
           className={`${isListView ? 'details-episode-row' : 'details-episode-card'} ${blocked ? 'cursor-not-allowed' : ''} @container/episode-tile group relative flex flex-col overflow-hidden rounded-xl border text-left transition-[background-color,border-color,box-shadow,color] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 ${
             isChecked
               ? isListView
@@ -156,6 +153,5 @@ export const EpisodeGridItem = memo(
     prev.thumbnail === next.thumbnail &&
     prev.isListView === next.isListView &&
     prev.availability === next.availability &&
-    prev.onToggle === next.onToggle &&
-    prev.onContextMenu === next.onContextMenu,
+    prev.onToggle === next.onToggle,
 );

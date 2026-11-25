@@ -320,7 +320,11 @@ export const LogsTab = memo(function LogsTab({ isActive = true }: LogsTabProps) 
             <EmptyState
               variant="compact"
               title="Registro vacío"
-              description="Todavía no hay sesiones guardadas en este equipo."
+              description={
+                fileFilter === 'backup'
+                  ? 'No hay respaldos de sesiones en este equipo.'
+                  : 'Todavía no hay sesiones guardadas en este equipo.'
+              }
             />
           ) : (
             <>
@@ -345,14 +349,14 @@ export const LogsTab = memo(function LogsTab({ isActive = true }: LogsTabProps) 
                       onClick={() => setSelected(new Set())}
                       className="text-[11px] font-semibold text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 rounded"
                     >
-                      Soltar
+                      Quitar selección
                     </button>
                     <button
                       type="button"
                       onClick={() => setConfirmOpen(true)}
                       className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-destructive/10 border border-destructive/20 text-destructive-fg text-[11px] font-bold transition-colors hover:bg-destructive/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
                     >
-                      <Trash2 className="w-3 h-3" /> Liberar espacio
+                      <Trash2 className="w-3 h-3" /> Eliminar sesiones…
                     </button>
                   </span>
                 ) : (
@@ -501,7 +505,7 @@ export const LogsTab = memo(function LogsTab({ isActive = true }: LogsTabProps) 
                 {modalEntries.map((e: any, i: number) => (
                   <li
                     key={`${e.ts}-${i}`}
-                    className={`px-3 py-1.5 rounded-md font-mono text-xs leading-relaxed whitespace-pre-wrap break-all select-text tabular-nums ${i % 2 === 1 ? 'bg-secondary/30' : ''}`}
+                    className={`px-3 py-1.5 rounded-md font-mono text-xs leading-relaxed whitespace-pre-wrap [overflow-wrap:anywhere] select-text tabular-nums ${i % 2 === 1 ? 'bg-secondary/30' : ''}`}
                   >
                     <span className="text-muted-foreground">{e.ts ? e.ts.replace('T', ' ').slice(0, 19) : ''}</span>
                     <span className={`font-bold ${levelTone(String(e.level))}`}>
@@ -537,9 +541,9 @@ export const LogsTab = memo(function LogsTab({ isActive = true }: LogsTabProps) 
         onOpenChange={(open) => {
           if (!deleting) setConfirmOpen(open);
         }}
-        title="¿Liberar espacio?"
+        title="¿Eliminar las sesiones seleccionadas?"
         message={`Se quitarán ${selected.size} ${selected.size === 1 ? 'sesión anterior' : 'sesiones anteriores'} de este equipo. La que está en curso se conserva.`}
-        confirmLabel="Liberar"
+        confirmLabel="Eliminar sesiones"
         cancelLabel="Conservar"
         danger={true}
         confirmLoading={deleting}

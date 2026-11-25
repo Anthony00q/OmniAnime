@@ -36,13 +36,6 @@ import {
   reorderOutputDirs,
 } from './utils/settingsHelpers';
 import { isValidOutputDirString } from '@/utils/outputDirs';
-import {
-  EPISODE_VIEW_EVENT,
-  getEpisodeView,
-  normalizeEpisodeView,
-  setEpisodeView,
-  type EpisodeView,
-} from '@/renderer/utils/episodeView';
 
 export function SettingsView({
   isActive = true,
@@ -74,21 +67,6 @@ export function SettingsView({
   const [restartHasDownloads, setRestartHasDownloads] = useState(false);
   const [restartLoading, setRestartLoading] = useState(false);
   const [accentInput, setAccentInput] = useState<string>(settings?.accentColor || '');
-  // Vista de episodios (localStorage): en Ajustes se estadía hasta Guardar,
-  // desde Detalles aplica al instante. Un cambio externo limpia el staged.
-  const [pendingEpView, setPendingEpView] = useState<EpisodeView | null>(null);
-  const [liveEpView, setLiveEpView] = useState<EpisodeView>(getEpisodeView);
-  const handleEpViewChange = useCallback((view: EpisodeView) => {
-    setPendingEpView(normalizeEpisodeView(view));
-  }, []);
-  useEffect(() => {
-    const onExternalChange = () => {
-      setPendingEpView(null);
-      setLiveEpView(getEpisodeView());
-    };
-    window.addEventListener(EPISODE_VIEW_EVENT, onExternalChange);
-    return () => window.removeEventListener(EPISODE_VIEW_EVENT, onExternalChange);
-  }, []);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const prevHwAccelRef = useRef<boolean | null>(settings ? settings.hardwareAcceleration !== false : null);
   const prevProviderRef = useRef<string | null>(settings ? settings.defaultProvider || 'animeav1' : null);
@@ -125,7 +103,6 @@ export function SettingsView({
   }, [settings]);
 
   const isDirty = useMemo(() => {
-    if (pendingEpView !== null && pendingEpView !== liveEpView) return true;
     if (!initialSettings || !settings || !initialSettingsJson) return false;
     try {
       const a = settings as AppSettings;
@@ -135,7 +112,7 @@ export function SettingsView({
     } catch {
       return false;
     }
-  }, [settings, initialSettings, initialSettingsJson, normalizedSettingsJson, pendingEpView, liveEpView]);
+  }, [settings, initialSettings, initialSettingsJson, normalizedSettingsJson]);
 
   const accentHex = useMemo(
     () => getAccentHex((settings as AppSettings | null)?.accentColor || '#e8a33d'),
@@ -234,16 +211,10 @@ export function SettingsView({
     const hwChanged = (nextSettings?.hardwareAcceleration !== false) !== prevHwAccelRef.current;
     const providerChanged = (nextSettings?.defaultProvider || 'animeav1') !== (prevProviderRef.current || 'animeav1');
 
-    const committedEpView = pendingEpView;
     saveSettings.mutate(nextSettings as unknown as Record<string, unknown>, {
       onSuccess: () => {
         prevHwAccelRef.current = nextSettings?.hardwareAcceleration !== false;
         prevProviderRef.current = nextSettings?.defaultProvider || 'animeav1';
-        if (committedEpView !== null) {
-          setEpisodeView(committedEpView);
-          setPendingEpView(null);
-          setLiveEpView(committedEpView);
-        }
         toast.success('Configuración guardada');
         setSettings(nextSettings);
         setInitialSettings(nextSettings);
@@ -284,7 +255,6 @@ export function SettingsView({
         onSuccess: () => {
           prevHwAccelRef.current = nextSettings?.hardwareAcceleration !== false;
           prevProviderRef.current = nextSettings?.defaultProvider || 'animeav1';
-          setPendingEpView(null);
           setSettings(nextSettings);
           setInitialSettings(nextSettings);
           try {
@@ -312,7 +282,6 @@ export function SettingsView({
   };
 
   const handleDiscard = useCallback(() => {
-    setPendingEpView(null);
     if (!initialSettings) return;
     setSettings(initialSettings);
     setAccentInput(initialSettings.accentColor || DEFAULT_ACCENT_HEX);
@@ -454,15 +423,15 @@ export function SettingsView({
   const outputDirs: string[] = settings.outputDirs || [settings.defaultOutputDir];
 
   return (
-    <div className="flex h-full min-w-0 flex-col bg-background text-foreground">
-      <SettingsHeader isDirty={isDirty} onDiscard={handleDiscard} />
+    <div className="@container/settings-shell flex h-full min-w-0 flex-col bg-background text-foreground">
+      <SettingsHeader />
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden min-[960px]:flex-row">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden @min-[58rem]/settings-shell:flex-row">
         <SettingsTabNav activeTab={activeTab} onTabChange={setActiveTab} />
 
         <div
           data-view-scroller
-          className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-6 min-[960px]:p-8 min-[960px]:pt-6 custom-scrollbar [scrollbar-gutter:stable]"
+          className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-6 @min-[58rem]/settings-shell:px-8 custom-scrollbar [scrollbar-gutter:stable]"
         >
           <div className="settings-content @container/settings settings-tab-enter mx-auto flex w-full max-w-4xl flex-col gap-6 pb-8 xl:max-w-6xl 2xl:max-w-7xl">
             {activeTab === 'sistema' && (
@@ -492,7 +461,6 @@ export function SettingsView({
             {activeTab === 'apariencia' && (
               <AppearanceTab
                 theme={(settings as AppSettings).theme}
-                savedTheme={(initialSettings as AppSettings)?.theme ?? (settings as AppSettings).theme}
                 savedAccentHex={getAccentHex(initialSettings?.accentColor || DEFAULT_ACCENT_HEX)}
                 accentHex={accentHex}
                 accentInput={accentInput}
@@ -500,8 +468,6 @@ export function SettingsView({
                 onThemeChange={handleThemeChange}
                 onAccentPreset={handleAccentPreset}
                 onAccentInputChange={handleAccentInputChange}
-                epViewPending={pendingEpView}
-                onEpViewChange={handleEpViewChange}
               />
             )}
 
@@ -529,10 +495,12 @@ export function SettingsView({
       </div>
 
       <SettingsFooter
-        isDirty={isDirty}
+        isDirty={isDirty || !accentInputValid}
+        canSave={isDirty && accentInputValid}
         isSaved={isSaved}
         isSaving={saveSettings.isPending}
         onRestore={handleRestore}
+        onDiscard={handleDiscard}
         onSave={handleSave}
       />
       <Dialog

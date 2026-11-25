@@ -19,10 +19,10 @@ export const THEME_SUGGESTED_ACCENT: Record<ThemeId, string> = {
 export { DEFAULT_ACCENT_HEX };
 
 export const THEME_META: Record<ThemeId, { desc: string; hint: string; shortLabel: string }> = {
-  dark: { desc: 'Fondo marrón oscuro con acento ámbar', hint: 'Recomendado', shortLabel: 'Oscuro cálido' },
+  dark: { desc: 'Penumbra cálida y títulos suaves', hint: 'Recomendado', shortLabel: 'Oscuro cálido' },
   oled: { desc: 'Negro total para pantallas OLED', hint: '', shortLabel: 'Negro puro' },
-  quantum: { desc: 'Tonos tierra con acento cobre', hint: '', shortLabel: 'Marrón oscuro' },
-  tinta: { desc: 'Tonos fríos con acento rojo', hint: '', shortLabel: 'Gris azulado' },
+  quantum: { desc: 'Tonos tierra y superficies más marcadas', hint: '', shortLabel: 'Marrón oscuro' },
+  tinta: { desc: 'Tonos fríos y títulos estrechos', hint: '', shortLabel: 'Gris azulado' },
 };
 
 export const THEME_IDS = Object.keys(THEME_META) as ThemeId[];

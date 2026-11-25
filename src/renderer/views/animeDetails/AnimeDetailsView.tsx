@@ -1,18 +1,8 @@
-import {
-  useEffect,
-  useLayoutEffect,
-  useState,
-  useRef,
-  useMemo,
-  useCallback,
-  useDeferredValue,
-  type MouseEvent as ReactMouseEvent,
-} from 'react';
+import { useEffect, useLayoutEffect, useState, useRef, useMemo, useCallback, useDeferredValue } from 'react';
 import {
   ArrowLeft,
   ArrowDownUp,
   Download,
-  Clock,
   Star,
   CheckSquare,
   Square,
@@ -26,6 +16,7 @@ import {
   Link2,
   RefreshCcw,
   ListFilter,
+  LayoutGrid,
 } from 'lucide-react';
 import { VList, type VListHandle } from 'virtua';
 import { useQueryClient } from '@tanstack/react-query';
@@ -42,7 +33,6 @@ import { useAppNavigation } from '@/renderer/hooks/useAppNavigation';
 import { parseEpisodeFilter } from '@/renderer/utils/episodeFilter';
 import { parseEpisodeNumber } from '@/utils/episodeNumber';
 import { useEpisodeView } from '@/renderer/utils/episodeView';
-import { EpisodeViewMenu } from '@/renderer/views/library/components/EpisodeViewMenu';
 import { normalizeSeasonLabel } from '@/renderer/utils/seasonLabel';
 import { HERO_DIM_MAX, HERO_DIM_DISTANCE, createHeroDimController } from '@/renderer/utils/heroDim';
 import { useReducedMotion, useBusySpin } from '@/renderer/utils/motion';
@@ -148,7 +138,6 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
     if (isActive === false) {
       setShowRangeModal(false);
       setShowDirPicker(false);
-      setViewMenu(null);
     }
   }, [isActive]);
 
@@ -167,12 +156,6 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [epQuery, setEpQuery] = useState('');
   const [epView, setEpView] = useEpisodeView();
-  const [viewMenu, setViewMenu] = useState<{ x: number; y: number } | null>(null);
-  const handleEpContextMenu = useCallback((event: ReactMouseEvent) => {
-    event.preventDefault();
-    setViewMenu({ x: event.clientX, y: event.clientY });
-  }, []);
-  const closeViewMenu = useCallback(() => setViewMenu(null), []);
 
   useEffect(() => {
     setSelected(new Set());
@@ -188,7 +171,6 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
     setSelectedDirIndex(0);
     setSortDir('asc');
     setEpQuery('');
-    setViewMenu(null);
     setThumbWindow(null);
     lastThumbReqRef.current = '';
   }, [slug, activeProviderId]);
@@ -388,6 +370,9 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
     return list;
   }, [allEpisodes, episodeFilter, sortDir]);
   const visibleEpNums = useMemo(() => visibleEpisodes.map((e) => e.num), [visibleEpisodes]);
+  const hiddenSelected = episodeFilter
+    ? selected.size - visibleEpNums.filter((number) => selected.has(number)).length
+    : 0;
 
   const rows = useMemo(() => {
     const r: VisibleEpisode[][] = [];
@@ -882,9 +867,7 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
 
             <section ref={episodesRef} className="@container/episodes">
               <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-                <h3 className="flex shrink-0 items-center gap-2 text-xl font-bold text-foreground">
-                  <Clock className="h-5 w-5 text-primary" /> Episodios
-                </h3>
+                <h3 className="shrink-0 text-xl font-bold text-foreground">Episodios</h3>
                 <div className="flex min-w-0 flex-wrap items-center gap-1.5">
                   <EpisodeAvailabilityControl
                     lang={selectedLang}
@@ -936,6 +919,36 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
                       <ArrowDownUp className="h-4 w-4" />
                     </button>
                   </AppTooltip>
+                  <div
+                    role="group"
+                    aria-label="Vista de episodios"
+                    className="flex flex-none items-center rounded-lg border border-border/60 bg-surface p-0.5"
+                  >
+                    {(
+                      [
+                        ['cards', 'Miniaturas', LayoutGrid],
+                        ['list', 'Lista', List],
+                      ] as const
+                    ).map(([value, label, Icon]) => (
+                      <AppTooltip key={value} content={label}>
+                        <button
+                          type="button"
+                          aria-label={label}
+                          aria-pressed={epView === value}
+                          data-native-tab
+                          data-keep-focus
+                          onClick={() => setEpView(value)}
+                          className={`grid size-11 place-items-center rounded-md transition-colors ${
+                            epView === value
+                              ? 'bg-surface-elevated text-foreground'
+                              : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
+                          }`}
+                        >
+                          <Icon className="size-4" aria-hidden="true" />
+                        </button>
+                      </AppTooltip>
+                    ))}
+                  </div>
                 </div>
               </div>
 
@@ -991,14 +1004,16 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
                   )}
                 </div>
                 <div className="flex min-w-0 flex-wrap items-center justify-end gap-3 @[720px]/episodes:flex-nowrap">
-                  <span className="w-[20ch] shrink-0 whitespace-nowrap text-right text-xs font-medium tabular-nums text-muted-foreground">
-                    {selected.size} seleccionado(s)
+                  <span className="w-[20ch] shrink-0 text-right text-xs font-medium tabular-nums text-muted-foreground">
+                    {selected.size} {selected.size === 1 ? 'seleccionado' : 'seleccionados'}
+                    {hiddenSelected > 0 && <span className="block">{hiddenSelected} fuera del filtro</span>}
                   </span>
                   <button
                     type="button"
                     onClick={handleDownloadSelected}
                     disabled={selected.size === 0 || addToQueue.isPending}
-                    className="flex w-40 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold tabular-nums text-primary-foreground shadow-[0_8px_24px_rgba(0,0,0,0.35)] transition-colors hover:bg-[color-mix(in_srgb,var(--color-primary)_88%,black)] disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
+                    data-keep-focus
+                    className="flex min-h-11 w-40 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-primary px-3 text-xs font-semibold tabular-nums text-primary-foreground transition-colors hover:bg-[color-mix(in_srgb,var(--color-primary)_88%,black)] disabled:cursor-not-allowed disabled:bg-surface-elevated disabled:text-muted-foreground"
                   >
                     <Download className="w-3.5 h-3.5" />
                     Descargar ({selected.size})
@@ -1050,7 +1065,6 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
                           isListView={!withThumbs}
                           availability={selectedLang === 'DUB' ? dub.states[num] || 'pending' : undefined}
                           onToggle={toggleEp}
-                          onContextMenu={handleEpContextMenu}
                         />
                       ))}
                     </div>
@@ -1074,19 +1088,9 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
                       isListView={!withThumbs}
                       availability={selectedLang === 'DUB' ? dub.states[num] || 'pending' : undefined}
                       onToggle={toggleEp}
-                      onContextMenu={handleEpContextMenu}
                     />
                   ))}
                 </div>
-              )}
-              {viewMenu && (
-                <EpisodeViewMenu
-                  x={viewMenu.x}
-                  y={viewMenu.y}
-                  view={epView}
-                  onSelect={setEpView}
-                  onClose={closeViewMenu}
-                />
               )}
             </section>
           </div>
@@ -1320,6 +1324,7 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
               onChange={setRangeFrom}
               min={0}
               ariaLabel="Desde"
+              focusTone="neutral"
               inputClassName="bg-secondary/50 py-2 pl-3 text-sm"
             />
           </div>
@@ -1332,6 +1337,7 @@ export function AnimeDetailsView({ slug, onBack, onSelectAnime, isActive }: Anim
               onChange={setRangeTo}
               min={0}
               ariaLabel="Hasta"
+              focusTone="neutral"
               inputClassName="bg-secondary/50 py-2 pl-3 text-sm"
             />
           </div>

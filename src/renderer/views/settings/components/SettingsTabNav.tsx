@@ -1,4 +1,4 @@
-import { memo, useEffect, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import { unwrap } from '@/renderer/hooks/queries/unwrap';
 import { HardDrive, Download, Database, Palette, Bell, Keyboard, ScrollText } from 'lucide-react';
 
@@ -38,7 +38,7 @@ const TABS: TabDef[] = [
     id: 'apariencia',
     icon: <Palette className="w-4 h-4" />,
     label: 'Apariencia y UI',
-    desc: 'Tema, acento y vista',
+    desc: 'Tema y color de acento',
   },
   {
     id: 'notificaciones',
@@ -58,6 +58,28 @@ interface SettingsTabNavProps {
 
 export const SettingsTabNav = memo(function SettingsTabNav({ activeTab, onTabChange }: SettingsTabNavProps) {
   const [appVersion, setAppVersion] = useState<string | null>(null);
+  const navRef = useRef<HTMLElement>(null);
+  const currentTabRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    const nav = navRef.current;
+    const tab = currentTabRef.current;
+    if (!nav || !tab) return;
+    const reveal = () => {
+      const frame = nav.getBoundingClientRect();
+      const selected = tab.getBoundingClientRect();
+      const right = frame.left + nav.clientWidth;
+      const bottom = frame.top + nav.clientHeight;
+      if (selected.left < frame.left) nav.scrollLeft += selected.left - frame.left - 8;
+      else if (selected.right > right) nav.scrollLeft += selected.right - right + 8;
+      if (selected.top < frame.top) nav.scrollTop += selected.top - frame.top - 8;
+      else if (selected.bottom > bottom) nav.scrollTop += selected.bottom - bottom + 8;
+    };
+    reveal();
+    const observer = new ResizeObserver(reveal);
+    observer.observe(nav);
+    return () => observer.disconnect();
+  }, [activeTab]);
 
   useEffect(() => {
     let cancelled = false;
@@ -74,14 +96,21 @@ export const SettingsTabNav = memo(function SettingsTabNav({ activeTab, onTabCha
   }, []);
 
   return (
-    <div className="flex w-full shrink-0 gap-2 overflow-x-auto border-b border-border/30 bg-background/50 p-3 sm:p-4 min-[960px]:w-[264px] min-[960px]:flex-col min-[960px]:overflow-visible min-[960px]:border-b-0 min-[960px]:border-r min-[960px]:p-6 min-[960px]:pt-6 backdrop-blur-sm">
+    <nav
+      ref={navRef}
+      aria-label="Secciones de Ajustes"
+      className="flex w-full shrink-0 gap-2 overflow-x-auto border-b border-border/30 bg-background p-3 @min-[58rem]/settings-shell:w-60 @min-[58rem]/settings-shell:flex-col @min-[58rem]/settings-shell:overflow-x-hidden @min-[58rem]/settings-shell:overflow-y-auto @min-[58rem]/settings-shell:border-r @min-[58rem]/settings-shell:border-b-0 @min-[58rem]/settings-shell:p-4"
+    >
       {TABS.map((tab) => (
         <button
           key={tab.id}
+          ref={activeTab === tab.id ? currentTabRef : undefined}
           type="button"
           onClick={() => onTabChange(tab.id)}
           aria-current={activeTab === tab.id ? 'page' : undefined}
-          className={`group flex min-w-max items-center gap-3 rounded-lg px-3 py-3 text-left border transition-colors duration-(--duration-motion-micro) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 min-[960px]:min-w-0 ${
+          data-native-tab
+          data-keep-focus
+          className={`group flex min-h-11 min-w-max shrink-0 items-center gap-2.5 rounded-lg border px-3 py-2 text-left transition-colors duration-(--duration-motion-micro) @min-[58rem]/settings-shell:min-w-0 ${
             activeTab === tab.id
               ? 'bg-secondary/70 border-border/60 text-foreground'
               : 'bg-transparent text-muted-foreground border-transparent hover:bg-secondary/60 hover:text-foreground hover:border-border/50'
@@ -94,15 +123,17 @@ export const SettingsTabNav = memo(function SettingsTabNav({ activeTab, onTabCha
           </span>
           <span className="flex flex-col">
             <span className="text-sm font-semibold tracking-tight leading-none">{tab.label}</span>
-            <span className="text-[11px] leading-snug mt-1 text-muted-foreground">{tab.desc}</span>
+            <span className="sr-only mt-1 text-[11px] leading-snug text-muted-foreground @min-[58rem]/settings-shell:not-sr-only">
+              {tab.desc}
+            </span>
           </span>
         </button>
       ))}
       {appVersion && (
-        <p className="hidden min-[960px]:block mt-3 text-center text-[11px] text-muted-foreground/70 tabular-nums">
+        <p className="mt-3 hidden text-center text-[11px] text-muted-foreground tabular-nums @min-[58rem]/settings-shell:block">
           OmniAnime v{appVersion}
         </p>
       )}
-    </div>
+    </nav>
   );
 });

@@ -54,15 +54,17 @@ const StorageDiskRow = memo(function StorageDiskRow({
                 <span aria-hidden="true" className="text-border-strong">
                   |
                 </span>{' '}
-                {freeText}
-                {' libres'}
+                <span className="font-medium text-foreground tabular-nums">
+                  {freeText}
+                  {' libres'}
+                </span>
               </div>
             )}
           </div>
         </div>
         {pct != null && (
           <span
-            className={`shrink-0 text-xs font-bold px-2 py-1 rounded-full border ${pct > 85 ? 'bg-destructive/10 text-destructive-fg border-destructive/20' : pct > 70 ? 'bg-warning/10 text-warning border-warning/20' : 'bg-success/10 text-success border-success/20'}`}
+            className={`shrink-0 text-xs font-semibold tabular-nums px-2 py-1 rounded-full border ${pct > 85 ? 'bg-destructive/10 text-destructive-fg border-destructive/20' : pct > 70 ? 'bg-warning/10 text-warning border-warning/20' : 'text-muted-foreground border-border'}`}
           >
             {Math.round(pct)}
             {'% usado'}
@@ -72,7 +74,7 @@ const StorageDiskRow = memo(function StorageDiskRow({
       {pct != null && (
         <div className="mt-3 h-2 rounded-full bg-secondary overflow-hidden border border-border/40">
           <div
-            className={`h-full rounded-full origin-left transition-[transform,background-color] ${pct > 85 ? 'bg-destructive' : pct > 70 ? 'bg-warning' : 'bg-primary'}`}
+            className={`h-full rounded-full origin-left transition-[transform,background-color] ${pct > 85 ? 'bg-destructive' : pct > 70 ? 'bg-warning' : 'bg-muted-foreground'}`}
             style={{ width: '100%', transform: `scaleX(${pct / 100})` }}
           />
         </div>

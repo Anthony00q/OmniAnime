@@ -1,9 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
 
-// Vista de episodios en Detalles: 'cards' con miniatura, 'list' numérico.
-// Store compartido en localStorage (precedente: episode-density): persiste
-// entre sesiones sin backend y sincroniza Detalles ↔ Ajustes por evento,
-// ya que las vistas quedan vivas (keep-alive) y 'storage' no dispara local.
 export type EpisodeView = 'cards' | 'list';
 
 const STORAGE_KEY = 'omnianime:episode-view';

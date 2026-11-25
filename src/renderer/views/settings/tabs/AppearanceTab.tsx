@@ -1,72 +1,14 @@
 import { memo, useCallback, type CSSProperties } from 'react';
-import { Palette, Eye, Check, AlertCircle, Copy, LayoutGrid, List, Minus, Square, X } from 'lucide-react';
+import { Palette, Eye, Check, AlertCircle, Copy, Minus, Square, X, Download, Clapperboard } from 'lucide-react';
 import { THEME_META, THEME_IDS, ACCENT_PRESETS, THEME_SUGGESTED_ACCENT } from '@/renderer/views/settings/constants';
 import type { ThemeId } from '@/types/settings';
 import { isActiveTheme } from '@/renderer/views/settings/utils/settingsHelpers';
 import { AppTooltip } from '@/renderer/components/ui/AppTooltip';
-import { useEpisodeView, type EpisodeView } from '@/renderer/utils/episodeView';
 import { AccentColorPicker } from '@/renderer/views/settings/components/AccentColorPicker';
-
-// Controlada por SettingsView: el cambio se estadía hasta Guardar (desde
-// Detalles aplica al instante). El valor en vivo sincroniza sola al guardar
-// o al cambiar fuera, ya que el staged solo vive si no hubo cambio externo.
-const EpisodeViewSetting = memo(function EpisodeViewSetting({
-  pending,
-  onChange,
-}: {
-  pending: EpisodeView | null;
-  onChange: (view: EpisodeView) => void;
-}) {
-  const [live] = useEpisodeView();
-  const view = pending ?? live;
-  const options: Array<{ value: EpisodeView; label: string; desc: string; Icon: typeof LayoutGrid }> = [
-    { value: 'cards', label: 'Miniaturas', desc: 'Con imagen', Icon: LayoutGrid },
-    { value: 'list', label: 'Lista', desc: 'Solo texto', Icon: List },
-  ];
-  return (
-    <div>
-      <div className="mb-4 flex items-center gap-2">
-        <div className="settings-section-icon">
-          <LayoutGrid className="size-5" aria-hidden="true" />
-        </div>
-        <div>
-          <h2 className="text-base font-semibold">Vista de episodios</h2>
-          <p className="mt-0.5 text-[13px] text-muted-foreground">Cómo se muestran los episodios en Detalles.</p>
-        </div>
-      </div>
-      <div role="radiogroup" aria-label="Vista de episodios" className="grid grid-cols-2 gap-3">
-        {options.map(({ value, label, desc, Icon }) => {
-          const active = view === value;
-          return (
-            <button
-              key={value}
-              type="button"
-              role="radio"
-              aria-checked={active}
-              onClick={() => onChange(value)}
-              className={`flex items-center gap-3 rounded-lg border p-3 text-left transition-colors duration-(--duration-motion-micro) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 ${
-                active
-                  ? 'border-primary/60 bg-primary/5'
-                  : 'border-border/60 bg-background hover:border-border hover:bg-secondary/30'
-              }`}
-            >
-              <Icon className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-              <span className="min-w-0">
-                <span className="block text-sm font-semibold leading-none text-foreground">{label}</span>
-                <span className="mt-1 block text-xs text-muted-foreground">{desc}</span>
-              </span>
-              {active && <Check className="ml-auto h-4 w-4 shrink-0 text-primary" aria-hidden="true" />}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-});
+import { getInterfaceAccent } from '@/renderer/utils/color';
 
 interface AppearanceTabProps {
   theme: ThemeId;
-  savedTheme: ThemeId;
   savedAccentHex: string;
   accentHex: string;
   accentInput: string;
@@ -74,8 +16,6 @@ interface AppearanceTabProps {
   onThemeChange: (theme: ThemeId) => void;
   onAccentPreset: (hex: string) => void;
   onAccentInputChange: (raw: string) => void;
-  epViewPending: EpisodeView | null;
-  onEpViewChange: (view: EpisodeView) => void;
 }
 
 const ThemeMiniPreview = memo(function ThemeMiniPreview({
@@ -90,7 +30,7 @@ const ThemeMiniPreview = memo(function ThemeMiniPreview({
     <div
       aria-hidden="true"
       className={`theme-preview relative overflow-hidden rounded-[10px] border border-border/50 bg-background min-w-0 ${themeClass}`}
-      style={{ '--color-primary': accentHex } as CSSProperties}
+      style={{ '--color-primary': getInterfaceAccent(accentHex) } as CSSProperties}
     >
       <div className="h-6 flex items-center gap-2 px-2 bg-card border-b border-border/40 text-muted-foreground">
         <span className="w-8 h-1.5 rounded bg-foreground/15" />
@@ -124,7 +64,6 @@ const ThemeMiniPreview = memo(function ThemeMiniPreview({
 export const AppearanceTab = memo(
   function AppearanceTab({
     theme,
-    savedTheme,
     savedAccentHex,
     accentHex,
     accentInput,
@@ -132,10 +71,9 @@ export const AppearanceTab = memo(
     onThemeChange,
     onAccentPreset,
     onAccentInputChange,
-    epViewPending,
-    onEpViewChange,
   }: AppearanceTabProps) {
     const normalizedAccentLower = accentHex.toLowerCase();
+    const interfaceAccent = getInterfaceAccent(accentHex);
 
     const copyAccent = useCallback(async () => {
       try {
@@ -189,7 +127,7 @@ export const AppearanceTab = memo(
 
     const showError = !accentInputValid && accentInput.trim() !== '';
     const isEmpty = accentInput.trim() === '';
-    const suggestedHex = THEME_SUGGESTED_ACCENT[savedTheme];
+    const suggestedHex = THEME_SUGGESTED_ACCENT[theme];
     const showSuggested = normalizedAccentLower !== suggestedHex.toLowerCase();
     const accentDescribedBy = showError ? 'accent-error' : isEmpty ? 'accent-hint-empty' : 'accent-hint';
 
@@ -323,7 +261,7 @@ export const AppearanceTab = memo(
                       <button
                         type="button"
                         onClick={() => onAccentPreset(suggestedHex)}
-                        aria-label={`Usar el acento sugerido para ${THEME_META[savedTheme].shortLabel}: ${suggestedHex}`}
+                        aria-label={`Usar el acento sugerido para ${THEME_META[theme].shortLabel}: ${suggestedHex}`}
                         className={`ml-auto inline-flex max-w-full items-center gap-1.5 rounded-full border border-border/60 px-2.5 py-1 text-[11px] font-semibold text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 ${showSuggested ? '' : 'invisible'}`}
                       >
                         <span
@@ -331,7 +269,7 @@ export const AppearanceTab = memo(
                           style={{ background: suggestedHex }}
                           aria-hidden="true"
                         />
-                        Sugerido: {THEME_META[savedTheme].shortLabel}
+                        Sugerido: {THEME_META[theme].shortLabel}
                       </button>
                     </div>
                     <div
@@ -371,15 +309,15 @@ export const AppearanceTab = memo(
 
               <div className="min-w-0">
                 <div className="w-full max-w-[30rem] @4xl/settings:sticky @4xl/settings:top-4 @4xl/settings:max-w-none">
-                  <div className="settings-subpanel min-w-0 overflow-hidden">
+                  <div className="min-w-0">
                     <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold">
                       <Eye className="size-3.5 text-muted-foreground" aria-hidden="true" /> Vista previa del tema y
                       acento
                     </h3>
 
                     <div
-                      className={`theme-preview space-y-3 text-foreground ${theme === 'dark' ? '' : `theme-${theme}`}`}
-                      style={{ '--color-primary': accentHex } as CSSProperties}
+                      className={`theme-preview @container/theme-sample text-foreground ${theme === 'dark' ? '' : `theme-${theme}`}`}
+                      style={{ '--color-primary': interfaceAccent } as CSSProperties}
                       aria-hidden="true"
                     >
                       <div className="rounded-lg border border-border/50 bg-card overflow-hidden">
@@ -389,98 +327,46 @@ export const AppearanceTab = memo(
                           <Square className="w-2.5 h-2.5" />
                           <X className="w-2.5 h-2.5" />
                         </div>
-                        <div className="p-3 flex gap-3">
-                          <div className="w-20 shrink-0">
-                            <div className="aspect-[2/3] rounded-lg bg-secondary border border-border/40 overflow-hidden relative">
-                              <div
-                                className="absolute inset-0 bg-gradient-to-br from-foreground/5 to-transparent"
-                                aria-hidden="true"
-                              />
-                              <div className="absolute inset-x-1.5 bottom-1.5 h-1 rounded-full bg-secondary/80 border border-border/30 overflow-hidden">
-                                <div className="h-full w-[68%] rounded-full bg-primary" />
-                              </div>
-                              <div className="absolute top-1.5 left-1.5 rounded bg-primary px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-primary-foreground">
-                                EP 7
-                              </div>
-                            </div>
-                            <div className="h-2.5 w-3/4 rounded bg-foreground/10 mt-2" />
-                            <div className="h-2 w-1/2 rounded bg-foreground/5 mt-1" />
+                        <div className="flex items-center gap-3 p-3 @[20rem]/theme-sample:gap-4 @[20rem]/theme-sample:p-4">
+                          <div className="relative grid aspect-[2/3] w-12 shrink-0 place-items-center overflow-hidden rounded-md border border-border-strong/60 bg-surface-elevated text-brand @[20rem]/theme-sample:w-16">
+                            <span className="pointer-events-none absolute inset-x-1.5 top-1.5 h-px bg-brand/25" />
+                            <Clapperboard className="size-5" strokeWidth={1.5} />
+                            <span className="pointer-events-none absolute inset-x-1.5 bottom-1.5 h-px bg-brand/25" />
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="mb-2 h-2 w-14 rounded-full bg-primary" aria-hidden="true" />
-                            <div className="h-3 w-full rounded bg-foreground/10 mb-1.5" />
-                            <div className="h-3 w-2/3 rounded bg-foreground/5 mb-3" />
-                            <div className="flex flex-wrap gap-1.5 mb-3">
-                              <span className="inline-flex items-center rounded bg-primary px-2 py-0.5 text-[11px] font-semibold text-primary-foreground">
-                                Primario
-                              </span>
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-secondary border border-border">
-                                Secundario
-                              </span>
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-secondary border border-border">
-                                <span className="size-1.5 rounded-full bg-primary" aria-hidden="true" />
-                                En curso
-                              </span>
-                            </div>
-                            <div className="flex gap-2 flex-wrap">
-                              <div className="flex-1 min-w-[74px] rounded-lg bg-primary px-3 py-2 text-center text-xs font-semibold text-primary-foreground cursor-default select-none transition-colors">
-                                Botón
-                              </div>
-                              <div className="flex-1 min-w-[104px] rounded-lg px-3 py-2 text-center text-xs font-semibold bg-secondary border border-border cursor-default select-none">
-                                Secundario
-                              </div>
+                          <div className="min-w-0 space-y-2">
+                            <p className="font-display text-base font-bold leading-tight">La última función</p>
+                            <p className="text-[11px] text-muted-foreground">Episodios 7–9 · SUB</p>
+                            <div className="inline-flex max-w-full items-center gap-1.5 rounded-md bg-primary px-2.5 py-1.5 text-xs font-semibold text-primary-foreground">
+                              <Download className="size-3 shrink-0" /> Descargar (3)
                             </div>
                           </div>
                         </div>
-                      </div>
-
-                      <div className="rounded-lg border border-border/50 bg-popover p-2.5 flex items-center gap-2.5">
-                        <span
-                          className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground"
-                          aria-hidden="true"
-                        >
-                          <Check className="w-3.5 h-3.5" />
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <div className="h-2.5 w-24 rounded bg-foreground/10 mb-1" />
-                          <div className="h-2 w-16 rounded bg-foreground/5" />
+                        <div className="flex items-center gap-2 border-t border-border/50 bg-surface px-3 py-2.5 @[20rem]/theme-sample:px-4">
+                          <Check className="size-3.5 shrink-0 text-success" />
+                          <p className="min-w-0 text-xs font-medium">Se descargaron 3 episodios</p>
                         </div>
-                        <span className="text-[11px] font-medium text-muted-foreground">ahora</span>
-                      </div>
-
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground px-1">
-                        <span
-                          className="size-2 rounded-full bg-primary transition-colors duration-200"
-                          aria-hidden="true"
-                        />
-                        Anillo de foco, selección y barra de descarga usarán este acento.
                       </div>
                     </div>
                   </div>
                   <p className="text-xs text-muted-foreground mt-3 leading-relaxed">
-                    El tema y el acento se aplican a la interfaz al guardar.
+                    Los cambios se aplican al guardar. La interfaz aclara los acentos muy oscuros sin cambiar el color
+                    elegido.
                   </p>
                 </div>
               </div>
             </div>
           </div>
         </section>
-        <section className="settings-section p-5 sm:p-6">
-          <EpisodeViewSetting pending={epViewPending} onChange={onEpViewChange} />
-        </section>
       </div>
     );
   },
   (prev, next) =>
     prev.theme === next.theme &&
-    prev.savedTheme === next.savedTheme &&
     prev.savedAccentHex === next.savedAccentHex &&
     prev.accentHex === next.accentHex &&
     prev.accentInput === next.accentInput &&
     prev.accentInputValid === next.accentInputValid &&
     prev.onThemeChange === next.onThemeChange &&
     prev.onAccentPreset === next.onAccentPreset &&
-    prev.onAccentInputChange === next.onAccentInputChange &&
-    prev.epViewPending === next.epViewPending &&
-    prev.onEpViewChange === next.onEpViewChange,
+    prev.onAccentInputChange === next.onAccentInputChange,
 );

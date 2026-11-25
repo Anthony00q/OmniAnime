@@ -54,17 +54,22 @@ test('contextBridge retira solo la suscripción solicitada y bloquea entregas ta
 test('Ajustes conserva el borrador entre pestañas y Descartar recupera el valor', async ({ harness }) => {
   const page = harness.page;
   await page.getByRole('button', { name: 'Ajustes', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Configuración' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Ajustes', exact: true })).toBeVisible();
+  const save = page.getByRole('button', { name: 'Guardar cambios' });
+  const discard = page.getByRole('button', { name: 'Descartar cambios' });
+  await expect(save).toBeDisabled();
   const toggle = page.getByRole('switch', { name: 'Minimizar a la bandeja al cerrar' });
   await expect(toggle).not.toBeChecked();
   await toggle.click();
-  await expect(page.getByRole('button', { name: 'Descartar cambios sin guardar' })).toBeVisible();
+  await expect(discard).toBeVisible();
+  await expect(save).toBeEnabled();
   await page.getByRole('button', { name: /Apariencia y UI/ }).click();
   await page.getByRole('button', { name: /^Sistema/ }).click();
   await expect(toggle).toBeChecked();
-  await expect(page.getByRole('button', { name: 'Descartar cambios sin guardar' })).toBeVisible();
-  await page.getByRole('button', { name: 'Descartar cambios sin guardar' }).click();
-  await expect(page.getByRole('button', { name: 'Descartar cambios sin guardar' })).toHaveCount(0);
+  await expect(discard).toBeVisible();
+  await discard.click();
+  await expect(discard).toHaveCount(0);
+  await expect(save).toBeDisabled();
   await expect(toggle).not.toBeChecked();
   expect(harness.errors).toEqual([]);
 });
@@ -82,8 +87,8 @@ test('la confirmación atrapa el foco y Escape cierra sin restablecer los ajuste
   }
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
-  await expect(page.getByRole('heading', { name: 'Configuración' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Descartar cambios sin guardar' })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Ajustes', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Descartar cambios' })).toHaveCount(0);
 });
 
 test('el selector cambia de proveedor por teclado sin navegar a otra vista', async ({ harness }) => {

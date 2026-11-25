@@ -253,8 +253,8 @@ export const SystemTab = memo(function SystemTab({
             ariaLabel="Proveedor por defecto al iniciar"
             className="w-full"
             options={[
-              { value: 'animeav1', label: 'AnimeAV1 — Principal' },
-              { value: 'jkanime', label: 'JkAnime — Secundario' },
+              { value: 'animeav1', label: 'AnimeAV1' },
+              { value: 'jkanime', label: 'JkAnime' },
             ]}
           />
         </div>

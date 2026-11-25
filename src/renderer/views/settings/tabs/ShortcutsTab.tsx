@@ -1,5 +1,4 @@
-import { memo, useId } from 'react';
-import { toast } from 'sonner';
+import { memo, useId, useState } from 'react';
 import { Keyboard, Layers, RotateCcw, X } from 'lucide-react';
 
 const RESERVED_SEARCH_KEYS = new Set(['A', 'C', 'V', 'X', 'Z', 'Y', 'W', 'R']);
@@ -11,6 +10,7 @@ interface ShortcutsTabProps {
 
 export const ShortcutsTab = memo(function ShortcutsTab({ settings, onChange }: ShortcutsTabProps) {
   const searchKeyHintId = useId();
+  const [reservedKey, setReservedKey] = useState(false);
   return (
     <div className="space-y-6">
       <section className="settings-section">
@@ -46,13 +46,14 @@ export const ShortcutsTab = memo(function ShortcutsTab({ settings, onChange }: S
               <div className="pl-11 @xl/settings:min-w-40 @xl/settings:justify-self-end @xl/settings:pl-0">
                 <div className="flex items-center gap-2">
                   <kbd className="inline-flex h-9 items-center px-2.5 bg-secondary/40 border border-border rounded-lg text-xs font-semibold">
-                    CTRL
+                    Ctrl
                   </kbd>
                   <span className="text-muted-foreground">+</span>
                   <label className="relative">
                     <input
                       aria-label="Atajo de teclado para buscar"
                       aria-describedby={searchKeyHintId}
+                      aria-invalid={reservedKey || undefined}
                       type="text"
                       maxLength={1}
                       value={settings.shortcuts?.search || 'F'}
@@ -61,9 +62,10 @@ export const ShortcutsTab = memo(function ShortcutsTab({ settings, onChange }: S
                         if (v.length > 1) return;
                         const next = v || 'F';
                         if (RESERVED_SEARCH_KEYS.has(next)) {
-                          toast.error('Esa tecla está reservada (copiar, pegar…). Elige otra.');
+                          setReservedKey(true);
                           return;
                         }
+                        setReservedKey(false);
                         onChange('search', next, 'shortcuts');
                       }}
                       onFocus={(e) => e.target.select()}
@@ -72,8 +74,12 @@ export const ShortcutsTab = memo(function ShortcutsTab({ settings, onChange }: S
                     />
                   </label>
                 </div>
-                <p id={searchKeyHintId} className="mt-1.5 text-xs text-muted-foreground">
-                  Una letra o número
+                <p
+                  id={searchKeyHintId}
+                  className={`mt-1.5 text-xs ${reservedKey ? 'text-destructive-fg' : 'text-muted-foreground'}`}
+                  aria-live="polite"
+                >
+                  {reservedKey ? 'Esa tecla está reservada. Elige otra.' : 'Una letra o número'}
                 </p>
               </div>
             </div>
@@ -129,6 +135,7 @@ export const ShortcutsTab = memo(function ShortcutsTab({ settings, onChange }: S
             <button
               type="button"
               onClick={() => {
+                setReservedKey(false);
                 onChange('search', 'F', 'shortcuts');
                 onChange('close', 'Escape', 'shortcuts');
                 onChange('prevView', 'ArrowLeft', 'shortcuts');

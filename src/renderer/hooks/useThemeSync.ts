@@ -1,14 +1,13 @@
 import { useLayoutEffect, useRef } from 'react';
 import { useAtomValue } from 'jotai';
 import { themeAtom, accentColorAtom } from '@/renderer/store/atoms';
-import { getAccentHex } from '@/renderer/utils/color';
+import { getInterfaceAccent } from '@/renderer/utils/color';
 
 export function useThemeSync(): void {
   const theme = useAtomValue(themeAtom);
   const accentColor = useAtomValue(accentColorAtom);
   const prevThemeRef = useRef<string | null>(null);
   const prevAccentHexRef = useRef<string | null>(null);
-  const accentRafRef = useRef<number | null>(null);
 
   useLayoutEffect(() => {
     if (prevThemeRef.current !== theme) {
@@ -25,21 +24,9 @@ export function useThemeSync(): void {
   }, [theme]);
 
   useLayoutEffect(() => {
-    const normalized = getAccentHex(accentColor);
+    const normalized = getInterfaceAccent(accentColor);
     if (prevAccentHexRef.current === normalized) return;
     prevAccentHexRef.current = normalized;
-    if (accentRafRef.current !== null) cancelAnimationFrame(accentRafRef.current);
-    accentRafRef.current = requestAnimationFrame(() => {
-      if (prevAccentHexRef.current === normalized) {
-        document.documentElement.style.setProperty('--color-primary', normalized);
-      }
-      accentRafRef.current = null;
-    });
-    return () => {
-      if (accentRafRef.current !== null) {
-        cancelAnimationFrame(accentRafRef.current);
-        accentRafRef.current = null;
-      }
-    };
+    document.documentElement.style.setProperty('--color-primary', normalized);
   }, [accentColor]);
 }

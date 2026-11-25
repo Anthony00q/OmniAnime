@@ -89,6 +89,31 @@ export function getAccentHex(color: string | undefined | null, fallback = DEFAUL
   return normalizeAccentToHex(String(color || '').trim() || fallback, fallback);
 }
 
+export function getInterfaceAccent(color: string | undefined | null): string {
+  const chosen = getAccentHex(color);
+  const channels = [1, 3, 5].map((offset) => Number.parseInt(chosen.slice(offset, offset + 2), 16));
+  const getLuminance = (rgb: number[]) =>
+    rgb.reduce((sum, value, index) => {
+      const channel = value / 255;
+      const linear = channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+      return sum + linear * [0.2126, 0.7152, 0.0722][index];
+    }, 0);
+
+  const minimum = 0.28;
+  if (getLuminance(channels) >= minimum) return chosen;
+  const mixWithWhite = (amount: number) => channels.map((channel) => Math.round(channel + (255 - channel) * amount));
+  let low = 0;
+  let high = 1;
+  for (let step = 0; step < 10; step++) {
+    const middle = (low + high) / 2;
+    if (getLuminance(mixWithWhite(middle)) < minimum) low = middle;
+    else high = middle;
+  }
+  return `#${mixWithWhite(high)
+    .map((channel) => channel.toString(16).padStart(2, '0'))
+    .join('')}`;
+}
+
 export function isThemeValue(value: unknown): value is 'dark' | 'oled' | 'quantum' | 'tinta' {
   return value === 'dark' || value === 'oled' || value === 'quantum' || value === 'tinta';
 }
