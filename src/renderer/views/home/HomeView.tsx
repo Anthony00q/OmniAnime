@@ -185,7 +185,7 @@ export function HomeView({ isActive }: { isActive?: boolean }) {
 
   return (
     <div className="empty-state-page flex flex-col h-full">
-      <PageHeader layout="inline" title="Episodios recientes" description={`Últimas publicaciones de ${providerName}`}>
+      <PageHeader layout="inline" title="Episodios recientes">
         <div className="search-container relative z-50">
           <SearchField
             value={visibleSearchQuery}
@@ -246,11 +246,11 @@ export function HomeView({ isActive }: { isActive?: boolean }) {
                         />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <h4 className="line-clamp-1 text-sm font-bold text-foreground">{item.title}</h4>
+                        <h4 className="line-clamp-2 text-sm font-semibold text-foreground">{item.title}</h4>
                         <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
-                          <span className="rounded bg-primary/20 px-1.5 py-0.5 text-[11px] font-bold uppercase text-primary">
-                            {item.category || 'ANIME'}
-                          </span>
+                          {item.category && (
+                            <span className="text-[11px] font-semibold text-muted-foreground">{item.category}</span>
+                          )}
                           <span>{item.year || item.status || ''}</span>
                         </div>
                       </div>
@@ -354,7 +354,7 @@ export function HomeView({ isActive }: { isActive?: boolean }) {
                   className="text-[13px] font-medium normal-case tracking-normal text-text-tertiary tabular-nums select-none"
                   role="status"
                 >
-                  {visibleItems.length} {visibleItems.length === 1 ? 'anime reciente' : 'animes recientes'}{' '}
+                  {visibleItems.length} {visibleItems.length === 1 ? 'publicación' : 'publicaciones'}{' '}
                   <span aria-hidden="true" className="text-border-strong">
                     |
                   </span>{' '}
